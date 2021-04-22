@@ -3,6 +3,8 @@ import numpy as np
 from utils import are_coplanar
 
 
+# TODO: Check if the compute 3D phase functions need normalized vectors or not
+
 def compute_3D_phase(phases, q_vectors, support):
 
     # First load the vectors of the measurement frame.
