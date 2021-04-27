@@ -39,7 +39,7 @@ def get_data_from_cxi(file, *items):
             data_dic["llkf"] = float(data["entry_1/image_1/process_1/results/" \
                                           "free_llk_poisson"][...])
 
-        if "llk" in items:branch
+        if "llk" in items:
             data_dic["llk"] = float(data["entry_1/image_1/process_1/results/" \
                                           "llk_poisson"][...])
 
