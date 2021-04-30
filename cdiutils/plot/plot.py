@@ -61,18 +61,22 @@ def fancy_plot(data, title=None, log_scale=False, figsize=None, cmap='jet'):
     plt.show()
 
 
-def plot_3D_object(data, support=None, object="modulus",
+def plot_3D_object(data, support=None, complex_object=False,
                    cmap="jet", title="", vmin=None, vmax=None):
     if support is None:
         support = np.ones(shape=data.shape)
-    if object == "modulus":
+    if complex_object:
         data_of_interest = np.where(support > 0, np.abs(data), 0)
-    elif object == "phase":
+    else:
         data_of_interest = np.where(support > 0, data, 0)
     nonzero_coordinates = data_of_interest.nonzero()
     nonzero_data = data_of_interest[(nonzero_coordinates[0],
                                      nonzero_coordinates[1],
                                      nonzero_coordinates[2])]
+    if vmin is None:
+        vmin = np.min(nonzero_data)
+    if vmax is None:
+        vmax = np.max(nonzero_data)
     fig = plt.figure()
     ax = fig.add_subplot(projection="3d")
     p = ax.scatter(nonzero_coordinates[0], nonzero_coordinates[1],
@@ -81,8 +85,6 @@ def plot_3D_object(data, support=None, object="modulus",
     fig.colorbar(p)
     fig.suptitle(title)
     fig.tight_layout()
-
-
 
 
 def plot_3D_vector_field(data, support, arrow=True,
@@ -126,7 +128,6 @@ def plot_3D_vector_field(data, support, arrow=True,
         fig.colorbar(sm, ax=ax, orientation='vertical')
         q.set_edgecolor(colors)
         q.set_facecolor(colors)
-
 
     else:
         p = ax.scatter(nonzero_coordinates[0],

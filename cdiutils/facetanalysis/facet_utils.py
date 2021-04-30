@@ -76,7 +76,7 @@ def find_best_matching_normal_index(reference, normals, criterion="angle"):
 
 def get_miller_indices(normal):
 	miller_indices = [None, None, None]
-	for i in range(n=ormal.shape[0]):
+	for i in range(normal.shape[0]):
 		if abs(normal[i]) < 0.2:
 			miller_indices[i] = int(0)
 		else:

@@ -36,14 +36,11 @@ def get_data_from_cxi(file, *items):
 
 def get_data_from_vtk(file):
 
-    reader = vtk.vtkStructuredPointsReader()
+    reader = vtk.vtkGenericDataObjectReader()
     reader.SetFileName(file)
     reader.ReadAllScalarsOn()
     reader.ReadAllVectorsOn()
     reader.ReadAllTensorsOn()
     reader.Update()
 
-    data = reader.GetOutput()
-
-    print(data)
-    print(data.GetDimensions())
+    return reader.GetOutput()
