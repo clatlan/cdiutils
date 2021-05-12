@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
 		""" Plotting  facet average strain"""
 		fig, axes = plt.subplots(2, 1)
-		for plane in plane_familly:
+		for plane in plane_family:
 			# for each plane, new lists are created, they will contain
 			# the necessary information for plotting
 			facet_strain = []

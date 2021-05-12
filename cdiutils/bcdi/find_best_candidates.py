@@ -8,7 +8,7 @@ import shutil
 import argparse
 import sys
 
-sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
+sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils/cdiutils')
 from utils import get_data_from_cxi
 
 

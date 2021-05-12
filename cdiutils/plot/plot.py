@@ -58,7 +58,7 @@ def fancy_plot(data, title=None, log_scale=False, figsize=None, cmap='jet'):
     shape = data.shape
     plt.imshow(data[:, shape[1] // 2, :], vmin=vmin, vmax=vmax)
     fig.suptitle(title)
-    plt.show()
+    plt.show()140
 
 
 def plot_3D_object(data, support=None, complex_object=False,
