@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage.measurements import center_of_mass
 
 
 def center_data(data, mask=None, max_size=256):
@@ -59,7 +60,8 @@ def crop_at_center(data, final_shape=None):
 
 
 def are_coplanar(q1, q2, q3, value=False):
+    result =  np.dot(q1, np.cross(q2, q3))
     if value:
-        return np.dot(q1, np.cross(q2, q3)), np.dot(q1, np.cross(q2, q3)) == 0
+        return result, result == 0
     else:
-        return np.dot(q1, np.cross(q2, q3)) == 0
+        return result == 0
