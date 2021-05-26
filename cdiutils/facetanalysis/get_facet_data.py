@@ -41,21 +41,16 @@ def get_facet_data(vtk_data, rotation_matrix=None):
             normal = vtk_to_numpy(field_data.GetArray("facetNormals"))[id-1]
             facet_normals[id] = np.dot(rotation_matrix, normal)
             miller_indices[id] = get_miller_indices(facet_normals[id])
-            # print(id,
-            #      normal,
-            #      facet_normals[id],
-            #      miller_indices[id],
-            #       vtk_to_numpy(field_data.GetArray('interplanarAngles'))[id-1])
+            print(id,
+                 normal,
+                 miller_indices[id],
+                 facet_normals[id],
+                  vtk_to_numpy(field_data.GetArray('interplanarAngles'))[id-1])
     else:
         field_facet_ids = vtk_to_numpy(field_data.GetArray('FacetIds'))
         for id in field_facet_ids:
             facet_normals[id] = vtk_to_numpy(
                 field_data.GetArray("facetNormals"))[id-1]
-
-
-
-
-    # print(vtk_to_numpy(field_data.GetArray("facetNormals")).shape)
 
     facet_ids = field_facet_ids
 
@@ -88,5 +83,15 @@ def get_facet_data(vtk_data, rotation_matrix=None):
         disp_std[facet] = np.std(disp[facet])
         strain_std[facet] = np.std(strain[facet])
 
-    return disp, strain, disp_avg, strain_avg, disp_std, strain_std, \
-        point_coord, facet_normals, miller_indices
+
+    return {
+        "disp": disp,
+        "strain": strain,
+        "disp_avg": disp_avg,
+        "strain_avg": strain_avg,
+        "disp_std": disp_std,
+        "strain_std": strain_std,
+        "point_coord": point_coord,
+        "facet_normals": facet_normals,
+        "miller_indices": miller_indices
+        }

@@ -6,36 +6,87 @@ import numpy as np
 mpl.rcParams["mpl_toolkits.legacy_colorbar"] = False
 
 
-def plot_slices(*data, titles=None, figsize=(6, 4), cmap="viridis",
-                log_scale=False, suptitle=None):
+def plot_slices(*data, titles=None,
+                figsize=(6, 4), cmap="viridis",
+                vmin=None, vmax=None,
+                log_scale=False, suptitle=None,
+                show=True, data_stacking="vertical"):
+
     fig = plt.figure(figsize=figsize)
 
     if log_scale:
             data = np.log(data)
-    vmin = np.min(data)
-    vmax = np.max(data)
+    vmin = np.min(data) if vmin is None else vmin
+    vmax = np.max(data) if vmax is None else vmax
+
+    if data_stacking == "vertical":
+        nrows_ncols = (len(data), 3)
+    elif data_stacking == "horizontal":
+        nrows_ncols = (3, len(data))
+    else:
+        print("data_stacking should be 'vertical' or 'horizontal'.")
+        return None
 
     grid = AxesGrid(fig, 111,
-                    nrows_ncols=(len(data), 3),
+                    nrows_ncols=nrows_ncols,
                     axes_pad=0.05,
                     cbar_mode='single',
-                    cbar_location='right',
+                    cbar_location='top',
                     cbar_pad=0.2)
 
     for i, plot in enumerate(data):
         shape = plot.shape
-        im = grid[3 * i].matshow(plot[shape[0]//2, ...],
-                                 cmap=cmap, vmin=vmin, vmax=vmax)
-        grid[3*i].annotate(titles[i] if titles is not None else "",
-                           xy=(0.2, 0.5),
-                           xytext=(-grid[3*i].yaxis.labelpad - 2, 0),
-                           xycoords=grid[3*i].yaxis.label,
-                           textcoords='offset points',
-                           size="small", ha='right', va='center')
-        grid[3 * i + 1].matshow(plot[: , shape[1]//2, :],
-                                cmap=cmap, vmin=vmin, vmax=vmax)
-        grid[3 * i + 2].matshow(plot[..., shape[2]//2],
-                                cmap=cmap, vmin=vmin, vmax=vmax)
+
+        if data_stacking == "vertical":
+            ind1 = 3 * i
+            ind2 = 3 * i + 1
+            ind3 = 3 * i + 2
+        else:
+            ind1 = i
+            ind2 = i + len(data)
+            ind3 = i + 2 * len(data)
+        im = grid[ind1].matshow(plot[shape[0]//2, ...],
+                               cmap=cmap, vmin=vmin, vmax=vmax)
+        grid[ind2].matshow(plot[: , shape[1]//2, :],
+                            cmap=cmap, vmin=vmin, vmax=vmax)
+        grid[ind3].matshow(plot[..., shape[2]//2],
+                            cmap=cmap, vmin=vmin, vmax=vmax)
+
+        if data_stacking == "vertical":
+            grid[ind1].annotate(titles[i] if titles is not None else "",
+                                xy=(0.2, 0.5),
+                                xytext=(-grid[ind1].yaxis.labelpad - 2, 0),
+                                xycoords=grid[ind1].yaxis.label,
+                                textcoords='offset points',
+                                size="medium", ha='right', va='center')
+        else:
+            grid[ind3].annotate(titles[i] if titles is not None else "",
+                                xy=(0.5, 0.9),
+                                xytext=(0, -grid[ind3].xaxis.labelpad - 2),
+                                xycoords=grid[ind3].xaxis.label,
+                                textcoords='offset points',
+                                size="medium", ha='center', va='top')
+
+    slice_names = ["YZ slice", "XZ slice", "XY slice"]
+    for i, slice_name in enumerate(slice_names):
+        if data_stacking == "vertical":
+            ind = 3*(len(data)-1) + i
+            grid[ind].annotate(slice_name,
+                                xy=(0.5, 0.2),
+                                xytext=(0, -grid[ind].xaxis.labelpad - 2),
+                                xycoords=grid[ind].xaxis.label,
+                                textcoords='offset points',
+                                size="medium", ha='right', va='center')
+
+        else:
+            ind = i * len(data)
+            grid[ind].annotate(slice_name,
+                                xy=(0.2, 0.5),
+                                xytext=(-grid[ind].yaxis.labelpad - 2, 0),
+                                xycoords=grid[ind].yaxis.label,
+                                textcoords='offset points',
+                                size="medium", ha='right', va='center')
+
 
     for i, ax in enumerate(grid):
         ax.axes.xaxis.set_ticks([])
@@ -43,7 +94,12 @@ def plot_slices(*data, titles=None, figsize=(6, 4), cmap="viridis",
 
     cbar = grid.cbar_axes[0].colorbar(im)
     fig.suptitle(suptitle)
-    plt.show()
+    # fig.tight_layout()
+    if show:
+        plt.show()
+        return None
+    else:
+        return fig
 
 
 def fancy_plot(data, title=None, log_scale=False, figsize=None, cmap='jet'):
@@ -58,7 +114,7 @@ def fancy_plot(data, title=None, log_scale=False, figsize=None, cmap='jet'):
     shape = data.shape
     plt.imshow(data[:, shape[1] // 2, :], vmin=vmin, vmax=vmax)
     fig.suptitle(title)
-    plt.show()140
+    plt.show()
 
 
 def plot_3D_object(data, support=None, complex_object=False,
@@ -81,7 +137,7 @@ def plot_3D_object(data, support=None, complex_object=False,
     ax = fig.add_subplot(projection="3d")
     p = ax.scatter(nonzero_coordinates[0], nonzero_coordinates[1],
                    nonzero_coordinates[2], c=nonzero_data,
-                   cmap=cmap, marker="o", vmin=vmin, vmax=vmax)
+                   cmap=cmap, marker="H", vmin=vmin, vmax=vmax)
     fig.colorbar(p)
     fig.suptitle(title)
     fig.tight_layout()

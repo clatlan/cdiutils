@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
+from scipy.ndimage import convolve
 
 
 def find_hull(support, threshold=26):
     kernel = np.ones(shape=(3, 3, 3))
-    convolved_support = ndimage.convolve(support, kernel,
-                                         mode='constant', cval=0.0)
+    convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
     hull = np.where(((0<convolved_support) & (convolved_support<=threshold)),
                     support, 0)
     return hull
