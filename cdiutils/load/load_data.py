@@ -2,28 +2,51 @@ import h5py
 import numpy as np
 import vtk
 from vtk.util.numpy_support import vtk_to_numpy
+import json
+from matplotlib.colors import LinearSegmentedColormap
+
+
+def get_cmap_dict_from_json(file_path):
+    """Make a matplotlib cmap from json file."""
+
+    f = open(file_path)
+    my_cmap = LinearSegmentedColormap("my_cmap", json.load(f))
+    f.close()
+
+    return my_cmap
+
 
 def get_data_from_cxi(file, *items):
+
+    """
+    Get data from .cxi file.
+
+    :param file_path: file path. The string path to the file.
+    :param *items: items needed. The items needed that the file must
+    contain.
+    :returns: data_dic. A dictionary whose keys are the parsed *items,
+    values are the data retrieved from the file.
+    """
 
     data_dic = {}
     print("[INFO] Opening file:", file)
 
     try:
-        data = h5py.File(file, "r")
+        data = h5py.File(file_path, "r")
 
         if "support" in items:
             data_dic["support"] = data["entry_1/image_1/support"][...]
 
-        if "electronic_density" in items :
-            data_dic["electronic_density"]= data["entry_1/data_1/data"][...]
+        if "electronic_density" in items:
+            data_dic["electronic_density"] = data["entry_1/data_1/data"][...]
 
         if "llkf" in items:
-            data_dic["llkf"] = float(data["entry_1/image_1/process_1/results/" \
+            data_dic["llkf"] = float(data["entry_1/image_1/process_1/results/"
                                           "free_llk_poisson"][...])
 
         if "llk" in items:
-            data_dic["llk"] = float(data["entry_1/image_1/process_1/results/" \
-                                          "llk_poisson"][...])
+            data_dic["llk"] = float(data["entry_1/image_1/process_1/results/"
+                                         "llk_poisson"][...])
 
         data.close()
         return data_dic
@@ -34,7 +57,8 @@ def get_data_from_cxi(file, *items):
         return None
 
 
-def get_data_from_vtk(file):
+def load_vtk(file):
+    """Get raw data from .vtk file."""
 
     reader = vtk.vtkGenericDataObjectReader()
     reader.SetFileName(file)
