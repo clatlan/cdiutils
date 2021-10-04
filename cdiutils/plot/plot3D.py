@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 
 
@@ -9,7 +10,9 @@ def plot_3D_object(
         title="",
         vmin=None,
         vmax=None,
-        show=True):
+        show=True,
+        marker="H"):
+
     """
     Plot a 3D object.
 
@@ -51,7 +54,7 @@ def plot_3D_object(
         nonzero_coordinates[2],
         c=nonzero_data,
         cmap=cmap,
-        marker="H",
+        marker=marker,
         vmin=vmin,
         vmax=vmax
         )
@@ -89,12 +92,12 @@ def plot_3D_vector_field(
     :param arrow: whether or not to used arrows for field representation
     (bool). If False, marker "o" is plotted instead and color represents
     norm of the arrow.
-    :param cmap: the matplotlib colormap (str) used for the colorbar
+    :param cmap:ScalarMappable the matplotlib colormap (str) used for the colorbar
     (default: "jet").
     :param title: title (str) of the figure. Default is empty string.
     :param vmin: the minimum value (float) for the color scale
     (default: None).
-    :param vmax: themaximuc value (float) for the color scale
+    :param vmax: the maximum value (float) for the color scale
     (default: None).
     :param verbose: whether or not to print out the min and max values
     of the absolute vector field (bool).

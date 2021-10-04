@@ -50,7 +50,7 @@ def center(data, com=None):
     shape = data.shape
     if com is None:
         com = [round(c) for c in center_of_mass(data)]
-    centered_data = np.roll(data, eshape[0] // 2 - com[0], axis=0)
+    centered_data = np.roll(data, shape[0] // 2 - com[0], axis=0)
     centered_data = np.roll(centered_data, shape[1] // 2 - com[1], axis=1)
     centered_data = np.roll(centered_data, shape[2] // 2 - com[2], axis=2)
 
@@ -58,7 +58,7 @@ def center(data, com=None):
 
 
 def crop_at_center(data, final_shape=None):
-    """int value.
+    """
     Crop 3D array data to match the final_shape. Center of the input
     data remains the center of cropped data.
 

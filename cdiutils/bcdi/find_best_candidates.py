@@ -8,8 +8,8 @@ import shutil
 import argparse
 import sys
 
-sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils/cdiutils')
-from utils import get_data_from_cxi
+sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
+from cdiutils.load.load_data import get_data_from_cxi
 
 
 def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):

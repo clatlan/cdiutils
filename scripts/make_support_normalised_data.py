@@ -4,8 +4,8 @@ from bcdi.graph.graph_utils import save_to_vti
 
 sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
 
-from cdiutils.facetanalysis.facet_correlation import find_support_reference
-from cdiutils.load.load_data import get_data_from_vtk
+# from cdiutils.facetanalysis.facet_correlation import find_support_reference
+# from cdiutils.load.load_data import load_vtk
 
 
 if __name__ == '__main__':
@@ -41,15 +41,15 @@ if __name__ == '__main__':
 
     voxel_size = (5, 5, 5)
 
-    for scan, file in zip(scan_digits, files):
+    for scan, file, sup in zip(scan_digits, files, supports):
         d = np.load(file)
         shape = d["amp"].shape
         # modulus = d["amp"] * support_reference
-        modulus = modulus_reference
-        displacement = d["displacement"]
-        strain = d["strain"]
+        modulus = modulus_reference * sup
+        displacement = d["displacement"] *sup
+        strain = d["strain"] * sup
         save_path = "/data/id01/inhouse/clatlan/experiments/ihhc3567/" \
-                    "analysis/results/new_vti/S{}.vti".format(scan)
+                    "analysis/results/new_vti/test_S{}.vti".format(scan)
         save_to_vti(
             save_path,
             voxel_size,

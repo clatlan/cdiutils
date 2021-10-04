@@ -64,10 +64,9 @@ def compute_3D_phase(phases, q_vectors, support):
     shape = support.shape
     phase_3D = np.zeros([shape[0], shape[1], shape[2], 3])
 
-
     # Get only the coordinates of the voxel within the support.
     I, J, K = np.where(support > 0)
-    #I, J, K = I.tolist(), J.tolist(), K.tolist()
+    # I, J, K = I.tolist(), J.tolist(), K.tolist()
 
     # Iteration over each voxel. 3D phase is computed for each voxel.
     for i, j, k in zip(I.tolist(), J.tolist(), K.tolist()):

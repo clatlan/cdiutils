@@ -32,7 +32,7 @@ def get_data_from_cxi(file, *items):
     print("[INFO] Opening file:", file)
 
     try:
-        data = h5py.File(file_path, "r")
+        data = h5py.File(file, "r")
 
         if "support" in items:
             data_dic["support"] = data["entry_1/image_1/support"][...]

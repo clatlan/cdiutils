@@ -6,7 +6,7 @@ from scipy.ndimage.measurements import center_of_mass
 
 sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
 
-from cdiutils.plot.plot import plot_3D_object
+from cdiutils.plot.plot3D import plot_3D_object
 from cdiutils.utils import find_hull
 
 
@@ -24,14 +24,26 @@ def compute_distance_from_com(data, com):
 
 
 if __name__ == '__main__':
+    import argparse
+	
+    # construct the argument parser and parse the arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-f", "--file", required=False, type=str,
+                    help="file to read")
+    args = vars(ap.parse_args())
 
-    file = "/users/atlan/Desktop/ihhc3567/S185/pynxraw/" \
-           "S185_pynx_norm_64_252_300_1_1_1.npz"
+    if args["file"] is None:
+        file = "/data/id01/inhouse/clatlan/experiments/ihhc3644/analysis/" \
+	       "results/S322/pynxraw/S322_pynx_norm_60_288_294_1_1_1.npz"
+    else:
+        file = args["file"]
+    
     data = np.load(file)["data"]
 
     isosurface_threshold = 0.001
 
-    diffraction_pattern = np.where(data > isosurface_threshold * np.max(data), data, 0)
+    diffraction_pattern = np.where(data > isosurface_threshold * np.max(data),
+    							   data, 0)
     support = np.where(data > isosurface_threshold * np.max(data), 1, 0)
 
     com = center_of_mass(diffraction_pattern)
@@ -42,9 +54,9 @@ if __name__ == '__main__':
     #                      marker="o", show=False, vmax=0.8)
 
     plt.rcParams.update({
-    "lines.markersize": 50})
+    "lines.markersize": 80})
     fig2 = plot_3D_object(distance_matrix, support, cmap="CMRmap",
-                         marker="o", show=False, vmin=-20, vmax=130)
+                         marker="o", show=False)
 
     plt.grid(False)
     # plt.axis('off')
@@ -58,17 +70,17 @@ if __name__ == '__main__':
     fig2.axes[0].set_yticks([])
     fig2.axes[0].set_zticks([])
 
-    # plt.show()
+    plt.show()
 
 
-    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+    # from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
-    cmap = cm.get_cmap('seismic')
+    # cmap = cm.get_cmap('seismic')
 
-    x = np.arange(0,1+0.03125,0.03125)
+    # x = np.arange(0,1+0.03125,0.03125)
 
-    for e in x:
-        print(e,',')
-        print(cmap(e)[0],',')
-        print(cmap(e)[1],',')
-        print(cmap(e)[2],',')
+    # for e in x:
+        # print(e,',')
+        # print(cmap(e)[0],',')
+        # print(cmap(e)[1],',')
+        # print(cmap(e)[2],',')

@@ -17,6 +17,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
     """
 
     if beamline == "ID01":
+
         specfile = silx.io.open(specfile_path)
         positioners = specfile["{}.1/instrument/positioners".format(scan)]
 

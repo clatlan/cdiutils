@@ -11,6 +11,7 @@ from cdiutils.load.load_data import load_vtk
 from cdiutils.facetanalysis.get_facet_data import facet_data_from_vtk
 from cdiutils.facetanalysis.facet_utils import get_rotation_matrix, \
     get_miller_indices, planes_111_110_100
+from .top_bottom_strain import plane_name
 
 
 def plot_facets_from_vtk(vtk, points, cells):
@@ -55,7 +56,7 @@ if __name__ == '__main__':
         "figure.dpi": 250,
         "text.usetex": True,
         "axes.prop_cycle": mpl.cycler(
-            color=mpl.cm.gist_ncar(np.linspace(0, 1, 12)))})
+            color=mpl.cm.gist_ncar(np.linspace(0, 1, 5)))})
 
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
@@ -77,7 +78,7 @@ if __name__ == '__main__':
     if args["files"] is None:
         file_template = "/data/id01/inhouse/clatlan/experiments/ihhc3567/" \
                         "analysis/results/facet_analysis/"\
-                        "13-bigger-facets/S{}.vtk"
+                        "13-facets-4WS/S{}.vtk"
         files = [file_template.format(i) for i in scan_digits]
     else:
         files = args["files"]
@@ -135,8 +136,8 @@ if __name__ == '__main__':
         print("[INFO] Working on the following planes: {}".format(
             plane_family))
 
-        # fig, axes = plt.subplots(2, 1, figsize=(7, 5))
-        # fig2, axes2 = plt.subplots(2, 1, figsize=(7, 5))
+        fig1, axes1 = plt.subplots(2, 1, figsize=(7, 5))
+        fig2, axes2 = plt.subplots(2, 1, figsize=(7, 5))
         fig4, axes4 = plt.subplots(2, 1, figsize=(7, 5))
 
         for plane in plane_family:
@@ -194,39 +195,39 @@ if __name__ == '__main__':
 
             xaxis = df["scan_digits"]
 
-            # # plot displacement average per facet
-            # line, = axes[0].plot(xaxis.fillna(method="ffill"),
-			# 			 	 	 df["disp"].fillna(method="ffill"), ls="--")
-            # axes[0].plot(xaxis, df["disp"], color=line.get_color(),
-			# 		 	 marker="o", label=label)
-            #
-            # # plot strain average per facet
-            # line, = axes[1].plot(xaxis.fillna(method="ffill"),
-			# 			 	     df["strain"].fillna(method="ffill"), ls="--")
-            # axes[1].plot(xaxis, df["strain"], color=line.get_color(),
-			# 		 	 marker="o", label=label)
-            #
-            # # plot displacement std per facet
-            # line, = axes2[0].plot(xaxis.fillna(method="ffill"),
-			# 			 	 	  df["disp_std"].fillna(method="ffill"),
-            #                       ls="--")get_data_from_vtk
-            # axes2[0].plot(xaxis, df["disp_std"],
-            #               color=line.get_color(), marker="o", label=label)
-            #
-            # # plot strain std per facet
-            # line, = axes2[1].plot(xaxis.fillna(method="ffill"),
-			# 			 	      df["strain_std"].fillna(method="ffill"),
-            #                       ls="--")
-            # axes2[1].plot(xaxis, df["strain_std"],
-            #               color=line.get_color(), marker="o", label=label)
+            # plot displacement average and std evolutions
+            line, = axes1[0].plot(
+                xaxis.fillna(method="ffill"),
+                df["disp"].fillna(method="ffill"),
+                ls="--"
+                )
+            axes1[0].plot(
+                xaxis,
+                df["disp"],
+                color=line.get_color(),
+                marker="o",
+                label=label
+                )
+            line, = axes1[1].plot(
+                xaxis.fillna(method="ffill"),
+                df["disp_std"].fillna(method="ffill"),
+                ls="--"
+                )
+            axes1[1].plot(
+                xaxis,
+                df["disp_std"],
+                color=line.get_color(),
+                marker="o",
+                label=label
+                )
 
-            # plot displacement std per facet
-            line, = axes4[0].plot(
+            # plot strain average and std evolutions
+            line, = axes2[0].plot(
                 xaxis.fillna(method="ffill"),
                 df["strain"].fillna(method="ffill"),
                 ls="--"
                 )
-            axes4[0].plot(
+            axes2[0].plot(
                 xaxis,
                 df["strain"],
                 color=line.get_color(),
@@ -234,13 +235,12 @@ if __name__ == '__main__':
                 label=label
                 )
 
-            # plot strain std per facet
-            line, = axes4[1].plot(
+            line, = axes2[1].plot(
                 xaxis.fillna(method="ffill"),
                 df["strain_std"].fillna(method="ffill"),
                 ls="--"
                 )
-            axes4[1].plot(
+            axes2[1].plot(
                 xaxis,
                 df["strain_std"],
                 color=line.get_color(),
@@ -248,54 +248,55 @@ if __name__ == '__main__':
                 label=label
                 )
 
-        # axes[0].set_ylabel("Displacement average ($\AA$)", fontsize=12)
-        # axes[1].set_xlabel("Potentials (V) / RHE", fontsize=12)
-        # axes[1].set_xlabel("Course of experiment (scan \#)", fontsize=12)
-        # axes[1].set_ylabel(r"$\overline{\epsilon_{002}}$ (\%)", fontsize=12)
-        # axes[0].tick_params(axis="x", direction="out", pad=0) # pad=-15
-        # axes[0].set_xticklabels(xticks_labels, fontsize=9)
-        # axes[1].set_xticklabels(xticks_labels, fontsize=9)
-        # fig.legend(handles=axes[0].get_legend_handles_labels()[0],
-        #           loc="upper center", bbox_to_anchor=(0.5, 0.92), fontsize=8,
-        #           ncol=len(axes[0].lines))
-        # fig.suptitle("Displacement and strain averages", fontsize=18)
-        #
-        # # Print the standard deviations
-        #
-        # axes2[0].set_ylabel("Displacement standard deviation ($\AA$)",
-        #                     fontsize=14)
-        # axes2[1].set_xlabel("Potentials (V) / RHE", fontsize=12)
-        # axes2[1].set_xlabel("Course of experiment (scan \#)", fontsize=14)
-        # axes2[1].set_ylabel(r"$\epsilon_{002}$ standard deviation (\%)", fontsize=14)
-        # axes2[0].tick_params(axis="x", direction="out", pad=0)
-        # axes2[0].set_xticklabels(xticks_labels, fontsize=9)
-        # axes2[1].set_xticklabels(xticks_labels, fontsize=9)
-        # fig2.legend(handles=axes2[0].get_legend_handles_labels()[0],
-        #             loc="upper center", bbox_to_anchor=(0.5, 0.94), fontsize=8,
-        #             ncol=len(axes[0].lines))facet_edges_strain
-        # fig2.suptitle("Displacement and strain standard deviations",
-        #               fontsize=20)
+            if plane == [0, 0, 1]:
+                color = "red"
+            elif plane == [0, 0, -1]:
+                color = "orange"
+            else:
+                color = "blue"
+            axes4[0].plot(
+                xaxis,
+                df["strain"],
+                color=color,
+                marker="o",
+                label=label
+            )
 
 
-        # Print strain average and standard deviations
-
-        axes4[0].set_ylabel(r"$\overline{\epsilon_{002}}$  (\%)",
+        axes1[0].set_ylabel(r"$\overline{u_{002}}$ ($\AA$)", fontsize=14)
+        axes1[1].set_xlabel("Course of experiment", fontsize=14)
+        axes1[1].set_ylabel(r"$u_{002}$ standard deviation($\AA$)",
                             fontsize=14)
-        axes4[1].set_xlabel("Course of experiment", fontsize=14)
-        axes4[1].set_ylabel(r"$\epsilon_{002}$ standard deviation (\%)",
-                            fontsize=14)
-        axes4[0].tick_params(axis="x", direction="out")
-        axes4[0].set_xticklabels(xticks_labels, fontsize=12)
-        axes4[1].set_xticklabels(xticks_labels, fontsize=12)
-        fig4.legend(handles=axes4[0].get_legend_handles_labels()[0],
+        axes1[0].tick_params(axis="x", direction="out")
+        axes1[0].set_xticklabels(xticks_labels, fontsize=12)
+        axes1[1].set_xticklabels(xticks_labels, fontsize=12)
+        fig1.legend(handles=axes1[0].get_legend_handles_labels()[0],
                     loc="upper center", bbox_to_anchor=(0.5, 0.94), fontsize=8,
-                    ncol=len(axes4[0].lines))
-        fig4.suptitle("Strain average and associated standard deviation",
+                    ncol=len(axes1[0].lines))
+        fig1.suptitle("Displacement average and associated standard deviation",
                       fontsize=20)
-        axes4[0].locator_params(tight=True, nbins=5)
-        axes4[1].locator_params(tight=True, nbins=5)
-        axes4[0].set_ylim(-0.027, 0.027)
-        axes4[1].set_ylim(0.0018, 0.0154)
+        axes1[0].locator_params(tight=True, nbins=5)
+        axes1[1].locator_params(tight=True, nbins=5)
+        axes1[0].set_ylim(-0.216, 0.16)
+        axes1[1].set_ylim(0.01, 0.1570)
+
+        axes2[0].set_ylabel(r"$\overline{\epsilon_{002}}$  (\%)",
+                                 fontsize=14)
+        axes2[1].set_xlabel("Course of experiment", fontsize=14)
+        axes2[1].set_ylabel(r"$\epsilon_{002}$ standard deviation (\%)",
+                            fontsize=14)
+        axes2[0].tick_params(axis="x", direction="out")
+        axes2[0].set_xticklabels(xticks_labels, fontsize=12)
+        axes2[1].set_xticklabels(xticks_labels, fontsize=12)
+        fig2.legend(handles=axes2[0].get_legend_handles_labels()[0],
+                    loc="upper center", bbox_to_anchor=(0.5, 0.94), fontsize=8,
+                    ncol=len(axes2[0].lines))
+        fig2.suptitle("Strain average and associated standard deviation",
+                      fontsize=20)
+        axes2[0].locator_params(tight=True, nbins=5)
+        axes2[1].locator_params(tight=True, nbins=5)
+        axes2[0].set_ylim(-0.027, 0.027)
+        axes2[1].set_ylim(0.0018, 0.0154)
 
     for key in globals.keys():
         glb = globals[key]
@@ -327,11 +328,11 @@ if __name__ == '__main__':
         label="facet strain avg")
     # axes3[0].plot(scan_axis, globals["disp_std"], label="standard deviation",
     #               marker="o")
-    axes3.plot(
-        scan_axis,
-        globals["strain_std"],
-        label="facet strain std",
-        marker="o")
+    # axes3.plot(
+    #     scan_axis,
+    #     globals["strain_std"],
+    #     label="facet strain std",
+    #     marker="o")
 
     axes3.errorbar(
         scan_axis,
@@ -342,11 +343,11 @@ if __name__ == '__main__':
         capthick=1.5,
         label="edges/corners strain avg")
 
-    axes3.plot(
-        scan_axis,
-        edge_corner_strain_std,
-        label="edge/corner strain std",
-        marker="o")
+    # axes3.plot(
+    #     scan_axis,
+    #     edge_corner_strain_std,
+    #     label="edge/corner strain std",
+    #     marker="o")
 
     # for i, scan in enumerate([182, 183, 184, 185]):
     #     axes3[0].text(scan, globals["disp"][i+4], data["S{}".format(scan)]["potential"])
@@ -364,10 +365,10 @@ if __name__ == '__main__':
     #     ncol=len(axes3[0].lines))
     axes3.set_xlabel("Course of experiment", fontsize=14)
     axes3.set_ylabel(
-        r"$\overline{\epsilon_{002}}(\%)$ and $\epsilon_{002}$ std",# and \epsilon_{002}} std$",
+        r"$\overline{\epsilon_{002}}$ and $\epsilon_{002}$ std (\%)",# and \epsilon_{002}} std$",
         fontsize=14)
     axes3.legend()
-    fig3.suptitle("Facet, edge corner strain evolutions",
+    fig3.suptitle("Facet, edge and corner strain evolutions",
                   fontsize=18)
 
-    plt.show()
+    fig3.show()

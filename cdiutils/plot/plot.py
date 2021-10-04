@@ -19,7 +19,7 @@ def plot_slices(
         data_stacking="vertical",
         slice_names=["YZ slice", "XZ slice", "XY slice"]):
     """
-    Plot 2D slices of a 3D volume data in three directions.
+    Plot 2D slices of a 3D volume data in threde directions.
 
     :param *data: the 3D data to plot (np.array). Several 3D matrices
     may be given. For each matrice, three slices are plotted.
@@ -31,7 +31,7 @@ def plot_slices(
     (default: "viridis").
     :param vmin: the minimum value (float) for the color scale
     (default: None).
-    :param vmax: the maximu value (float) for the color scale
+    :param vmax: the maximum value (float) for the color scale
     (default: None).
     :param log_scale: whether or not the scale is logaritmhic (bool).
     Default: False.
@@ -60,11 +60,14 @@ def plot_slices(
     else:
         print("data_stacking should be 'vertical' or 'horizontal'.")
         return None
-    if len(titles) != len(data):
+    if titles is None:
+        print("No titles given.")
+        titles = ["" for i in range(len(data))]
+    elif len(titles) != len(data):
         print(
             "Number of titles should be identical to number of *data.\n"
             "Titles won't be displayed.")
-        titles = ["" for i in len(*data)]
+        titles = ["" for i in range(len(data))]
 
     grid = AxesGrid(fig, 111,
                     nrows_ncols=nrows_ncols,
