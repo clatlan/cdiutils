@@ -10,6 +10,19 @@ def facet_data_from_vtk(
         vtk_data,
         rotation_matrix=None,
         verbose=False):
+    """
+    Make a dictionary of relevant facet-related data from the
+    FacetAnalyzer pluggin in Paraview.
+
+    :param vtk_data: the vtk data from Paraview's FacetAnalyzer.
+    :param rotation_matrix: the transform matrix (np.array) to switch
+    to another frame of reference. (Default is None).
+    :param verbose: whether to print out some comments.
+
+    :return: A dictionary of sub dictionary. Every sub dictionary has
+    the same keys, and they correspond to the facet ids. Key of the
+    main dictionary correspond to a quantity such as strain, stress etc.
+    """
 
     disp = {}
     strain = {}
