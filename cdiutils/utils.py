@@ -3,8 +3,15 @@ import matplotlib.pyplot as plt
 import h5py
 from scipy.ndimage import convolve, center_of_mass
 
+# TODO:  Check out new parameters in function fund_hull
 
-def find_hull(volume, threshold=26):
+
+def find_hull(
+        volume,
+        threshold=18,
+        kernel_size=3,
+        boolean_value=False,
+        nan_value=False):
     """
     Find the convex hull of a 3D volume object.
 
@@ -16,18 +23,28 @@ def find_hull(volume, threshold=26):
     threshold (np.array).
     """
 
-    kernel = np.ones(shape=(3, 3, 3))
+    kernel = np.ones(shape=(kernel_size, kernel_size, kernel_size))
     convolved_support = convolve(volume, kernel, mode='constant', cval=0.0)
     hull = np.where(
         ((0 < convolved_support) & (convolved_support <= threshold)),
-        support,
-        0)
+        1 if boolean_value else convolved_support,
+        np.nan if nan_value else 0)
     return hull
 
 
 def unit_vector(vector):
     """Return a unit vector."""
     return vector / np.linalg.norm(vector)
+
+
+def normalize(data, zero_centered=True):
+    if zero_centered:
+        abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
+        vmin, vmax = -abs_max, abs_max
+        ptp = vmax - vmin
+    else:
+        ptp = np.ptp(data)
+    return (data - vmin) / ptp
 
 
 def normalize_complex_array(array):
@@ -93,3 +110,23 @@ def crop_at_center(data, final_shape=None):
                    c[2] - to_crop[2]: c[2] + to_crop[2] + plus_one[2]]
 
     return cropped
+
+
+def compute_distance_from_com(data, com=None):
+    nonzero_coordinates = np.nonzero(data)
+    distance_matrix = np.zeros(shape=data.shape)
+
+    if com is None:
+        com = center_of_mass(data)
+
+    for x, y, z in zip(nonzero_coordinates[0],
+                       nonzero_coordinates[1],
+                       nonzero_coordinates[2]):
+        distance = np.sqrt((x-com[0])**2 + (y-com[1])**2 + (z-com[2])**2)
+        distance_matrix[x, y, z] = distance
+
+    return distance_matrix
+
+
+def zeros_to_nan(data):
+    return np.where(data == 0, np.nan, data)
