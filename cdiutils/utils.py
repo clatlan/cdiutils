@@ -32,6 +32,10 @@ def find_hull(
     return hull
 
 
+def make_support(data, isosurface=0.5, nan_value=False):
+    return np.where(data >= isosurface, 1, np.nan if nan_value else 0)
+
+
 def unit_vector(vector):
     """Return a unit vector."""
     return vector / np.linalg.norm(vector)
