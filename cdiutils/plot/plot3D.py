@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def plot_3D_object(
@@ -56,8 +57,9 @@ def plot_3D_object(
         cmap=cmap,
         marker=marker,
         vmin=vmin,
-        vmax=vmax
-        )
+        vmax=vmax,
+        alpha=1
+    )
     fig.colorbar(p)
     fig.suptitle(title)
     fig.tight_layout()
@@ -73,6 +75,7 @@ def plot_3D_vector_field(
         data,
         support,
         arrow=True,
+        scale=5,
         cmap="jet",
         title="",
         vmin=None,
@@ -92,8 +95,8 @@ def plot_3D_vector_field(
     :param arrow: whether or not to used arrows for field representation
     (bool). If False, marker "o" is plotted instead and color represents
     norm of the arrow.
-    :param cmap:ScalarMappable the matplotlib colormap (str) used for the colorbar
-    (default: "jet").
+    :param cmap:ScalarMappable the matplotlib colormap (str) used for
+    the colorbar (default: "turbo").
     :param title: title (str) of the figure. Default is empty string.
     :param vmin: the minimum value (float) for the color scale
     (default: None).
@@ -137,7 +140,7 @@ def plot_3D_vector_field(
             data_of_interest[..., 2],
             arrow_length_ratio=0.2,
             normalize=True,
-            length=5,
+            length=scale,
             colors=colors
             )
 
