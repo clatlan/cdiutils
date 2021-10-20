@@ -4,13 +4,13 @@ from scipy.interpolate import splev, splrep
 
 import sys
 sys.path.append("/data/id01/inhouse/clatlan/pythonies/cdiutils")
-from cdiutils import utils.normalize
+from cdiutils.utils import normalize
 
 def plot_deviation(
         ax,
         x,
-        deviation,
         y_pos,
+        deviation,
         scale=1,
         arrow=False,
         attribute=None,
