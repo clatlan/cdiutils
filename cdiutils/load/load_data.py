@@ -68,3 +68,17 @@ def load_vtk(file):
     reader.Update()
 
     return reader.GetOutput()
+
+
+def load_amp_phase_strain(
+        file,
+        strain_in_percent=False,
+        normalised_amp=False):
+    data = np.load(file, allow_pickle=False)
+    amp = data["amp"]
+    phase = data["displacement"]
+    strain = data["strain"] * (100 if strain_in_percent else 1)
+    if normalised_amp:
+        amp = (amp - np.min(amp)) / np.ptp(amp)
+
+    return amp, phase, strain
