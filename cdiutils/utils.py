@@ -48,6 +48,7 @@ def normalize(data, zero_centered=True):
         ptp = vmax - vmin
     else:
         ptp = np.ptp(data)
+        vmin = np.min(data)
     return (data - vmin) / ptp
 
 

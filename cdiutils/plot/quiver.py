@@ -6,6 +6,7 @@ import sys
 sys.path.append("/data/id01/inhouse/clatlan/pythonies/cdiutils")
 from cdiutils.utils import normalize
 
+
 def plot_deviation(
         ax,
         x,
@@ -20,6 +21,7 @@ def plot_deviation(
         cmap="jet",
         interpolate=2,
         linewidth=0.7,
+        **kwargs
 ):
     colormap = cm.get_cmap(cmap)
 
@@ -66,9 +68,9 @@ def plot_deviation(
                 deviation[i],
                 color=c[i],
                 scale=1/scale,
-                width=2e-3,
                 scale_units="xy",
                 angles="xy",
+                **kwargs
             )
 
     sm = cm.ScalarMappable(cmap=colormap, norm=None)

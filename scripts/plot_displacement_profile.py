@@ -24,79 +24,10 @@ def normalize(data, zero_centered=True):
     if zero_centered:
         abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
         vmin, vmax = -abs_max, abs_max
-    return (data - vmin) / (vmax - vmin)
-
-
-def plot_deviation(
-        ax,
-        x,
-        deviation,
-        y_pos,
-        scale=1,
-        arrow=False,
-        attribute=None,
-        vmin=None,
-        vmax=None,
-        centered=True,
-        cmap="jet",
-        interpolate=2,
-        linewidth=0.7,
-):
-    colormap = cm.get_cmap(cmap)
-
-    if interpolate:
-        spl_deviation = splrep(x, deviation)
-        if attribute is not None:
-            spl_attribute = splrep(x, attribute)
-        x = np.linspace(0, np.max(x), x.shape[0] * interpolate)
-        deviation = splev(x, spl_deviation)
-        if attribute is not None:
-            attribute = splev(x, spl_attribute)
-
-        y = deviation * scale + y_pos
-
-    if vmin and vmax:
-        if centered and (vmin < 0 and vmax >= 0):
-            vmin, vmax = -np.max([-vmin, vmax]), np.max([-vmin, vmax])
-        if attribute is not None:
-            normalised_attribute = (attribute - vmin) / (vmax - vmin)
-        else:
-            normalised_attribute = (deviation - vmin) / (vmax - vmin)
+        ptp = vmax - vmin
     else:
-        normalised_attribute = normalize(
-            data=attribute if attribute is not None else deviation,
-            zero_centered=centered
-            )
-
-    c = colormap(normalised_attribute)
-
-    length = len(x) if type(x) == list else x.shape[0]
-    for i in range(length-1):
-
-        ax.plot(
-            [x[i], x[i+1]],
-            [y[i], y[i+1]],
-            c=c[i],
-            linewidth=linewidth,
-        )
-        if arrow and i % interpolate == 0:
-            ax.quiver(
-                x[i],
-                y_pos,
-                0,
-                deviation[i],
-                color=c[i],
-                scale=1/scale,
-                width=2e-3,
-                scale_units="xy",
-                angles="xy",
-            )
-
-    sm = cm.ScalarMappable(cmap=colormap, norm=None)
-    sm.set_array(attribute if attribute is not None else deviation)
-    sm.set_clim(vmin, vmax)
-
-    return ax, sm
+        ptp = np.ptp(data)
+    return (data - vmin) / ptp
 
 
 if __name__ == '__main__':
@@ -138,21 +69,22 @@ if __name__ == '__main__':
     # lattice_parameter = 3.06
     # q_002 = 2 * np.pi / lattice_parameter
 
-    y_shift = 0.062  # voxels
-    # y_shift = 2  # Angstroms
+    # y_shift = 0.062  # voxels
+    # # y_shift = 2  # Angstroms
 
     crop_fit = [1, -4]
     crop_fit = [0, -3]
-    isosurface = 0.63
+    isosurface = 0.65
 
-    sweep_range = np.arange(64, 87)
+    # sweep_range = np.arange(64, 87)
     target_shape = (50, 23, 50)
-    # sweep_range = np.arange(0, 117)
+    # target_shape = (52, 30, 52)
 
     scale = 18
     scale = 22
 
     background_cmap = cc.cm.CET_D13
+    #background_cmap = "seismic"
     foreground_cmap = cc.cm.CET_D8
 
     make_gif = False
@@ -169,15 +101,15 @@ if __name__ == '__main__':
         modulus = data["amp"]
         modulus = (modulus - np.min(modulus)) / np.ptp(modulus)
         support = np.where(modulus >= isosurface, 1, 0)
-        # if scan == 182:
-        #     print("The support of reference is that of scan", scan)
-        #     modulus = data["amp"]
-        #     modulus = (modulus - np.min(modulus)) / np.ptp(modulus)
-        #     support_ref = np.where(modulus >= isosurface, 1, 0)
-        # support = support_ref
+        if scan == 182:
+            print("The support of reference is that of scan", scan)
+            modulus = data["amp"]
+            modulus = (modulus - np.min(modulus)) / np.ptp(modulus)
+            support_ref = np.where(modulus >= isosurface, 1, 0)
+        #support = support_ref
 
-        disp = data["displacement"]
-        strain = data["strain"]
+        disp = data["displacement"] * support / q_002
+        strain = data["strain"] * support * 100
 
         strain = rotate(strain, +45, axes=(0, 2))
         disp = rotate(disp, +45, axes=(0, 2))
@@ -201,9 +133,8 @@ if __name__ == '__main__':
         strain = np.flip(strain, axis=2)
         support = np.flip(disp, axis=2)
 
-        disp = disp * support / q_002
-        # support = np.where(support == 0, np.nan, 1)
-        strain = strain * np.where(support == 0, np.nan, 1) * 100
+        # disp = disp * support / q_002
+        # strain = strain * np.where(support == 0, np.nan, 1) * 100
 
         # Make the last minor slice adjustement
         disp = disp[..., crop_fit[0]: crop_fit[-1]]
@@ -220,14 +151,13 @@ if __name__ == '__main__':
         interpolate = 2
         x_linescan_pos = shape[0] // 2
 
-        # background = ax1.matshow(
-        #     support[x_linescan_pos, ...],
-        #     origin="lower",
-        #     cmap="Greys",
-        #     alpha=1
-        # )
         background = ax1.matshow(
-            # strain[x_linescan_pos, sweep_range, ...],
+            support[x_linescan_pos, ...],
+            origin="lower",
+            cmap="Greys",
+            alpha=1
+        )
+        background = ax1.matshow(
             strain[x_linescan_pos, ...],
             origin="lower",
             cmap=background_cmap,
@@ -235,7 +165,7 @@ if __name__ == '__main__':
             vmax=4.6e-2,
             # vmin=-0.1,
             # vmax=0.1,
-            alpha=0.4
+            alpha=0.6
         )
 
         for z in np.arange(0, disp.shape[1]):
@@ -284,7 +214,7 @@ if __name__ == '__main__':
             transform=ax1.get_xaxis_transform(),
             clip_on=False
         )
-        ax1.set_xlabel("Y [010]")
+        ax1.set_xlabel(r"Y [$\overline{11}0$]")
         ax1.set_ylabel("Z [001]")
         ax1.tick_params(
             bottom=False,
@@ -332,9 +262,11 @@ if __name__ == '__main__':
             "/data/id01/inhouse/clatlan/exchange/facet-dependent-images/"
             "cross_section_quivers/strain-disp/cut_111_plane/"
             + comment
-            + "_{}-{}_strain-disp_S{}.png".format(
-                background_cmap.name,
-                foreground_cmap.name,
+            + "_{}-{}_strain-disp_S{}.pdf".format(
+                background_cmap if isinstance(background_cmap, str)
+                else background_cmap.name,
+                foreground_cmap if isinstance(foreground_cmap, str)
+                else foreground_cmap.name,
                 scan
             )
         )
@@ -350,7 +282,9 @@ if __name__ == '__main__':
             "/data/id01/inhouse/clatlan/exchange/facet-dependent-images/"
             "cross_section_quivers/strain-disp/gifs/"
             "cut_111_plane-{}-{}strain-disp.gif".format(
-                background_cmap.name,
-                foreground_cmap.name,
+                background_cmap if isinstance(background_cmap, str)
+                else backbackground_cmap.name,
+                foreground_cmap if isinstance(foreground_cmap, str)
+                else foreground_cmap.name,
             ),
             images)

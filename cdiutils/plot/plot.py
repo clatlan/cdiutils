@@ -3,7 +3,7 @@ import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 
-mpl.rcParams["mpl_toolkits.legacy_colorbar"] = False
+# mpl.rcParams["mpl_toolkits.legacy_colorbar"] = False
 
 
 def plot_slices(
@@ -159,7 +159,7 @@ def plot_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
 
-    cbar = grid.cbar_axes[0].colorbar(im)
+    # cbar = grid.cbar_axes[0].colorbar(im)
     fig.suptitle(suptitle)
     # fig.tight_layout()
     if show:

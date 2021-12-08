@@ -17,7 +17,7 @@ def compute_distance_from_com(data, com):
     for x, y, z in zip(nonzero_coordinates[0],
                        nonzero_coordinates[1],
                        nonzero_coordinates[2]):
-        distance = np.sqrt((x-com[0])**2 +(y-com[1])**2 +(z-com[2])**2)
+        distance = np.sqrt((x-com[0])**2 + (y-com[1])**2 + (z-com[2])**2)
         distance_matrix[x, y, z] = distance
 
     return distance_matrix
@@ -25,7 +25,7 @@ def compute_distance_from_com(data, com):
 
 if __name__ == '__main__':
     import argparse
-	
+
     # construct the argument parser and parse the arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-f", "--file", required=False, type=str,
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 	       "results/S322/pynxraw/S322_pynx_norm_60_288_294_1_1_1.npz"
     else:
         file = args["file"]
-    
+
     data = np.load(file)["data"]
 
     isosurface_threshold = 0.001

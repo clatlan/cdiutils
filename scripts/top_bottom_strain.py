@@ -11,17 +11,9 @@ from cdiutils.facetanalysis.get_facet_data import facet_data_from_vtk
 from cdiutils.facetanalysis.facet_utils import (
     get_rotation_matrix,
     get_miller_indices,
-    planes_111_110_100)
+    planes_111_110_100,
+    format_plane_name)
 
-
-def plane_name(l):
-    name = ""
-    for e in l:
-        if e < 0:
-            name += r"$\overline{}$".format(-e)
-        else:
-            name += r"${}$".format(e)
-    return name
 
 
 if __name__ == '__main__':
@@ -125,7 +117,7 @@ if __name__ == '__main__':
 
             # make the label for legends
             label = "(" + str(plane).strip("[]") + ")"
-            label = plane_name(plane)
+            label = format_plane_name(plane)
 
             # SMALL CHANGE TO REMOVE 178 AND 180 scans
             # scan_digits[0] = 180

@@ -3,6 +3,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
+def format_plane_name(list):
+    name = ""
+    for e in list:
+        if e < 0:
+            name += r"$\overline{"
+            name += r"{}".format(-e)
+            name += r"}$ "
+        else:
+            name += r"${}$ ".format(e)
+    return name
+
+
 def planes_111_110_100():
 
     planes111 = []

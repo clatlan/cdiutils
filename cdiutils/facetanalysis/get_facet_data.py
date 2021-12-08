@@ -6,6 +6,19 @@ sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
 from cdiutils.facetanalysis.facet_utils import get_miller_indices
 
 
+def load_vtk(file):
+    """Get raw data from .vtk file."""
+
+    reader = vtk.vtkGenericDataObjectReader()
+    reader.SetFileName(file)
+    reader.ReadAllScalarsOn()
+    reader.ReadAllVectorsOn()
+    reader.ReadAllTensorsOn()
+    reader.Update()
+
+    return reader.GetOutput()
+
+
 def facet_data_from_vtk(
         vtk_data,
         rotation_matrix=None,

@@ -39,8 +39,8 @@ if __name__ == '__main__':
 
     frames_nb = len(frame_id)
     frames = np.empty((frames_nb, roi[1], roi[3]))
-    x_com = np.empty((frames_nb))
-    y_com = np.empty((frames_nb))
+    x_com = np.empty(frames_nb)
+    y_com = np.empty(frames_nb)
 
     for i, id in enumerate(frame_id):
     	edf_data = xu.io.EDFFile(edf_file_template.format(id=int(id))).data
