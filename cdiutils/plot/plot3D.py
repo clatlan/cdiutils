@@ -12,7 +12,8 @@ def plot_3D_object(
         vmin=None,
         vmax=None,
         show=True,
-        marker="H"):
+        marker="H",
+        alpha=1):
 
     """
     Plot a 3D object.
@@ -58,7 +59,7 @@ def plot_3D_object(
         marker=marker,
         vmin=vmin,
         vmax=vmax,
-        alpha=1
+        alpha=alpha
     )
     fig.colorbar(p)
     fig.suptitle(title)
