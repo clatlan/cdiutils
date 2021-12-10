@@ -4,6 +4,7 @@ import vtk
 from vtk.util.numpy_support import vtk_to_numpy
 import json
 from matplotlib.colors import LinearSegmentedColormap
+import xrayutilities as xu
 
 
 def get_cmap_dict_from_json(file_path):
@@ -82,3 +83,40 @@ def load_amp_phase_strain(
         amp = (amp - np.min(amp)) / np.ptp(amp)
 
     return amp, phase, strain
+
+
+def load_raw_scan(
+    specfile,
+    edf_file_template: str,
+    scan: str,
+    hxrd,
+    nav=[1, 1],
+    roi=[0, 516, 0, 516],
+):
+
+    frames_id = specfile[scan + ".1/measurement/mpx4inr"][...]
+    frames_nb = len(frames_id)
+    data = np.empty((frames_nb, roi[1], roi[3]))
+
+    positioners = specfile[scan + ".1/instrument/positioners"]
+    eta = positioners["eta"][...]
+    delta = positioners["del"][...]
+    phi = positioners["phi"][...]
+    nu = positioners["nu"][...]
+
+    for i, frame_id in enumerate(frames_id):
+        edf_data = xu.io.EDFFile(
+            edf_file_template.format(id=int(frame_id))
+        ).data
+        ccdraw = xu.blockAverage2D(edf_data, nav[0], nav[1], roi=roi)
+        data[i, ...] = ccdraw
+
+    area = hxrd.Ang2Q.area(eta, phi, nu, delta, delta=(0, 0, 0, 0))
+
+    nx, ny, nz = data.shape
+    gridder = xu.Gridder3D(nx, ny, nz)
+    gridder(area[0], area[1], area[2], data)
+    qx, qy, qz = gridder.xaxis, gridder.yaxis, gridder.zaxis
+    intensity = gridder.data
+
+    return intensity, (qx, qy, qz)
