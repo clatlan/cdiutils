@@ -3,7 +3,6 @@ import matplotlib as mpl
 import numpy as np
 import scipy.signal
 import xrayutilities as xu
-from cdiutils.load.load_config import load_spec_file
 from numpy.polynomial import polynomial as P
 from scipy.ndimage import center_of_mass
 
@@ -11,7 +10,7 @@ from scipy.ndimage import center_of_mass
 def det_calib(
     edf_file_template: str,
     calib_scan: str,
-    specfile_path: str,
+    specfile,
     nav=[1, 1],
     roi=[0, 516, 0, 516],
     energy=13000 - 6,
@@ -21,23 +20,20 @@ def det_calib(
     verbose=True,
 ):
 
-    sf = load_spec_file(specfile_path)
 
-    frame_id = sf[calib_scan + ".1/measurement/mpx4inr"][...]
-    frames_nb = len(frame_id)
+    frames_id = specfile[calib_scan + ".1/measurement/mpx4inr"][...]
+    frames_nb = len(frames_id)
     frames = np.empty((frames_nb, roi[1], roi[3]))
     x_com = np.empty(frames_nb)
     y_com = np.empty(frames_nb)
 
-    positioners = sf[calib_scan + ".1/instrument/positioners"]
-
+    positioners = specfile[calib_scan + ".1/instrument/positioners"]
     eta = positioners["eta"][...]
     delta = positioners["del"][...]
     phi = positioners["phi"][...]
     nu = positioners["nu"][...]
-    mu = positioners["mu"][...]
 
-    for i, id in enumerate(frame_id):
+    for i, id in enumerate(frames_id):
         edf_data = xu.io.EDFFile(edf_file_template.format(id=int(id))).data
         ccdraw = xu.blockAverage2D(edf_data, nav[0], nav[1], roi=roi)
 
