@@ -85,8 +85,8 @@ def det_calib(
     if verbose:
         print("First estimate of sdd: {}\n".format(sdd))
     print(
-        "###################################################################"
-        "[INFO] Processing to detector calibration using area_detector_calib"
+        "###################################################################\n"
+        "[INFO] Processing to detector calibration using area_detector_calib\n"
         "###################################################################"
         "\n\n"
     )
