@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
+import xrayutilities as xu
 
 # mpl.rcParams["mpl_toolkits.legacy_colorbar"] = False
 
