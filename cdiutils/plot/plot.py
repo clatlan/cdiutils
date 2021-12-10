@@ -188,3 +188,68 @@ def fancy_plot(
     plt.imshow(data[:, shape[1] // 2, :], vmin=vmin, vmax=vmax)
     fig.suptitle(title)
     plt.show()
+
+
+def plot_diffraction_patterns(
+        intensities,
+        gridders,
+        titles=None,
+        maplog_min=3,
+        levels=100,
+        xlim=None,
+        ylim=None,
+        zlim=None,
+        show=True
+):
+    if len(intensities) != len(gridders):
+        print("lists intensities and gridders must have the same length")
+        return
+    no_title = True
+    if titles is not None and len(titles) != len(intensities):
+        print("lists intensities and titles must have the same length")
+    elif titles is not None:
+        no_title = False
+    fig, axes = plt.subplots(
+        len(intensities),
+        3,
+        figsize=(12, 3 * len(intensities))
+    )
+    for i, (intensity, (qx, qy, qz)) in enumerate(zip(intensities, gridders)):
+        log_intensity = xu.maplog(intensity, maplog_min, 0)
+
+        axes[i, 0].contourf(
+            qx, qy, log_intensity.sum(axis=2).T, levels=levels, cmap="turbo"
+        )
+        axes[i, 0].set_xlabel(r"$Q_X (\AA^{-1})$")
+        axes[i, 0].set_ylabel(r"$Q_Y (\AA^{-1})$")   
+    
+        axes[i, 1].contourf(
+            qx, qz, log_intensity.sum(axis=1).T, levels=levels, cmap="turbo"
+        )
+        axes[i, 1].set_xlabel(r"$Q_X (\AA^{-1})$")
+        axes[i, 1].set_ylabel(r"$Q_Z (\AA^{-1})$")
+        if not no_title:
+              axes[i, 1].set_title(titles[i])
+
+        axes[i, 2].contourf(
+            qy, qz, log_intensity.sum(axis=0).T, levels=levels, cmap="turbo"
+        )
+        axes[i, 2].set_xlabel(r"$Q_Y (\AA^{-1})$")
+        axes[i, 2].set_ylabel(r"$Q_Z (\AA^{-1})$")
+        
+        if xlim is not None:
+            axes[i, 0].set_xlim(xlim[0], xlim[1])
+            axes[i, 1].set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            axes[i, 0].set_ylim(ylim[0], ylim[1])
+            axes[i, 2].set_xlim(ylim[0], ylim[1])
+        if zlim is not None:
+            axes[i, 1].set_ylim(zlim[0], zlim[1])
+            axes[i, 2].set_ylim(zlim[0], zlim[1])
+    
+    fig.tight_layout()
+    if show:
+        plt.show()
+        return None
+    else:
+        return fig
