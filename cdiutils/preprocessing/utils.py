@@ -23,10 +23,6 @@ def diffraction_com_max(intensity, qx, qy, qz, maplog_min=3, verbose=True):
                 matrix_max, qmax, qcom
             )
         )
-        com_qx = np.sum(qx * np.sum(intensity, axis=(1, 2))) / np.sum(intensity)
-        com_qy = np.sum(qy * np.sum(intensity, axis=(0, 2))) / np.sum(intensity)
-        com_qz = np.sum(qz * np.sum(intensity, axis=(0, 1))) / np.sum(intensity)
-        qcom = [com_qx, com_qy, com_qz]
 
     log_intensity = xu.maplog(intensity, maplog_min, 0)
     filtered_intensity = np.power(log_intensity, 10)
