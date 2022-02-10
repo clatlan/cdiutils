@@ -73,7 +73,7 @@ def center(data, center=None, method="com"):
     """
     shape = data.shape
 
-    if method == "com"
+    if method == "com":
         if center is None:
             xcenter, ycenter, zcenter = (
                 int(round(c)) for c in center_of_mass(data)
