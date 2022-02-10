@@ -58,7 +58,7 @@ def normalize_complex_array(array):
     return shifted_array/np.abs(shifted_array).max()
 
 
-def center(data, com=None):
+def center(data, center=None, method="com"):
     """
     Center 3D volume data such that the center of mass of data is at
     the very center of the 3D matrix.
@@ -67,14 +67,27 @@ def center(data, com=None):
     centered.
     :param com: center of mass coordinates(list, np.array). If no com is
     provided, com of the given data is computed (default: None).
+    :param method: what region to place at the center (str), either
+    com or max.
     :returns: centered 3D numpy array.
     """
     shape = data.shape
-    if com is None:
-        com = [round(c) for c in center_of_mass(data)]
-    centered_data = np.roll(data, shape[0] // 2 - com[0], axis=0)
-    centered_data = np.roll(centered_data, shape[1] // 2 - com[1], axis=1)
-    centered_data = np.roll(centered_data, shape[2] // 2 - com[2], axis=2)
+
+    if method == "com"
+        if center is None:
+            xcenter, ycenter, zcenter = (
+                int(round(c)) for c in center_of_mass(data)
+                )
+    elif method == "max":
+        if center is None:
+            xcenter, ycenter, zcenter = np.where(data == np.max(data))
+    else:
+        print("method unknown, please choose between ['com', 'max']")
+        return data
+
+    centered_data = np.roll(data, shape[0] // 2 - xcenter, axis=0)
+    centered_data = np.roll(centered_data, shape[1] // 2 - ycenter, axis=1)
+    centered_data = np.roll(centered_data, shape[2] // 2 - zcenter, axis=2)
 
     return centered_data
 
