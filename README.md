@@ -1,5 +1,5 @@
 # cdiutils
-A python package to help Coherent Diffraction Imaging (CDI) practionionners in their analysis.
+A python package to help Bragg Coherent Diffraction Imaging (CDI) practionionners in their analysis.
 
 This package will provide convenient algorithms to analyse BCDI data. It requires the following librairies :
 * bcdi
