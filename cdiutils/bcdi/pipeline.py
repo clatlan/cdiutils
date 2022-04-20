@@ -14,9 +14,21 @@ from cdiutils.bcdi.find_best_candidates import find_best_candidates
 from cdiutils.load.analysis import ArgumentHandler
 
 
-def make_scan_file(
-        output_scan_file,
-        scan_file_template_path,
+def process(func):
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            print(
+                "\n[ERROR] An error occured in the "
+                f"'{func.__name__}' method..."
+            )
+    return wrapper
+
+
+def make_scan_parameters_file(
+        output_scan_parameters_file,
+        scan_parameters_file_template,
         scan,
         sample_name,
         working_directory,
@@ -24,20 +36,22 @@ def make_scan_file(
     dump_directory = "/".join((
         working_directory, sample_name, f"S{scan}"))
     
-    with open(scan_file_template_path, "r") as f:
+    with open(scan_parameters_file_template, "r") as f:
         source = Template(f.read())
     
-    scan_file = source.substitute(
+    scan_parameters_file = source.substitute(
         {
             "scan": scan,
             "save_dir": dump_directory,
             "reconstruction_file": dump_directory + "/modes.h5",
             "sample_name": sample_name,
+            "data": "$data",
+            "mask": "$mask"
         }
     )
 
-    with open(output_scan_file, "w") as f:
-        f.write(scan_file)
+    with open(output_scan_parameters_file, "w") as f:
+        f.write(scan_parameters_file)
 
 
 def pretty_print(text: str) -> None:
@@ -56,32 +70,65 @@ def pretty_print(text: str) -> None:
 
 
 class BcdiPipeline():
-    def __init__(self: Callable, scan_file: str, user_parameters: str):
-        self.scan_file = scan_file
-        self.user_parameters = user_parameters
-        self.working_directory = ArgumentHandler(
-            scan_file
-        ).load_arguments()["save_dir"]
+    # TODO: take care of cch1 cch2 detrot => automatically find tem
+    # Check parameters consistency (post vs pr process, sdd vs distance_detector)
+    # detector calibration on bliss data
+    def __init__(
+            self: Callable,
+            scan_parameters_file: str,
+            user_parameters: str
+        ):
 
+        self.scan_parameters_file = scan_parameters_file
+        self.user_parameters = user_parameters
+
+        self.parameters = ArgumentHandler(
+            scan_parameters_file,
+            script_type="all"
+        ).load_arguments()
+        
+        for key, value in self.parameters.items():
+            print("\n*****", key, "*****\n")
+            for k,v in value.items():
+                print(k, v, type(v))
+        self.working_directory = self.parameters["preprocessing"]["save_dir"]
+
+    @process
     def preprocess(self: Callable) -> None:
         pretty_print("[INFO] Proceeding to bcdi preprocessing")
 
-        parser = ConfigParser(self.scan_file)
-        run_preprocessing(prm=parser.load_arguments())
-        self.update_scan_file()
+        # parser = ConfigParser(self.scan_parameters_file)
+        run_preprocessing(prm=self.parameters["preprocessing"])
+        self.update_scan_parameter_file()
     
-    def update_scan_file(self):
-        with open(self.scan_file, "r") as f:
-            content = yaml.load(f, Loader=yaml.FullLoader)
-        content["data"] = glob.glob(
-            f"{self.working_directory}/S{content['scan']}_pynx_*npz"
-        )[0]
-        content["mask"] = glob.glob(
-            f"{self.working_directory}/S{content['scan']}_maskpynx_*npz"
-        )[0]
-        with open(self.scan_file, 'w') as f:
-            yaml.dump(content, f)
+    def update_scan_parameter_file(self):
+        pretty_print("[INFO] Update scan parameter file")
 
+        with open(self.scan_parameters_file, "r") as f:
+            content = Template(f.read())  
+            # content =  yaml.load(f, Loader=yaml.FullLoader)
+
+        new_content = content.substitute(
+            {
+                "data": glob.glob(f"{self.working_directory}/S*_pynx_*npz")[0],
+                "mask": glob.glob(f"{self.working_directory}/S*_maskpynx_*npz")[0]
+            }
+        )
+        with open(self.scan_parameters_file, 'w') as f:
+            f.write(new_content)
+        
+        # content["data"] = glob.glob(
+        #     f"{self.working_directory}/S{content['scan']}_pynx_*npz"
+        # )[0]
+       
+        # content["mask"] = glob.glob(
+        #     f"{self.working_directory}/S{content['scan']}_maskpynx_*npz"
+        # )[0]
+        
+        # with open(self.scan_parameters_file, 'w') as f:
+        #     yaml.dump(content, f)
+    
+    @process
     def phase_retrieval(self: Callable, machine: str="lid01pwr9") -> None:
         pretty_print("[INFO] Proceeding to PyNX phase retrieval")
 
@@ -91,10 +138,11 @@ class BcdiPipeline():
 
         # Make the pynx input file
         with open(pynx_input_file_path, "w") as f:
-            for key, value in  ArgumentHandler(
-                    self.scan_file,
-                    script_type="pynx"
-            ).load_arguments().items():
+            # for key, value in  ArgumentHandler(
+            #         self.parameters["preprocessing"],
+            #         script_type="pynx"
+            # ).load_arguments().items():
+            for key, value in self.parameters["pynx"].items():
                 f.write(f"{key} = {value}\n")
 
         if machine == "slurm-nice-devel":
@@ -131,11 +179,10 @@ class BcdiPipeline():
         )
         print(f"[INFO] Connected to {machine}")
         if machine == "slurm-nice-devel":
-            cmd = (
+            _, stdout, _= ssh.exec_command(
                 f"cd {self.working_directory};"
                 "sbatch pynx-id01cdi.slurm"
             )
-            stdin, stdout, stderr = ssh.exec_command(cmd)
             time.sleep(5)
 
             # read the standard output, decode it and print it
@@ -211,6 +258,7 @@ class BcdiPipeline():
                 criterion="std"
             )
 
+    @process
     def mode_decomposition(self: Callable) -> None:
 
         pretty_print(
@@ -220,14 +268,14 @@ class BcdiPipeline():
 
         # run the mode decomposition as a subprocesss
         with subprocess.Popen(
-            "source /sware/exp/pynx/activate_pynx.sh;"
-            f"cd {self.working_directory};"
-            "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
-            "modes_output=modes.h5 > mode_decomposition.log",
-            shell=True,
-            executable="/bin/bash",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+                "source /sware/exp/pynx/activate_pynx.sh;"
+                f"cd {self.working_directory};"
+                "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
+                "modes_output=modes.h5 > mode_decomposition.log",
+                shell=True,
+                executable="/bin/bash",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
         ) as process:
             stdout, stderr = process.communicate()
             stdout, stderr = process.communicate()
@@ -241,8 +289,8 @@ class BcdiPipeline():
         # TODO : Check if mode decomposition is better on p9gpu 
         # (or lid01pwr9 or lid01gpu1)
     
+    @process
     def postprocess(self: Callable) -> None:
         pretty_print("[INFO] Running post-processing from bcdi_strain.py")
 
-        parser = ConfigParser(self.scan_file)
-        run_postprocessing(prm=parser.load_arguments())
+        run_postprocessing(prm=self.parameters["postprocessing"])
