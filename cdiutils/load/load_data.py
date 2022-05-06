@@ -77,7 +77,7 @@ def load_amp_phase_strain(
         normalised_amp=False):
     data = np.load(file, allow_pickle=False)
     amp = data["amp"]
-    phase = data["displacement"]
+    phase = data["phase"]
     strain = data["strain"] * (100 if strain_in_percent else 1)
     if normalised_amp:
         amp = (amp - np.min(amp)) / np.ptp(amp)
@@ -86,12 +86,12 @@ def load_amp_phase_strain(
 
 
 def load_raw_scan(
-    specfile,
-    edf_file_template: str,
-    scan: str,
-    hxrd,
-    nav=[1, 1],
-    roi=[0, 516, 0, 516],
+        specfile,
+        edf_file_template: str,
+        scan: str,
+        hxrd,
+        nav=[1, 1],
+        roi=[0, 516, 0, 516],
 ):
 
     frames_id = specfile[scan + ".1/measurement/mpx4inr"][...]
