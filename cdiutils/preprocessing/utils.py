@@ -31,11 +31,11 @@ def diffraction_com_max(intensity, qx, qy, qz, maplog_min=3, verbose=True):
     com_qx = (
         np.sum(qx * np.sum(filtered_intensity, axis=(1, 2)))
         / np.sum(filtered_intensity)
-        )
+    )
     com_qy = (
         np.sum(qy * np.sum(filtered_intensity, axis=(0, 2)))
         / np.sum(filtered_intensity)
-        )
+    )
     com_qz = (
         np.sum(qz * np.sum(filtered_intensity, axis=(0, 1)))
         / np.sum(filtered_intensity)

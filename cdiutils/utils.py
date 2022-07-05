@@ -146,5 +146,9 @@ def compute_distance_from_com(data, com=None):
     return distance_matrix
 
 
-def zeros_to_nan(data):
+def zero_to_nan(data):
     return np.where(data == 0, np.nan, data)
+
+
+def nan_to_zero(data):
+    return np.where(np.isnan(data), 0, 1)
