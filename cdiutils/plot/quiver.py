@@ -3,7 +3,6 @@ import matplotlib.cm as cm
 from scipy.interpolate import splev, splrep
 
 import sys
-sys.path.append("/data/id01/inhouse/clatlan/pythonies/cdiutils")
 from cdiutils.utils import normalize
 
 
