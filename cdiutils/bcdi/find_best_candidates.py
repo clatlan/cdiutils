@@ -53,34 +53,39 @@ def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
         print("\n[INFO] Candidates with the lowest std will be saved.\n")
 
         # make a dictionary with file names as keys and std as values
-        eletronic_densities = {}
-        isosurface_thresholds = {}
-        supports = {}
-        STDs = {}
-        LLKFs = {}
-        LLKs = {}
+        STDs = {f: 0 for f in files}
+        LLKFs = {f: 0 for f in files}
+        LLKs = {f: 0 for f in files}
 
-        for i, f in enumerate(files):
-            print("[INFO] Opening file:", os.path.basename(f))
-            data_dic = get_data_from_cxi(f, "support", "electronic_density",
-                                         "llkf", "llk")
+        if len(files) <= nb_to_keep:
+            print(
+                "[INFO] did not proceed to sorting because the number of "
+                "files is already satisfied"
+            )
+            files_of_interest = files
+            nb_to_keep = len(files)
+        else:
+            for i, f in enumerate(files):
+                print("[INFO] Opening file:", os.path.basename(f))
+                data_dic = get_data_from_cxi(f, "support", "electronic_density",
+                                            "llkf", "llk")
 
-            support = data_dic["support"]
-            eletronic_density = data_dic["electronic_density"]
-            LLKFs[f] = data_dic["llkf"]
-            LLKs[f] = data_dic["llk"]
+                support = data_dic["support"]
+                eletronic_density = data_dic["electronic_density"]
+                LLKFs[f] = data_dic["llkf"]
+                LLKs[f] = data_dic["llk"]
 
-            density_of_interest = eletronic_density[support > 0]
-            modulus = np.abs(density_of_interest)
-            STDs[f] = np.std(modulus)
+                density_of_interest = eletronic_density[support > 0]
+                modulus = np.abs(density_of_interest)
+                STDs[f] = np.std(modulus)
 
-        # sort the dictionary
-        sorted_STDs = dict(sorted(STDs.items(),
-                           key=lambda item: item[1],
-                           reverse=False))
+            # sort the dictionary
+            sorted_STDs = dict(sorted(STDs.items(),
+                            key=lambda item: item[1],
+                            reverse=False))
 
-        # pick only file names with the lowest std values
-        files_of_interest = list(sorted_STDs.keys())[:nb_to_keep]
+            # pick only file names with the lowest std values
+            files_of_interest = list(sorted_STDs.keys())[:nb_to_keep]
 
         # copy these files with a different name
         for i, f in enumerate(files_of_interest):

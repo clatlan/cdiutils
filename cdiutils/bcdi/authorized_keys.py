@@ -71,6 +71,7 @@ AUTHORIZED_KEYS = {
             "root_folder",
             "detector",
             "scan",
+            "scans",
             "save_dir",
             "data_dir",
             "specfile_name",
