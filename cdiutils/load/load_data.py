@@ -6,6 +6,8 @@ import json
 from matplotlib.colors import LinearSegmentedColormap
 import xrayutilities as xu
 
+from cdiutils.utils import crop_at_center, make_support, zero_to_nan
+
 
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""
@@ -120,3 +122,83 @@ def load_raw_scan(
     intensity = gridder.data
 
     return intensity, (qx, qy, qz)
+
+
+def load_post_bcdi_data(
+        file_path: str,
+        isosurface: float,
+        shape: list=[100, 100, 100],
+        reference_voxel: tuple=None,
+        qnorm: float=None,
+) -> dict:
+
+    """
+    Load data from the post bcdi processing.
+
+    :param file_path: the file path of the file to load (str)
+    :param isosurface: the isosurface threshold to specify what is part
+    the reconstructed object or not (float).
+    :param shape: the shape of the voulme to consider. The data will be
+    cropped so the center of the orignal data remains the center of the 
+    cropped data (list). Default: [100, 100, 100]
+    :param reference_voxel: the voxel of reference to define the origin
+    of the phase (tuple). Default: None
+    :param qnorm: The norma of the q vector measured. This allows to 
+    compute the dpsacing and lattice parameter maps (float). 
+    Default: None 
+
+    :return dict: a dictionary containing all the necessary data.
+    """
+
+    amp, phase, strain = load_amp_phase_strain(
+        file_path,
+        strain_in_percent=True,
+        normalised_amp=True
+    )
+
+    amp = crop_at_center(amp, final_shape=shape)
+    phase = crop_at_center(phase, final_shape=shape)
+    strain = crop_at_center(strain, final_shape=shape)
+
+    support = make_support(amp, isosurface=isosurface, nan_value=False)
+    nan_support = zero_to_nan(support)
+    phase *= nan_support
+    strain *= nan_support
+
+    if not qnorm:
+        print(
+            "[INFO] qnorm not provided, only amp, support, phase and "
+            "local_strain will be returned"
+        )
+        return {
+            "amp": amp,
+            "support": support,
+            "phase": phase, 
+            "local_strain": strain
+        }
+    else:
+
+        # define the origin of the pase
+        if reference_voxel is None:
+            phase_reference = np.nanmean(phase)
+        else:
+            phase_reference = phase[reference_voxel]
+        centred_phase = phase - phase_reference
+
+        # Not the most efficient but emphasizes the clarity
+        displacement = centred_phase / qnorm
+        d_bragg =  (2*np.pi / qnorm)
+
+        dspacing = d_bragg * (1 + strain/100)
+        lattice_constant = np.sqrt(3) * dspacing
+
+        return {
+            "amplitude": amp,
+            "support": support,
+            "phase": phase, 
+            "local_strain": strain,
+            "centred_phase": centred_phase,
+            "displacement": displacement,
+            "dspacing": dspacing,
+            "lattice_constant": lattice_constant,
+        }
