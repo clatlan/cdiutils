@@ -6,6 +6,12 @@ from scipy.ndimage import convolve, center_of_mass
 # TODO:  Check out new parameters in function fund_hull
 
 
+def size_up_support(support):
+    kernel = np.ones(shape=(3, 3, 3))
+    convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
+    return np.where(convolved_support > 3, 1, 0)
+
+
 def find_hull(
         volume,
         threshold=18,
@@ -14,7 +20,6 @@ def find_hull(
         nan_value=False):
     """
     Find the convex hull of a 3D volume object.
-
     :param volume: 3D np.array. The volume to get the hull from.
     :param threshold: threshold that selects what belongs to the
     hull or not (int). If threshold >= 27, the returned hull will be
@@ -62,7 +67,6 @@ def center(data, center=None, method="com"):
     """
     Center 3D volume data such that the center of mass of data is at
     the very center of the 3D matrix.
-
     :param data: volume data (np.array). 3D numpy array which will be
     centered.
     :param com: center of mass coordinates(list, np.array). If no com is
@@ -96,7 +100,6 @@ def crop_at_center(data, final_shape=None):
     """
     Crop 3D array data to match the final_shape. Center of the input
     data remains the center of cropped data.
-
     :param data: 3D array data to be cropped (np.array).
     :param final_shape: the targetted shape (list). If None, nothing
     happens.
@@ -151,4 +154,4 @@ def zero_to_nan(data):
 
 
 def nan_to_zero(data):
-    return np.where(np.isnan(data), 0, 1)
+    return np.where(np.isnan(data), 0, data)
