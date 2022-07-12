@@ -4,8 +4,9 @@ import matplotlib
 from scipy.interpolate import splev, splrep
 from scipy.ndimage import rotate
 
-from cdiutils.utils import normalize, size_up_support, crop_at_center, nan_to_zero
-
+from cdiutils.utils import (
+    normalize, size_up_support, crop_at_center, nan_to_zero, to_bool
+)
 
 def plot_deviation(
         ax,
@@ -15,6 +16,7 @@ def plot_deviation(
         scale=1,
         arrow=False,
         attribute=None,
+        reference_line=True,
         vmin=None,
         vmax=None,
         centered=True,
@@ -25,6 +27,18 @@ def plot_deviation(
 ):
     colormap = cm.get_cmap(cmap)
 
+    support = to_bool(deviation, nan_value=True)
+    if reference_line:
+        ax.plot(
+            x,
+            y_pos * support,
+            c="grey",
+            ls=":",
+            lw=linewidth,
+        )
+
+    support = np.repeat(support, interpolate)
+
     if np.isnan(deviation).any():
         deviation = nan_to_zero(deviation)
 
@@ -32,7 +46,7 @@ def plot_deviation(
         spl_deviation = splrep(
             x,
             deviation,
-            s=(x.shape[0]-np.sqrt(2*x.shape[0]), x.shape[0]+np.sqrt(2*x.shape[0]))
+            # s=(x.shape[0]-np.sqrt(2*x.shape[0]), x.shape[0]+np.sqrt(2*x.shape[0]))
         )
         if attribute is not None:
             spl_attribute = splrep(x, attribute)
@@ -40,8 +54,8 @@ def plot_deviation(
         deviation = splev(x, spl_deviation)
         if attribute is not None:
             attribute = splev(x, spl_attribute)
-
-    y = deviation * scale + y_pos
+   
+    y = support * deviation * scale + y_pos
 
     if vmin and vmax:
         if centered and (vmin < 0 and vmax >= 0):
@@ -59,15 +73,16 @@ def plot_deviation(
     c = colormap(normalised_attribute)
 
     length = len(x) if type(x) == list else x.shape[0]
-    for i in range(length-1):
 
+    for i in range(length-1):
         ax.plot(
             [x[i], x[i+1]],
             [y[i], y[i+1]],
             c=c[i],
             linewidth=linewidth,
+            zorder=kwargs["zorder"]
         )
-        if arrow and i % interpolate == 0:
+        if arrow and i % interpolate == 0 and not np.isnan(support[i]):
             ax.quiver(
                 x[i],
                 y_pos,
@@ -105,9 +120,10 @@ def quiver_plot(
         interpolate=1,
         linewidth=0.7,
         contour_linewidth=1,
-        hline=True,
+        reference_line=True,
         return_colorbar=False,
         no_background=False,
+        no_foreground=False,
         **kwargs
 ):
     
@@ -141,7 +157,7 @@ def quiver_plot(
         levels=[0, .009],
         linewidths=contour_linewidth,
         colors="k",
-        zorder=2.2
+        zorder=2.3
     )
     if not no_background:
         background = ax.matshow(
@@ -162,35 +178,29 @@ def quiver_plot(
         origin="lower",
         cmap=matplotlib.colors.ListedColormap(['white']),
         alpha=1,
-        zorder=2.1
+        zorder=2.2
     )
-
-    for z in np.arange(0, disp.shape[1]):
-        
-        if hline:
-            ax.axhline(
-                y=z,
-                xmin=0.1,
-                color="grey",
-                ls=":",
-                linewidth=.8,
+    if not no_foreground:
+        for z in np.arange(0, disp.shape[1]):
+            ax, sm = plot_deviation(
+                ax,
+                x=np.arange(0, disp.shape[2]),
+                y_pos=z,
+                deviation=disp[slice_pos, z, :],
+                scale=displacement_scale,
+                vmin=min_max_disp[0],
+                vmax=min_max_disp[1],
+                centered=True,
+                cmap=foreground_cmap,
+                arrow=True,
+                reference_line=reference_line,
+                interpolate=interpolate,
+                linewidth=linewidth,
+                zorder=2.1,
+                **kwargs
             )
-        ax, sm = plot_deviation(
-            ax,
-            x=np.arange(0, disp.shape[2]),
-            y_pos=z,
-            deviation=disp[slice_pos, z, :],
-            scale=displacement_scale,
-            vmin=min_max_disp[0],
-            vmax=min_max_disp[1],
-            centered=True,
-            cmap=foreground_cmap,
-            arrow=True,
-            interpolate=interpolate,
-            linewidth=linewidth,
-            # zorder=3,
-            **kwargs
-        )
+    else:
+        sm = None
     if not return_colorbar:
         return ax
     else:
