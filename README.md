@@ -12,6 +12,5 @@ This package will provide convenient functions to analyse processed BCDI data. I
 * matplotlib
 
 
-```
 ![Cross Section Quiver](images/cross_section_quiver.jpg)
-```
+
