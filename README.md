@@ -44,4 +44,4 @@ For different conditions
 
 
 ## Diffraction pattern plots in the reciprocal space
-![Diffraction Patterns](https://github.com/clatlan/cdiutils/blob/master/images/difrraction_patterns.png)
+![Diffraction Patterns](https://github.com/clatlan/cdiutils/blob/master/images/diffraction_patterns.png)
