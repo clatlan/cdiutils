@@ -30,18 +30,23 @@ cdiutils.plot.plot.plot_slices function
 ![Phase](https://github.com/clatlan/cdiutils/blob/master/images/phase.png)
 
 ## Cross section quiver
-The cross section quiver allows to plot cross section of strain and displacement field on the same plot.
+cdiutils.plot.quiver.quiver_plot
+
+* The cross section quiver allows to plot cross section of strain and displacement field on the same plot.
 ![Cross Section Quiver](https://github.com/clatlan/cdiutils/blob/master/images/cross_section_quiver.png)
 
-For different conditions
+* For different conditions
 ![Quivers](https://github.com/clatlan/cdiutils/blob/master/images/multi_cross_sections.png)
 
-### Can also be used to plot the curves/arrows only
+* Can also be used to plot the curves/arrows only
 ![arrows](https://github.com/clatlan/cdiutils/blob/master/images/arrows.png)
 
-### Can also be used to plot basic cross sections
+* Can also be used to plot basic cross sections
 ![strain](https://github.com/clatlan/cdiutils/blob/master/images/strain.png)
 
 
 ## Diffraction pattern plots in the reciprocal space
+
+cdiutils.plot.plot.plot_diffraction_patterns
+
 ![Diffraction Patterns](https://github.com/clatlan/cdiutils/blob/master/images/diffraction_patterns.png)
