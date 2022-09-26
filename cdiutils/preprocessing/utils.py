@@ -60,3 +60,11 @@ def diffraction_com_max(intensity, qx, qy, qz, maplog_min=3, verbose=True):
         )
 
     return matrix_max, qmax, matrix_com, qcom
+
+
+def from_det_to_Q(xyz: tuple, transitions):
+    qx = transitions[0][xyz[0], xyz[1], xyz[2]]
+    qy = transitions[1][xyz[0], xyz[1], xyz[2]]
+    qz = transitions[2][xyz[0], xyz[1], xyz[2]]
+
+    return float(qx), float(qy), float(qz)
