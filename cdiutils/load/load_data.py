@@ -15,7 +15,7 @@ def load_specfile(path: str):
     #  return silx.io.specfile.SpecFile(path)
     with silx.io.open(path) as specfile:
         data = specfile
-    return  data
+    return data
 
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""

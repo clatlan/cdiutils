@@ -3,11 +3,9 @@ import numpy as np
 from utils import are_coplanar
 
 
-# TODO: Check if the compute 3D phase functions need normalized vectors or not
-
 def compute_3D_phase_V2(phases, q_vectors, support):
     # First load the vectors of the measurement frame.
-    # Q = [q1, q2, q3] = list(q_vectors.values())
+    Q = [q1, q2, q3] = list(q_vectors.values())
     Q = []
     phi = []
     for key in phases.keys():
@@ -66,7 +64,6 @@ def compute_3D_phase(phases, q_vectors, support):
 
     # Get only the coordinates of the voxel within the support.
     I, J, K = np.where(support > 0)
-    # I, J, K = I.tolist(), J.tolist(), K.tolist()
 
     # Iteration over each voxel. 3D phase is computed for each voxel.
     for i, j, k in zip(I.tolist(), J.tolist(), K.tolist()):

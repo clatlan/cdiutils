@@ -72,7 +72,7 @@ def plot_deviation(
 
     c = colormap(normalised_attribute)
 
-    length = len(x) if type(x) == list else x.shape[0]
+    length = len(x) if type(x) is list else x.shape[0]
 
     for i in range(length-1):
         ax.plot(

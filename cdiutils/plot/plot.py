@@ -156,7 +156,7 @@ def plot_3D_volume_slices(
 
     for i, plot in enumerate(data):
         if nan_support is not None:
-            if type(nan_support) == list:
+            if type(nan_support) is list:
                 plot = plot * nan_support[i]
             else:
                 plot = plot * nan_support
@@ -239,7 +239,6 @@ def plot_3D_volume_slices(
                 xytext=(-grid[ind].yaxis.labelpad - 2, 0),
                 xycoords=grid[ind].yaxis.label,
                 textcoords='offset points',
-                # size="medium",
                 ha='right',
                 va='center'
             )

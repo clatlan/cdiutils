@@ -1,5 +1,4 @@
 import silx.io
-# import hdf5plugin
 
 
 def get_positions(specfile_path, scan, beamline="ID01"):
@@ -81,7 +80,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
                 rocking_angle = "inplane"
                 angular_step = (
                     (azimuth_angle[-1] - azimuth_angle[0])
-                     / azimuth_angle.shape[0]
+                    / azimuth_angle.shape[0]
                 )
 
     elif beamline == "P10":
