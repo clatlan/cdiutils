@@ -12,7 +12,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
     :param beamline: beamline where the measurement was performed.
     (Default value = "ID01").
     :returns: azimuth, out-of-plane, incidence, in-plane angles
-    (floats), rockin angle (str), angle step (float).
+    (floats), rockin angle (str), angular_step (float).
 
     """
 
@@ -33,13 +33,13 @@ def get_positions(specfile_path, scan, beamline="ID01"):
         specfile.close()
 
         if incidence_angle.shape != ():
-            angle_step = ((incidence_angle[-1] - incidence_angle[0])
+            angular_step = ((incidence_angle[-1] - incidence_angle[0])
                           / incidence_angle.shape[0])
             incidence_angle = (incidence_angle[-1] + incidence_angle[0]) / 2
             rocking_angle = "outofplane"
 
         elif azimuth_angle.shape != ():
-            angle_step = ((azimuth_angle[-1] - azimuth_angle[0])
+            angular_step = ((azimuth_angle[-1] - azimuth_angle[0])
                           / azimuth_angle.shape[0])
             azimuth_angle = (azimuth_angle[-1] + azimuth_angle[0]) / 2
             rocking_angle = "inplane"
@@ -65,14 +65,14 @@ def get_positions(specfile_path, scan, beamline="ID01"):
 
             if incidence_angle[0] != incidence_angle[1]:
                 rocking_angle = "outofplane"
-                angle_step = ((incidence_angle[-1] - incidence_angle[0])
+                angular_step = ((incidence_angle[-1] - incidence_angle[0])
                               / incidence_angle.shape[0])
                 incidence_angle = ((incidence_angle[-1] + incidence_angle[0])
                                    / 2)
 
             elif azimuth_angle[0] != azimuth_angle[1]:
                 rocking_angle = "inplane"
-                angle_step = ((azimuth_angle[-1] - azimuth_angle[0])
+                angular_step = ((azimuth_angle[-1] - azimuth_angle[0])
                               / azimuth_angle.shape[0])
 
     elif beamline == "P10":
@@ -87,7 +87,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
                     scanning_angle = scan_command.split(" ")[1]
                     if scanning_angle == "om":
                         rocking_angle = "outofplane"
-                        angle_step = ((float(scan_command.split(" ")[3])
+                        angular_step = ((float(scan_command.split(" ")[3])
                                       - float(scan_command.split(" ")[2]))
                                       / float(scan_command.split(" ")[4]))
 
@@ -109,7 +109,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
             float(incidence_angle),
             float(inplane_angle),
             rocking_angle,
-            float(angle_step))
+            float(angular_step))
 
 
 if __name__ == '__main__':
