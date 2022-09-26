@@ -31,28 +31,6 @@ def process(func: Callable) -> Callable:
     return wrapper
 
 
-# def update_file(file_path: str, updated_parameters: Dict) -> None:
-#     # TODO: Not proud of that function at all...
-#     new_lines = []
-#     keys = list(updated_parameters.keys())  
-#     with open(file_path, "r+") as f:
-#         for line in f:
-#             key_found = False
-#             i = 0
-#             while (not key_found and i < len(keys)):
-#                 if line.startswith(f"  {keys[i]}: "):
-#                     new_lines.append(
-#                         f"  {keys[i]}: {updated_parameters[keys[i]]}\n"
-#                     )
-#                     key_found = True
-#                 i += 1
-#             if not key_found:
-#                 new_lines.append(line)
-#     # erase file content
-#     f = open(file_path, 'r+')
-#     f.write(''.join(new_lines))
-#     f.close()
-
 def update_parameter_file(file_path: str, updated_parameters: Dict) -> None:
     config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(open(file_path))
     for key in config.keys():
@@ -164,19 +142,6 @@ class BcdiPipeline:
 
     def load_parameters(self):
         return BcdiPipelineParser(self.scan_parameter_file).load_arguments()
-    
-
-    
-    # def update_scan_parameter_file(self, updated_parameters: Dict):
-    #     pretty_print("[INFO] Update scan parameter file")
-
-    #     with open(self.scan_parameter_file, "r") as f:
-    #         content = Template(f.read())  
-
-    #     new_content = content.substitute(updated_parameters)
-   
-    #     with open(self.scan_parameter_file, 'w') as f:
-    #         f.write(new_content)
     
     @process
     def phase_retrieval(
