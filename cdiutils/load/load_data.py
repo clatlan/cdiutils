@@ -4,10 +4,18 @@ import vtk
 from vtk.util.numpy_support import vtk_to_numpy
 import json
 from matplotlib.colors import LinearSegmentedColormap
+import silx.io
 import xrayutilities as xu
 
 from cdiutils.utils import crop_at_center, make_support, zero_to_nan
 
+
+def load_specfile(path: str):
+     """Load the specfile from the given path"""
+    #  return silx.io.specfile.SpecFile(path)
+     with silx.io.open(path) as specfile:
+        data = specfile
+     return  data
 
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""
@@ -55,7 +63,7 @@ def get_data_from_cxi(file, *items):
         return data_dic
 
     except Exception as e:
-        print("[ERROR] An error occured while opening the file:", f,
+        print("[ERROR] An error occured while opening the file:", e,
               "\n", e.__str__())
         return None
 
@@ -74,13 +82,20 @@ def load_vtk(file):
 
 
 def load_amp_phase_strain(
-        file,
+        file_path,
         strain_in_percent=False,
         normalised_amp=False):
-    data = np.load(file, allow_pickle=False)
-    amp = data["amp"]
-    phase = data["phase"]
-    strain = data["strain"] * (100 if strain_in_percent else 1)
+    with np.load(file_path) as data:
+    # data = np.load(file, allow_pickle=False)
+        amp = data["amp"]
+        try:
+            phase = data["phase"]
+        except KeyError:
+            try:
+                phase = data["displacement"]
+            except KeyError:
+                phase = data["disp"]
+        strain = data["strain"] * (100 if strain_in_percent else 1)
     if normalised_amp:
         amp = (amp - np.min(amp)) / np.ptp(amp)
 
@@ -90,46 +105,79 @@ def load_amp_phase_strain(
 def load_raw_scan(
         specfile,
         edf_file_template: str,
-        scan: str,
+        scan: int,
         hxrd,
         nav=[1, 1],
         roi=[0, 516, 0, 516],
+        start_end_frames=None
 ):
+    # frame_ids = specfile[f"{scan}.1/measurement/mpx4inr"][...]
 
-    frames_id = specfile[scan + ".1/measurement/mpx4inr"][...]
-    frames_nb = len(frames_id)
-    data = np.empty((frames_nb, roi[1], roi[3]))
+    if start_end_frames:
+        print(
+            "[INFO ]start_end_frames parameter provided, will consider only "
+            f"the frames between {start_end_frames[0]} and "
+            f"{start_end_frames[1]}"
+        )
+        frames_nb = start_end_frames[1] - start_end_frames[0]
+        frame_ids = specfile[f"{scan}.1/measurement/mpx4inr"][...][
+            start_end_frames[0]: start_end_frames[1]
+        ]
+    else:
+        frame_ids = specfile[f"{scan}.1/measurement/mpx4inr"][...]
+        frames_nb = len(frame_ids)
+        start_end_frames = [0, frames_nb]
+    
+    data = np.empty((frames_nb, roi[1]-roi[0], roi[3]-roi[2]))
 
-    positioners = specfile[scan + ".1/instrument/positioners"]
-    eta = positioners["eta"][...]
-    delta = positioners["del"][...]
-    phi = positioners["phi"][...]
-    nu = positioners["nu"][...]
+    positioners = specfile[f"{scan}.1/instrument/positioners"]
+    try:
+        eta = positioners["eta"][start_end_frames[0]: start_end_frames[1]]
+    except:
+        eta = positioners["eta"][...]
+    try:
+        delta = positioners["del"][start_end_frames[0]: start_end_frames[1]]
+    except:
+        delta = positioners["del"][...]
+    try:
+        phi = positioners["phi"][start_end_frames[0]: start_end_frames[1]]
+    except:
+        phi = positioners["phi"][...]
+    try:
+        nu = positioners["nu"][start_end_frames[0]: start_end_frames[1]]
+    except:
+        nu = positioners["nu"][...]
 
-    for i, frame_id in enumerate(frames_id):
+    for i, frame_id in enumerate(frame_ids):
         edf_data = xu.io.EDFFile(
             edf_file_template.format(id=int(frame_id))
         ).data
         ccdraw = xu.blockAverage2D(edf_data, nav[0], nav[1], roi=roi)
         data[i, ...] = ccdraw
 
-    area = hxrd.Ang2Q.area(eta, phi, nu, delta, delta=(0, 0, 0, 0))
+    detector_to_Q_space = hxrd.Ang2Q.area(eta, phi, nu, delta, delta=(0, 0, 0, 0))
 
     nx, ny, nz = data.shape
     gridder = xu.Gridder3D(nx, ny, nz)
-    gridder(area[0], area[1], area[2], data)
+    gridder(
+        detector_to_Q_space[0],
+        detector_to_Q_space[1],
+        detector_to_Q_space[2],
+        data
+    )
     qx, qy, qz = gridder.xaxis, gridder.yaxis, gridder.zaxis
     intensity = gridder.data
 
-    return intensity, (qx, qy, qz)
+    return intensity, (qx, qy, qz), detector_to_Q_space, data
 
 
 def load_post_bcdi_data(
         file_path: str,
         isosurface: float,
-        shape: list=[100, 100, 100],
+        shape: tuple=(100, 100, 100),
         reference_voxel: tuple=None,
         qnorm: float=None,
+        hkl: tuple=(1, 1, 1)
 ) -> dict:
 
     """
@@ -140,12 +188,13 @@ def load_post_bcdi_data(
     the reconstructed object or not (float).
     :param shape: the shape of the voulme to consider. The data will be
     cropped so the center of the orignal data remains the center of the 
-    cropped data (list). Default: [100, 100, 100]
+    cropped data (tuple). Default: (100, 100, 100])
     :param reference_voxel: the voxel of reference to define the origin
     of the phase (tuple). Default: None
     :param qnorm: The norma of the q vector measured. This allows to 
     compute the dpsacing and lattice parameter maps (float). 
-    Default: None 
+    Default: None
+    :param hkl: the Bragg peak measured (tuple). Default: (1, 1, 1)
 
     :return dict: a dictionary containing all the necessary data.
     """
@@ -190,7 +239,10 @@ def load_post_bcdi_data(
         d_bragg =  (2*np.pi / qnorm)
 
         dspacing = d_bragg * (1 + strain/100)
-        lattice_constant = np.sqrt(3) * dspacing
+        lattice_constant = (
+            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+            * dspacing
+        )
 
         return {
             "amplitude": amp,
@@ -202,3 +254,10 @@ def load_post_bcdi_data(
             "dspacing": dspacing,
             "lattice_constant": lattice_constant,
         }
+
+def get_data_from_npyz(file_path, *keys):
+    output = {}
+    with np.load(file_path) as data:
+        for key in keys:
+            output[key] = data[key]
+    return output

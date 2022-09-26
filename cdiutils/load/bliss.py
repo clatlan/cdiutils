@@ -64,10 +64,15 @@ class BlissLoader():
             sample_name=sample_name,
             scan=scan
         )
-        area = hxrd.Ang2Q.area(eta, phi, nu, delta)# delta=(0, 0, 0, 0))
+        detector_to_Q_space = hxrd.Ang2Q.area(eta, phi, nu, delta)# delta=(0, 0, 0, 0))
         nx, ny, nz = data.shape
-        gridder = xu.Gridder3D(nx, ny, nz)
-        gridder(area[0], area[1], area[2], data)
+        gridder = xu.Gridder3D(nx, ny, nz) # xu.FuzzyGridder
+        gridder(
+            detector_to_Q_space[0],
+            detector_to_Q_space[1],
+            detector_to_Q_space[2],
+            data
+        )
         qx, qy, qz = gridder.xaxis, gridder.yaxis, gridder.zaxis
         intensity = gridder.data
-        return intensity, (qx, qy, qz)
+        return intensity, (qx, qy, qz), detector_to_Q_space, data

@@ -27,7 +27,7 @@ def process(func: Callable) -> Callable:
                 # f"caught:\n'{e}'"
             )
             traceback.print_exc()
-            exit(1)
+            quit(1)
     return wrapper
 
 
@@ -138,25 +138,29 @@ class BcdiPipeline:
             "[INFO] Proceeding to bcdi preprocessing "
             f"(scan {self.parameters['preprocessing']['scans']})"
         )
+        # print(self.parameters["preprocessing"]["save_dir"])
+        os.makedirs(
+            self.parameters["preprocessing"]["save_dir"][0],
+            exist_ok=True
+        ) 
 
         run_preprocessing(prm=self.parameters["preprocessing"])
 
         pretty_print("[INFO] Update scan parameter file")
+
+        try:
+            data_path = glob.glob(f"{self.working_directory}/S*_pynx_*npz")[0]
+            mask_path = glob.glob(
+                    f"{self.working_directory}/S*_maskpynx_*npz")[0]
+        except IndexError:
+            raise FileNotFoundError(
+                "[ERROR] file missing, something went"
+                " wrong during preprocessing"
+            )
         update_parameter_file(
-            self.scan_parameter_file,
-            {
-                "data": glob.glob(f"{self.working_directory}/S*_pynx_*npz")[0],
-                "mask": glob.glob(
-                    f"{self.working_directory}/S*_maskpynx_*npz")[0],
-            }
+            self.scan_parameter_file, {"data": data_path, "mask": mask_path}
         )
         self.parameters = self.load_parameters()
-    
-    # def load_parameters(self):
-    #     return ArgumentHandler(
-    #         self.scan_parameter_file,
-    #         script_type="all"
-    #     ).load_arguments()
 
     def load_parameters(self):
         return BcdiPipelineParser(self.scan_parameter_file).load_arguments()
