@@ -46,7 +46,31 @@ def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 
 
-def normalize(data, zero_centered=True):
+def angle(v1, v2):
+    return np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+
+
+def v1_to_v2_rotation_matrix(v1, v2):
+    """ 
+    Rotation matrix around axis v1xv2
+    """
+    vec_rot_axis = np.cross(v1, v2)
+    normed_vrot = unit_vector(vec_rot_axis)
+
+    theta = angle(v1, v2)
+
+    n1, n2, n3 = normed_vrot    
+    ct = np.cos(theta)
+    st = np.sin(theta)
+    
+    r = np.array(((ct+n1**2*(1-ct), n1*n2*(1-ct)-n3*st, n1*n3*(1-ct)+n2*st),
+                  (n1*n2*(1-ct)+n3*st, ct+n2**2*(1-ct), n2*n3*(1-ct)-n1*st),
+                  (n1*n3*(1-ct)-n2*st, n2*n3*(1-ct)+n1*st, ct+n3**2*(1-ct))
+                  ))
+    return r
+
+
+def normalize(data, zero_centered=False):
     if zero_centered:
         abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
         vmin, vmax = -abs_max, abs_max
@@ -63,10 +87,16 @@ def normalize_complex_array(array):
     return shifted_array/np.abs(shifted_array).max()
 
 
-def center(data, center=None, method="com"):
+def center(
+    data,
+    center=None,
+    method="com",
+    verbose=False,
+    return_former_center=False
+):
     """
-    Center 3D volume data such that the center of mass of data is at
-    the very center of the 3D matrix.
+    Center 3D volume data such that the center of mass or max  of data
+    is at the very center of the 3D matrix.
     :param data: volume data (np.array). 3D numpy array which will be
     centered.
     :param com: center of mass coordinates(list, np.array). If no com is
@@ -77,23 +107,55 @@ def center(data, center=None, method="com"):
     """
     shape = data.shape
 
-    if method == "com":
-        if center is None:
+    if center:
+        xcenter = center[0]
+        ycenter = center[1]
+        zcenter = center[2]
+
+    elif method == "com":
             xcenter, ycenter, zcenter = (
                 int(round(c)) for c in center_of_mass(data)
                 )
+            
     elif method == "max":
-        if center is None:
             xcenter, ycenter, zcenter = np.where(data == np.max(data))
     else:
         print("method unknown, please choose between ['com', 'max']")
         return data
+    
+    if verbose:
+        print(f"Data will be centered at ({xcenter}, {ycenter}, {zcenter})")
 
     centered_data = np.roll(data, shape[0] // 2 - xcenter, axis=0)
     centered_data = np.roll(centered_data, shape[1] // 2 - ycenter, axis=1)
     centered_data = np.roll(centered_data, shape[2] // 2 - zcenter, axis=2)
 
+    if return_former_center:
+        return centered_data, (xcenter, ycenter, zcenter)
+
     return centered_data
+
+
+def symmetric_pad(data, final_shape=None, values=0):
+    if final_shape is None:
+        print("No final_shape given, data will not be padded")
+        return data
+    shape = data.shape
+
+    axis0_pad_width = (final_shape[0] - shape[0]) // 2
+    axis1_pad_width = (final_shape[1] - shape[1]) // 2
+    axis2_pad_width = (final_shape[2] - shape[2]) // 2
+
+    return np.pad(
+        data,
+        (
+            (axis0_pad_width, axis0_pad_width + (final_shape[0] - shape[0]) % 2),
+            (axis1_pad_width, axis1_pad_width + (final_shape[1] - shape[1]) % 2),
+            (axis2_pad_width, axis2_pad_width + (final_shape[2] - shape[2]) % 2)
+        ),
+        mode="constant",
+        constant_values=values
+    )
 
 
 def crop_at_center(data, final_shape=None):
@@ -105,6 +167,7 @@ def crop_at_center(data, final_shape=None):
     happens.
     :returns: cropped 3D array (np.array).
     """
+    
     if final_shape is None:
         print("No final shape specified, did not proceed to cropping")
         return data
@@ -117,7 +180,7 @@ def crop_at_center(data, final_shape=None):
             "One of the axis of the final shape is larger than "
             "the initial axis (initial shape: {}, final shape: {}).\n"
             "Did not proceed to cropping.".format(shape, tuple(final_shape))
-            )
+        )
         return data
 
     c = np.array(shape) // 2  # coordinates of the center
