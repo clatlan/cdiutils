@@ -15,11 +15,13 @@ def update_plot_params(
         lines_linestyle="-",
         lines_markersize=7,
         figure_titlesize=22,
-        axes_titesize=16,
+        font_size=16,
+        axes_titlesize=16,
         axes_labelsize=16,
         xtick_labelsize=12,
         ytick_labelsize=12,
-        legend_fontsize=10
+        legend_fontsize=10,
+        **kwargs
 
 ):
     plt.rcParams.update(
@@ -38,7 +40,8 @@ def update_plot_params(
             "lines.linestyle": lines_linestyle,
             "lines.markersize": lines_markersize,
             "figure.titlesize": figure_titlesize,
-            "axes.titlesize": axes_titesize,
+            "font.size": font_size,
+            "axes.titlesize": axes_titlesize,
             "axes.labelsize": axes_labelsize,
             "xtick.labelsize": xtick_labelsize,
             "ytick.labelsize": ytick_labelsize,
@@ -46,20 +49,52 @@ def update_plot_params(
         }
     )
 
-def plot_slices(
+
+def plot_slice(
+        *data,
+        figsize=(6, 4),
+        vmin=None,
+        vmax=None,
+        title=None,
+        origin="lower",
+        cmap="turbo",
+        return_fig=False,
+):
+    fig, axes = plt.subplots(1, len(data), figsize=figsize, squeeze=False)
+    for ax, d in zip(axes.ravel(), data):
+        im = ax.matshow(
+            d,
+            origin=origin, 
+            vmin=vmin, 
+            vmax=vmax,
+            cmap=cmap
+        )
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+    if return_fig:
+        return fig
+
+
+def plot_3D_volume_slices(
             *data,
             titles=None,
+            shapes=None,
+            nan_support=None,
             figsize=(6, 4),
-            cmap="jet",
+            cmap="turbo",
             vmin=None,
             vmax=None,
             log_scale=False,
+            sum=False,
             suptitle=None,
             show=True,
+            return_fig=False,
             cbar_title=None,
             show_cbar=False,
+            cbar_location="top",
+            aspect_ratios=None,
             data_stacking="vertical",
-            slice_names=["YZ slice", "XZ slice", "XY slice"]
+            slice_names=["ZY slice", "ZX slice", "YX slice"]
 ):
     """
     Plot 2D slices of a 3D volume data in three directions.
@@ -86,15 +121,17 @@ def plot_slices(
     :param slice_names: the name of the slices (list of str). For each
     *data, three slices are plotted, this str are the name of each
     slice.
-    :return: figure is show is false.
+    :return: figure if show is false.
     """
 
     fig = plt.figure(figsize=figsize)
 
     if log_scale:
         data = np.log(data)
-    vmin = np.nanmin(data) if vmin is None else vmin
-    vmax = np.nanmax(data) if vmax is None else vmax
+    if vmin is None:
+        vmin = None if sum or len(data) > 1 else np.nanmin(data)
+    if vmax is None:
+        vmax = None if sum or len(data) > 1 else np.nanmax(data)
 
     if data_stacking == "vertical":
         nrows_ncols = (len(data), 3)
@@ -104,23 +141,31 @@ def plot_slices(
         print("data_stacking should be 'vertical' or 'horizontal'.")
         return
     if titles is None:
-        print("No titles given.")
+        # print("No titles given.")
         titles = ["" for i in range(len(data))]
     elif len(titles) != len(data):
         print(
             "Number of titles should be identical to number of *data.\n"
             "Titles won't be displayed.")
         titles = ["" for i in range(len(data))]
-
+    
     grid = AxesGrid(fig, 111,
                     nrows_ncols=nrows_ncols,
                     axes_pad=0.05,
                     cbar_mode='single' if show_cbar else None,
-                    cbar_location='top'if show_cbar else None,
+                    cbar_location=cbar_location if show_cbar else None,
                     cbar_pad=0.25 if show_cbar else None)
 
     for i, plot in enumerate(data):
-        shape = plot.shape
+        if nan_support is not None:
+            if type(nan_support) == list:
+                plot = plot * nan_support[i]
+            else:
+                plot = plot * nan_support
+        if not shapes:
+            shape = plot.shape
+        else:
+            shape = shapes[i]
         if data_stacking == "vertical":
             ind1 = 3 * i
             ind2 = 3 * i + 1
@@ -130,25 +175,28 @@ def plot_slices(
             ind2 = i + len(data)
             ind3 = i + 2 * len(data)
         im = grid[ind1].matshow(
-            plot[shape[0]//2],
+            np.sum(plot, axis=0) if sum else plot[shape[0]//2, ...],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
             origin="lower",
+            aspect=aspect_ratios["yz"] if aspect_ratios else "auto"
         )
         grid[ind2].matshow(
-            plot[:, shape[1]//2, :],
+            np.sum(plot, axis=1) if sum else plot[:, shape[1]//2, :],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
-            origin="lower"
+            origin="lower",
+            aspect=aspect_ratios["xz"] if aspect_ratios else "auto"
         )
         grid[ind3].matshow(
-            plot[..., shape[2]//2],
+            np.sum(plot, axis=2) if sum else plot[..., shape[2]//2],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
-            origin="lower"
+            origin="lower",
+            aspect=aspect_ratios["xy"] if aspect_ratios else "auto"
         )
 
         if data_stacking == "vertical":
@@ -158,10 +206,10 @@ def plot_slices(
                 xytext=(-grid[ind1].yaxis.labelpad - 2, 0),
                 xycoords=grid[ind1].yaxis.label,
                 textcoords='offset points',
-                size="medium",
+                # size="medium",
                 ha='right',
                 va='center'
-                )
+            )
         else:
             grid[ind3].annotate(
                 titles[i] if titles is not None else "",
@@ -169,10 +217,10 @@ def plot_slices(
                 xytext=(0, -grid[ind3].xaxis.labelpad - 2),
                 xycoords=grid[ind3].xaxis.label,
                 textcoords='offset points',
-                size="medium",
+                # size="medium",
                 ha='center',
                 va='top'
-                )
+            )
 
     for i, slice_name in enumerate(slice_names):
         if data_stacking == "vertical":
@@ -183,10 +231,10 @@ def plot_slices(
                 xytext=(0, -grid[ind].xaxis.labelpad - 2),
                 xycoords=grid[ind].xaxis.label,
                 textcoords='offset points',
-                size="medium",
+                # size="medium",
                 ha='right',
                 va='center'
-                )
+            )
 
         else:
             ind = i * len(data)
@@ -196,10 +244,10 @@ def plot_slices(
                 xytext=(-grid[ind].yaxis.labelpad - 2, 0),
                 xycoords=grid[ind].yaxis.label,
                 textcoords='offset points',
-                size="medium",
+                # size="medium",
                 ha='right',
                 va='center'
-                )
+            )
 
     for i, ax in enumerate(grid):
         ax.axes.xaxis.set_ticks([])
@@ -208,10 +256,10 @@ def plot_slices(
         grid.cbar_axes[0].colorbar(im)
         grid.cbar_axes[0].set_title(cbar_title)
     fig.suptitle(suptitle)
-    fig.tight_layout()
+    # fig.tight_layout()
     if show:
         plt.show()
-    return fig
+    return fig if return_fig else None
 
 
 def plot_support_contour(
@@ -220,7 +268,10 @@ def plot_support_contour(
         isosurfaces,
         potentials,
         scan_ref,
-        threshold
+        threshold,
+        contour_linewidths=2.5,
+        contour_colors=("azure", "deepskyblue"),
+        **kwargs
     ):
     scan_digits = list(amplitudes.keys())
     
@@ -232,13 +283,15 @@ def plot_support_contour(
     filtered_amp_fig = plot_slices(
         *filtered_amplitudes.values(),
         titles=list(potentials.values()),
-        figsize=(12, 8),
-        cmap="turbo",
-        data_stacking="horizontal",
-        show_cbar=True,
-        cbar_title="Filtered amplitude (a. u.)",
+        # figsize=(12, 8),
+        # cmap="turbo",
+        # data_stacking="horizontal",
+        # show_cbar=True,
+        # cbar_title="Filtered amplitude (a. u.)",
         vmin=threshold,
-        vmax=1
+        vmax=1,
+        # return_fig=True,
+        **kwargs
     )
 
     support_ref = supports[scan_ref]
@@ -246,25 +299,27 @@ def plot_support_contour(
 
     for i, ax in enumerate(filtered_amp_fig.axes):
         if i < len(scan_digits):
-            X, Y = np.meshgrid(np.arange(0, shape[2]), (np.arange(0, shape[1])))
+            X, Y = np.meshgrid(
+                np.arange(0, shape[2]), (np.arange(0, shape[1])))
             ax.contour(
                 X,
                 Y,
                 support_ref[shape[0] // 2],
                 levels=[0, 1],
-                linewidths=1.5,
-                colors="blue",
+                linewidths=contour_linewidths,
+                colors=contour_colors[0] ,
 
             )
-            ax.contour(
-                X,
-                Y,
-                supports[scan_digits[i]][shape[0] // 2],
-                levels=[0, 1],
-                linewidths=1.5,
-                colors="green",
+            if i % len(scan_digits) != 0:
+                ax.contour(
+                    X,
+                    Y,
+                    supports[scan_digits[i]][shape[0] // 2],
+                    levels=[0, 1],
+                    linewidths=contour_linewidths,
+                    colors=contour_colors[1],
 
-            )
+                )
         elif i < 2*len(scan_digits):
             X, Y = np.meshgrid(np.arange(0, shape[2]), (np.arange(0, shape[0])))
             ax.contour(
@@ -272,19 +327,19 @@ def plot_support_contour(
                 Y,
                 support_ref[:, shape[1] // 2, :],
                 levels=[0, 1],
-                linewidths=1.5,
-                colors="blue",
+                linewidths=contour_linewidths,
+                colors=contour_colors[0],
 
             )
-            ax.contour(
-                X,
-                Y,
-                supports[scan_digits[i%len(scan_digits)]][:, shape[1] // 2, :],
-                levels=[0, 1],
-                linewidths=1.5,
-                colors="green",
-
-            )
+            if i % len(scan_digits) != 0:
+                ax.contour(
+                    X,
+                    Y,
+                    supports[scan_digits[i%len(scan_digits)]][:, shape[1] // 2, :],
+                    levels=[0, 1],
+                    linewidths=contour_linewidths,
+                    colors=contour_colors[1],
+                )
         elif i < 3*len(scan_digits):
             X, Y = np.meshgrid(np.arange(0, shape[1]), (np.arange(0, shape[0])))
             ax.contour(
@@ -292,18 +347,19 @@ def plot_support_contour(
                 Y,
                 support_ref[..., shape[2] // 2],
                 levels=[0, 0.1],
-                linewidths=1.5,
-                colors="blue",
+                linewidths=contour_linewidths,
+                colors=contour_colors[0],
 
             )
-            ax.contour(
-                X,
-                Y,
-                supports[scan_digits[i%len(scan_digits)]][..., shape[2] // 2],
-                levels=[0, 1],
-                linewidths=1.5,
-                colors="green",
-            )
+            if i % len(scan_digits) != 0:
+                ax.contour(
+                    X,
+                    Y,
+                    supports[scan_digits[i%len(scan_digits)]][..., shape[2] // 2],
+                    levels=[0, 1],
+                    linewidths=contour_linewidths,
+                    colors=contour_colors[1],
+                )
         
     return filtered_amp_fig
 
@@ -313,7 +369,7 @@ def fancy_plot(
         title=None,
         log_scale=False,
         figsize=None,
-        cmap='jet'):
+        cmap='turbo'):
 
     fig = plt.figure(figsize=figsize)
 
@@ -333,6 +389,9 @@ def plot_diffraction_patterns(
         intensities,
         gridders,
         titles=None,
+        data_stacking="vertical",
+        figsize=(8, 8),
+        aspect_ratio="equal",
         maplog_min=3,
         levels=100,
         xlim=None,
@@ -344,55 +403,80 @@ def plot_diffraction_patterns(
     if len(intensities) != len(gridders):
         print("lists intensities and gridders must have the same length")
         return None
+    
     no_title = True
     if titles is not None and len(titles) != len(intensities):
         print("lists intensities and titles must have the same length")
     elif titles is not None:
         no_title = False
+    
+    if data_stacking not in ["vertical", "horizontal"]:
+        print("data_stacking should be 'vertical' or 'horizontal'")
+        return None
+
     fig, axes = plt.subplots(
-        len(intensities),
-        3,
-        figsize=(12, 3 * len(intensities)),
+        len(intensities) if data_stacking == "vertical" else 3,
+        3 if data_stacking == "vertical" else len(intensities),
+        figsize=figsize,
         squeeze=False
     )
     for i, (intensity, (qx, qy, qz)) in enumerate(zip(intensities, gridders)):
         log_intensity = xu.maplog(intensity, maplog_min, 0)
+        
+        if data_stacking == "vertical":
+            ax_coord = (i, 0)
+            increment = (0, 1)
+        else:
+            ax_coord = (0, i)
+            increment = (1, 0)
 
-        cnt = axes[i, 0].contourf(
+        cnt = axes[ax_coord].contourf(
             qx, qy, log_intensity.sum(axis=2).T, levels=levels, cmap=cmap
         )
-        axes[i, 0].set_xlabel(r"$Q_X (\si{\angstrom}^{-1})$")
-        axes[i, 0].set_ylabel(r"$Q_Y (\si{\angstrom}^{-1})$")
+        axes[ax_coord].set_xlabel(r"$Q_X (\si{\angstrom}^{-1})$")
+        axes[ax_coord].set_ylabel(r"$Q_Y (\si{\angstrom}^{-1})$")
         for c in cnt.collections:
-            c.set_edgecolor("face")   
-    
-        cnt = axes[i, 1].contourf(
+            c.set_edgecolor("face")
+        if xlim is not None:
+            axes[ax_coord].set_xlim(xlim[0], xlim[1])
+        if ylim is not None:
+            axes[ax_coord].set_ylim(ylim[0], ylim[1])
+        if not no_title and data_stacking == "horizontal":
+              axes[ax_coord].set_title(titles[i])
+        
+        ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
+        cnt = axes[ax_coord].contourf(
             qx, qz, log_intensity.sum(axis=1).T, levels=levels, cmap=cmap
         )
-        axes[i, 1].set_xlabel(r"$Q_X (\si{\angstrom}^{-1})$")
-        axes[i, 1].set_ylabel(r"$Q_Z (\si{\angstrom}^{-1})$")
+        axes[ax_coord].set_xlabel(r"$Q_X (\si{\angstrom}^{-1})$")
+        axes[ax_coord].set_ylabel(r"$Q_Z (\si{\angstrom}^{-1})$")
         for c in cnt.collections:
             c.set_edgecolor("face")
-        if not no_title:
-              axes[i, 1].set_title(titles[i])
 
-        cnt = axes[i, 2].contourf(
-            qy, qz, log_intensity.sum(axis=0).T, levels=levels, cmap=cmap
-        )
-        axes[i, 2].set_xlabel(r"$Q_Y (\si{\angstrom}^{-1})$")
-        axes[i, 2].set_ylabel(r"$Q_Z (\si{\angstrom}^{-1})$")
-        for c in cnt.collections:
-            c.set_edgecolor("face")
         
         if xlim is not None:
-            axes[i, 0].set_xlim(xlim[0], xlim[1])
-            axes[i, 1].set_xlim(xlim[0], xlim[1])
-        if ylim is not None:
-            axes[i, 0].set_ylim(ylim[0], ylim[1])
-            axes[i, 2].set_xlim(ylim[0], ylim[1])
+            axes[ax_coord].set_xlim(xlim[0], xlim[1])
         if zlim is not None:
-            axes[i, 1].set_ylim(zlim[0], zlim[1])
-            axes[i, 2].set_ylim(zlim[0], zlim[1])
+            axes[ax_coord].set_ylim(zlim[0], zlim[1])
+        if not no_title and data_stacking == "vertical":
+              axes[ax_coord].set_title(titles[i])
+
+        ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
+        cnt = axes[ax_coord].contourf(
+            qy, qz, log_intensity.sum(axis=0).T, levels=levels, cmap=cmap
+        )
+        axes[ax_coord].set_xlabel(r"$Q_Y (\si{\angstrom}^{-1})$")
+        axes[ax_coord].set_ylabel(r"$Q_Z (\si{\angstrom}^{-1})$")
+        for c in cnt.collections:
+            c.set_edgecolor("face")
+        if ylim is not None:
+            axes[ax_coord].set_xlim(ylim[0], ylim[1])
+        if zlim is not None:
+            axes[ax_coord].set_ylim(zlim[0], zlim[1])
+
+        if aspect_ratio:
+            for ax in axes.ravel():
+                ax.set_aspect(aspect_ratio)
     
     fig.tight_layout()
     if show:
