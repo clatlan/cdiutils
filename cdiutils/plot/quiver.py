@@ -124,6 +124,8 @@ def quiver_plot(
         return_colorbar=False,
         no_background=False,
         no_foreground=False,
+        background_opacity=1,
+        aspect_ratio="equal",
         **kwargs
 ):
     
@@ -166,8 +168,9 @@ def quiver_plot(
             cmap=background_cmap,
             vmin=min_max_strain[0],
             vmax=min_max_strain[1],
-            alpha=0.6,
-            zorder=1
+            alpha=background_opacity,
+            zorder=1,
+            aspect=aspect_ratio
         )
     else:
         background = None

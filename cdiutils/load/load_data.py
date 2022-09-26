@@ -11,11 +11,11 @@ from cdiutils.utils import crop_at_center, make_support, zero_to_nan
 
 
 def load_specfile(path: str):
-     """Load the specfile from the given path"""
+    """Load the specfile from the given path"""
     #  return silx.io.specfile.SpecFile(path)
-     with silx.io.open(path) as specfile:
+    with silx.io.open(path) as specfile:
         data = specfile
-     return  data
+    return  data
 
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""
@@ -86,7 +86,6 @@ def load_amp_phase_strain(
         strain_in_percent=False,
         normalised_amp=False):
     with np.load(file_path) as data:
-    # data = np.load(file, allow_pickle=False)
         amp = data["amp"]
         try:
             phase = data["phase"]
@@ -111,7 +110,6 @@ def load_raw_scan(
         roi=[0, 516, 0, 516],
         start_end_frames=None
 ):
-    # frame_ids = specfile[f"{scan}.1/measurement/mpx4inr"][...]
 
     if start_end_frames:
         print(

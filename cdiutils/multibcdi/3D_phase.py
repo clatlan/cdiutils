@@ -7,7 +7,7 @@ from utils import are_coplanar
 
 def compute_3D_phase_V2(phases, q_vectors, support):
     # First load the vectors of the measurement frame.
-    Q = [q1, q2, q3] = list(q_vectors.values())
+    # Q = [q1, q2, q3] = list(q_vectors.values())
     Q = []
     phi = []
     for key in phases.keys():

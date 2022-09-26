@@ -55,14 +55,13 @@ def plot_slice(
         figsize=(6, 4),
         vmin=None,
         vmax=None,
-        title=None,
         origin="lower",
         cmap="turbo",
         return_fig=False,
 ):
     fig, axes = plt.subplots(1, len(data), figsize=figsize, squeeze=False)
     for ax, d in zip(axes.ravel(), data):
-        im = ax.matshow(
+        ax.matshow(
             d,
             origin=origin, 
             vmin=vmin, 
@@ -141,7 +140,6 @@ def plot_3D_volume_slices(
         print("data_stacking should be 'vertical' or 'horizontal'.")
         return
     if titles is None:
-        # print("No titles given.")
         titles = ["" for i in range(len(data))]
     elif len(titles) != len(data):
         print(
@@ -206,7 +204,6 @@ def plot_3D_volume_slices(
                 xytext=(-grid[ind1].yaxis.labelpad - 2, 0),
                 xycoords=grid[ind1].yaxis.label,
                 textcoords='offset points',
-                # size="medium",
                 ha='right',
                 va='center'
             )
@@ -217,7 +214,6 @@ def plot_3D_volume_slices(
                 xytext=(0, -grid[ind3].xaxis.labelpad - 2),
                 xycoords=grid[ind3].xaxis.label,
                 textcoords='offset points',
-                # size="medium",
                 ha='center',
                 va='top'
             )
@@ -231,7 +227,6 @@ def plot_3D_volume_slices(
                 xytext=(0, -grid[ind].xaxis.labelpad - 2),
                 xycoords=grid[ind].xaxis.label,
                 textcoords='offset points',
-                # size="medium",
                 ha='right',
                 va='center'
             )
@@ -256,7 +251,6 @@ def plot_3D_volume_slices(
         grid.cbar_axes[0].colorbar(im)
         grid.cbar_axes[0].set_title(cbar_title)
     fig.suptitle(suptitle)
-    # fig.tight_layout()
     if show:
         plt.show()
     return fig if return_fig else None
@@ -280,17 +274,11 @@ def plot_support_contour(
     for scan in scan_digits
     }
 
-    filtered_amp_fig = plot_slices(
+    filtered_amp_fig = plot_3D_volume_slices(
         *filtered_amplitudes.values(),
         titles=list(potentials.values()),
-        # figsize=(12, 8),
-        # cmap="turbo",
-        # data_stacking="horizontal",
-        # show_cbar=True,
-        # cbar_title="Filtered amplitude (a. u.)",
         vmin=threshold,
         vmax=1,
-        # return_fig=True,
         **kwargs
     )
 
@@ -442,7 +430,7 @@ def plot_diffraction_patterns(
         if ylim is not None:
             axes[ax_coord].set_ylim(ylim[0], ylim[1])
         if not no_title and data_stacking == "horizontal":
-              axes[ax_coord].set_title(titles[i])
+            axes[ax_coord].set_title(titles[i])
         
         ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
         cnt = axes[ax_coord].contourf(
@@ -459,7 +447,7 @@ def plot_diffraction_patterns(
         if zlim is not None:
             axes[ax_coord].set_ylim(zlim[0], zlim[1])
         if not no_title and data_stacking == "vertical":
-              axes[ax_coord].set_title(titles[i])
+            axes[ax_coord].set_title(titles[i])
 
         ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
         cnt = axes[ax_coord].contourf(

@@ -1,5 +1,5 @@
 import silx.io
-import hdf5plugin
+# import hdf5plugin
 
 
 def get_positions(specfile_path, scan, beamline="ID01"):
@@ -33,14 +33,18 @@ def get_positions(specfile_path, scan, beamline="ID01"):
         specfile.close()
 
         if incidence_angle.shape != ():
-            angular_step = ((incidence_angle[-1] - incidence_angle[0])
-                          / incidence_angle.shape[0])
+            angular_step = (
+                (incidence_angle[-1] - incidence_angle[0])
+                / incidence_angle.shape[0]
+            )
             incidence_angle = (incidence_angle[-1] + incidence_angle[0]) / 2
             rocking_angle = "outofplane"
 
         elif azimuth_angle.shape != ():
-            angular_step = ((azimuth_angle[-1] - azimuth_angle[0])
-                          / azimuth_angle.shape[0])
+            angular_step = (
+                (azimuth_angle[-1] - azimuth_angle[0])
+                / azimuth_angle.shape[0]
+            )
             azimuth_angle = (azimuth_angle[-1] + azimuth_angle[0]) / 2
             rocking_angle = "inplane"
 
@@ -50,7 +54,6 @@ def get_positions(specfile_path, scan, beamline="ID01"):
 
         if beamline_geometry == "MED_V":
 
-            # scan_file_name ="$DATA_ROOT_FOLDER/$TEMPLATE_DATA_FILE"%int(scan)
             scan_file_name = specfile_path
             data = nxsRead3.DataSet(scan_file_name)
 
@@ -65,15 +68,21 @@ def get_positions(specfile_path, scan, beamline="ID01"):
 
             if incidence_angle[0] != incidence_angle[1]:
                 rocking_angle = "outofplane"
-                angular_step = ((incidence_angle[-1] - incidence_angle[0])
-                              / incidence_angle.shape[0])
-                incidence_angle = ((incidence_angle[-1] + incidence_angle[0])
-                                   / 2)
+                angular_step = (
+                    (incidence_angle[-1] - incidence_angle[0])
+                    / incidence_angle.shape[0]
+                )
+                incidence_angle = (
+                    (incidence_angle[-1] + incidence_angle[0])
+                    / 2
+                )
 
             elif azimuth_angle[0] != azimuth_angle[1]:
                 rocking_angle = "inplane"
-                angular_step = ((azimuth_angle[-1] - azimuth_angle[0])
-                              / azimuth_angle.shape[0])
+                angular_step = (
+                    (azimuth_angle[-1] - azimuth_angle[0])
+                     / azimuth_angle.shape[0]
+                )
 
     elif beamline == "P10":
         # TO DO: implementation for rocking angle != "outofplane"
@@ -87,9 +96,11 @@ def get_positions(specfile_path, scan, beamline="ID01"):
                     scanning_angle = scan_command.split(" ")[1]
                     if scanning_angle == "om":
                         rocking_angle = "outofplane"
-                        angular_step = ((float(scan_command.split(" ")[3])
-                                      - float(scan_command.split(" ")[2]))
-                                      / float(scan_command.split(" ")[4]))
+                        angular_step = (
+                            (float(scan_command.split(" ")[3])
+                            - float(scan_command.split(" ")[2]))
+                            / float(scan_command.split(" ")[4])
+                        )
 
                 if line.startswith("del"):
                     outofplane_angle = float(line.split(" = ")[1])

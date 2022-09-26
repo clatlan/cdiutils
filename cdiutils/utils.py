@@ -89,7 +89,7 @@ def normalize_complex_array(array):
 
 def center(
     data,
-    center=None,
+    center_coordinates=None,
     method="com",
     verbose=False,
     return_former_center=False
@@ -107,10 +107,10 @@ def center(
     """
     shape = data.shape
 
-    if center:
-        xcenter = center[0]
-        ycenter = center[1]
-        zcenter = center[2]
+    if center_coordinates:
+        xcenter = center_coordinates[0]
+        ycenter = center_coordinates[1]
+        zcenter = center_coordinates[2]
 
     elif method == "com":
             xcenter, ycenter, zcenter = (
