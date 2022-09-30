@@ -123,7 +123,7 @@ def gradient(data, dx, dy, dz):
     
     grad_x = np.nanmean([grad_x[1:], grad_x[:-1]], axis=0) 
     grad_y = np.nanmean([grad_y[: ,1:, :], grad_y[:, :-1, :]], axis=0) 
-    grad_z = np.nanmean([grad_z[:, 1:], grad_z[ :, :-1]], axis=0) 
+    grad_z = np.nanmean([grad_z[..., 1:], grad_z[..., :-1]], axis=0) 
 
 
     return (
