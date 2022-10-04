@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 from cdiutils.utils import crop_at_center, symmetric_pad
 
 
-def remove_phase_ramp(phase, return_ramp=False):
+def remove_phase_ramp(phase):
     """
     Remove the phase ramp of a 3D volume phase.
 
@@ -35,9 +35,8 @@ def remove_phase_ramp(phase, return_ramp=False):
         + reg.coef_[2] * z
         + reg.intercept_
     )
-    if return_ramp:
-        return phase - ramp, ramp
-    return phase - ramp
+
+    return phase - ramp, ramp
 
 
 def make_blackman_window(shape: tuple, normalization: float=1):
