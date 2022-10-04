@@ -73,7 +73,7 @@ def blackman_apodize(direct_space_data, initial_shape):
     (np.ndarray)
     :param initial_shape: the shape that had the object before cropping.
     The direct_space_data will be Fourrier transformed and the shape of
-    the its initial corresponding Fourrier transfrom is better to get a
+    the its initial corresponding Fourrier transform is better to get a
     relevant blackman winow.
 
     :return: the apodized data in the direct space with the same input
@@ -82,13 +82,13 @@ def blackman_apodize(direct_space_data, initial_shape):
     current_shape = direct_space_data.shape
     padded_data = symmetric_pad(direct_space_data, final_shape=initial_shape)
 
-    q_space_data = fftshift(fftn(padded_data))
+    q_space_data = fftn(fftshift(padded_data))
     
     blackman_window = make_blackman_window(initial_shape)
 
     q_space_data = q_space_data * blackman_window
 
-    return crop_at_center(ifftn(ifftshift(q_space_data)), current_shape)
+    return crop_at_center(ifftshift(ifftn(q_space_data)), current_shape)
 
 
 def flip_reconstruction(data):
@@ -100,7 +100,7 @@ def flip_reconstruction(data):
     :return: the flipped reconstruction
     """
 
-    return ifftn(ifftshift(np.conj(fftshift(fftn(data)))))
+    return ifftshift(ifftn(np.conj(fftn(fftshift(data)))))
 
 
 
@@ -121,9 +121,9 @@ def gradient(data, dx, dy, dz):
     grad_y = (data[:, 1:, :] - data[:, :-1, :]) / dy
     grad_z = (data[..., 1:] - data[..., :-1]) / dz
     
-    grad_x = np.nanmean([grad_x[1:], grad_x[:-1]], axis=0) 
-    grad_y = np.nanmean([grad_y[: ,1:, :], grad_y[:, :-1, :]], axis=0) 
-    grad_z = np.nanmean([grad_z[..., 1:], grad_z[..., :-1]], axis=0) 
+    grad_x = np.nanmean([grad_x[1:], grad_x[:-1]], axis=0)
+    grad_y = np.nanmean([grad_y[: ,1:, :], grad_y[:, :-1, :]], axis=0)
+    grad_z = np.nanmean([grad_z[..., 1:], grad_z[..., :-1]], axis=0)
 
 
     return (
