@@ -16,20 +16,6 @@ from cdiutils.bcdi.find_best_candidates import find_best_candidates
 from cdiutils.load.load_parameters import BcdiPipelineParser
 
 
-def process(func: Callable) -> Callable:
-    def wrapper(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            print(
-                "\n[ERROR] An error occured in the "
-                f"'{func.__name__}' method... here is the traceback:\n"
-                # f"caught:\n'{e}'"
-            )
-            traceback.print_exc()
-            quit(1)
-    return wrapper
-
 
 def update_parameter_file(file_path: str, updated_parameters: Dict) -> None:
     config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(open(file_path))
@@ -89,8 +75,24 @@ def pretty_print(text: str) -> None:
     print("*")
     print(stars + "\n")
 
-# TODO: rewrite update function
-# find_best_candidates loads files twice -> should load them only once
+
+def process(func: Callable) -> Callable:
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            print(
+                "\n[ERROR] An error occured in the "
+                f"'{func.__name__}' method... here is the traceback:\n"
+            )
+            traceback.print_exc()
+            quit(1)
+    return wrapper
+
+
+# TODO:
+# check find_best_candidates loads files twice -> should load 
+# them only once
 class BcdiPipeline:
     """
     A class to handle the bcdi worfklow, from pre-processing to
