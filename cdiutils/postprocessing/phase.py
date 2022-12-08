@@ -1,3 +1,10 @@
+"""Utility functions for phase processing in a BCDI framework.
+
+
+Author:
+    Clément Atlan - 12.08.2022
+"""
+
 import numpy as np
 from numpy.fft import fftn, fftshift, ifftn, ifftshift
 from skimage.restoration import unwrap_phase
@@ -9,6 +16,7 @@ from cdiutils.utils import (
     crop_at_center, symmetric_pad, normalize, make_support, nan_to_zero,
     zero_to_nan, find_suitable_array_shape, center
 )
+
 
 def remove_phase_ramp(phase: np.array) -> Tuple[np.array, np.array]:
     """
