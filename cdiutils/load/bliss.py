@@ -1,3 +1,4 @@
+import numpy as np
 import silx.io.h5py_utils
 import hdf5plugin
 import xrayutilities as xu
@@ -18,7 +19,19 @@ class BlissLoader():
         ):
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
-        self.flatfield=flatfield
+
+        if type(flatfield) == str and flatfield.endswith(".npz"):
+            self.flatfield = np.load(flatfield)["arr_0"]
+        elif type(flatfield) == np.ndarray:
+            self.flatfield=flatfield
+        elif flatfield is None:
+            self.flatfield = None
+        else:
+            raise ValueError(
+                "[ERROR] wrong value for flatfield parameter, provide a path, "
+                "np.array or leave it to None"
+            )
+
     
     @safe
     def load_detector_data(
@@ -28,7 +41,13 @@ class BlissLoader():
             scan,
         ):
         key_path = "_".join((sample_name, str(scan))) + ".1"
-        data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
+        if self.detector_name == "flexible":
+            try:
+                data = h5file[key_path + f"/measurement/mpx1x4"][()]
+            except KeyError:
+                data = h5file[key_path + f"/measurement/mpxgaas"][()]
+        else:
+            data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
         if not self.flatfield is None: 
             data = data * self.flatfield
         return data
