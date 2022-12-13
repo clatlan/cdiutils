@@ -5,6 +5,5 @@
 
 from setuptools import setup
 
-setup(name='cdiutils',version='0.1.1',
-      scripts=["cdiutils/scripts/facet_analysis.py"],
+setup(name='cdiutils',version='0.1.3',
       author="Clement Atlan")
