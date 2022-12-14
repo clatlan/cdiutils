@@ -5,7 +5,7 @@ from scipy.interpolate import splev, splrep
 from scipy.ndimage import rotate
 
 from cdiutils.utils import (
-    normalize, size_up_support, crop_at_center, nan_to_zero, to_bool
+    normalize, size_up_support, crop_at_center, to_bool, nan_to_zero
 )
 
 def plot_deviation(

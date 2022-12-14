@@ -1,4 +1,5 @@
 from typing import Union
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import AxesGrid
@@ -461,7 +462,7 @@ def summary_slice_plot(
         respect_aspect=False,
         support: np.array=None,
         **kwargs
-) -> None:
+) -> matplotlib.figure.Figure:
 
     # take care of the aspect ratios:
     if voxel_size is not None and respect_aspect:
@@ -571,10 +572,10 @@ def summary_slice_plot(
     table_ax.axis("off")
 
     # format the data
-    isosurface = round(isosurface, 2)
-    qnorm = round(qnorm, 3)
-    averaged_dspacing = round(averaged_dspacing, 3)
-    averaged_lattice_constant = round(averaged_lattice_constant, 3)
+    isosurface = round(isosurface, 3)
+    qnorm = round(qnorm, 4)
+    averaged_dspacing = round(averaged_dspacing, 4)
+    averaged_lattice_constant = round(averaged_lattice_constant, 4)
 
     # voxel_s
     table = table_ax.table(
@@ -633,3 +634,5 @@ def summary_slice_plot(
     # save the figure
     if save:
         figure.savefig(save, dpi=dpi, bbox_inches="tight")
+    
+    return figure
