@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import silx.io.h5py_utils
 import hdf5plugin
@@ -14,7 +15,7 @@ class BlissLoader():
     def __init__(
             self,
             experiment_file_path,
-            detector_name="mpx1x4",
+            detector_name="flexible",
             flatfield=None
         ):
         self.experiment_file_path = experiment_file_path
@@ -128,3 +129,13 @@ class BlissLoader():
         qx, qy, qz = gridder.xaxis, gridder.yaxis, gridder.zaxis
         intensity = gridder.data
         return intensity, (qx, qy, qz), detector_to_Q_space, data
+    
+    @staticmethod
+    def get_mask(channel: Optional[int]) -> np.array:
+        mask = np.zeros(shape=(516, 516))
+        mask[:, 255:261] = 1
+        mask[255:261, :] = 1
+        if channel:
+            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
+        else:
+            return mask

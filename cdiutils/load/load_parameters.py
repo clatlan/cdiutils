@@ -4,58 +4,14 @@
 import yaml
 import pathlib
 from typing import Dict
-from bcdi.utils.parser import ConfigParser
-
-from cdiutils.bcdi.authorized_keys import AUTHORIZED_KEYS
 
 
-def pretty_dict_print(dict):
-    for k, v in dict.items():
-        print(f"{k} = {v}")
+from cdiutils.processing.authorized_keys import AUTHORIZED_KEYS
 
 
-class BcdiPipelineParser(ConfigParser):
-    def __init__(self, file_path: str) -> None:
-        super().__init__(file_path)
-
-    def load_arguments(self) -> Dict:
-        raw_args = yaml.load(self.raw_config, Loader=yaml.SafeLoader)
-
-        raw_args["preprocessing"].update(raw_args["general"])
-        raw_args["postprocessing"].update(raw_args["general"])
-        raw_args["pynx"].update(
-            {"detector_distance": raw_args["general"]["detector_distance"]})
-
-        self.arguments = {
-            "preprocessing": self._check_args(raw_args["preprocessing"]),
-            "pynx": raw_args["pynx"],
-            "postprocessing": self._check_args(raw_args["postprocessing"])
-        }
-        return self.arguments
-    
-    @staticmethod
-    def load_bcdi_parameters(self, process="preprocessing") -> Dict:
-        raw_args = yaml.load(
-            self.raw_config,
-            Loader=yaml.SafeLoader
-        )[process]
-        raw_args.update(raw_args["general"])
-        return self._check_args(raw_args)
-    
-    @staticmethod
-    def load_preprocessing_parameters(self) -> Dict:
-        return self.load_bcdi_parameters(process="preprocessing")
-    
-    @staticmethod
-    def load_postprocessing_parameters(self) -> Dict:
-        return self.load_bcdi_parameters(process="postprocessing")
-
-    @staticmethod
-    def load_pynx_parameters(self) -> Dict:
-        return yaml.load(self.raw_config, Loader=yaml.SafeLoader)["pynx"]
-
-
-       
+def pretty_dict_print(dictionary):
+    for k, v in dictionary.items():
+        print(f"{k} = {v}")       
 
 class ArgumentHandler:
     """

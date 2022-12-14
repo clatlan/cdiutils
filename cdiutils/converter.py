@@ -201,7 +201,7 @@ class SpaceConverter():
 
         if self.Q_space_transitions is None:
             raise ValueError(
-                "Q_space_transitions is None, please set the Q space area"
+                "Q_space_transitions is None, please set the Q space area "
                 "with SpaceConverter.set_Q_space_area() method"
             )
         return self.make_transition(
