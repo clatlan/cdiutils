@@ -62,7 +62,7 @@ class BlissLoader():
     def load_motor_positions(self, h5file, sample_name, scan):
         key_path = "_".join(
              (sample_name, str(scan))
-             ) + ".1/instrument/positioners"
+        ) + ".1/instrument/positioners"
         
         nu = h5file[key_path + "/nu"][()]
         delta = h5file[key_path + "/delta"][()]
@@ -71,36 +71,69 @@ class BlissLoader():
         return eta, phi, nu, delta
     
     @safe
-    def load_measurement_parameter(self, h5file, sample_name, scan, mes_parameter):
+    def load_measurement_parameter(
+            self,
+            h5file,
+            sample_name: str,
+            scan: int,
+            parameter_name: str
+    ):
+        """
+        laod the measurement parameters of the specified scan
+        """
+
         key_path = "_".join(
              (sample_name, str(scan))
-             ) + ".1/measurement"
-        requested_mes_parameter = h5file[key_path + "/" + str(mes_parameter)][()]
+        ) + ".1/measurement"
+        requested_mes_parameter = h5file[f"{key_path}/{parameter_name}"][()]
         return requested_mes_parameter
     
     @safe
-    def load_instrument_parameter(self, h5file, sample_name, scan, ins_parameter):
+    def load_instrument_parameter(
+            self,
+            h5file,
+            sample_name,
+            scan,
+            ins_parameter
+    ):
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
-        requested_parameter = h5file[key_path + "/" + str(ins_parameter)][()]
-        return requested_ins_parameter
+        requested_parameter = h5file[key_path + "/" + ins_parameter][()]
+        return requested_parameter
 
     @safe
-    def load_sample_parameter(self, h5file, sample_name, scan, sam_parameter):
+    def load_sample_parameter(
+            self,
+            h5file,
+            sample_name,
+            scan,
+            sam_parameter
+    ):
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/sample"
-        requested_parameter = h5file[key_path + "/" + str(sam_parameter)][()]
-        return requested_sam_parameter
+        requested_parameter = h5file[key_path + "/" + sam_parameter][()]
+        return requested_parameter
     
     @safe
-    def load_plotselect_parameter(self, h5file, sample_name, scan, plot_parameter):
+    def load_plotselect_parameter(
+            self,
+            h5file,
+            sample_name,
+            scan,
+            plot_parameter
+    ):
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/plotselect"
-        requested_parameter = h5file[key_path + "/" + str(plot_parameter)][()]
-        return requested_plot_parameter
+        requested_parameter = h5file[key_path + "/" + plot_parameter][()]
+        return requested_parameter
+    
+    # def load_parameter(self, h5file, sample_name, scan, extra_path: str):
+    #     key_path = "_".join(sample_name, str(scan)) + extra_path
+    #     requested_parameter = h5file[key_path + "/" + ]
+        
    
     
     def load_data_in_Q_space(
