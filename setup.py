@@ -2,13 +2,20 @@
 
 # authors :
 #              Clement Atlan, c.atlan@outlook.com
+import setuptools
 
-from setuptools import setup
-
-setup(
-      name='cdiutils',version='0.1.3',
+setuptools.setup(
+      name='cdiutils',
+      version='0.1.3',
       author="Clement Atlan",
+      description=(
+            "A python package to help Coherent Diffraction Imaging (CDI) "
+            "practionionners in their analysis."
+      ),
+      author_email="c.atlan@outlook.com",
       scripts=[
             "cdiutils/scripts/bcdi_analysis.py"
-      ]
+      ],
+      packages=setuptools.find_packages(),
+      include_package_data=True
 )
