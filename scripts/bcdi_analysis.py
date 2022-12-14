@@ -19,6 +19,7 @@ if __name__ == "__main__":
         print(usage_text)
         exit(1)
 
+    backend = "bcdi"
     for arg in sys.argv[1:]:
         if arg.endswith(".yml") or arg.endswith(".yaml"):
             scan_file = arg
@@ -66,3 +67,4 @@ if __name__ == "__main__":
         bcdi_pipeline.save_parameter_file()
 
 ## TODO : functional programming + static methods
+
