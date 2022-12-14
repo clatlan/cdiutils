@@ -14,7 +14,7 @@ setuptools.setup(
       ),
       author_email="c.atlan@outlook.com",
       scripts=[
-            "cdiutils/scripts/bcdi_analysis.py"
+            "scripts/bcdi_analysis.py"
       ],
       packages=setuptools.find_packages(),
       include_package_data=True
