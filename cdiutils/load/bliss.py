@@ -70,6 +70,39 @@ class BlissLoader():
         phi = h5file[key_path + "/phi"][()]
         return eta, phi, nu, delta
     
+    @safe
+    def load_measurement_parameter(self, h5file, sample_name, scan, mes_parameter):
+        key_path = "_".join(
+             (sample_name, str(scan))
+             ) + ".1/measurement"
+        requested_mes_parameter = h5file[key_path + "/" + str(mes_parameter)][()]
+        return requested_mes_parameter
+    
+    @safe
+    def load_instrument_parameter(self, h5file, sample_name, scan, ins_parameter):
+        key_path = "_".join(
+             (sample_name, str(scan))
+             ) + ".1/instrument"
+        requested_parameter = h5file[key_path + "/" + str(ins_parameter)][()]
+        return requested_ins_parameter
+
+    @safe
+    def load_sample_parameter(self, h5file, sample_name, scan, sam_parameter):
+        key_path = "_".join(
+             (sample_name, str(scan))
+             ) + ".1/sample"
+        requested_parameter = h5file[key_path + "/" + str(sam_parameter)][()]
+        return requested_sam_parameter
+    
+    @safe
+    def load_plotselect_parameter(self, h5file, sample_name, scan, plot_parameter):
+        key_path = "_".join(
+             (sample_name, str(scan))
+             ) + ".1/plotselect"
+        requested_parameter = h5file[key_path + "/" + str(plot_parameter)][()]
+        return requested_plot_parameter
+   
+    
     def load_data_in_Q_space(
             self,
             scan: str,
