@@ -145,7 +145,12 @@ def load_raw_scan(
         nu = positioners["nu"][start_end_frames[0]: start_end_frames[1]]
     except:
         nu = positioners["nu"][...]
-
+    try:
+        mu = positioners["mu"][start_end_frames[0]: start_end_frames[1]]
+    except:
+        mu = positioners["mu"][...]
+    phi += mu
+    
     for i, frame_id in enumerate(frame_ids):
         edf_data = xu.io.EDFFile(
             edf_file_template.format(id=int(frame_id))
@@ -209,8 +214,8 @@ def load_post_bcdi_data(
 
     support = make_support(amp, isosurface=isosurface, nan_value=False)
     nan_support = zero_to_nan(support)
-    phase *= nan_support
-    strain *= nan_support
+    # phase *= nan_support
+    # strain *= nan_support
 
     if not qnorm:
         print(
