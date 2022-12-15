@@ -62,9 +62,9 @@ def get_data_from_cxi(file, *items):
         data.close()
         return data_dic
 
-    except Exception as e:
-        print("[ERROR] An error occured while opening the file:", e,
-              "\n", e.__str__())
+    except Exception as exc:
+        print("[ERROR] An error occured while opening the file:", exc,
+              "\n", exc.__str__())
         return None
 
 
@@ -113,7 +113,7 @@ def load_raw_scan(
 
     if start_end_frames:
         print(
-            "[INFO ]start_end_frames parameter provided, will consider only "
+            "[INFO] start_end_frames parameter provided, will consider only "
             f"the frames between {start_end_frames[0]} and "
             f"{start_end_frames[1]}"
         )
@@ -212,8 +212,8 @@ def load_post_bcdi_data(
     phase = crop_at_center(phase, final_shape=shape)
     strain = crop_at_center(strain, final_shape=shape)
 
-    support = make_support(amp, isosurface=isosurface, nan_value=False)
-    nan_support = zero_to_nan(support)
+    support = make_support(amp, isosurface=isosurface, nan_values=False)
+    # nan_support = zero_to_nan(support)
     # phase *= nan_support
     # strain *= nan_support
 
