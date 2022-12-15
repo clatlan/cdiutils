@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import matplotlib
 import h5py
@@ -10,6 +11,7 @@ import yaml
 
 from cdiutils.utils import center, crop_at_center, find_isosurface, zero_to_nan
 from cdiutils.load.bliss import BlissLoader
+from cdiutils.load.spec import SpecLoader
 from cdiutils.converter import SpaceConverter
 from cdiutils.processing.phase import (
     get_structural_properties, blackman_apodize, flip_reconstruction
@@ -32,12 +34,25 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
         yaml_file.dump(config, f)
 
 
-def loader_factory(beamline_name: str):
-    if beamline_name == "ID01BLISS":
-        return BlissLoader
+def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
+    if metadata["beamline_setup"] == "ID01BLISS":
+        return BlissLoader(
+            experiment_file_path=metadata["experiment_file_path"],
+            detector_name=metadata["detector_name"],
+            sample_name=metadata["sample_name"],
+            flatfield=metadata["flatfield_path"]
+
+        )
+    elif metadata["beamline_setup"] == "ID01SPEC":
+        return SpecLoader(
+            experiment_file_path=metadata["experiment_file_path"],
+            detector_data_path=metadata["detector_data_path"],
+            edf_file_template=metadata["edf_file_template"],
+            detector_name=metadata["detector_name"]
+        )
     else:
         raise NotImplementedError(
-            "The provided beamline name is not known yet"
+            "The provided beamline_setup is not known yet"
         )
 
 
@@ -90,11 +105,7 @@ class BcdiProcessingHandler:
 
     
     def _init_loader(self) -> None:
-        loader_class = loader_factory(self.parameters["beamline"])
-        self.loader = loader_class(
-            self.parameters["experiment_file_path"],
-            flatfield=self.parameters["flatfield_path"]
-        )
+        self.loader = loader_factory(self.parameters["metadata"])
 
     def _init_space_converter(self) -> None:
         self.space_converter = SpaceConverter(
@@ -125,15 +136,13 @@ class BcdiProcessingHandler:
 
     def load_data(self) -> None:
         self.detector_data = self.loader.load_detector_data(
-            scan=self.parameters["scan"],
-            sample_name=self.parameters["sample_name"]
+            scan=self.parameters["metadata"]["scan"],
         )
         (
             self.sample_outofplane_angle, self.sample_inplane_angle, 
             self.detector_inplane_angle, self.detector_outofplane_angle
         ) = self.loader.load_motor_positions(
-            scan=self.parameters["scan"],
-            sample_name=self.parameters["sample_name"]
+            scan=self.parameters["metadata"]["scan"],
         )
         self.space_converter.set_Q_space_area(
                 self.sample_outofplane_angle,
@@ -307,40 +316,45 @@ class BcdiProcessingHandler:
             det_com_pixel=det_com_pixel,
             cropped_max_pixel=cropped_max_pixel,
             cropped_com_pixel=cropped_com_pixel,
-            title=f"Detector data preprocessing, S{self.parameters['scan']}"
+            title=(
+                "Detector data preprocessing, "
+                f"S{self.parameters['metadata']['scan']}"
+            )
         )
         
         
     def save_preprocessed_data(self):
-        if os.path.isdir(self.parameters["dump_dir"]):
+        if os.path.isdir(self.parameters["metadata"]["dump_dir"]):
             self.verbose_print(
                 "\n[INFO] Dump directory already exists, results will be saved"
-                f" in: {self.parameters['dump_dir']}"
+                f" in: {self.parameters['metadata']['dump_dir']}"
             )
         else:
             self.verbose_print(
                 "[INFO] Creating the dump directory at: "
-                f"{self.parameters['dump_dir']}")
-            os.mkdir(self.parameters["dump_dir"])
+                f"{self.parameters['metadata']['dump_dir']}")
+            os.mkdir(self.parameters['metadata']["dump_dir"])
         
+        template_path = (
+            self.parameters["metadata"]["dump_dir"]
+            + "/cdiutils_S"
+            + str(self.parameters["metadata"]["scan"])
+            + "_"
+        )
+
         self.preprocessing_figure.savefig(
-            self.parameters["dump_dir"]
-            + "/centering_cropping_detector_data.png",
+            template_path + "centering_cropping_detector_data.png",
             bbox_inches="tight",
             dpi=300
         )
 
         np.savez(
-            self.parameters["dump_dir"]
-            + f"/S{self.parameters['scan']}_pynx_input_data.npz",
+            template_path + "pynx_input_data.npz",
             data=self.cropped_detector_data
         )
         np.savez(
-            self.parameters["dump_dir"]
-            + f"/S{self.parameters['scan']}_pynx_input_mask.npz",
-            mask=self.
-            mask
-        )
+            template_path + "pynx_input_mask.npz", mask=self.mask)
+        
         # save the values of the different q_labs
         update_parameter_file(
             self.parameter_file_path,
@@ -432,11 +446,11 @@ class BcdiProcessingHandler:
         }
 
         self.postprocessing_figure = summary_slice_plot(
-            comment=f"S{self.parameters['scan']}",
+            comment=f"S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
             save=(
-                f"{self.parameters['dump_dir']}/S{self.parameters['scan']}"
-                "_summary_slice_plot.png"
+                f"{self.parameters['metadata']['dump_dir']}/S"
+                f"{self.parameters['metadata']['scan']}_summary_slice_plot.png"
             ),
             show=self.parameters["show"],
             dpi=300,
@@ -449,9 +463,11 @@ class BcdiProcessingHandler:
         )
 
     def save_postprocessed_data(self) -> None:
+
         # save the results in a npz file
         template_path = (
-            f"{self.parameters['dump_dir']}/S{self.parameters['scan']}"
+            f"{self.parameters['metadata']['dump_dir']}/"
+            f"cdiutils_S{self.parameters['metadata']['scan']}"
         )
         self.verbose_print(
             "[INFO] Saving the results to the following path:\n"

@@ -1,4 +1,120 @@
+from typing import Union, Optional
+
+import fabio
+import numpy as np
 import silx.io
+
+
+def safe(func):
+    def wrap(self, *args, **kwargs):
+        with silx.io.open(self.experiment_file_path) as specfile:
+            return func(self, specfile, *args, **kwargs)
+    return wrap
+
+
+class SpecLoader():
+    def __init__(
+            self,
+            experiment_file_path: str,
+            detector_data_path: str,
+            edf_file_template: str,
+            flatfield: Union[str, np.array]=None,
+            detector_name: str="mpx4inr"
+    ):
+        self.experiment_file_path = experiment_file_path
+        if not detector_data_path.endswith("/"):
+            detector_data_path += "/"
+        self.detector_data_path = detector_data_path
+        self.edf_file_template= edf_file_template
+        self.detector_name = detector_name
+
+        # load the flatfield
+        if type(flatfield) == str and flatfield.endswith(".npz"):
+            self.flatfield = np.load(flatfield)["arr_0"]
+        elif type(flatfield) == np.ndarray:
+            self.flatfield=flatfield
+        elif flatfield is None:
+            self.flatfield = None
+        else:
+            raise ValueError(
+                "[ERROR] wrong value for flatfield parameter, provide a path, "
+                "np.array or leave it to None"
+            )
+
+    @safe
+    def load_detector_data(
+            self,
+            specfile: silx.io.specfile.SpecFile,
+            scan: int,
+    ):
+        # TODO: implement flatfield consideration
+        frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
+        
+        detector_data = []
+
+        template = self.detector_data_path + self.edf_file_template
+
+        for frame_id in frame_ids:
+            with fabio.open(template % frame_id) as edf_data:
+                detector_data.append(edf_data.data)
+        
+        return np.array(detector_data)
+    
+    @safe
+    def load_motor_positions(
+            self, 
+            specfile: silx.io.specfile.SpecFile,
+            scan: int
+    ):
+        positioners = specfile[f"{scan}.1/instrument/positioners"]
+
+        # delta outofplane detector
+        outofplane_detector_angle = positioners["del"][...]
+        # eta incidence sample
+        outofplane_sample_angle = positioners["eta"][...]
+        # nu inplane detector
+        inplane_detector_angle = positioners["nu"][...]
+        # phi azimuth sample angle
+        inplane_sample_angle = positioners["phi"][...]
+
+        # if outofplane_sample_angle.shape != ():
+        #     # angular_step = (
+        #     #     (incidence_angle[-1] - incidence_angle[0])
+        #     #     / incidence_angle.shape[0]
+        #     # )
+        #     outofplane_sample_angle = (
+        #         outofplane_sample_angle[-1]
+        #         + outofplane_sample_angle[0]
+        #         ) / 2
+        #     # rocking_angle = "outofplane"
+
+        # elif inplane_sample_angle.shape != ():
+        #     # angular_step = (
+        #     #     (azimuth_angle[-1] - azimuth_angle[0])
+        #     #     / azimuth_angle.shape[0]
+        #     # )
+        #     inplane_sample_angle = (
+        #         inplane_sample_angle[-1]
+        #         + inplane_sample_angle[0]
+        #         )/ 2
+            # rocking_angle = "inplane"
+        
+        return (
+            outofplane_sample_angle,
+            inplane_sample_angle,
+            inplane_detector_angle,
+            outofplane_detector_angle
+        )
+
+    @staticmethod
+    def get_mask(channel: Optional[int]) -> np.array:
+        mask = np.zeros(shape=(516, 516))
+        mask[:, 255:261] = 1
+        mask[255:261, :] = 1
+        if channel:
+            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
+        else:
+            return mask
 
 
 def get_positions(specfile_path, scan, beamline="ID01"):

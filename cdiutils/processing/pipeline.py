@@ -152,7 +152,7 @@ class BcdiPipeline:
         elif backend == "cdiutils":
             pretty_print(
                 "[INFO] Proceeding to preprocessing using the cdiutils backend"
-                f" (scan {self.parameters['cdiutils']['scan']})"
+                f" (scan {self.parameters['cdiutils']['metadata']['scan']})"
             )
             self.processing_handler = BcdiProcessingHandler(
                 parameter_file_path=self.parameter_file_path
@@ -160,8 +160,8 @@ class BcdiPipeline:
             self.processing_handler.load_data()
             self.processing_handler.center_crop_data()
             self.processing_handler.save_preprocessed_data()
-            pynx_input_template = "S*_pynx_input_data.npz"
-            pynx_mask_template = "S*_pynx_input_mask.npz"
+            pynx_input_template = "*S*_pynx_input_data.npz"
+            pynx_mask_template = "*S*_pynx_input_mask.npz"
 
         else:
             raise ValueError(
@@ -177,8 +177,8 @@ class BcdiPipeline:
                 f"{self.working_directory}/{pynx_input_template}")[0]
             mask_path = glob.glob(
                     f"{self.working_directory}/{pynx_mask_template}")[0]
-        except IndexError as exc:
-            raise exc(
+        except IndexError:
+            raise FileNotFoundError(
                 "[ERROR] file missing, something went"
                 " wrong during preprocessing"
             ) 
@@ -393,8 +393,7 @@ class BcdiPipeline:
             
             run_postprocessing(prm=self.parameters["postprocessing"])
 
-        elif (backend == "cdiutils"
-              and self.parameters["postprocessing"]["beamline"] == "ID01BLISS"):
+        elif (backend == "cdiutils"):
             pretty_print(
                 "[INFO] bcdi package will be used for the orthogonalization"
                 "only, cdiutils will be used for the phase manipulation"

@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 import numpy as np
 import silx.io.h5py_utils
-import hdf5plugin
+# import hdf5plugin
 import xrayutilities as xu
 
 
@@ -14,39 +14,45 @@ def safe(func):
 class BlissLoader():
     def __init__(
             self,
-            experiment_file_path,
-            detector_name="flexible",
-            flatfield=None
+            experiment_file_path: str,
+            detector_name: str="flexible",
+            sample_name: Optional[str]=None,
+            flatfield: Union[np.ndarray, str]=None
         ):
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
+        self.sample_name = sample_name
 
-        if type(flatfield) == str and flatfield.endswith(".npz"):
+        if isinstance(flatfield, str) and flatfield.endswith(".npz"):
             self.flatfield = np.load(flatfield)["arr_0"]
-        elif type(flatfield) == np.ndarray:
+        elif isinstance(flatfield, np.ndarray):
             self.flatfield=flatfield
         elif flatfield is None:
             self.flatfield = None
         else:
             raise ValueError(
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
-                "np.array or leave it to None"
+                "np.ndarray or leave it to None"
             )
 
     
     @safe
     def load_detector_data(
             self,
-            h5file,
-            sample_name,
-            scan,
+            h5file: silx.io.h5py_utils.File,
+            scan: int,
+            sample_name: Optional[str]=None
         ):
+
+        if sample_name is None:
+            sample_name = self.sample_name
+        
         key_path = "_".join((sample_name, str(scan))) + ".1"
         if self.detector_name == "flexible":
             try:
-                data = h5file[key_path + f"/measurement/mpx1x4"][()]
+                data = h5file[key_path + "/measurement/mpx1x4"][()]
             except KeyError:
-                data = h5file[key_path + f"/measurement/mpxgaas"][()]
+                data = h5file[key_path + "/measurement/mpxgaas"][()]
         else:
             data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
         if not self.flatfield is None: 
@@ -54,12 +60,28 @@ class BlissLoader():
         return data
     
     @safe
-    def show_scan_attributes(self, h5file, sample_name, scan):
+    def show_scan_attributes(
+            self,
+            h5file: silx.io.h5py_utils.File,
+            scan: int,
+            sample_name: Optional[str]=None
+        ):
+        if sample_name is None:
+            sample_name = self.sample_name
         key_path = "_".join((sample_name, str(scan))) + ".1"
         print(h5file[key_path].keys())
     
     @safe
-    def load_motor_positions(self, h5file, sample_name, scan):
+    def load_motor_positions(
+            self,
+            h5file: silx.io.h5py_utils.File,
+            scan: int,
+            sample_name: Optional[str]=None,
+    ):
+
+        if sample_name is None:
+            sample_name = self.sample_name
+
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/instrument/positioners"
