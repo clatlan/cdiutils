@@ -136,7 +136,6 @@ class BcdiPipeline:
     @process
     def preprocess(self: Callable, backend: str="bcdi") -> None:
         
-        # print(self.parameters["preprocessing"]["save_dir"])
         os.makedirs(
             self.parameters["preprocessing"]["save_dir"][0],
             exist_ok=True
@@ -144,14 +143,16 @@ class BcdiPipeline:
 
         if backend == "bcdi":
             pretty_print(
-                "[INFO] Proceeding to bcdi preprocessing "
-                f"(scan {self.parameters['preprocessing']['scans']})"
+                "[INFO] Proceeding to bcdi preprocessing using the bcdi "
+                f"backend (scan {self.parameters['preprocessing']['scans']})"
             )
             run_preprocessing(prm=self.parameters["preprocessing"])
+            pynx_input_template = "S*_pynx_norm_*.npz"
+            pynx_mask_template = "S*_maskpynx_norm_*.npz"
         elif backend == "cdiutils":
             pretty_print(
                 "[INFO] Proceeding to preprocessing using the cdiutils backend"
-                f"(scan {self.parameters['cdiutils']['scan']})"
+                f" (scan {self.parameters['cdiutils']['scan']})"
             )
             self.processing_handler = BcdiProcessingHandler(
                 parameter_file_path=self.parameter_file_path
@@ -159,6 +160,8 @@ class BcdiPipeline:
             self.processing_handler.load_data()
             self.processing_handler.center_crop_data()
             self.processing_handler.save_preprocessed_data()
+            pynx_input_template = "S*_pynx_input_data.npz"
+            pynx_mask_template = "S*_pynx_input_mask.npz"
 
         else:
             raise ValueError(
@@ -167,14 +170,15 @@ class BcdiPipeline:
             )
             
 
-        pretty_print("[INFO] Update scan parameter file")
+        pretty_print("[INFO] Updating scan parameter file")
 
         try:
-            data_path = glob.glob(f"{self.working_directory}/S*_pynx_*npz")[0]
+            data_path = glob.glob(
+                f"{self.working_directory}/{pynx_input_template}")[0]
             mask_path = glob.glob(
-                    f"{self.working_directory}/S*_mask*npz")[0]
-        except IndexError:
-            raise FileNotFoundError(
+                    f"{self.working_directory}/{pynx_mask_template}")[0]
+        except IndexError as exc:
+            raise exc(
                 "[ERROR] file missing, something went"
                 " wrong during preprocessing"
             ) 
@@ -412,11 +416,8 @@ class BcdiPipeline:
                 self.processing_handler = BcdiProcessingHandler(
                     parameter_file_path=self.parameter_file_path
                 )
-                self.processing_handler.Q_lab_reference = (
-                    self.parameters["cdiutils"]["Q_lab_reference"]
-                )
-
-
+                self.processing_handler.reload_preprocessing_parameters()
+                
             self.processing_handler.load_orthogonolized_data(
                 f"{self.parameters['postprocessing']['save_dir'][0]}/"
                 f"S{self.parameters['postprocessing']['scans'][0]}"

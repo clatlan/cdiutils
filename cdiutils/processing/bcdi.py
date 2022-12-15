@@ -279,21 +279,22 @@ class BcdiProcessingHandler:
 
         # print some info
         self.verbose_print(
-            f"Max in the full detector frame at {det_max_pixel}\n"
+            f"\nMax in the full detector frame at {det_max_pixel}\n"
             "Max in the cropped detector frame at "
             f"{tuple(cropped_max_pixel)}\n"
             f"The max corresponds to a d-spacing of {self.dspacing_max:.4f} A "
             f"and a lattice parameter of {self.lattice_constant_max:.4f} A\n\n"
-            f"Com in the full detector frame at {det_com_pixel} "
+            f"Com in the full detector frame at "
+            f"{tuple([round(det_com_pixel[i], 2) for i in range(3)])} "
             f"(based on a {final_shape[1], final_shape[2]} max-centered "
             "bounding box)\n"
             "Com in the cropped detector frame at "
-            f"{tuple(cropped_com_pixel)}\n"
+            f"{tuple([round(cropped_com_pixel[i], 2) for i in range(3)])}\n"
             f"The com corresponds to a d-spacing of {self.dspacing_com:.4f} A "
             f"and a lattice parameter of {self.lattice_constant_com:.4f} A\n\n"
             f"The reference q_lab_reference corresponds "
             f"to a d-spacing of {self.dspacing_reference:.4f} A and a lattice "
-            f"parameter of {self.lattice_constant_reference:.4f} A\n\n"
+            f"parameter of {self.lattice_constant_reference:.4f} A\n"
         )
 
         # plot the detector data in the full detector frame and in th
@@ -313,7 +314,7 @@ class BcdiProcessingHandler:
     def save_preprocessed_data(self):
         if os.path.isdir(self.parameters["dump_dir"]):
             self.verbose_print(
-                "[INFO] Dump directory already exists, results will be saved"
+                "\n[INFO] Dump directory already exists, results will be saved"
                 f" in: {self.parameters['dump_dir']}"
             )
         else:
