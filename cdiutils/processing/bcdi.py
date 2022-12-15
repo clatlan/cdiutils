@@ -1,12 +1,11 @@
-from typing import Union
 import os
 
 import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
+import h5py
 import numpy as np
 import ruamel.yaml
 from scipy.ndimage import center_of_mass
+import textwrap
 import yaml
 
 from cdiutils.utils import center, crop_at_center, find_isosurface, zero_to_nan
@@ -15,7 +14,9 @@ from cdiutils.converter import SpaceConverter
 from cdiutils.processing.phase import (
     get_structural_properties, blackman_apodize, flip_reconstruction
 )
-from cdiutils.plot.slice import summary_slice_plot
+from cdiutils.processing.plot import (
+    preprocessing_detector_data_plot, summary_slice_plot
+)
 
 
 def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
@@ -63,6 +64,12 @@ class BcdiProcessingHandler:
         self.q_lab_reference = None
         self.q_lab_max = None
         self.q_lab_com = None
+        self.dspacing_reference = None
+        self.dspacing_max = None
+        self.dspacing_com = None
+        self.lattice_constant_reference = None
+        self.lattice_constant_max = None
+        self.lattice_constant_com = None
 
         self.orthgonolized_data = None
         self.voxel_size = None
@@ -121,7 +128,6 @@ class BcdiProcessingHandler:
             scan=self.parameters["scan"],
             sample_name=self.parameters["sample_name"]
         )
-        self.initial_shape = self.detector_data.shape
         (
             self.sample_outofplane_angle, self.sample_inplane_angle, 
             self.detector_inplane_angle, self.detector_outofplane_angle
@@ -139,7 +145,38 @@ class BcdiProcessingHandler:
     
     def verbose_print(self, text: str, **kwargs) -> None:
         if self.parameters["verbose"]:
-            print(text, **kwargs)         
+            wrapper = textwrap.TextWrapper(
+                width=80,
+                break_long_words=True,
+                replace_whitespace=False
+            )
+            text = "\n".join(wrapper.wrap(text))
+            print(text)
+            # print(
+                
+            #     textwrap.fill(text, 80), **kwargs
+            # )
+    
+    def _compute_dspacing_lattice(self) -> None:
+        hkl = self.parameters["hkl"]
+        qnorm_reference = np.linalg.norm(self.q_lab_reference)
+        self.dspacing_reference = 2*np.pi/qnorm_reference
+        self.lattice_constant_reference = (
+            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+            * self.dspacing_reference
+        )
+        qnorm_max = np.linalg.norm(self.q_lab_max)
+        self.dspacing_max = 2*np.pi/qnorm_max
+        self.lattice_constant_max = (
+            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+            * self.dspacing_max
+        )
+        qnorm_com = np.linalg.norm(self.q_lab_com)
+        self.dspacing_com = 2*np.pi/qnorm_com
+        self.lattice_constant_com = (
+            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+            * self.dspacing_com
+        )
     
     
     def center_crop_data(self) -> None:
@@ -215,7 +252,7 @@ class BcdiProcessingHandler:
         self.mask = crop_at_center(self.mask, final_shape=final_shape)
 
         # redefine the max and com pixel coordinates in the new cropped data
-        # system
+        # frame
         cropped_max_pixel = (
             det_max_pixel
             - (det_pixel_reference - np.array(initial_shape)//2)
@@ -237,46 +274,26 @@ class BcdiProcessingHandler:
         self.q_lab_com = self.space_converter.det2lab(
             np.rint(det_com_pixel).astype(int)
         )
-        hkl = self.parameters["hkl"]
-        qnorm_reference = np.linalg.norm(self.q_lab_reference)
-        averaged_dspacing_reference = 2*np.pi/qnorm_reference
-        averaged_lattice_constant_reference = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * averaged_dspacing_reference
-        )
-        qnorm_max = np.linalg.norm(self.q_lab_max)
-        averaged_dspacing_max = 2*np.pi/qnorm_max
-        averaged_lattice_constant_max = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * averaged_dspacing_max
-        )
-        qnorm_com = np.linalg.norm(self.q_lab_com)
-        averaged_dspacing_com = 2*np.pi/qnorm_com
-        averaged_lattice_constant_com = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * averaged_dspacing_com
-        )
-
+        
+        self._compute_dspacing_lattice()
 
         # print some info
         self.verbose_print(
             f"Max in the full detector frame at {det_max_pixel}\n"
             "Max in the cropped detector frame at "
             f"{tuple(cropped_max_pixel)}\n"
-            f"Max corresponds to a qnorm of {qnorm_max} 1/A, "
-            f"a d-spacing of {averaged_dspacing_max} A "
-            f"and a lattice parameter of {averaged_lattice_constant_max} A\n\n"
+            f"The max corresponds to a d-spacing of {self.dspacing_max:.4f} A "
+            f"and a lattice parameter of {self.lattice_constant_max:.4f} A\n\n"
             f"Com in the full detector frame at {det_com_pixel} "
             f"(based on a {final_shape[1], final_shape[2]} max-centered "
             "bounding box)\n"
             "Com in the cropped detector frame at "
             f"{tuple(cropped_com_pixel)}\n"
-            f"Com corresponds to a qnorm of {qnorm_com} 1/A, "
-            f"a d-spacing of {averaged_dspacing_com} A "
-            f"and a lattice parameter of {averaged_lattice_constant_com} A\n\n"
-            f"q_lab_reference is: {self.q_lab_reference} 1/A and corresponds "
-            f"to a d-spacing of {averaged_dspacing_reference} A and a lattice "
-            f"parameter of {averaged_lattice_constant_reference} A\n"
+            f"The com corresponds to a d-spacing of {self.dspacing_com:.4f} A "
+            f"and a lattice parameter of {self.lattice_constant_com:.4f} A\n\n"
+            f"The reference q_lab_reference corresponds "
+            f"to a d-spacing of {self.dspacing_reference:.4f} A and a lattice "
+            f"parameter of {self.lattice_constant_reference:.4f} A\n\n"
         )
 
         # plot the detector data in the full detector frame and in th
@@ -295,7 +312,8 @@ class BcdiProcessingHandler:
         
     def save_preprocessed_data(self):
         if os.path.isdir(self.parameters["dump_dir"]):
-            self.verbose_print("[INFO] Dump directory already exists, results will be saved"
+            self.verbose_print(
+                "[INFO] Dump directory already exists, results will be saved"
                 f" in: {self.parameters['dump_dir']}"
             )
         else:
@@ -322,11 +340,22 @@ class BcdiProcessingHandler:
             mask=self.
             mask
         )
+        # save the values of the different q_labs
         update_parameter_file(
-            self.parameter_file_path, 
-            {"q_lab_reference": self.q_lab_reference}
+            self.parameter_file_path,
+            {
+                "q_lab_reference": self.q_lab_reference,
+                "q_lab_max": self.q_lab_max,
+                "q_lab_com": self.q_lab_com
+            }
         )
+    
+    def reload_preprocessing_parameters(self):
+        self.q_lab_reference = self.parameters["q_lab_reference"]
+        self.q_lab_max = self.parameters["q_lab_max"]
+        self.q_lab_com = self.parameters["q_lab_com"]
 
+        self._compute_dspacing_lattice()
     
     def orthgonolize(self, target_frame: str):
         pass
@@ -372,25 +401,26 @@ class BcdiProcessingHandler:
 
         # store the the averaged dspacing and lattice constant in variables
         # so they can be saved later in the output file
-        hkl = self.parameters["hkl"]
         self.verbose_print(
-            f"[INFO] The theoretical probed Bragg peak reflection is {hkl}")
-        qnorm = np.linalg.norm(self.q_lab_reference)
-
-        self.averaged_dspacing = 2*np.pi/qnorm
-        self.averaged_lattice_constant = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * self.averaged_dspacing
+            "[INFO] The theoretical probed Bragg peak reflection is "
+            f"{self.parameters['hkl']}"
         )
 
         self.structural_properties = get_structural_properties(
             data,
             isosurface,
             q_vector=self.q_lab_reference,
-            hkl=hkl,
+            do_phase_ramp_removal=self.parameters["remove_phase_ramp"],
+            hkl=self.parameters["hkl"],
             voxel_size=self.voxel_size,
-            phase_factor=-1, # it came out of pynx, phase must be -phase
-            do_phase_ramp_removal=self.parameters["remove_phase_ramp"]
+            phase_factor=-1 # it came out of pynx, phase must be -phase
+        )
+
+        self.averaged_dspacing = np.nanmean(
+            self.structural_properties["dspacing"]
+        )
+        self.averaged_lattice_constant = np.nanmean(
+            self.structural_properties["lattice_constant"]
         )
 
         # plot the results
@@ -411,7 +441,7 @@ class BcdiProcessingHandler:
             dpi=300,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
-            qnorm=qnorm,
+            # qnorm=qnorm,
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
             **to_be_plotted
@@ -429,11 +459,109 @@ class BcdiProcessingHandler:
 
         np.savez(
             f"{template_path}_structural_properties.npz",
+            q_lab_reference=self.q_lab_reference,
+            q_lab_max=self.q_lab_max,
+            q_lab_com=self.q_lab_com,
+            dspacing_reference=self.dspacing_reference,
+            dspacing_max=self.dspacing_max,
+            dspacing_com=self.dspacing_com,
+            lattice_constant_reference=self.lattice_constant_reference,
+            lattice_constant_max=self.lattice_constant_max,
+            lattice_constant_com=self.lattice_constant_com,
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
             **self.structural_properties,
         )
-        
+
+        with h5py.File(f"{template_path}_structural_properties.h5", "w") as hf:
+            volumes = hf.create_group("volumes")
+            scalars = hf.create_group("scalars")
+
+            volumes.create_dataset(
+                "amplitude",
+                data=self.structural_properties["amplitude"]
+            )
+            volumes.create_dataset(
+                "support",
+                data=self.structural_properties["support"]
+            )
+            volumes.create_dataset(
+                "phase",
+                data=self.structural_properties["phase"]
+            )
+            volumes.create_dataset(
+                "displacement",
+                data=self.structural_properties["displacement"]
+            )
+            volumes.create_dataset(
+                "local_strain",
+                data=self.structural_properties["local_strain"]
+            )
+            volumes.create_dataset(
+                "numpy_local_strain",
+                data=self.structural_properties["numpy_local_strain"]
+            )
+            volumes.create_dataset(
+                "dspacing",
+                data=self.structural_properties["dspacing"]
+            )
+            volumes.create_dataset(
+                "lattice_constant",
+                data=self.structural_properties["lattice_constant"]
+            )
+
+            scalars.create_dataset(
+                "q_lab_reference",
+                data=self.q_lab_reference
+            )
+            scalars.create_dataset(
+                "q_lab_max",
+                data=self.q_lab_max
+            )
+            scalars.create_dataset(
+                "q_lab_com",
+                data=self.q_lab_com
+            )
+            scalars.create_dataset(
+                "dspacing_reference",
+                data=self.dspacing_reference
+            )
+            scalars.create_dataset(
+                "dspacing_max",
+                data=self.dspacing_max
+            )
+            scalars.create_dataset(
+                "dspacing_com",
+                data=self.dspacing_com
+            )
+            scalars.create_dataset(
+                "lattice_constant_reference",
+                data=self.lattice_constant_reference
+            )
+            scalars.create_dataset(
+                "lattice_constant_max",
+                data=self.lattice_constant_max
+            )
+            scalars.create_dataset(
+                "lattice_constant_com",
+                data=self.lattice_constant_com
+            )
+            scalars.create_dataset(
+                "averaged_dspacing",
+                data=self.averaged_dspacing
+            )
+            scalars.create_dataset(
+                "averaged_lattice_constant",
+                data=self.averaged_lattice_constant
+            )
+            scalars.create_dataset(
+                "voxel_size",
+                data=self.voxel_size
+            )
+            scalars.create_dataset(
+                "hkl",
+                data=self.parameters["hkl"]
+            )
 
         self.postprocessing_figure.savefig(
             f"{template_path}_summary_slice_plot.png",
@@ -449,329 +577,4 @@ class BcdiProcessingHandler:
         )
 
 
-def preprocessing_detector_data_plot(
-        detector_data: np.array,
-        cropped_data: np.array,
-        det_pixel_reference: Union[np.array, list, tuple],
-        det_max_pixel: Union[np.array, list, tuple],
-        det_com_pixel: Union[np.array, list, tuple],
-        cropped_max_pixel: Union[np.array, list, tuple],
-        cropped_com_pixel: Union[np.array, list, tuple],
-        title: str=""
 
-) -> matplotlib.figure.Figure:
-    """
-    Plot the detector data in the full detector data frame and in the 
-    cropped/centered frame.fits
-
-    :param detector_data: the raw detector data (np.array)
-    :param cropped_data: the cropped/centered data (np.array)
-    :det_pixel_reference: the pixel reference in the full detector frame
-    (np.array, list or tuple)
-    :det_max_pixel: the max pixel in the full detector frame
-    (np.array, list or tuple)
-    :det_com_pixel: the com pixel in the full detector fame (np.array,
-    list, tuple)
-    :cropped_max_pixel: the max pixel in the centered/cropped detector
-    frame (np.array, list or tuple)
-    :cropped_com_pixel: the com pixel in the centered/cropped detector
-    frame (np.array, list or tuple)
-    :title: the tile of the figure (string)
-
-    :return: the matplotlib figure object
-    """
-
-    figure, axes = plt.subplots(2, 3, figsize=(14, 10))
-
-    log_data = np.log10(detector_data +1)
-    log_cropped_data = np.log10(cropped_data +1)
-    vmin = 0
-    vmax = np.max(log_data)
-
-    initial_shape = detector_data.shape
-    final_shape = cropped_data.shape
-
-
-    axes[0, 0].matshow(
-        log_data[det_max_pixel[0]],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-    axes[0, 0].plot(
-        np.repeat(det_pixel_reference[2], 2),
-        det_pixel_reference[1] + np.array([-0.1*initial_shape[1], 0.1*initial_shape[1]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 0].plot(
-        det_pixel_reference[2] + np.array([-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_pixel_reference[1], 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 0].plot(
-        det_com_pixel[2], 
-        det_com_pixel[1],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="green",
-        label="com",
-    )
-    axes[0, 0].plot(
-        det_max_pixel[2], 
-        det_max_pixel[1],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="red",
-        label="max"
-    )
-
-    axes[0, 1].matshow(
-        log_data[:, det_max_pixel[1], :],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="lower"
-    )
-    axes[0, 1].plot(
-        np.repeat(det_pixel_reference[2], 2),
-        det_pixel_reference[0] + np.array([-0.1*initial_shape[0], 0.1*initial_shape[0]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 1].plot(
-        det_pixel_reference[2] + np.array([-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_pixel_reference[0], 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 1].plot(
-        det_com_pixel[2], 
-        det_com_pixel[0],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="green",
-        label="com",
-    )
-    axes[0, 1].plot(
-        det_max_pixel[2], 
-        det_max_pixel[0],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="red",
-        label="max"
-    )
-
-    mappable = axes[0, 2].matshow(
-        np.swapaxes(log_data[..., det_max_pixel[2]], axis1=0, axis2=1),
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-    axes[0, 2].plot(
-        np.repeat(det_pixel_reference[0], 2),
-        det_pixel_reference[1] + np.array(
-            [- 0.1 * initial_shape[1],  + 0.1 * initial_shape[1]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 2].plot(
-        det_pixel_reference[0] + np.array(
-            [- 0.1 * initial_shape[0],  + 0.1 * initial_shape[0]]),
-        np.repeat(det_pixel_reference[1], 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 2].plot(
-        det_com_pixel[0], 
-        det_com_pixel[1],
-        marker="x",
-        markersize=10,
-        color="green",
-        label="com"
-    )
-    axes[0, 2].plot(
-        det_max_pixel[0], 
-        det_max_pixel[1],
-        marker="x",
-        markersize=10,
-        color="red",
-        label="max",
-    )
-
-    axes[1, 0].matshow(
-        log_cropped_data[cropped_max_pixel[0]],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-
-    axes[1, 0].plot(
-        np.repeat(final_shape[2]//2, 2),
-        np.array([0.4*final_shape[1], 0.6*final_shape[1]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 0].plot(
-        np.array([0.4*final_shape[2], 0.6*final_shape[2]]),
-        np.repeat(final_shape[1]//2, 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 0].plot(
-        cropped_com_pixel[2], 
-        cropped_com_pixel[1],
-        marker="x",
-        markersize=10,
-        color="green",
-        label="com",
-    )
-    axes[1, 0].plot(
-        cropped_max_pixel[2], 
-        cropped_max_pixel[1],
-        marker="x",
-        markersize=10,
-        color="red",
-        label="max",
-    )
-
-    axes[1, 1].matshow(
-        log_cropped_data[:, cropped_max_pixel[1], :],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="lower"
-    )
-    axes[1, 1].plot(
-        np.repeat(final_shape[2]//2, 2),
-        np.array([0.4*final_shape[0], 0.6*final_shape[0]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 1].plot(
-        np.array([0.4*final_shape[2], 0.6*final_shape[2]]),
-        np.repeat(final_shape[0]//2, 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 1].plot(
-        cropped_com_pixel[2], 
-        cropped_com_pixel[0],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="green",
-        label="com",
-    )
-    axes[1, 1].plot(
-        cropped_max_pixel[2], 
-        cropped_max_pixel[0],
-        marker="x",
-        markersize=10,
-        linestyle="None",
-        color="red",
-        label="max"
-    )
-
-    mappable = axes[1, 2].matshow(
-        np.swapaxes(log_cropped_data[..., cropped_max_pixel[2]], axis1=0, axis2=1),
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-    axes[1, 2].plot(
-        np.repeat(final_shape[0]//2, 2),
-        np.array([0.4*final_shape[1], 0.6*final_shape[1]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 2].plot(
-        np.array([0.4*final_shape[0], 0.6*final_shape[0]]),
-        np.repeat(final_shape[1]//2, 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[1, 2].plot(
-        cropped_com_pixel[0], 
-        cropped_com_pixel[1],
-        marker="x",
-        markersize=10,
-        color="green",
-        label="com"
-    )
-    axes[1, 2].plot(
-        cropped_max_pixel[0], 
-        cropped_max_pixel[1],
-        marker="x",
-        markersize=10,
-        color="red",
-        label="max",
-    )
-
-    # handle the labels
-    axes[0, 0].set_xlabel("detector dim 2 axis")
-    axes[0, 0].set_ylabel("detector dim 1 axis")
-
-    axes[0, 1].set_xlabel("detector dim 2 axis")
-    axes[0, 1].set_ylabel("rocking angle axis")
-
-    axes[0, 2].set_xlabel("rocking angle axis")
-    axes[0, 2].set_ylabel("detector dim 1 axis")
-
-    axes[1, 0].set_xlabel("cropped dim 2 axis")
-    axes[1, 0].set_ylabel("cropped dim 1 axis")
-
-    axes[1, 1].set_xlabel("cropped dim 2 axis")
-    axes[1, 1].set_ylabel("cropped rocking angle axis")
-
-    axes[1, 2].set_xlabel("cropped rocking angle axis")
-    axes[1, 2].set_ylabel("cropped dim 1 axis")
-
-    axes[0, 1].set_title("raw detector data", size=18, y=1.8)
-    axes[1, 1].set_title("cropped detector data", size=18, y=1.05)
-
-    figure.canvas.draw()
-    for ax in axes.ravel():
-        ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
-        ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
-        ax.xaxis.set_ticks_position("bottom")
-
-        xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
-        xticks_loc[1] = yticks_loc[1] = None
-        
-        xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
-        xlabels[1] = ylabels[1] = ""
-        ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
-        ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
-        ax.set_xticklabels(xlabels)
-        ax.set_yticklabels(ylabels)
-
-    # handle the colorbar
-    l0, b0, w0, h0 = axes[0, 1].get_position().bounds
-    l1, b1, w1, h1 = axes[1, 1].get_position().bounds
-    center_y = (b0 + (b1+h1)) / 2
-    # cax = figure.add_axes([l0, center_y, w0, 0.025])
-    cax = figure.add_axes([l0, 0.52, w0, 0.020])
-    cax.set_title("Log(Int.) (a.u.)")
-    figure.colorbar(mappable, cax=cax, orientation="horizontal")
-
-    # handle the legend
-    axes[0, 1].legend(
-        loc="center",
-        ncol=2,
-        bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
-        bbox_transform=figure.transFigure
-    )
-
-    figure.suptitle(title, y=0.95)
-
-    return figure
