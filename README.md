@@ -15,7 +15,7 @@ It requires the following libraries :
 
 ## Slice plot
 
-cdiutils.plot.plot.plot_slices function
+cdiutils.plot.slice.plot_3D_volume_slices function
 
 * **Bragg electron density slice plot**
 
