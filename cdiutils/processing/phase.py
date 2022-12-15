@@ -74,7 +74,7 @@ def make_blackman_window(shape: tuple, normalization: float=1) -> np.array:
         blackman_slice[x, :] = blackman_x[x] * blackman_y
         for y in range(ny):
             blackman_cube[x ,y] = blackman_slice[x, y] * blackman_z
-    return blackman_cube / blackman_cube.sum() * normalization
+    return blackman_cube / blackman_cube.max() * normalization
 
 
 def blackman_apodize(
@@ -223,7 +223,7 @@ def get_structural_properties(
 
     # if final_shape is not provided, find one
     if final_shape is None:
-        print("[INFO] finding a new array shape")
+        print("[PROCESSING] finding a new array shape")
         final_shape = find_suitable_array_shape(support)
         print(f"[INFO] new array shape is {final_shape}")
 
