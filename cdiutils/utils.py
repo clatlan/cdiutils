@@ -7,7 +7,7 @@ from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
 
-from cdiutils.plot.layout import plot_background
+from cdiutils.plot.formatting import plot_background
 
 
 
