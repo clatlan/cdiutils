@@ -1,14 +1,20 @@
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 import numpy as np
 import silx.io.h5py_utils
 # import hdf5plugin
 import xrayutilities as xu
 
 
-def safe(func):
+# def safe(func: Callable) -> Callable:
+#     def wrap(self, *args, **kwargs):
+#         with silx.io.h5py_utils.File(self.experiment_file_path) as h5file:
+#             return func(self, h5file, *args, **kwargs)
+#     return wrap
+
+def safe(func: Callable) -> Callable:
     def wrap(self, *args, **kwargs):
-        with silx.io.h5py_utils.File(self.experiment_file_path) as h5file:
-            return func(self, h5file, *args, **kwargs)
+        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
+            return func(self, *args, **kwargs)
     return wrap
 
 class BlissLoader():
@@ -22,6 +28,7 @@ class BlissLoader():
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
         self.sample_name = sample_name
+        self.h5file = None
 
         if isinstance(flatfield, str) and flatfield.endswith(".npz"):
             self.flatfield = np.load(flatfield)["arr_0"]
@@ -39,11 +46,11 @@ class BlissLoader():
     @safe
     def load_detector_data(
             self,
-            h5file: silx.io.h5py_utils.File,
+            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None
         ):
-
+        h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
         
@@ -74,10 +81,11 @@ class BlissLoader():
     @safe
     def load_motor_positions(
             self,
-            h5file: silx.io.h5py_utils.File,
+            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None,
     ):
+        h5file = self.h5file
 
         if sample_name is None:
             sample_name = self.sample_name

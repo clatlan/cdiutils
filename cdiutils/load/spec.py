@@ -202,7 +202,7 @@ def get_positions(specfile_path, scan, beamline="ID01"):
     elif beamline == "P10":
         # TO DO: implementation for rocking angle != "outofplane"
 
-        with open(specfile_path, "r") as file:
+        with open(specfile_path, "r", encoding="utf8") as file:
             content = file.readlines()
             for i, line in enumerate(content):
 

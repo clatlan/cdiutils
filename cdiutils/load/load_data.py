@@ -7,7 +7,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import silx.io
 import xrayutilities as xu
 
-from cdiutils.utils import crop_at_center, make_support, zero_to_nan
+from cdiutils.utils import crop_at_center, make_support
 
 
 def load_specfile(path: str):
@@ -20,7 +20,7 @@ def load_specfile(path: str):
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""
 
-    f = open(file_path)
+    f = open(file_path, encoding="utf8")
     my_cmap = LinearSegmentedColormap("my_cmap", json.load(f))
     f.close()
 
