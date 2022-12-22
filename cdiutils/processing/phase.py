@@ -170,7 +170,6 @@ def get_structural_properties(
         q_vector: float,
         hkl: Union[tuple, list],
         voxel_size: Union[np.array, tuple, list],
-        do_phase_ramp_removal: Optional[bool]=True,
         final_shape: Optional[Union[np.array, list, tuple]]=None,
         phase_factor: Optional[int]=1,
         normalize_amplitude: Optional[bool]=True,
@@ -248,19 +247,22 @@ def get_structural_properties(
     # create a nan support
     nan_support =  zero_to_nan(support)
     # remove the phase ramp
-    if do_phase_ramp_removal:
-        print("[PROCESSING] Removing the phase ramp: ", end="")
-        _, ramp = remove_phase_ramp(phase * nan_support)
-        phase = phase - ramp
-        print("done.")
+    print("[PROCESSING] Removing the phase ramp: ", end="")
+    _, ramp = remove_phase_ramp(phase * nan_support)
+    phase_with_ramp = phase.copy()
+    phase = phase - ramp
+    print("done.")
 
     # set the origin of the phase to the phase mean
     print(
         "[PROCESSING] Setting the phase origin to the mean value: ",
         end=""
     )
-    phase = phase - np.nanmean(
-        phase * nan_support)
+    phase = phase - np.nanmean(phase * nan_support)
+    phase_with_ramp = (
+        phase_with_ramp
+        - np.nanmean(phase_with_ramp * support)
+    )
     print("done.")
     
 
@@ -271,6 +273,7 @@ def get_structural_properties(
     )
     q_norm = np.linalg.norm(q_vector)
     displacement = phase / q_norm
+    displacement_with_ramp = phase_with_ramp / q_norm
 
     dx, dy, dz = voxel_size # voxel size in nm
 
@@ -279,14 +282,22 @@ def get_structural_properties(
     _, local_strain, _, = hybrid_gradient(
         nan_support * displacement * 1e-1, dx, dy, dz
     )
+    _, local_strain_with_ramp, _, = hybrid_gradient(
+        nan_support * displacement_with_ramp * 1e-1, dx, dy, dz
+    )
 
     # convert the strain in percent
     local_strain = 100 * nan_to_zero(local_strain)
+    local_strain_with_ramp = 100 * nan_to_zero(local_strain_with_ramp)
     numpy_local_strain *= 100
 
     # compute the dspacing and lattice_constant
-    dspacing =  2*np.pi / q_norm * (1 + local_strain/100)
+    dspacing =  2*np.pi / q_norm * (1 + local_strain_with_ramp/100)
     lattice_constant =  np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2) *dspacing
+
+    # compute the heterogeneous local strain from the dspacing
+    dspacing_mean = np.nanmean(dspacing)
+    local_strain_from_dspacing= 100 * (dspacing - dspacing_mean)/dspacing_mean
 
     print("done.")
 
@@ -298,6 +309,8 @@ def get_structural_properties(
         "phase": phase,
         "displacement": displacement,
         "local_strain": nan_to_zero(local_strain),
+        "local_strain_with_ramp": nan_to_zero(local_strain_with_ramp),
+        "local_strain_from_dspacing": nan_to_zero(local_strain_from_dspacing),
         "numpy_local_strain": numpy_local_strain,
         "dspacing": dspacing,
         "lattice_constant": lattice_constant,

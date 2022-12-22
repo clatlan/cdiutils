@@ -1,7 +1,7 @@
 import os
 from typing import Union
 
-import matplotlib
+# from matplotlib import font_manager
 import h5py
 import numpy as np
 import ruamel.yaml
@@ -19,18 +19,21 @@ from cdiutils.processing.phase import (
 from cdiutils.processing.plot import (
     preprocessing_detector_data_plot, summary_slice_plot
 )
+from cdiutils.plot.formatting import update_plot_params
 
 
 def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
-    config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(
-        open(file_path))
+    with open(file_path, "r", encoding="utf8") as f:
+        config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(f)
+
     for key in config.keys():
         for sub_key, v in updated_parameters.items():
             if sub_key in config[key]:
                 config[key][sub_key] = v
+
     yaml_file = ruamel.yaml.YAML()
     yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf8") as f:
         yaml_file.dump(config, f)
 
 
@@ -94,6 +97,7 @@ class BcdiProcessingHandler:
 
         self.preprocessing_figure = None
         self.postprocessing_figure = None
+        self.sanity_check_figure = None
         self.amplitude_distribution_figure = None
 
         self.load_parameters(parameter_file_path)
@@ -117,16 +121,22 @@ class BcdiProcessingHandler:
         )
     
     def _init_plot_parameters(self):
-        matplotlib.pyplot.rcParams.update({
-            "axes.labelsize": 12,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "figure.titlesize": 18
-        })
-
+        # print(font_manager.findSystemFonts(fontpaths=None, fontext='ttf'))
+        # available_fonts = {
+        #     os.path.splitext(os.path.basename(p))[0]: p
+        #     for p in font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
+        # }
+        update_plot_params(
+            **{
+                "axes.labelsize": 12,
+                "xtick.labelsize": 10,
+                "ytick.labelsize": 10,
+                "figure.titlesize": 18
+            }
+        )
 
     def load_parameters(self, path: str) -> None:
-        with open(path, "r") as file:
+        with open(path, "r", encoding="utf8") as file:
             args = yaml.load(file, Loader=yaml.FullLoader)["cdiutils"]
             args["preprocessing_output_shape"] = tuple(
                 args["preprocessing_output_shape"]
@@ -225,6 +235,17 @@ class BcdiProcessingHandler:
 
         # determine the detector pixel reference according to the 
         # provided method
+        if (
+                self.parameters["det_pixel_reference_method"] is None
+                and isinstance(self.parameters["det_pixel_reference"], list)
+        ):
+            det_pixel_reference = [
+                int(e) for e in self.parameters["det_pixel_reference"]
+            ]
+            self.verbose_print(
+                "Reference pixel provided by user: "
+                f"{self.parameters['det_pixel_reference']}"
+            )
         if self.parameters["det_pixel_reference_method"] == "max":
             det_pixel_reference = det_max_pixel
             self.verbose_print(
@@ -235,15 +256,13 @@ class BcdiProcessingHandler:
             self.verbose_print(
                 "Method employed for the reference pixel determination is com"
             )
-            
-        elif type(self.parameters["det_pixel_reference_method"]) == list:
-            det_pixel_reference = [
-                int(e) for e in self.parameters["det_pixel_reference_method"]
-            ]
-            self.verbose_print(
-                "Reference pixel provided by user: "
-                f"{self.parameters['det_pixel_reference_method']}"
-            )
+        
+        # convert numpy.int64 to int to make them serializable and
+        # store the det_pixel_reference in the parameters which will be
+        # saved later
+        self.parameters["det_pixel_reference"] = [
+            int(e) for e in det_pixel_reference
+        ]
         
         # now proceed to the centering and cropping using
         # the det_pixel_reference as a reference
@@ -355,10 +374,11 @@ class BcdiProcessingHandler:
         np.savez(
             template_path + "pynx_input_mask.npz", mask=self.mask)
         
-        # save the values of the different q_labs
+        # save the values of the det_pixel_reference and the q_labs
         update_parameter_file(
             self.parameter_file_path,
             {
+                "det_pixel_reference": self.parameters["det_pixel_reference"],
                 "q_lab_reference": self.q_lab_reference,
                 "q_lab_max": self.q_lab_max,
                 "q_lab_com": self.q_lab_com
@@ -425,7 +445,6 @@ class BcdiProcessingHandler:
             data,
             isosurface,
             q_vector=self.q_lab_reference,
-            do_phase_ramp_removal=self.parameters["remove_phase_ramp"],
             hkl=self.parameters["hkl"],
             voxel_size=self.voxel_size,
             phase_factor=-1 # it came out of pynx, phase must be -phase
@@ -439,28 +458,58 @@ class BcdiProcessingHandler:
         )
 
         # plot the results
-        to_be_plotted = {
+        final_plots = {
             k: self.structural_properties[k]
             for k in ["amplitude", "phase", "displacement", 
                     "local_strain", "lattice_constant"]
         }
 
         self.postprocessing_figure = summary_slice_plot(
-            comment=f"S{self.parameters['metadata']['scan']}",
+            title=f"Summary figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            save=(
-                f"{self.parameters['metadata']['dump_dir']}/S"
-                f"{self.parameters['metadata']['scan']}_summary_slice_plot.png"
-            ),
+            save=None,
+            # save=(
+            #     f"{self.parameters['metadata']['dump_dir']}/S"
+            #     f"{self.parameters['metadata']['scan']}_summary_slice_plot.png"
+            # ),
             show=self.parameters["show"],
             dpi=300,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
-            # qnorm=qnorm,
+            det_pixel_reference=self.parameters["det_pixel_reference"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
-            **to_be_plotted
+            **final_plots
         )
+
+        sanity_check_plots = {
+            k: self.structural_properties[k]
+            for k in ["local_strain", "local_strain_from_dspacing",
+                      "local_strain_from_dspacing", "numpy_local_strain",
+                      "local_strain_with_ramp"]
+        }
+
+        self.sanity_check_figure = summary_slice_plot(
+            title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
+            support=zero_to_nan(self.structural_properties["support"]),
+            save=None,
+            # save=(
+            #     f"{self.parameters['metadata']['dump_dir']}/S"
+            #     f"{self.parameters['metadata']['scan']}_sanity_check_plot.png"
+            # ),
+            show=self.parameters["show"],
+            dpi=300,
+            voxel_size=self.voxel_size,
+            isosurface=isosurface,
+            det_pixel_reference=self.parameters["det_pixel_reference"],
+            averaged_dspacing=self.averaged_dspacing,
+            averaged_lattice_constant=self.averaged_lattice_constant,
+            vmin=-self.structural_properties["local_strain"].ptp()/2,
+            vmax=self.structural_properties["local_strain"].ptp()/2,
+            **sanity_check_plots
+        )
+
+
 
     def save_postprocessed_data(self) -> None:
 
@@ -582,6 +631,12 @@ class BcdiProcessingHandler:
 
         self.postprocessing_figure.savefig(
             f"{template_path}_summary_slice_plot.png",
+            dpi=300,
+            bbox_inches="tight"
+        )
+
+        self.sanity_check_figure.savefig(
+            f"{template_path}_sanity_check_plot.png",
             dpi=300,
             bbox_inches="tight"
         )

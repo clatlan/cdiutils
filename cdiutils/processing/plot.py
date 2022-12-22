@@ -6,7 +6,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from cdiutils.utils import zero_to_nan
-from cdiutils.plot.layout import PLOT_CONFIGS
+from cdiutils.plot.formatting import PLOT_CONFIGS, ANGSTROM_SYMBOL, PERCENT_SYMBOL
 from cdiutils.plot.slice import plot_contour
 
 
@@ -345,16 +345,18 @@ def preprocessing_detector_data_plot(
 
 def summary_slice_plot(
         save: str=None,
-        comment: str="",
+        title: str="",
         dpi: int=300,
         show: bool=True,
         voxel_size: Union[np.array, list, tuple]=None,
-        qnorm: float=None,
         isosurface: float=None,
         averaged_dspacing: float=None,
         averaged_lattice_constant: float=None,
+        det_pixel_reference: Union[np.array, list, tuple]=None,
         respect_aspect=False,
         support: np.array=None,
+        vmin: float=None,
+        vmax: float=None,
         **kwargs
 ) -> matplotlib.figure.Figure:
 
@@ -414,19 +416,21 @@ def summary_slice_plot(
 
         if key in PLOT_CONFIGS.keys():
             cmap = PLOT_CONFIGS[key]["cmap"]
-            if support is not None:
-                if key == "dspacing" or key == "lattice_constant":
-                    vmin = np.nanmin(array)
-                    vmax = np.nanmax(array)
-                elif key == "amplitude":
-                    vmin = 0
-                    vmax = np.nanmax(array)
-                else:
-                    vmax = np.nanmax(np.abs(array))
-                    vmin = -vmax
+            # check if vmin and vmax are given or not
+            if vmin is None or vmax is None:
+                if support is not None:
+                    if key == "dspacing" or key == "lattice_constant":
+                        vmin = np.nanmin(array)
+                        vmax = np.nanmax(array)
+                    elif key == "amplitude":
+                        vmin = 0
+                        vmax = np.nanmax(array)
+                    else:
+                        vmax = np.nanmax(np.abs(array))
+                        vmin = -vmax
             else:
                 vmin = PLOT_CONFIGS[key]["vmin"]
-                vmax = PLOT_CONFIGS[key]["vmax"]
+                vmax = PLOT_CONFIGS[key]["vmax"]    
 
         shape = array.shape
 
@@ -467,7 +471,6 @@ def summary_slice_plot(
 
     # format the data
     isosurface = round(isosurface, 3)
-    qnorm = round(qnorm, 4) if qnorm is not None else None
     averaged_dspacing = round(averaged_dspacing, 4)
     averaged_lattice_constant = round(averaged_lattice_constant, 4)
 
@@ -478,13 +481,18 @@ def summary_slice_plot(
                 voxel_size,
                 formatter={"float_kind":lambda x: "%.2f" % x}
             )],
+            [np.array2string(np.array(det_pixel_reference))],
             [isosurface],
-            [qnorm],
             [averaged_dspacing],
             [averaged_lattice_constant]
         ]),
-        colLabels=("Voxel size (nm)", "isosurface", r"Qnorm ($\AA^{-1}$)",
-            r"Averaged dspacing ($\AA$)", r"Averaged lattice ($\AA$)"),
+        colLabels=(
+            "Voxel size (nm)",
+            "Detetector pixel reference",
+            "Isosurface",
+            f"Averaged dspacing ({ANGSTROM_SYMBOL})",
+            f"Averaged lattice ({ANGSTROM_SYMBOL})"
+        ),
         loc="center",
         cellLoc="center"
     )
@@ -501,7 +509,7 @@ def summary_slice_plot(
     
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
-        if i % array_nb == 0:
+        if i % array_nb == 0 and list(kwargs.keys())[i//len(kwargs.keys())] == "amplitude":
             ax.tick_params(axis="x",direction="in", pad=-22, colors="w")
             ax.tick_params(axis="y",direction="in", pad=-15, colors="w")
             ax.xaxis.set_ticks_position("bottom")
@@ -521,7 +529,7 @@ def summary_slice_plot(
             ax.axes.xaxis.set_ticks([])
             ax.axes.yaxis.set_ticks([])
 
-    figure.suptitle(f"Summary figure, {comment}", size=22, y=1.03)
+    figure.suptitle(title, size=22, y=1.03)
     # figure.subplots_adjust(hspace=0.03, wspace=0.03)
 
     if show:
