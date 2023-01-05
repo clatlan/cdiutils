@@ -16,8 +16,8 @@ from bcdi.utils.parser import ConfigParser
 
 from cdiutils.utils import pretty_print
 from cdiutils.processing.find_best_candidates import find_best_candidates
-from cdiutils.processing.bcdi import (
-    BcdiProcessingHandler, update_parameter_file
+from cdiutils.processing.processor import (
+    BcdiProcessor, update_parameter_file
 )
 
 
@@ -129,9 +129,9 @@ class BcdiPipeline:
         self.working_directory = self.parameters["preprocessing"][
             "save_dir"][0]
         
-        # the processing_handler attribute will be used only if backend
+        # the bcdi_processor attribute will be used only if backend
         # is True
-        self.processing_handler = None
+        self.bcdi_processor = None
 
     @process
     def preprocess(self: Callable, backend: str="bcdi") -> None:
@@ -154,12 +154,12 @@ class BcdiPipeline:
                 "[INFO] Proceeding to preprocessing using the cdiutils backend"
                 f" (scan {self.parameters['cdiutils']['metadata']['scan']})"
             )
-            self.processing_handler = BcdiProcessingHandler(
+            self.bcdi_processor = BcdiProcessor(
                 parameter_file_path=self.parameter_file_path
             )
-            self.processing_handler.load_data()
-            self.processing_handler.center_crop_data()
-            self.processing_handler.save_preprocessed_data()
+            self.bcdi_processor.load_data()
+            self.bcdi_processor.center_crop_data()
+            self.bcdi_processor.save_preprocessed_data()
             pynx_input_template = "*S*_pynx_input_data.npz"
             pynx_mask_template = "*S*_pynx_input_mask.npz"
 
@@ -362,10 +362,10 @@ class BcdiPipeline:
                 executable="/bin/bash",
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-        ) as process:
-            stdout, stderr = process.communicate()
+        ) as proc:
+            stdout, stderr = proc.communicate()
             print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
-            if process.returncode:
+            if proc.returncode:
                     print(
                         "[STDERR FROM SUBPROCESS]\n",
                         stderr.decode("utf-8")
@@ -395,7 +395,7 @@ class BcdiPipeline:
 
         elif (backend == "cdiutils"):
             pretty_print(
-                "[INFO] bcdi package will be used for the orthogonalization"
+                "[INFO] bcdi package will be used for the orthogonalization "
                 "only, cdiutils will be used for the phase manipulation"
             )
 
@@ -411,20 +411,20 @@ class BcdiPipeline:
                 "properties."
             )
 
-            if self.processing_handler is None:
-                self.processing_handler = BcdiProcessingHandler(
+            if self.bcdi_processor is None:
+                self.bcdi_processor = BcdiProcessor(
                     parameter_file_path=self.parameter_file_path
                 )
-                self.processing_handler.reload_preprocessing_parameters()
+                self.bcdi_processor.reload_preprocessing_parameters()
                 
-            self.processing_handler.load_orthogonolized_data(
+            self.bcdi_processor.load_orthogonolized_data(
                 f"{self.parameters['postprocessing']['save_dir'][0]}/"
                 f"S{self.parameters['postprocessing']['scans'][0]}"
                 "_orthogonolized_reconstruction_"
                 f"{self.parameters['postprocessing']['save_frame']}.npz"
             )
-            self.processing_handler.postprocess()
-            self.processing_handler.save_postprocessed_data()
+            self.bcdi_processor.postprocess()
+            self.bcdi_processor.save_postprocessed_data()
 
 
     def save_parameter_file(self: Callable) -> None:

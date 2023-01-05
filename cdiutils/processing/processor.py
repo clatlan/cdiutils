@@ -59,7 +59,7 @@ def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
         )
 
 
-class BcdiProcessingHandler:
+class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
     """
@@ -75,6 +75,7 @@ class BcdiProcessingHandler:
         self.sample_inplane_angle = None
         self.detector_outofplane_angle = None
         self.detector_inplane_angle = None
+
         self.cropped_detector_data = None
         self.mask = None
 
@@ -101,7 +102,7 @@ class BcdiProcessingHandler:
         self.amplitude_distribution_figure = None
 
         self.load_parameters(parameter_file_path)
-        # initialise the loader and the space converter
+        # initialise the loader, the space converter and the plot parameters
         self._init_loader()
         self._init_space_converter()
         self._init_plot_parameters()
@@ -127,6 +128,7 @@ class BcdiProcessingHandler:
         #     for p in font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
         # }
         update_plot_params(
+            usetex=True,
             **{
                 "axes.labelsize": 12,
                 "xtick.labelsize": 10,
@@ -161,7 +163,7 @@ class BcdiProcessingHandler:
                 self.detector_inplane_angle
         )
         self.mask = self.loader.get_mask(channel=self.detector_data.shape[0])
-    
+
     def verbose_print(self, text: str, **kwargs) -> None:
         if self.parameters["verbose"]:
             wrapper = textwrap.TextWrapper(
@@ -170,11 +172,8 @@ class BcdiProcessingHandler:
                 replace_whitespace=False
             )
             text = "\n".join(wrapper.wrap(text))
-            print(text)
-            # print(
-                
-            #     textwrap.fill(text, 80), **kwargs
-            # )
+            print(text,  **kwargs)
+
     
     def _compute_dspacing_lattice(self) -> None:
         hkl = self.parameters["hkl"]
@@ -196,8 +195,7 @@ class BcdiProcessingHandler:
             np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
             * self.dspacing_com
         )
-    
-    
+
     def center_crop_data(self) -> None:
 
         final_shape = self.parameters["preprocessing_output_shape"]
@@ -226,7 +224,7 @@ class BcdiProcessingHandler:
             final_shape=final_shape
         )
         cropped_com_pixel = center_of_mass(max_cropped_data)
-        # convert the com coordinates in the detector frame
+        # convert the com coordinates in the detector frame coordinates
         det_com_pixel = (
             cropped_com_pixel 
             + (np.array(initial_shape) - np.array(final_shape))//2
@@ -307,6 +305,7 @@ class BcdiProcessingHandler:
 
         # print some info
         self.verbose_print(
+            "[INFO]\n"
             f"\nMax in the full detector frame at {det_max_pixel}\n"
             "Max in the cropped detector frame at "
             f"{tuple(cropped_max_pixel)}\n"
@@ -325,7 +324,7 @@ class BcdiProcessingHandler:
             f"parameter of {self.lattice_constant_reference:.4f} A\n"
         )
 
-        # plot the detector data in the full detector frame and in th
+        # plot the detector data in the full detector frame and in the
         # final frame
         self.preprocessing_figure = preprocessing_detector_data_plot(
             detector_data=self.detector_data,
@@ -418,7 +417,7 @@ class BcdiProcessingHandler:
             self.verbose_print("done.")
         amplitude = np.abs(data)
         
-        # first compute the histogram of the amplitude to get an 
+        # first compute the histogram of the amplitude to get an
         # isosurface estimate
         self.verbose_print(
             "[PROCESSING] Finding an isosurface estimate based on the "
@@ -460,18 +459,13 @@ class BcdiProcessingHandler:
         # plot the results
         final_plots = {
             k: self.structural_properties[k]
-            for k in ["amplitude", "phase", "displacement", 
-                    "local_strain", "lattice_constant"]
+            for k in ["amplitude", "phase", "displacement",
+                      "local_strain", "lattice_constant"]
         }
 
         self.postprocessing_figure = summary_slice_plot(
             title=f"Summary figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            save=None,
-            # save=(
-            #     f"{self.parameters['metadata']['dump_dir']}/S"
-            #     f"{self.parameters['metadata']['scan']}_summary_slice_plot.png"
-            # ),
             show=self.parameters["show"],
             dpi=300,
             voxel_size=self.voxel_size,
@@ -492,11 +486,6 @@ class BcdiProcessingHandler:
         self.sanity_check_figure = summary_slice_plot(
             title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            save=None,
-            # save=(
-            #     f"{self.parameters['metadata']['dump_dir']}/S"
-            #     f"{self.parameters['metadata']['scan']}_sanity_check_plot.png"
-            # ),
             show=self.parameters["show"],
             dpi=300,
             voxel_size=self.voxel_size,
@@ -504,8 +493,8 @@ class BcdiProcessingHandler:
             det_pixel_reference=self.parameters["det_pixel_reference"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
-            vmin=-self.structural_properties["local_strain"].ptp()/2,
-            vmax=self.structural_properties["local_strain"].ptp()/2,
+            single_vmin=-self.structural_properties["local_strain"].ptp()/2,
+            single_vmax=self.structural_properties["local_strain"].ptp()/2,
             **sanity_check_plots
         )
 
@@ -647,6 +636,3 @@ class BcdiProcessingHandler:
             dpi=200,
             bbox_inches="tight"
         )
-
-
-
