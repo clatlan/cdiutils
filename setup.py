@@ -1,4 +1,4 @@
-#CDIUTILS: Utilities for BCDI practionners
+# CDIUTILS: Utilities for BCDI practionners
 
 # authors :
 #              Clement Atlan, c.atlan@outlook.com
