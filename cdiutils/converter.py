@@ -1,10 +1,11 @@
-from scipy.ndimage import center_of_mass
 from typing import Union, Optional
+from scipy.ndimage import center_of_mass
 import matplotlib.pyplot as plt
 import numpy as np
 import xrayutilities as xu
 
 from cdiutils.utils import pretty_print
+from cdiutils.geometry import Geometry
 
 
 class SpaceConverter():
@@ -15,8 +16,13 @@ class SpaceConverter():
     def __init__(
             self,
             roi: Union[np.array, list, tuple],
-            energy: float=None
+            geometry: Optional[Geometry]=Geometry.from_name("ID01"),
+            energy: Optional[float]=None
     ):
+
+        self.geometry = geometry
+        # convert the geometry to xrayutilities coordinate system
+        self.geometry.cxi2xu()
 
         self.energy = energy
         self.roi = roi
@@ -44,17 +50,22 @@ class SpaceConverter():
                 ]
             ):
             qconv = xu.experiment.QConversion(
-                ["y-", "z-"], ["z-", "y-"], [1, 0, 0]
+                sampleAxis=self.geometry.sample_circles,
+                detectorAxis=self.geometry.detector_circles,
+                r_i=self.geometry.beam_direction
             )
             self.hxrd = xu.HXRD(
-                [1, 0, 0],
-                [0, 0, 1],
+                idir=self.geometry.beam_direction, # defines the inplane
+                # reference direction (idir points into the beam
+                # direction at zero angles)
+                ndir=[0, 0, 1], # defines the surface normal of your sample
+                # (ndir points along the innermost sample rotation axis)
                 en=self.energy,
                 qconv=qconv
             )
             self.hxrd.Ang2Q.init_area(
-                "z-",
-                "y+",
+                detectorDir1=self.geometry.detector_vertical_orientation,
+                detectorDir2=self.geometry.detector_horizontal_orientation,
                 cch1=det_calib_parameters["cch1"] - self.roi[0],
                 cch2=det_calib_parameters["cch2"] - self.roi[2],
                 Nch1=self.roi[1] - self.roi[0],
@@ -76,11 +87,10 @@ class SpaceConverter():
 
     @staticmethod
     def run_detector_calibration(
-            self,
             detector_calibration_frames: np.ndarray,
             delta: float,
             nu: float,
-            energy: float=None,
+            energy: float,
             pixel_size_x=55e-6,
             pixel_size_y=55e-6,
             sdd_estimate: float=None,
@@ -88,15 +98,15 @@ class SpaceConverter():
             verbose=True,
     ) -> dict:
 
-        if energy is None:
-            if self.energy is None:
-                raise ValueError(
-                    "No energy given, please provide energy value either in the"
-                    "run_detector_calibration() method or when initiliazing the"
-                    "SpaceConverter instance"
-                )
-            else:
-                energy = self.energy
+        # if energy is None:
+        #     if self.energy is None:
+        #         raise ValueError(
+        #             "No energy given, please provide energy value either in the"
+        #             "run_detector_calibration() method or when initiliazing the"
+        #             "SpaceConverter instance"
+        #         )
+        #     else:
+        #         energy = self.energy
         x_com = []
         y_com = []
         for i in range(detector_calibration_frames.shape[0]):
@@ -132,7 +142,7 @@ class SpaceConverter():
         pretty_print(
             "[INFO] Processing to detector calibration using area_detector_calib"
         )
-        parameter_list, eps = xu.analysis.sample_align.area_detector_calib(
+        parameter_list, _ = xu.analysis.sample_align.area_detector_calib(
             angle1,
             angle2,
             detector_calibration_frames,
@@ -157,9 +167,9 @@ class SpaceConverter():
 
         if verbose:
             pretty_print("Computed parameters")
-            for k, v in parameters.items():
+            for key, value in parameters.items():
                 print(
-                    f"{k} = {v}"
+                    f"{key} = {value}"
                 )
         if show:
             fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
@@ -175,7 +185,7 @@ class SpaceConverter():
             fig1.tight_layout()
             fig2.tight_layout()
         
-        self.det_calib_parameters = parameters
+        # self.det_calib_parameters = parameters
         return parameters
 
 
