@@ -2,20 +2,19 @@ import matplotlib
 import matplotlib.ticker as mticker
 import numpy as np
 
-ANGSTROM_SYMBOL = None
-PERCENT_SYMBOL = None
-PLOT_CONFIGS = None
 
-def _set_configs():
-    global ANGSTROM_SYMBOL
-    global PERCENT_SYMBOL
-    global PLOT_CONFIGS
+def set_plot_configs():
+
+    ANGSTROM_SYMBOL = None
+    PERCENT_SYMBOL = None
+    PLOT_CONFIGS = None
+    
     
     if matplotlib.rcParams["text.usetex"]:
-        ANGSTROM_SYMBOL = "$\si{\angstrom}$"
-        PERCENT_SYMBOL = "\%"
+        ANGSTROM_SYMBOL = r"$\si{\angstrom}$"
+        PERCENT_SYMBOL = r"\%"
     else:
-        ANGSTROM_SYMBOL = "\AA"
+        ANGSTROM_SYMBOL = r"$\AA$"
         PERCENT_SYMBOL = "%"
 
     PLOT_CONFIGS = {
@@ -59,22 +58,24 @@ def _set_configs():
     PLOT_CONFIGS["local_strain"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["numpy_local_strain"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["numpy_local_strain"]["title"] = (
-        fr"numpy strain ({PERCENT_SYMBOL})"
+        fr"Numpy strain ({PERCENT_SYMBOL})"
     )
     PLOT_CONFIGS["local_strain_from_dspacing"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["local_strain_from_dspacing"]["title"] = (
-        fr"strain from dspacing ({PERCENT_SYMBOL})"
+        fr"Strain from dspacing ({PERCENT_SYMBOL})"
     )
     PLOT_CONFIGS["local_strain_with_ramp"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["local_strain_with_ramp"]["title"] = (
-        fr"strain with ramp ({PERCENT_SYMBOL})"
+        fr"Strain with ramp ({PERCENT_SYMBOL})"
     )
+    return ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS
 
-_set_configs()
+# ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS = set_plot_configs()
 
 
 
 def update_plot_params(
+        usetex=True,
         max_open_warning=100,
         dpi=200,
         lines_marker="",
@@ -90,31 +91,36 @@ def update_plot_params(
         legend_fontsize=10,
         **kwargs
 ):
-    matplotlib.pyplot.rcParams.update(
-        {
-            "figure.max_open_warning": max_open_warning,
-            "figure.dpi": dpi,
-            "lines.marker": lines_marker,
-            "text.usetex": True,
-            'text.latex.preamble':
-                r'\usepackage{siunitx}'
-                r'\sisetup{detect-all}'
-                r'\usepackage{helvet}'
-                r'\usepackage{sansmath}'
-                r'\sansmath',
-            "lines.linewidth": lines_linewidth,
-            "lines.linestyle": lines_linestyle,
-            "lines.markersize": lines_markersize,
-            "figure.titlesize": figure_titlesize,
-            "font.size": font_size,
-            "axes.titlesize": axes_titlesize,
-            "axes.labelsize": axes_labelsize,
-            "xtick.labelsize": xtick_labelsize,
-            "ytick.labelsize": ytick_labelsize,
-            "legend.fontsize": legend_fontsize
-        }
-    )
-    _set_configs()
+    if usetex:
+        matplotlib.pyplot.rcParams.update(
+            {
+                "figure.max_open_warning": max_open_warning,
+                "figure.dpi": dpi,
+                "lines.marker": lines_marker,
+                "text.usetex": True,
+                'text.latex.preamble':
+                    r'\usepackage{siunitx}'
+                    r'\sisetup{detect-all}'
+                    r'\usepackage{helvet}'
+                    r'\usepackage{sansmath}'
+                    r'\sansmath',
+                "lines.linewidth": lines_linewidth,
+                "lines.linestyle": lines_linestyle,
+                "lines.markersize": lines_markersize,
+                "figure.titlesize": figure_titlesize,
+                "font.size": font_size,
+                "axes.titlesize": axes_titlesize,
+                "axes.labelsize": axes_labelsize,
+                "xtick.labelsize": xtick_labelsize,
+                "ytick.labelsize": ytick_labelsize,
+                "legend.fontsize": legend_fontsize,
+                "image.cmap": "turbo"
+            }
+        )
+    else:
+        matplotlib.pyplot.rcParams.update({"mathtext.default": "regular"})
+
+    # set_plot_configs()
 
 
 def plot_background(
@@ -127,6 +133,22 @@ def plot_background(
     ax.patch.set_facecolor("lightgrey")
     ax.patch.set_alpha(grey_background_opacity)
     return ax
+
+
+def white_interior_ticks_labels(ax):
+    ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
+    ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
+    ax.xaxis.set_ticks_position("bottom")
+
+    xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
+    xticks_loc[1] = yticks_loc[1] = None
+    
+    xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
+    xlabels[1] = ylabels[1] = ""
+    ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
+    ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
+    ax.set_xticklabels(xlabels)
+    ax.set_yticklabels(ylabels)
 
 
 class MathTextSciFormatter(mticker.Formatter):

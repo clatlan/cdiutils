@@ -6,7 +6,9 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 from cdiutils.utils import zero_to_nan
-from cdiutils.plot.formatting import PLOT_CONFIGS, ANGSTROM_SYMBOL, PERCENT_SYMBOL
+from cdiutils.plot.formatting import (
+    set_plot_configs, white_interior_ticks_labels
+)
 from cdiutils.plot.slice import plot_contour
 
 
@@ -284,42 +286,43 @@ def preprocessing_detector_data_plot(
     )
 
     # handle the labels
-    axes[0, 0].set_xlabel("detector dim 2 axis")
-    axes[0, 0].set_ylabel("detector dim 1 axis")
+    axes[0, 0].set_xlabel("detector axis 2")
+    axes[0, 0].set_ylabel("detector axis 1")
 
-    axes[0, 1].set_xlabel("detector dim 2 axis")
+    axes[0, 1].set_xlabel("detector axis 2")
     axes[0, 1].set_ylabel("rocking angle axis")
 
     axes[0, 2].set_xlabel("rocking angle axis")
-    axes[0, 2].set_ylabel("detector dim 1 axis")
+    axes[0, 2].set_ylabel("detector axis 1")
 
-    axes[1, 0].set_xlabel("cropped dim 2 axis")
-    axes[1, 0].set_ylabel("cropped dim 1 axis")
+    axes[1, 0].set_xlabel("cropped axis 2")
+    axes[1, 0].set_ylabel("cropped axis 1")
 
-    axes[1, 1].set_xlabel("cropped dim 2 axis")
+    axes[1, 1].set_xlabel("cropped axis 2")
     axes[1, 1].set_ylabel("cropped rocking angle axis")
 
     axes[1, 2].set_xlabel("cropped rocking angle axis")
-    axes[1, 2].set_ylabel("cropped dim 1 axis")
+    axes[1, 2].set_ylabel("cropped axis 1")
 
-    axes[0, 1].set_title("raw detector data", size=18, y=1.8)
-    axes[1, 1].set_title("cropped detector data", size=18, y=1.05)
+    axes[0, 1].set_title("raw detector data", size=20, y=1.8)
+    axes[1, 1].set_title("cropped detector data", size=20, y=1.05)
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
-        ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
-        ax.xaxis.set_ticks_position("bottom")
+        white_interior_ticks_labels(ax)
+        # ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
+        # ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
+        # ax.xaxis.set_ticks_position("bottom")
 
-        xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
-        xticks_loc[1] = yticks_loc[1] = None
+        # xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
+        # xticks_loc[1] = yticks_loc[1] = None
         
-        xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
-        xlabels[1] = ylabels[1] = ""
-        ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
-        ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
-        ax.set_xticklabels(xlabels)
-        ax.set_yticklabels(ylabels)
+        # xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
+        # xlabels[1] = ylabels[1] = ""
+        # ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
+        # ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
+        # ax.set_xticklabels(xlabels)
+        # ax.set_yticklabels(ylabels)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
@@ -355,10 +358,12 @@ def summary_slice_plot(
         det_pixel_reference: Union[np.array, list, tuple]=None,
         respect_aspect=False,
         support: np.array=None,
-        vmin: float=None,
-        vmax: float=None,
+        single_vmin: float=None,
+        single_vmax: float=None,
         **kwargs
 ) -> matplotlib.figure.Figure:
+
+    ANGSTROM_SYMBOL, _, PLOT_CONFIGS = set_plot_configs()
 
     # take care of the aspect ratios:
     if voxel_size is not None and respect_aspect:
@@ -417,9 +422,9 @@ def summary_slice_plot(
         if key in PLOT_CONFIGS.keys():
             cmap = PLOT_CONFIGS[key]["cmap"]
             # check if vmin and vmax are given or not
-            if vmin is None or vmax is None:
+            if single_vmin is None or single_vmax is None:
                 if support is not None:
-                    if key == "dspacing" or key == "lattice_constant":
+                    if key in ("dspacing", "lattice_constant"):
                         vmin = np.nanmin(array)
                         vmax = np.nanmax(array)
                     elif key == "amplitude":
@@ -428,9 +433,12 @@ def summary_slice_plot(
                     else:
                         vmax = np.nanmax(np.abs(array))
                         vmin = -vmax
+                else:
+                    vmin = PLOT_CONFIGS[key]["vmin"]
+                    vmax = PLOT_CONFIGS[key]["vmax"]
             else:
-                vmin = PLOT_CONFIGS[key]["vmin"]
-                vmax = PLOT_CONFIGS[key]["vmax"]    
+                vmin = single_vmin
+                vmax = single_vmax
 
         shape = array.shape
 
@@ -509,9 +517,9 @@ def summary_slice_plot(
     
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
-        if i % array_nb == 0 and list(kwargs.keys())[i//len(kwargs.keys())] == "amplitude":
-            ax.tick_params(axis="x",direction="in", pad=-22, colors="w")
-            ax.tick_params(axis="y",direction="in", pad=-15, colors="w")
+        if i % array_nb == 0 and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude":
+            ax.tick_params(axis="x",direction="in", pad=-20, colors="w")
+            ax.tick_params(axis="y",direction="in", pad=-20, colors="w")
             ax.xaxis.set_ticks_position("bottom")
 
             # remove the first ticks and labels
