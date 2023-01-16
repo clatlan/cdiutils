@@ -79,7 +79,7 @@ class BcdiProcessor:
         self.cropped_detector_data = None
         self.mask = None
 
-        self.det_pixel_reference = None 
+        self.det_reference_pixel = None 
         self.q_lab_reference = None
         self.q_lab_max = None
         self.q_lab_com = None
@@ -234,39 +234,39 @@ class BcdiProcessor:
         # determine the detector pixel reference according to the 
         # provided method
         if (
-                self.parameters["det_pixel_reference_method"] is None
-                and isinstance(self.parameters["det_pixel_reference"], list)
+                self.parameters["det_reference_pixel_method"] is None
+                and isinstance(self.parameters["det_reference_pixel"], list)
         ):
-            det_pixel_reference = [
-                int(e) for e in self.parameters["det_pixel_reference"]
+            det_reference_pixel = [
+                int(e) for e in self.parameters["det_reference_pixel"]
             ]
             self.verbose_print(
                 "Reference pixel provided by user: "
-                f"{self.parameters['det_pixel_reference']}"
+                f"{self.parameters['det_reference_pixel']}"
             )
-        if self.parameters["det_pixel_reference_method"] == "max":
-            det_pixel_reference = det_max_pixel
+        if self.parameters["det_reference_pixel_method"] == "max":
+            det_reference_pixel = det_max_pixel
             self.verbose_print(
                 "Method employed for the reference pixel determination is max"
             )
-        elif self.parameters["det_pixel_reference_method"] == "com":
-            det_pixel_reference = np.rint(det_com_pixel).astype(int)
+        elif self.parameters["det_reference_pixel_method"] == "com":
+            det_reference_pixel = np.rint(det_com_pixel).astype(int)
             self.verbose_print(
                 "Method employed for the reference pixel determination is com"
             )
         
         # convert numpy.int64 to int to make them serializable and
-        # store the det_pixel_reference in the parameters which will be
+        # store the det_reference_pixel in the parameters which will be
         # saved later
-        self.parameters["det_pixel_reference"] = [
-            int(e) for e in det_pixel_reference
+        self.parameters["det_reference_pixel"] = [
+            int(e) for e in det_reference_pixel
         ]
         
         # now proceed to the centering and cropping using
-        # the det_pixel_reference as a reference
+        # the det_reference_pixel as a reference
         centered_data = center(
                 self.detector_data,
-                center_coordinates=det_pixel_reference,
+                center_coordinates=det_reference_pixel,
         )
         self.cropped_detector_data = crop_at_center(
             centered_data,
@@ -274,26 +274,26 @@ class BcdiProcessor:
         )
 
         # center and crop the mask
-        self.mask = center(self.mask, center_coordinates=det_pixel_reference)
+        self.mask = center(self.mask, center_coordinates=det_reference_pixel)
         self.mask = crop_at_center(self.mask, final_shape=final_shape)
 
         # redefine the max and com pixel coordinates in the new cropped data
         # frame
         cropped_max_pixel = (
             det_max_pixel
-            - (det_pixel_reference - np.array(initial_shape)//2)
+            - (det_reference_pixel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
         cropped_com_pixel = (
             det_com_pixel 
-            - (det_pixel_reference - np.array(initial_shape)//2)
+            - (det_reference_pixel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
 
         # save the pixel reference in the detector frame and Q_lab frame
-        self.det_pixel_reference = det_pixel_reference
+        self.det_reference_pixel = det_reference_pixel
         self.q_lab_reference = self.space_converter.det2lab(
-            det_pixel_reference)
+            det_reference_pixel)
         self.q_lab_max = self.space_converter.det2lab(
             det_max_pixel
         )
@@ -329,7 +329,7 @@ class BcdiProcessor:
         self.preprocessing_figure = preprocessing_detector_data_plot(
             detector_data=self.detector_data,
             cropped_data=self.cropped_detector_data,
-            det_pixel_reference=det_pixel_reference,
+            det_reference_pixel=det_reference_pixel,
             det_max_pixel=det_max_pixel,
             det_com_pixel=det_com_pixel,
             cropped_max_pixel=cropped_max_pixel,
@@ -373,11 +373,11 @@ class BcdiProcessor:
         np.savez(
             template_path + "pynx_input_mask.npz", mask=self.mask)
         
-        # save the values of the det_pixel_reference and the q_labs
+        # save the values of the det_reference_pixel and the q_labs
         update_parameter_file(
             self.parameter_file_path,
             {
-                "det_pixel_reference": self.parameters["det_pixel_reference"],
+                "det_reference_pixel": self.parameters["det_reference_pixel"],
                 "q_lab_reference": self.q_lab_reference,
                 "q_lab_max": self.q_lab_max,
                 "q_lab_com": self.q_lab_com
@@ -470,7 +470,7 @@ class BcdiProcessor:
             dpi=300,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
-            det_pixel_reference=self.parameters["det_pixel_reference"],
+            det_reference_pixel=self.parameters["det_reference_pixel"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
             **final_plots
@@ -490,7 +490,7 @@ class BcdiProcessor:
             dpi=300,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
-            det_pixel_reference=self.parameters["det_pixel_reference"],
+            det_reference_pixel=self.parameters["det_reference_pixel"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_constant=self.averaged_lattice_constant,
             single_vmin=-self.structural_properties["local_strain"].ptp()/2,

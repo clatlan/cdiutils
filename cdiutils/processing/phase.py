@@ -177,7 +177,7 @@ def get_structural_properties(
 
     """
     Process the phase to get the structural properies of the 
-    constructed nanocrystal
+    reconstructed nanocrystal
 
     :param complex_object: the reconstructed complex object
     (np.nrdarray)
@@ -215,9 +215,13 @@ def get_structural_properties(
     )
 
     # center the arrays at the center of mass of the support
-    support, c = center(support, method="com", return_former_center=True)
-    amplitude  = center(amplitude, center_coordinates=c)
-    phase = center(phase, center_coordinates=c)
+    support, former_center = center(
+        support,
+        method="com",
+        return_former_center=True
+    )
+    amplitude  = center(amplitude, center_coordinates=former_center)
+    phase = center(phase, center_coordinates=former_center)
 
 
     # if final_shape is not provided, find one
@@ -244,11 +248,11 @@ def get_structural_properties(
     ).data
     print("done.")
 
-    # create a nan support
-    nan_support =  zero_to_nan(support)
+    # convert zero to nan
+    support =  zero_to_nan(support)
     # remove the phase ramp
     print("[PROCESSING] Removing the phase ramp: ", end="")
-    _, ramp = remove_phase_ramp(phase * nan_support)
+    _, ramp = remove_phase_ramp(phase * support)
     phase_with_ramp = phase.copy()
     phase = phase - ramp
     print("done.")
@@ -258,13 +262,8 @@ def get_structural_properties(
         "[PROCESSING] Setting the phase origin to the mean value: ",
         end=""
     )
-    phase = phase - np.nanmean(phase * nan_support)
-    phase_with_ramp = (
-        phase_with_ramp
-        - np.nanmean(phase_with_ramp * support)
-    )
-    print("done.")
-    
+    phase = phase - np.nanmean(phase * support)
+    print("done.") 
 
     print(
         "[PROCESSING] Computing the strain, displacement, dspacing and "
@@ -277,18 +276,17 @@ def get_structural_properties(
 
     dx, dy, dz = voxel_size # voxel size in nm
 
-    # compute the strain along the axis 1
-    _, numpy_local_strain, _, = np.gradient(displacement * 1e-1, dx, dy, dz)
+    # compute the strain along the dim 1
+    _, numpy_local_strain, _, = np.gradient(
+        support * displacement * 1e-1, dx, dy, dz)
     _, local_strain, _, = hybrid_gradient(
-        nan_support * displacement * 1e-1, dx, dy, dz
-    )
+        support * displacement * 1e-1, dx, dy, dz)
     _, local_strain_with_ramp, _, = hybrid_gradient(
-        nan_support * displacement_with_ramp * 1e-1, dx, dy, dz
-    )
+        support * displacement_with_ramp * 1e-1, dx, dy, dz)
 
     # convert the strain in percent
-    local_strain = 100 * nan_to_zero(local_strain)
-    local_strain_with_ramp = 100 * nan_to_zero(local_strain_with_ramp)
+    local_strain = 100 * local_strain
+    local_strain_with_ramp = 100 * local_strain_with_ramp
     numpy_local_strain *= 100
 
     # compute the dspacing and lattice_constant
@@ -301,11 +299,18 @@ def get_structural_properties(
 
     print("done.")
 
+    print(
+        "[DEBUG] strain average: (%)\n"
+        f"-local strain: {np.nanmean(local_strain)}\n"
+        f"-local strain with ramp: {np.nanmean(local_strain_with_ramp)}\n"
+        f"-local strain from dspacing: {np.nanmean(local_strain_from_dspacing)}"
+        "\n"
+    )
 
     return {
-        "amplitude": normalize(amplitude) 
+        "amplitude": normalize(amplitude)
             if normalize_amplitude else amplitude,
-        "support": support,
+        "support": nan_to_zero(support),
         "phase": phase,
         "displacement": displacement,
         "local_strain": nan_to_zero(local_strain),
@@ -317,5 +322,5 @@ def get_structural_properties(
         "hkl": hkl,
         "q_vector": q_vector,
         "q_norm": q_norm,
-        "voxel_size": voxel_size,
+        "voxel_size": voxel_size
     }
