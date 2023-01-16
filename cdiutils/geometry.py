@@ -37,14 +37,12 @@ class Geometry:
 
         if beamline_name in ("ID01", "ID01SPEC", "ID01BLISS"):
             return cls(
-                sample_circles=["y-", "x-", "y-"],
+                sample_circles=["x-", "y-"],
                 detector_circles=["y+", "x-"],
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
-        elif beamline_name == "P10":
-            pass
         else:
             raise NotImplementedError(
                 f"The beamline_name {beamline_name} is not known"
