@@ -140,7 +140,9 @@ def center(
                 )
             
     elif method == "max":
-            xcenter, ycenter, zcenter = np.where(data == np.max(data))
+            xcenter, ycenter, zcenter = np.unravel_index(
+                    data.argmax(), shape
+            )
     else:
         print("method unknown, please choose between ['com', 'max']")
         return data
