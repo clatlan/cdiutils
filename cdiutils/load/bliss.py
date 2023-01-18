@@ -69,10 +69,11 @@ class BlissLoader():
     @safe
     def show_scan_attributes(
             self,
-            h5file: silx.io.h5py_utils.File,
+            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None
         ):
+        h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
         key_path = "_".join((sample_name, str(scan))) + ".1"
@@ -103,7 +104,7 @@ class BlissLoader():
     @safe
     def load_measurement_parameter(
             self,
-            h5file,
+            # h5file,
             sample_name: str,
             scan: int,
             parameter_name: str
@@ -111,7 +112,7 @@ class BlissLoader():
         """
         laod the measurement parameters of the specified scan
         """
-
+        h5file = self.h5file
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/measurement"
@@ -121,11 +122,12 @@ class BlissLoader():
     @safe
     def load_instrument_parameter(
             self,
-            h5file,
+            # h5file,
             sample_name,
             scan,
             ins_parameter
     ):
+        h5file = self.h5file
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
@@ -135,11 +137,12 @@ class BlissLoader():
     @safe
     def load_sample_parameter(
             self,
-            h5file,
+            # h5file,
             sample_name,
             scan,
             sam_parameter
     ):
+        h5file = self.h5file
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/sample"
@@ -149,11 +152,12 @@ class BlissLoader():
     @safe
     def load_plotselect_parameter(
             self,
-            h5file,
+            # h5file,
             sample_name,
             scan,
             plot_parameter
     ):
+        h5file = self.h5file
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/plotselect"
