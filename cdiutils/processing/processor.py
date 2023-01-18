@@ -156,7 +156,7 @@ class BcdiProcessor:
         ) = self.loader.load_motor_positions(
             scan=self.parameters["metadata"]["scan"],
         )
-        self.space_converter.set_Q_space_area(
+        self.space_converter.set_q_space_area(
                 self.sample_outofplane_angle,
                 self.sample_inplane_angle, 
                 self.detector_outofplane_angle,
