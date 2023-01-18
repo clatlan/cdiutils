@@ -226,7 +226,6 @@ class SpaceConverter():
                 detector_inplane_angle,
                 detector_outofplane_angle
             ),
-            dtype=object
         )
         self.transition_cubinates = np.moveaxis(
             self.q_space_transitions,
@@ -407,7 +406,6 @@ class SpaceConverter():
                 temp[1][0, :, 0],
                 temp[2][0, 0, :],
             ],
-            dtype=object
         )
         return self.q_lab_interpolator(data)
     
@@ -449,6 +447,10 @@ class SpaceConverter():
         """
 
         if plot_at is None:
+            print(
+                "plot_at parameter not provided, will plot the data at the "
+                "center"
+            )
             plot_at = tuple(e // 2 for e in raw_data.shape)
 
         figure, axes = plt.subplots(3, 3, figsize=(12, 8))
@@ -481,8 +483,10 @@ class SpaceConverter():
         axes[0, 2].set_xlabel(r"detector $axis_0$")
         axes[0, 2].set_ylabel(r"detector $axis_1$")
 
-        full_det_frame_plot_at = self.croppped_det_to_det(plot_at)
-        q_plot_at = self.det_to_lab(full_det_frame_plot_at)
+        if raw_data.shape != self._full_shape:
+            plot_at = self.croppped_det_to_det(plot_at)
+
+        q_plot_at = self.det_to_lab(plot_at)
 
         index_of_q_plot_at = np.unravel_index(
             np.argmin(
