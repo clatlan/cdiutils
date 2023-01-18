@@ -1,6 +1,6 @@
 
 
-CXI2XU_TRANSITIONS = {
+CXI_TO_XU_TRANSITIONS = {
         "x+": "y+",
         "x-": "y-",
         "y+": "z+",
@@ -53,14 +53,14 @@ class Geometry:
         Convert the CXI circle axes to the xrayutilities coordinates system
         """
         self.sample_circles = [
-            CXI2XU_TRANSITIONS[v] for v in self.sample_circles
+            CXI_TO_XU_TRANSITIONS[v] for v in self.sample_circles
         ]
         self.detector_circles = [
-            CXI2XU_TRANSITIONS[v] for v in self.detector_circles
+            CXI_TO_XU_TRANSITIONS[v] for v in self.detector_circles
         ]
-        self.detector_vertical_orientation = CXI2XU_TRANSITIONS[
+        self.detector_vertical_orientation = CXI_TO_XU_TRANSITIONS[
             self.detector_vertical_orientation
         ]
-        self.detector_horizontal_orientation = CXI2XU_TRANSITIONS[
+        self.detector_horizontal_orientation = CXI_TO_XU_TRANSITIONS[
             self.detector_horizontal_orientation
         ]
