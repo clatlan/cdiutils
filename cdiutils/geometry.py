@@ -48,7 +48,7 @@ class Geometry:
                 f"The beamline_name {beamline_name} is not known"
             )
 
-    def cxi2xu(self) -> None:
+    def cxi_to_xu(self) -> None:
         """
         Convert the CXI circle axes to the xrayutilities coordinates system
         """
