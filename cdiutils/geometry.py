@@ -7,7 +7,7 @@ CXI2XU_TRANSITIONS = {
         "y-": "z-",
         "z+": "x+",
         "z-": "x-",
-    }
+}
 
 
 class Geometry:
@@ -30,7 +30,7 @@ class Geometry:
             self.beam_direction = [1, 0, 0]
         else:
             self.beam_direction = beam_direction
-    
+
     @classmethod
     def from_name(cls, beamline_name: str) -> None:
         """Create a Geometry instance using a beamline name."""
