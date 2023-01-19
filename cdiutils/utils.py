@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import numpy as np
 import matplotlib
 import seaborn as sns
@@ -108,14 +108,34 @@ def normalize_complex_array(array):
     shifted_array = array - array.real.min() - 1j*array.imag.min()
     return shifted_array/np.abs(shifted_array).max()
 
+def shape_for_safe_centered_cropping(
+        data_shape: Union[tuple, np.ndarray, list],
+        position: Union[tuple, np.ndarray, list],
+        final_shape: Optional[tuple]=None
+) -> tuple:
+    """
+    Utility function that find the smallest shape that allows a safe
+    cropping, i.e. without moving data from one side to another when
+    using the np.roll() function.
+    """
+    if not isinstance(data_shape, np.ndarray):
+        data_shape = np.array(data_shape)
+    if not isinstance(position, np.ndarray):
+        position = np.array(position)
+
+    secured_shape = 2 * np.min([position, data_shape - position], axis=0)
+
+    if final_shape is None:
+        return tuple(secured_shape)
+    else:
+        return tuple(np.min([secured_shape, final_shape], axis=0))
+    
 
 def center(
-    data,
-    center_coordinates=None,
-    method="com",
-    verbose=False,
-    return_former_center=False
-):
+        data: np.ndarray,
+        where="com",
+        return_former_center=False
+) -> Union[np.ndarray, tuple[np.ndarray, tuple]]:
     """
     Center 3D volume data such that the center of mass or max  of data
     is at the very center of the 3D matrix.
@@ -129,26 +149,17 @@ def center(
     """
     shape = data.shape
 
-    if center_coordinates:
-        xcenter = center_coordinates[0]
-        ycenter = center_coordinates[1]
-        zcenter = center_coordinates[2]
-
-    elif method == "com":
-            xcenter, ycenter, zcenter = (
-                int(round(c)) for c in center_of_mass(data)
-                )
-            
-    elif method == "max":
-            xcenter, ycenter, zcenter = np.unravel_index(
-                    data.argmax(), shape
-            )
+    if where == "max":
+        reference_position = np.unravel_index(data.argmax(), data.shape)
+    elif where == "com":
+        reference_position = tuple(int(e) for e in center_of_mass(data))
+    elif isinstance(where, tuple) and len(where) == 3:
+        reference_position = where
     else:
-        print("method unknown, please choose between ['com', 'max']")
-        return data
-    
-    if verbose:
-        print(f"Data will be centered at ({xcenter}, {ycenter}, {zcenter})")
+        raise ValueError(
+            "method must be 'max', 'com' or tuple of 3 integer coordinates"
+        )
+    xcenter, ycenter, zcenter = reference_position
 
     centered_data = np.roll(data, shape[0] // 2 - xcenter, axis=0)
     centered_data = np.roll(centered_data, shape[1] // 2 - ycenter, axis=1)
