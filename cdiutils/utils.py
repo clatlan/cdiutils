@@ -108,6 +108,12 @@ def normalize_complex_array(array):
     shifted_array = array - array.real.min() - 1j*array.imag.min()
     return shifted_array/np.abs(shifted_array).max()
 
+
+def max_pos(data: np.ndarray) -> tuple:
+    """Find the index coordinates of the maximum value."""
+    return np.unravel_index(data.argmax(), data.shape)
+
+
 def shape_for_safe_centered_cropping(
         data_shape: Union[tuple, np.ndarray, list],
         position: Union[tuple, np.ndarray, list],
