@@ -1,6 +1,5 @@
 from typing import Union, Tuple, Optional
 from scipy.ndimage import center_of_mass
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -8,7 +7,6 @@ import xrayutilities as xu
 
 from cdiutils.utils import pretty_print, center, crop_at_center
 from cdiutils.geometry import Geometry
-from cdiutils.plot.formatting import white_interior_ticks_labels
 
 
 class SpaceConverter():
@@ -31,18 +29,21 @@ class SpaceConverter():
         self.det_calib_parameters = {}
         self.hxrd = None
 
-        self.q_space_transitions = None
-        self.cropped_q_space_transitions = None
+        self._q_space_transitions = None
 
         self._reference_voxel = None
         self._cropped_shape = None
         self._full_shape = None
 
-        self.transition_cubinates = None
-        self.orthogonalized_cubinates = None
-        self.orthogonalized_q_lab_grid = None
+        self.q_space_shift = None
 
-        self.q_lab_interpolator = None
+        self.q_lab_interpolator: Interpolator3D=None
+        self.direct_lab_interpolator: Interpolator3D=None
+        self.xu_gridder: xu.FuzzyGridder3D=None
+    
+    @property
+    def q_space_transition(self):
+        return self._q_space_transitions
     
     @property
     def reference_voxel(self):
@@ -54,8 +55,6 @@ class SpaceConverter():
             self._reference_voxel = tuple(voxel)
         else:
             self._reference_voxel = voxel
-        if self._cropped_shape is not None:
-            self.crop_q_space_transitions()
     
     @property
     def cropped_shape(self):
@@ -64,11 +63,12 @@ class SpaceConverter():
     @cropped_shape.setter
     def cropped_shape(self, shape: Union[tuple, np.ndarray, list]):
         self._cropped_shape = shape
-        if self._reference_voxel is not None:
-            self.crop_q_space_transitions()
-
 
     def init_q_space_area(self, det_calib_parameters: dict=None):
+        """
+        Initialize the xrayutilites XHRD instance with the detector
+        calibration parameters.
+        """
         if det_calib_parameters is None:
             det_calib_parameters = self.det_calib_parameters
             if self.det_calib_parameters is None:
@@ -122,6 +122,463 @@ class SpaceConverter():
                 "'tiltazimuth', 'tilt', 'detrot', 'outerangle_offset'"
             )
 
+    def set_q_space_area(
+            self,
+            sample_outofplane_angle: Union[float, np.ndarray],
+            sample_inplane_angle: Union[float, np.ndarray],
+            detector_outofplane_angle: Union[float, np.ndarray],
+            detector_inplane_angle:  Union[float, np.ndarray]
+    ):
+        """
+        Compute the _q_space_transitions provided by xrayutilities
+        """
+        self._q_space_transitions = np.asarray(
+            self.hxrd.Ang2Q.area(
+                sample_outofplane_angle,
+                sample_inplane_angle,
+                detector_inplane_angle,
+                detector_outofplane_angle
+            ),
+        )
+        self._full_shape = self._q_space_transitions.shape[1:]
+    
+    def index_det_to_q_lab(
+            self,
+            ijk: Union[np.ndarray, list, tuple],
+    ) -> tuple:
+        """
+        Transition an index from the detector frame to the reciprocal 
+        lab space
+        """
+
+        if self._q_space_transitions is None:
+            raise ValueError(
+                "q_space_transitions is None, please set the q space area "
+                "with SpaceConverter.set_q_space_area() method"
+            )
+        return self.do_transition(
+            ijk,
+            self._q_space_transitions
+        )
+    
+    def index_cropped_det_to_det(
+            self,
+            ijk: Union[np.ndarray, list, tuple]
+    ) -> tuple:
+        """
+        Transition an index of the cropped detector frame to the full 
+        detector frame 
+        """
+        if (self._cropped_shape is None) or (self._reference_voxel is None):
+            raise ValueError("Set a cropped_shape and a reference_voxel")
+        return tuple(
+            ijk
+            + (np.array(self._full_shape) - np.array(self._cropped_shape))//2
+            - (np.array(self._full_shape)//2 - self._reference_voxel)
+        )
+
+    def index_cropped_det_to_q_lab(
+                self,
+                ijk: Union[np.ndarray, list, tuple]
+    ) -> tuple:
+        """
+        Transition an index from the cropped detector frame to the 
+        reciprocal lab space frame
+        """
+        return self.index_det_to_q_lab(self.index_cropped_det_to_det(ijk))
+    
+    def index_cropped_det_to_index_of_q_lab(
+                self,
+                ijk: Union[np.ndarray, list, tuple]
+    ) -> tuple:
+        """
+        Transition an index from the cropped detector frame to the 
+        index-of-q lab frame
+        """
+        cubinates = self.get_q_lab_regular_grid(arrangement="cubinates")
+        ijk = self.index_cropped_det_to_q_lab(ijk) # q value
+        ijk = np.unravel_index(
+            np.argmin(
+                np.linalg.norm(
+                    cubinates - ijk,
+                    axis=3
+                )
+            ),
+            cubinates.shape[:-1]
+        )
+        return ijk
+    
+    def dspacing(
+                self,
+                q_lab_coordinates: Union[np.ndarray, list, tuple]
+    )-> float:
+        """
+        Compute the dspacing
+        """
+        return 2*np.pi / np.linalg.norm(q_lab_coordinates)
+
+    def lattice_parameter(
+                self,
+                q_lab_coordinates: Union[np.ndarray, list, tuple],
+                hkl: Union[np.ndarray, list, tuple]
+    ) -> float:
+        """
+        Compute the lattice parameter
+        """
+        return (
+                self.dspacing(q_lab_coordinates)
+                * np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+        )
+
+    @staticmethod
+    def do_transition(
+            ijk: Union[np.ndarray, list, tuple],
+            transition_matrix: np.ndarray
+    ) -> tuple:
+        """
+        Transform a (i, j, k) tuple into the corresponding qx, qy, qz) 
+        values based the transition matrix
+        """
+        new_x = transition_matrix[0][ijk[0], ijk[1], ijk[2]]
+        new_y = transition_matrix[1][ijk[0], ijk[1], ijk[2]]
+        new_z = transition_matrix[2][ijk[0], ijk[1], ijk[2]]
+        
+        return float(new_x), float(new_y), float(new_z)
+
+    def crop_q_space_transitions(self) -> None:
+        """
+        Crop the _q_space_transitions according to the cropped data
+        shape
+        """
+        q_space_transitions = np.empty((3,) + self._cropped_shape)
+        for i in range(3):
+            q_space_transitions[i] = crop_at_center(
+                center(
+                    self._q_space_transitions[i],
+                    where=self._reference_voxel
+                ),
+                final_shape=self._cropped_shape
+            )
+        return q_space_transitions
+    
+    def _center_shift_q_space_transitions(
+            self,
+            q_space_transitions: np.ndarray,
+            shift_voxel: tuple
+    ) -> np.ndarray:
+
+        # Using the Interpolator3D requires the centering of the q
+        # values, here we save the shift in q for later use
+        q_space_shift = [
+            q_space_transitions[i][shift_voxel]
+            for i in range(3)
+        ]
+        # center the q_space_transitions values (not the indexes) so the
+        # center of the Bragg peak is (0, 0, 0) A-1
+        for i in range(3):
+            q_space_transitions[i] = (
+                q_space_transitions[i] - q_space_shift[i]
+            )
+
+        # reshape the grid so rows correspond to x, y and z coordinates,
+        # columns correspond to the bins
+        q_space_transitions = q_space_transitions.reshape(
+                3,
+                q_space_transitions[0].size
+        )
+        self.q_space_shift = q_space_shift
+        return q_space_transitions
+
+    def orthogonalize_to_q_lab(
+            self,
+            data: np.ndarray,
+            method: str="cdiutils",
+            shift_method: str="center"
+    ) -> np.ndarray:
+        """
+        Orthogonalize detector data of the reciprocal space to the lab
+        (xu) frame.
+        """
+
+        self._check_shape(data.shape)
+        if self._q_space_transitions[0].shape != data.shape:
+
+            self.crop_q_space_transitions()
+            q_space_transitions = self.crop_q_space_transitions()
+        else:
+            q_space_transitions = self._q_space_transitions
+
+
+        if method in ("xu", "xrayutilities"):
+            gridder = xu.FuzzyGridder3D(*data.shape)
+            gridder(*q_space_transitions, data)
+            self.xu_gridder = gridder
+            return gridder.data
+
+        if self.q_lab_interpolator is None:
+            self.init_interpolator(
+                data,
+                space="reciprocal_space",
+                shift_method=shift_method
+
+            )
+        return self.q_lab_interpolator(data)
+
+    
+    def _check_shape(self, shape: tuple) -> None:
+        """
+        Raise an error if the shape is different to the original raw
+        data and the _reference voxel was not set.
+        """
+        if (
+                self._q_space_transitions[0].shape != shape
+                and self._reference_voxel is None
+        ):
+            raise ValueError(
+                "The shape of the data to orthogonalize should be similar "
+                "to that of the raw data or you must set the "
+                "reference_voxel which is the center of the parsed cropped"
+                " data in the full raw data frame"
+            )
+
+    def init_interpolator(
+            self,
+            detector_data: np.ndarray,
+            direct_space_data: Optional[np.ndarray]=None,
+            direct_space_voxel_size: Union[tuple, np.ndarray, list, float]=None,
+            space: str="direct",
+            shift_method: str="center"
+    ):
+        shape = detector_data.shape
+        size = detector_data.size
+
+        self._check_shape(shape)
+
+        self.crop_q_space_transitions()
+        q_space_transitions = self.crop_q_space_transitions()
+
+        if shift_method == "center":
+            shift_voxel = tuple(s // 2 for s in shape)
+        elif shift_method == "max":
+            shift_voxel = np.unravel_index(np.argmax(detector_data), shape)
+        
+        q_space_transitions = self._center_shift_q_space_transitions(
+            q_space_transitions,
+            shift_voxel
+        )
+
+        # create the 0 centered index grid
+        k_matrix = []
+        for i in np.indices(shape):
+            k_matrix.append(i - i[shift_voxel])
+        k_matrix = np.array(k_matrix).reshape(3, size)
+
+        # get the linear_transformation_matrix
+        linear_transformation_matrix = self.linear_transformation_matrix(
+            q_space_transitions,
+            k_matrix
+        )
+
+        if space in (
+                "q", "rcp", "rcp_space",
+                "reciprocal", "reciprocal_space", "both"):
+            
+            if direct_space_data is None:
+                raise ValueError(
+                    "if space is 'direct' direct_space_data must be provided"
+                )
+
+            if shape != direct_space_data.shape:
+                raise ValueError(
+                    "The cropped_raw_data should have the same shape as the"
+                    "reconstructed object"
+                )
+    
+            self.q_lab_interpolator = Interpolator3D(
+                original_shape=shape,
+                original_to_target_matrix=linear_transformation_matrix
+            )
+
+        if space in ("direct", "direct_space", "both"):
+
+            # Compute the linear transformation matrix of the direct space
+            direct_lab_transformation_matrix = np.dot(
+                np.linalg.inv(linear_transformation_matrix.T),
+                np.diag(2 * np.pi / np.array(shape))
+            )
+            # Unit of the matrix vectors is A, convert it to nm
+            direct_lab_transformation_matrix /= 10
+
+            direct_lab_voxel_size = np.linalg.norm(
+                direct_lab_transformation_matrix,
+                axis=1
+            )
+            print(
+                "[INFO] Voxel size in the direct lab space is",
+                direct_lab_voxel_size
+            )
+
+            # make the interpolator instance
+            self.direct_lab_interpolator = Interpolator3D(
+                original_shape=shape,
+                original_to_target_matrix=direct_lab_transformation_matrix,
+                target_voxel_size=direct_space_voxel_size
+            )
+        
+        else:
+            raise ValueError(
+                "Unknown space"
+            )
+            
+    def orthogonalize_to_direct_lab(
+            self,
+            direct_space_data: np.ndarray,
+            detector_data: Optional[np.ndarray]=None,
+            direct_space_voxel_size: Union[tuple, np.ndarray, list, float]=None,
+    ) -> np.ndarray:
+        """
+        Orthogonalize the direct space data (reconstructed object) to
+        orthogonalized direct space.
+        """
+
+        if self.direct_lab_interpolator is None:
+            if detector_data is None:
+                raise ValueError(
+                    "Provide a detector_data or initiliase the interpolator "
+                    "using init_interpolator() method"
+                )
+            self.init_interpolator(
+                detector_data,
+                direct_space_data,
+                space="direct",
+                direct_space_voxel_size=direct_space_voxel_size
+            )
+        return self.direct_lab_interpolator(direct_space_data)
+
+    @staticmethod
+    def linear_transformation_matrix(
+            grid: np.ndarray,
+            index_matrix: np.ndarray
+    ) -> np.ndarray:
+        """
+        Compute the tranformation matrix that convert (i, j, k) integer
+        position into the given grid coordinates.
+        """
+        return np.dot(
+            grid,
+            np.dot(
+                index_matrix.T,
+                np.linalg.inv(
+                    np.dot(
+                        index_matrix,
+                        index_matrix.T
+                    )
+                )
+            )
+        )
+
+    def get_q_space_transitions(self, arrangement: str="list"):
+        """
+        Get the q space transitions calculated by xrayutilities and 
+        chose the arrangement either a list of three 1d array
+        or a cube of q coordinates in the q lab space.
+        """
+        if self._q_space_transitions is None:
+            raise ValueError(
+                "_q_space_transitions are none, use the set_q_space_area "
+                "method"
+            )
+        if arrangement in ("l", "list"):
+            return self._q_space_transitions
+        elif arrangement in ("c", "cubinates"):
+            return np.moveaxis(
+                self._q_space_transitions,
+                source=0,
+                destination=3
+            )
+        else:
+            raise ValueError(
+                "arrangement should be 'l', 'list', 'c' or 'cubinates'"
+            )
+    
+    def get_xu_q_lab_regular_grid(self, arrangement: str="list"):
+        """
+        Get the regular grid used for the xu orthogonalization in the q lab
+        space and chose the arrangement either a list of three 1d array
+        or a cube of q coordinates in the q lab space.
+        """
+        if self.xu_gridder is None:
+            raise ValueError(
+                "No q lab space xu_gridder initialized, cannot provide a "
+                "regular grid"
+            )
+        grid = [
+            self.xu_gridder.xaxis,
+            self.xu_gridder.yaxis,
+            self.xu_gridder.zaxis
+        ]
+        if arrangement in ("l", "list"):
+            return grid
+        elif arrangement in ("c", "cubinates"):
+            # create a temporary meshgrid
+            qx, qy, qz = np.meshgrid(grid[0], grid[1], grid[2], indexing="ij")
+            return np.moveaxis(
+                np.array([qx, qy, qz]),
+                source=0,
+                destination=3
+            )
+        else:
+            raise ValueError(
+                "arrangement should be 'l', 'list', 'c' or 'cubinates'"
+            )
+    
+    def get_q_lab_regular_grid(self, arrangement: str="list"):
+        """
+        Get the regular grid used for the orthogonalization in the q lab
+        space and chose the arrangement either a list of three 1d array
+        or a cube of q coordinates in the q lab space.
+        """
+        if self.q_lab_interpolator is None:
+            raise ValueError(
+                "No q lab space interpolator initialized, cannot provide a "
+                "regular grid"
+            )
+
+        grid = [
+            self.q_lab_interpolator.target_grid[i]
+            + self.q_space_shift[i]
+            for i in range(3)
+        ]
+        if arrangement in ("l", "list"):
+            return [grid[0][:, 0, 0], grid[1][0, :, 0], grid[2][0, 0, :]]
+        elif arrangement in ("c", "cubinates"):
+            return np.moveaxis(grid, source=0, destination=3)
+        else:
+            raise ValueError(
+                "arrangement should be 'l', 'list', 'c' or 'cubinates'"
+            )
+    
+    def get_direct_lab_regular_grid(self, arrangement: str="list"):
+        """
+        Get the regular grid used for the orthogonalization in the
+        direct space and chose the arrangement either a list of three
+        1d array or a cube of the coordinates in the direct lab space.
+        """
+        if self.direct_lab_interpolator is None:
+            raise ValueError(
+                "No direct lab space interpolator initialized, cannot provide "
+                "a regular grid"
+            )
+        grid = [self.direct_lab_interpolator.target_grid[i] for i in range(3)]
+        if arrangement in ("l", "list"):
+            return [grid[0][:, 0, 0], grid[1][0, :, 0], grid[2][0, 0, :]]
+        elif arrangement in ("c", "cubinates"):
+            return np.moveaxis(grid, source=0, destination=3)
+        else:
+            raise ValueError(
+                "arrangement should be 'l', 'list', 'c' or 'cubinates'"
+            )
+    
     @staticmethod
     def run_detector_calibration(
             detector_calibration_frames: np.ndarray,
@@ -210,397 +667,6 @@ class SpaceConverter():
             fig2.tight_layout()
         
         return parameters
-
-         
-    def set_q_space_area(
-            self,
-            sample_outofplane_angle: Union[float, np.ndarray],
-            sample_inplane_angle: Union[float, np.ndarray],
-            detector_outofplane_angle: Union[float, np.ndarray],
-            detector_inplane_angle:  Union[float, np.ndarray]
-    ):
-        self.q_space_transitions = np.asarray(
-            self.hxrd.Ang2Q.area(
-                sample_outofplane_angle,
-                sample_inplane_angle,
-                detector_inplane_angle,
-                detector_outofplane_angle
-            ),
-        )
-        self.transition_cubinates = np.moveaxis(
-            self.q_space_transitions,
-            source=0,
-            destination=3
-        )
-        self._full_shape = self.q_space_transitions.shape[1:]
-    
-    def det_to_lab(
-            self,
-            ijk: Union[np.ndarray, list, tuple],
-    ) -> tuple:
-
-        if self.q_space_transitions is None:
-            raise ValueError(
-                "q_space_transitions is None, please set the q space area "
-                "with SpaceConverter.set_q_space_area() method"
-            )
-        return self.do_transition(
-            ijk,
-            self.q_space_transitions
-        )
-    
-    def croppped_det_to_det(self, ijk: Union[np.ndarray, list, tuple]):
-        if (self._cropped_shape is None) or (self._reference_voxel is None):
-            raise ValueError("Set a cropped_shape and a reference_voxel")
-        return  (
-            ijk 
-            + (np.array(self._full_shape) - np.array(self._cropped_shape))//2
-            - (np.array(self._full_shape)//2 - self._reference_voxel)
-        )
-
-    @staticmethod
-    def do_transition(
-            ijk: Union[np.ndarray, list, tuple],
-            transition_matrix: np.ndarray
-    ) -> tuple:
-        """
-        Transform a (i, j, k) tuple into the corresponding qx, qy, qz) 
-        values based the transition matrix
-        """
-        new_x = transition_matrix[0][ijk[0], ijk[1], ijk[2]]
-        new_y = transition_matrix[1][ijk[0], ijk[1], ijk[2]]
-        new_z = transition_matrix[2][ijk[0], ijk[1], ijk[2]]
-        
-        return float(new_x), float(new_y), float(new_z)
-
-
-    def crop_q_space_transitions(self):
-        q_space_transitions = np.empty((3,) + self._cropped_shape)
-        for i in range(3):
-            q_space_transitions[i] = crop_at_center(
-                center(
-                    self.q_space_transitions[i],
-                    center_coordinates=self._reference_voxel
-                ),
-                final_shape=self._cropped_shape
-            )
-        self.cropped_q_space_transitions = q_space_transitions
-
-
-    def orthogonalize_to_q_lab(
-            self,
-            data: np.ndarray,
-            # reference_voxel: Optional[Union[np.ndarray, list, tuple]]=None,
-            method: str="cdiutils",
-            shift_method: str="center"
-    ) -> np.ndarray:
-        """
-        Orthogonalize detector data of the reciprocal space to the lab
-        (xu) frame.
-        """
-
-        shape = data.shape
-        size = data.size
-
-        if self.q_space_transitions[0].shape != shape:
-            if self._reference_voxel is None:
-                raise ValueError(
-                    "The shape of the data to orthogonalize should be similar "
-                    "to that of the raw data or you must set the "
-                    "reference_voxel which is the center of the parsed cropped "
-                    "data in the full raw data frame"
-                )
-            self.crop_q_space_transitions()
-            q_space_transitions = self.cropped_q_space_transitions
-        else:
-            q_space_transitions = self.q_space_transitions
-
-
-        if method in ("xu", "xrayutilities"):
-            gridder = xu.FuzzyGridder3D(*shape)
-            gridder(*q_space_transitions, data)
-            self.orthogonalized_q_lab_grid = [
-                gridder.xaxis,
-                gridder.yaxis,
-                gridder.zaxis
-            ]
-            # create a temporary meshgrid
-            qx, qy, qz = np.meshgrid(
-                gridder.xaxis,
-                gridder.yaxis,
-                gridder.zaxis,
-                indexing="ij"
-            )
-            # each (i, j, k) coordinates corresponds to a 3 value vector
-            # of the q lab space
-            self.orthogonalized_cubinates = np.moveaxis(
-                np.array([qx, qy, qz]),
-                source=0,
-                destination=3
-            )
-            return gridder.data
-
-
-        if shift_method == "center":
-            shift_voxel = tuple(s // 2 for s in shape)
-        elif shift_method == "max":
-            shift_voxel = np.unravel_index(np.argmax(data), shape)
-
-        # Using the Interpolator3D requires the centering of the q
-        # values, here we save the shift in q for later use
-        q_space_shift = [
-            q_space_transitions[i].item(shift_voxel)
-            for i in range(3)
-        ]
-
-        # center the q_space_transitions values (not the indexes) so the
-        # center of the Bragg peak is (0, 0, 0) A-1
-        for i in range(3):
-            q_space_transitions[i] = (
-                q_space_transitions[i] - q_space_shift[i]
-            )
-
-        # reshape the grid so rows correspond to x, y and z coordinates,
-        # columns correspond to the bins
-        q_space_transitions = q_space_transitions.reshape(3, size)
-
-        # create the index nd.array whose shift_voxel must
-        # be the origin
-        k_matrix = []
-        for i in np.indices(shape):
-            k_matrix.append(i - i[shift_voxel])
-        k_matrix = np.array(k_matrix).reshape(3, size)
-
-        # get the linear_transform_matrix
-        linear_transformation_matrix = self.linear_transformation_matrix(
-            q_space_transitions,
-            k_matrix
-        )
-
-        q_voxel_size = np.linalg.norm(linear_transformation_matrix, axis=1)
-        print(
-            "[INFO] Voxel size in the xu frame using matrix is",
-            q_voxel_size
-        )
-
-        # interpolate the diffraction pattern intensity to the
-        # orthogonal q lab space
-        self.q_lab_interpolator = Interpolator3D(
-            original_shape=shape,
-            original_to_target_matrix=linear_transformation_matrix
-        )
-        # get the regular grid used for the interpolation
-        temp = [
-            self.q_lab_interpolator.target_grid[i]
-            + q_space_shift[i]
-            for i in range(3)
-        ]
-        self.orthogonalized_cubinates = np.moveaxis(
-                temp,
-                source=0,
-                destination=3
-        )
-        self.orthogonalized_q_lab_grid = np.array(
-            [
-                temp[0][:, 0, 0],
-                temp[1][0, :, 0],
-                temp[2][0, 0, :],
-            ],
-        )
-        return self.q_lab_interpolator(data)
-    
-
-    @staticmethod
-    def linear_transformation_matrix(
-            grid: np.ndarray,
-            index_matrix: np.ndarray
-    ) -> np.ndarray:
-        """
-        Compute the tranformation matrix that convert (i, j, k) integer
-        position into the given grid coordinates.
-        """
-
-        return np.dot(
-            grid,
-            np.dot(
-                index_matrix.T,
-                np.linalg.inv(
-                    np.dot(
-                        index_matrix,
-                        index_matrix.T
-                    )
-                )
-            )
-        )
-
-
-    def plot_orthogonalization_process(
-            self,
-            raw_data: np.ndarray,
-            interpolated_data: np.ndarray,
-            plot_at: Optional[Union[np.ndarray, list, tuple]]=None,
-
-    ) -> matplotlib.figure.Figure:
-        """
-        Plot the intensity in the detector frame, index-of-q lab frame
-        and q lab frame.
-        """
-
-        if plot_at is None:
-            print(
-                "plot_at parameter not provided, will plot the data at the "
-                "center"
-            )
-            plot_at = tuple(e // 2 for e in raw_data.shape)
-
-        figure, axes = plt.subplots(3, 3, figsize=(12, 8))
-
-        axes[0, 0].matshow(np.log(raw_data[plot_at[0]]+1))
-        axes[0, 0].plot(
-            plot_at[2], plot_at[1], color="w", marker="x")
-
-        axes[0, 1].matshow(
-            np.log(raw_data[:, plot_at[1]]+1))
-        axes[0, 1].plot(
-            plot_at[2], plot_at[0], color="w", marker="x")
-
-        axes[0, 2].matshow(
-            np.log(
-                np.swapaxes(
-                    raw_data[:, :, plot_at[2]],
-                    axis1=0,
-                    axis2=1
-                ) + 1
-            ),
-        )
-        axes[0, 2].plot(
-            plot_at[0], plot_at[1], color="w", marker="x")
-
-        axes[0, 0].set_xlabel(r"detector $axis_2$")
-        axes[0, 0].set_ylabel(r"detector $axis_1$")
-        axes[0, 1].set_xlabel(r"detector $axis_2$")
-        axes[0, 1].set_ylabel(r"detector $axis_0$")
-        axes[0, 2].set_xlabel(r"detector $axis_0$")
-        axes[0, 2].set_ylabel(r"detector $axis_1$")
-
-        if raw_data.shape != self._full_shape:
-            plot_at = self.croppped_det_to_det(plot_at)
-
-        q_plot_at = self.det_to_lab(plot_at)
-
-        index_of_q_plot_at = np.unravel_index(
-            np.argmin(
-                np.linalg.norm(
-                    self.orthogonalized_cubinates - q_plot_at,
-                    axis=3
-                )
-            ),
-            self.orthogonalized_cubinates.shape[:-1]
-        )
-
-        axes[1, 0].matshow(
-            np.log(
-                np.swapaxes(interpolated_data[index_of_q_plot_at[0]],
-                axis1=0,
-                axis2=1
-                )+1 # add 1 to avoid log(0)
-            ),
-            origin="lower"
-        )
-
-        axes[1, 1].matshow(
-            np.log(
-                np.swapaxes(
-                    interpolated_data[:, index_of_q_plot_at[1]],
-                    axis1=0,
-                    axis2=1
-                )+1 # add 1 to avoid log(0)
-            ),
-            origin="lower"
-        )
-        
-        axes[1, 2].matshow(
-            np.log(interpolated_data[:, :, index_of_q_plot_at[2]]+1),
-            origin="lower"
-        )
-
-        axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-        axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-        axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-        axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-        axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-        axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
-
-        # load the orthogonalized grid values
-        x_array = self.orthogonalized_q_lab_grid[0]
-        y_array = self.orthogonalized_q_lab_grid[1]
-        z_array = self.orthogonalized_q_lab_grid[2]
-
-        # careful here, in contourf it is not the matrix convention !
-        axes[2, 0].contourf(
-            y_array, # must be the matplotlib xaxis array / numpy axis1
-            z_array, # must be the matplotlib yaxis array / numpy axis0
-            np.log(
-                np.swapaxes(
-                    interpolated_data[index_of_q_plot_at[0]]+1,
-                    axis1=0,
-                    axis2=1
-                )
-            ),
-            levels=100,
-        )
-
-        axes[2, 1].contourf(
-            x_array, # must be the matplotlib xaxis array / numpy axis1
-            z_array, # must be the matplotlib yaxis array / numpy axis0
-            np.log(
-                np.swapaxes(
-                    interpolated_data[:, index_of_q_plot_at[1]]+1,
-                    axis1=0,
-                    axis2=1
-                )
-            ),
-            levels=100,
-        )
-
-        axes[2, 2].contourf(
-            y_array, # must be the matplotlib xaxis array / numpy axis1
-            x_array, # must be the matplotlib yaxis array / numpy axis0
-            np.log(
-                interpolated_data[:, :, index_of_q_plot_at[2]]
-                +1 # add 1 to avoid log(0)
-            ),
-            levels=100,
-        )
-
-        axes[2, 0].set_xlabel(r"$Q_{y_{lab}}~(\si{\angstrom}^{-1})$")
-        axes[2, 0].set_ylabel(r"$Q_{z_{lab}}~(\si{\angstrom}^{-1})$")
-        axes[2, 1].set_xlabel(r"$Q_{x_{lab}}~(\si{\angstrom}^{-1})$")
-        axes[2, 1].set_ylabel(r"$Q_{z_{lab}}~(\si{\angstrom}^{-1})$")
-        axes[2, 2].set_xlabel(r"$Q_{y_{lab}}~(\si{\angstrom}^{-1})$")
-        axes[2, 2].set_ylabel(r"$Q_{x_{lab}}~(\si{\angstrom}^{-1})$")
-
-
-        axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-        axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-q lab frame}")
-        axes[2, 1].set_title(r"Orthogonalized data in \textbf{q lab frame}")
-
-        figure.canvas.draw()
-        for ax in axes.ravel():
-            # ax.tick_params(axis="x", bottom=True, top=False, labeltop=False, labelbottom=True)
-            white_interior_ticks_labels(ax)
-        for ax in axes[2].ravel():
-            ax.set_aspect("equal")
-
-        figure.suptitle(r"From \textbf{detector frame} to \textbf{q lab frame}")
-        text = (
-            "The white X marker shows the\nreference pixel (max) used for the"
-            "\ntransformation"
-        )
-        figure.text(0.05, 0.92, text, fontsize=12, transform=figure.transFigure)
-        figure.tight_layout()
-
-        return figure
 
 
 class Interpolator3D:
