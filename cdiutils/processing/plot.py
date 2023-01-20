@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -15,13 +15,12 @@ from cdiutils.plot.slice import plot_contour
 def preprocessing_detector_data_plot(
         detector_data: np.array,
         cropped_data: np.array,
-        det_pixel_reference: Union[np.array, list, tuple],
+        det_reference_pixel: Union[np.array, list, tuple],
         det_max_pixel: Union[np.array, list, tuple],
         det_com_pixel: Union[np.array, list, tuple],
         cropped_max_pixel: Union[np.array, list, tuple],
         cropped_com_pixel: Union[np.array, list, tuple],
         title: str=""
-
 ) -> matplotlib.figure.Figure:
     """
     Plot the detector data in the full detector data frame and in the 
@@ -29,7 +28,7 @@ def preprocessing_detector_data_plot(
 
     :param detector_data: the raw detector data (np.array)
     :param cropped_data: the cropped/centered data (np.array)
-    :det_pixel_reference: the pixel reference in the full detector frame
+    :det_reference_pixel: the pixel reference in the full detector frame
     (np.array, list or tuple)
     :det_max_pixel: the max pixel in the full detector frame
     (np.array, list or tuple)
@@ -63,16 +62,16 @@ def preprocessing_detector_data_plot(
         origin="upper"
     )
     axes[0, 0].plot(
-        np.repeat(det_pixel_reference[2], 2),
-        det_pixel_reference[1] + np.array(
+        np.repeat(det_reference_pixel[2], 2),
+        det_reference_pixel[1] + np.array(
             [-0.1*initial_shape[1], 0.1*initial_shape[1]]),
         color="w", 
         lw=0.5
     )
     axes[0, 0].plot(
-        det_pixel_reference[2] + np.array(
+        det_reference_pixel[2] + np.array(
             [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_pixel_reference[1], 2),
+        np.repeat(det_reference_pixel[1], 2),
         color="w", 
         lw=0.5
     )
@@ -103,16 +102,16 @@ def preprocessing_detector_data_plot(
         origin="lower"
     )
     axes[0, 1].plot(
-        np.repeat(det_pixel_reference[2], 2),
-        det_pixel_reference[0] + np.array(
+        np.repeat(det_reference_pixel[2], 2),
+        det_reference_pixel[0] + np.array(
             [-0.1*initial_shape[0], 0.1*initial_shape[0]]),
         color="w", 
         lw=0.5
     )
     axes[0, 1].plot(
-        det_pixel_reference[2] + np.array(
+        det_reference_pixel[2] + np.array(
             [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_pixel_reference[0], 2),
+        np.repeat(det_reference_pixel[0], 2),
         color="w", 
         lw=0.5
     )
@@ -143,16 +142,16 @@ def preprocessing_detector_data_plot(
         origin="upper"
     )
     axes[0, 2].plot(
-        np.repeat(det_pixel_reference[0], 2),
-        det_pixel_reference[1] + np.array(
+        np.repeat(det_reference_pixel[0], 2),
+        det_reference_pixel[1] + np.array(
             [- 0.1 * initial_shape[1],  + 0.1 * initial_shape[1]]),
         color="w", 
         lw=0.5
     )
     axes[0, 2].plot(
-        det_pixel_reference[0] + np.array(
+        det_reference_pixel[0] + np.array(
             [- 0.1 * initial_shape[0],  + 0.1 * initial_shape[0]]),
-        np.repeat(det_pixel_reference[1], 2),
+        np.repeat(det_reference_pixel[1], 2),
         color="w", 
         lw=0.5
     )
@@ -310,19 +309,6 @@ def preprocessing_detector_data_plot(
     figure.canvas.draw()
     for ax in axes.ravel():
         white_interior_ticks_labels(ax)
-        # ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
-        # ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
-        # ax.xaxis.set_ticks_position("bottom")
-
-        # xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
-        # xticks_loc[1] = yticks_loc[1] = None
-        
-        # xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
-        # xlabels[1] = ylabels[1] = ""
-        # ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
-        # ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
-        # ax.set_xticklabels(xlabels)
-        # ax.set_yticklabels(ylabels)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
@@ -355,7 +341,7 @@ def summary_slice_plot(
         isosurface: float=None,
         averaged_dspacing: float=None,
         averaged_lattice_constant: float=None,
-        det_pixel_reference: Union[np.array, list, tuple]=None,
+        det_reference_pixel: Union[np.array, list, tuple]=None,
         respect_aspect=False,
         support: np.array=None,
         single_vmin: float=None,
@@ -489,7 +475,7 @@ def summary_slice_plot(
                 voxel_size,
                 formatter={"float_kind":lambda x: "%.2f" % x}
             )],
-            [np.array2string(np.array(det_pixel_reference))],
+            [np.array2string(np.array(det_reference_pixel))],
             [isosurface],
             [averaged_dspacing],
             [averaged_lattice_constant]
@@ -546,4 +532,287 @@ def summary_slice_plot(
     if save:
         figure.savefig(save, dpi=dpi, bbox_inches="tight")
     
+    return figure
+
+
+def plot_q_lab_orthogonalization_process(
+        detector_data: np.ndarray,
+        orthogonalized_data: np.ndarray,
+        q_lab_regular_grid: np.ndarray,
+        where_in_det_space: Optional[tuple]=None,
+        where_in_ortho_space: Optional[tuple]=None,
+) -> matplotlib.figure.Figure:
+    """
+    Plot the intensity in the detector frame, index-of-q lab frame
+    and q lab frame.
+    """
+
+    if where_in_det_space is None:
+        print(
+            "where_in_det_space parameter not provided, will plot the data"
+            " at the center"
+        )
+        where_in_det_space = tuple(e // 2 for e in detector_data.shape)
+
+    figure, axes = plt.subplots(3, 3, figsize=(12, 8))
+
+    axes[0, 0].matshow(np.log(detector_data[where_in_det_space[0]]+1))
+    axes[0, 0].plot(
+        where_in_det_space[2], where_in_det_space[1], color="w", marker="x")
+
+    axes[0, 1].matshow(
+        np.log(detector_data[:, where_in_det_space[1]]+1))
+    axes[0, 1].plot(
+        where_in_det_space[2], where_in_det_space[0], color="w", marker="x")
+
+    axes[0, 2].matshow(
+        np.log(
+            np.swapaxes(
+                detector_data[:, :, where_in_det_space[2]],
+                axis1=0,
+                axis2=1
+            ) + 1
+        ),
+    )
+    axes[0, 2].plot(
+        where_in_det_space[0], where_in_det_space[1], color="w", marker="x")
+
+    axes[0, 0].set_xlabel(r"detector $axis_2$")
+    axes[0, 0].set_ylabel(r"detector $axis_1$")
+    axes[0, 1].set_xlabel(r"detector $axis_2$")
+    axes[0, 1].set_ylabel(r"detector $axis_0$")
+    axes[0, 2].set_xlabel(r"detector $axis_0$")
+    axes[0, 2].set_ylabel(r"detector $axis_1$")
+
+    if where_in_ortho_space is None:
+        print(
+            "where_in_ortho_space parameter not provided, will plot the "
+            "data at the center"
+        )
+        where_in_ortho_space = tuple(
+            e // 2 for e in orthogonalized_data.shape)
+
+    axes[1, 0].matshow(
+        np.log(
+            np.swapaxes(orthogonalized_data[where_in_ortho_space[0]],
+            axis1=0,
+            axis2=1
+            )+1 # add 1 to avoid log(0)
+        ),
+        origin="lower"
+    )
+
+    axes[1, 1].matshow(
+        np.log(
+            np.swapaxes(
+                orthogonalized_data[:, where_in_ortho_space[1]],
+                axis1=0,
+                axis2=1
+            )+1 # add 1 to avoid log(0)
+        ),
+        origin="lower"
+    )
+    
+    axes[1, 2].matshow(
+        np.log(orthogonalized_data[:, :, where_in_ortho_space[2]]+1),
+        origin="lower"
+    )
+
+    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
+    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+
+    # load the orthogonalized grid values
+    x_array, y_array, z_array = q_lab_regular_grid
+
+    # careful here, in contourf it is not the matrix convention !
+    axes[2, 0].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                orthogonalized_data[where_in_ortho_space[0]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[2, 1].contourf(
+        x_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                orthogonalized_data[:, where_in_ortho_space[1]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[2, 2].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        x_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            orthogonalized_data[:, :, where_in_ortho_space[2]]
+            +1 # add 1 to avoid log(0)
+        ),
+        levels=100,
+    )
+    ANGSTROM_SYMBOL, _, _ = set_plot_configs()
+    axes[2, 0].set_xlabel(
+        r"$Q_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    axes[2, 0].set_ylabel(
+        r"$Q_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    axes[2, 1].set_xlabel(
+        r"$Q_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    axes[2, 1].set_ylabel(
+        r"$Q_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    axes[2, 2].set_xlabel(
+        r"$Q_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    axes[2, 2].set_ylabel(
+        r"$Q_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+
+
+    axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
+    axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-q lab frame}")
+    axes[2, 1].set_title(r"Orthogonalized data in \textbf{q lab frame}")
+
+    figure.canvas.draw()
+    for ax in axes.ravel():
+        # ax.tick_params(axis="x", bottom=True, top=False, labeltop=False, labelbottom=True)
+        white_interior_ticks_labels(ax)
+    for ax in axes[2].ravel():
+        ax.set_aspect("equal")
+
+    figure.suptitle(r"From \textbf{detector frame} to \textbf{q lab frame}")
+    text = (
+        "The white X marker shows the\nreference pixel used for the"
+        "\ntransformation"
+    )
+    figure.text(0.05, 0.92, text, fontsize=12, transform=figure.transFigure)
+    figure.tight_layout()
+
+    return figure
+
+
+def plot_direct_lab_orthogonalization_process(
+        detector_direct_space_data: np.ndarray,
+        direct_lab_data: np.ndarray,
+        direct_lab_regular_grid: list[np.ndarray]
+) -> matplotlib.figure.Figure:
+    """
+    Plot the intensity in the detector frame, index-of-q lab frame
+    and q lab frame.
+    """
+
+    plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
+        
+    figure, axes = plt.subplots(3, 3, figsize=(12, 8))
+
+    axes[0, 0].matshow(detector_direct_space_data[plot_at[0]])
+    axes[0, 1].matshow(detector_direct_space_data[:, plot_at[1]])
+    axes[0, 2].matshow(
+        np.swapaxes(
+            detector_direct_space_data[:, :, plot_at[2]],
+            axis1=0,
+            axis2=1
+        )
+    )
+
+    axes[0, 0].set_xlabel(r"detector $axis_2$")
+    axes[0, 0].set_ylabel(r"detector $axis_1$")
+    axes[0, 1].set_xlabel(r"detector $axis_2$")
+    axes[0, 1].set_ylabel(r"detector $axis_0$")
+    axes[0, 2].set_xlabel(r"detector $axis_0$")
+    axes[0, 2].set_ylabel(r"detector $axis_1$")
+
+    plot_at = tuple(e // 2 for e in direct_lab_data.shape)
+
+    axes[1, 0].matshow(
+            np.swapaxes(direct_lab_data[plot_at[0]],
+            axis1=0,
+            axis2=1
+        ),
+        origin="lower"
+    )
+
+    axes[1, 1].matshow(
+        np.swapaxes(
+            direct_lab_data[:, plot_at[1]],
+            axis1=0,
+            axis2=1
+        ),
+        origin="lower"
+    )
+
+    axes[1, 2].matshow(
+        direct_lab_data[:, :, plot_at[2]],
+        origin="lower"
+    )
+
+    x_array, y_array, z_array = direct_lab_regular_grid
+    axes[2, 0].contourf(
+        y_array,
+        z_array,
+        np.swapaxes(
+            direct_lab_data[plot_at[0]],
+            axis1=0,
+            axis2=1
+        ),
+        levels=100
+    )
+    axes[2, 1].contourf(
+        x_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.swapaxes(
+            direct_lab_data[:, plot_at[1]],
+            axis1=0,
+            axis2=1
+        ),
+        levels=100,
+    )
+
+    axes[2, 2].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        x_array, # must be the matplotlib yaxis array / numpy axis0
+        direct_lab_data[:, :, plot_at[2]],
+        levels=100
+    )
+
+    for ax in axes.ravel():
+        ax.set_aspect("equal")
+
+    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
+    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+
+    axes[2, 0].set_xlabel(r"$y_{lab}$ (nm)")
+    axes[2, 0].set_ylabel(r"$z_{lab}$ (nm)")
+    axes[2, 1].set_xlabel(r"$x_{lab}$ (nm)")
+    axes[2, 1].set_ylabel(r"$z_{lab}$ (nm)")
+    axes[2, 2].set_xlabel(r"$y_{lab}$ (nm)")
+    axes[2, 2].set_ylabel(r"$x_{lab}$ (nm)")
+
+
+
+    axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
+    axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-direct lab frame}")
+    axes[2, 1].set_title(r"Orthogonalized data in \textbf{direct lab frame}")
+
+    figure.canvas.draw()
+    for ax in axes.ravel():
+        white_interior_ticks_labels(ax)
+
+    figure.suptitle(r"From \textbf{detector frame} to \textbf{direct lab frame}")
+    figure.tight_layout()
+
     return figure
