@@ -12,6 +12,9 @@ It requires the following libraries :
 * matplotlib
 * colorcet
 
+## Installation
+You can install the package with the following command:
+**pip install https://github.com/clatlan/cdiutils**
 
 ## Slice plot
 
