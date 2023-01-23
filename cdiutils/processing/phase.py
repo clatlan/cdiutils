@@ -173,7 +173,7 @@ def get_structural_properties(
         final_shape: Optional[Union[np.array, list, tuple]]=None,
         phase_factor: Optional[int]=1,
         normalize_amplitude: Optional[bool]=True,
-        normal_strain_axis: Optional[Union[int, str]]=1 
+        normal_strain_axis: Optional[Union[int, str]]=1
 ) -> dict:
 
     """
