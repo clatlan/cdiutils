@@ -109,7 +109,7 @@ def normalize_complex_array(array):
     return shifted_array/np.abs(shifted_array).max()
 
 
-def max_pos(data: np.ndarray) -> tuple:
+def find_max_pos(data: np.ndarray) -> tuple:
     """Find the index coordinates of the maximum value."""
     return np.unravel_index(data.argmax(), data.shape)
 
@@ -139,8 +139,8 @@ def shape_for_safe_centered_cropping(
 
 def center(
         data: np.ndarray,
-        where="com",
-        return_former_center=False
+        where: Union[str, tuple, list]="com",
+        return_former_center: bool=False
 ) -> Union[np.ndarray, tuple[np.ndarray, tuple]]:
     """
     Center 3D volume data such that the center of mass or max  of data
@@ -149,21 +149,23 @@ def center(
     centered.
     :param com: center of mass coordinates(list, np.array). If no com is
     provided, com of the given data is computed (default: None).
-    :param method: what region to place at the center (str), either
-    com or max.
+    :param where: what region to place at the center (str), either
+    com or max, or a tuple of the coordinates where to place the center
+    at.
     :returns: centered 3D numpy array.
     """
     shape = data.shape
 
     if where == "max":
-        reference_position = np.unravel_index(data.argmax(), data.shape)
+        reference_position = find_max_pos(data)
     elif where == "com":
         reference_position = tuple(int(e) for e in center_of_mass(data))
-    elif isinstance(where, tuple) and len(where) == 3:
-        reference_position = where
+    elif isinstance(where, (tuple, list)) and len(where) == 3:
+        reference_position = tuple(where) if isinstance(where, list) else where
     else:
         raise ValueError(
-            "method must be 'max', 'com' or tuple of 3 integer coordinates"
+            "where must be 'max', 'com' or tuple or list of 3 integer "
+            f"coordinates, can't be {where}"
         )
     xcenter, ycenter, zcenter = reference_position
 
@@ -357,8 +359,9 @@ def find_isosurface(
         amplitude: np.ndarray,
         nbins: Optional[int]=100,
         sigma_criterion: Optional[float]=2,
+        plot: Optional[bool]=False,
         show: Optional[bool]=False
-) -> Tuple[float, matplotlib.axes.Axes]:
+) -> Union[Tuple[float, matplotlib.axes.Axes], float]:
     """
     Estimate the isosurface from the amplitude distribution
 
@@ -408,48 +411,49 @@ def find_isosurface(
     sigma_estimate = fwhm / 2*np.sqrt(2*np.log(2))
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
-    fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=(8, 5))
-    ax = plot_background(ax)
-    ax.bar(
-        bin_centres,
-        counts,
-        width=bin_size,
-        color="dodgerblue",
-        alpha=0.9,
-        edgecolor=(0, 0, 0, 0.25),
-        label="amplitude distribution"
-    )
-    sns.kdeplot(
-        filtered_amplitude,
-        ax=ax,
-        alpha=0.3,
-        fill=True,
-        color="navy",
-        label="density estimate"
-    )
-    ax.axvspan(
-        x[left_HM_index],
-        x[right_HM_index],
-        edgecolor="k",
-        facecolor="green",
-        alpha=0.2,
-        label="FWHM"
-    )
-    ax.plot(
-        [isosurface, isosurface],
-        [0, fitted_counts[(np.abs(x - isosurface)).argmin()]],
-        solid_capstyle="round",
-        color="lightcoral",
-        lw=5,
-        label=f"isosurface estimated at {isosurface:0.3f}"
-    )
+    if plot or show:
+        fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=(8, 5))
+        ax = plot_background(ax)
+        ax.bar(
+            bin_centres,
+            counts,
+            width=bin_size,
+            color="dodgerblue",
+            alpha=0.9,
+            edgecolor=(0, 0, 0, 0.25),
+            label="amplitude distribution"
+        )
+        sns.kdeplot(
+            filtered_amplitude,
+            ax=ax,
+            alpha=0.3,
+            fill=True,
+            color="navy",
+            label="density estimate"
+        )
+        ax.axvspan(
+            x[left_HM_index],
+            x[right_HM_index],
+            edgecolor="k",
+            facecolor="green",
+            alpha=0.2,
+            label="FWHM"
+        )
+        ax.plot(
+            [isosurface, isosurface],
+            [0, fitted_counts[(np.abs(x - isosurface)).argmin()]],
+            solid_capstyle="round",
+            color="lightcoral",
+            lw=5,
+            label=f"isosurface estimated at {isosurface:0.3f}"
+        )
 
-    ax.set_xlabel("normalized amplitude", size=14)
-    ax.set_ylabel("counts",  size=14)
-    ax.legend()
-    fig.suptitle("Reconstructed amplitude distribution", size=16)
-    fig.tight_layout()
-    if show:
-        matplotlib.pyplot.show()
-    
-    return isosurface, fig
+        ax.set_xlabel("normalized amplitude", size=14)
+        ax.set_ylabel("counts",  size=14)
+        ax.legend()
+        fig.suptitle("Reconstructed amplitude distribution", size=16)
+        fig.tight_layout()
+        if show:
+            matplotlib.pyplot.show()
+        return isosurface, fig
+    return isosurface
