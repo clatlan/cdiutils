@@ -3,8 +3,8 @@ import sys
 from cdiutils.processing.pipeline import BcdiPipeline
 
 usage_text = (
-    f"Usage: {sys.argv[0]} [-a, -prp, -phr, -pop, -fpop, -md] "
-    "path_to_scan_file.yml"
+    f"Usage: {sys.argv[0]} [-a, -prp, -phr, -pop, -fpop, -md, --cdiutils, "
+    "--bcdi] path_to_scan_file.yml"
 )
 
 
@@ -37,12 +37,14 @@ if __name__ == "__main__":
             md = True
         elif arg == '--cdiutils':
             backend = "cdiutils"
+        elif arg == '--bcdi':
+            backend = "bcdi"
         else:
             print("Unknown arguments")
             print(usage_text)
             exit(1)
 
-    bcdi_pipeline = BcdiPipeline(scan_file)
+    bcdi_pipeline = BcdiPipeline(scan_file, backend=backend)
     
     if prp:
         bcdi_pipeline.preprocess(backend=backend)
