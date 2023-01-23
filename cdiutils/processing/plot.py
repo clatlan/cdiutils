@@ -65,18 +65,18 @@ def preprocessing_detector_data_plot(
         np.repeat(det_reference_voxel[2], 2),
         det_reference_voxel[1] + np.array(
             [-0.1*initial_shape[1], 0.1*initial_shape[1]]),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[0, 0].plot(
         det_reference_voxel[2] + np.array(
             [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
         np.repeat(det_reference_voxel[1], 2),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[0, 0].plot(
-        det_com_voxel[2], 
+        det_com_voxel[2],
         det_com_voxel[1],
         marker="x",
         markersize=10,
@@ -125,7 +125,7 @@ def preprocessing_detector_data_plot(
         label="com",
     )
     axes[0, 1].plot(
-        det_max_voxel[2], 
+        det_max_voxel[2],
         det_max_voxel[0],
         marker="x",
         markersize=10,
@@ -145,18 +145,18 @@ def preprocessing_detector_data_plot(
         np.repeat(det_reference_voxel[0], 2),
         det_reference_voxel[1] + np.array(
             [- 0.1 * initial_shape[1],  + 0.1 * initial_shape[1]]),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[0, 2].plot(
         det_reference_voxel[0] + np.array(
             [- 0.1 * initial_shape[0],  + 0.1 * initial_shape[0]]),
         np.repeat(det_reference_voxel[1], 2),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[0, 2].plot(
-        det_com_voxel[0], 
+        det_com_voxel[0],
         det_com_voxel[1],
         marker="x",
         markersize=10,
@@ -164,7 +164,7 @@ def preprocessing_detector_data_plot(
         label="com"
     )
     axes[0, 2].plot(
-        det_max_voxel[0], 
+        det_max_voxel[0],
         det_max_voxel[1],
         marker="x",
         markersize=10,
@@ -183,17 +183,17 @@ def preprocessing_detector_data_plot(
     axes[1, 0].plot(
         np.repeat(final_shape[2]//2, 2),
         np.array([0.4*final_shape[1], 0.6*final_shape[1]]),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 0].plot(
         np.array([0.4*final_shape[2], 0.6*final_shape[2]]),
         np.repeat(final_shape[1]//2, 2),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 0].plot(
-        cropped_com_voxel[2], 
+        cropped_com_voxel[2],
         cropped_com_voxel[1],
         marker="x",
         markersize=10,
@@ -201,7 +201,7 @@ def preprocessing_detector_data_plot(
         label="com",
     )
     axes[1, 0].plot(
-        cropped_max_voxel[2], 
+        cropped_max_voxel[2],
         cropped_max_voxel[1],
         marker="x",
         markersize=10,
@@ -219,17 +219,17 @@ def preprocessing_detector_data_plot(
     axes[1, 1].plot(
         np.repeat(final_shape[2]//2, 2),
         np.array([0.4*final_shape[0], 0.6*final_shape[0]]),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 1].plot(
         np.array([0.4*final_shape[2], 0.6*final_shape[2]]),
         np.repeat(final_shape[0]//2, 2),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 1].plot(
-        cropped_com_voxel[2], 
+        cropped_com_voxel[2],
         cropped_com_voxel[0],
         marker="x",
         markersize=10,
@@ -238,7 +238,7 @@ def preprocessing_detector_data_plot(
         label="com",
     )
     axes[1, 1].plot(
-        cropped_max_voxel[2], 
+        cropped_max_voxel[2],
         cropped_max_voxel[0],
         marker="x",
         markersize=10,
@@ -258,17 +258,17 @@ def preprocessing_detector_data_plot(
     axes[1, 2].plot(
         np.repeat(final_shape[0]//2, 2),
         np.array([0.4*final_shape[1], 0.6*final_shape[1]]),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 2].plot(
         np.array([0.4*final_shape[0], 0.6*final_shape[0]]),
         np.repeat(final_shape[1]//2, 2),
-        color="w", 
+        color="w",
         lw=0.5
     )
     axes[1, 2].plot(
-        cropped_com_voxel[0], 
+        cropped_com_voxel[0],
         cropped_com_voxel[1],
         marker="x",
         markersize=10,
@@ -276,7 +276,7 @@ def preprocessing_detector_data_plot(
         label="com"
     )
     axes[1, 2].plot(
-        cropped_max_voxel[0], 
+        cropped_max_voxel[0],
         cropped_max_voxel[1],
         marker="x",
         markersize=10,
@@ -335,8 +335,8 @@ def preprocessing_detector_data_plot(
 def summary_slice_plot(
         save: str=None,
         title: str="",
-        dpi: int=300,
-        show: bool=True,
+        dpi: int=200,
+        show: bool=False,
         voxel_size: Union[np.array, list, tuple]=None,
         isosurface: float=None,
         averaged_dspacing: float=None,

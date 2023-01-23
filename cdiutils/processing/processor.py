@@ -3,6 +3,7 @@ from typing import Union, Optional
 
 # from matplotlib import font_manager
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import ruamel.yaml
 from scipy.ndimage import center_of_mass
@@ -141,9 +142,10 @@ class BcdiProcessor:
                 "axes.labelsize": 12,
                 "xtick.labelsize": 10,
                 "ytick.labelsize": 10,
-                "figure.titlesize": 18
+                "figure.titlesize": 18,
             }
         )
+
 
     def load_parameters(self, path: str) -> None:
         with open(path, "r", encoding="utf8") as file:
@@ -367,7 +369,7 @@ class BcdiProcessor:
         self.preprocessing_figure.savefig(
             template_path + "centering_cropping_detector_data.png",
             bbox_inches="tight",
-            dpi=300
+            dpi=200
         )
 
         np.savez(
@@ -387,6 +389,23 @@ class BcdiProcessor:
                 "q_lab_com": self.q_lab_com
             }
         )
+
+    def show_figures(self, show: bool=False) -> None:
+        """
+        Show the figures that were plotted during the processing.
+        """
+        print("Running who-figure function")
+        if show:
+            if any(
+                (
+                    self.preprocessing_figure,
+                    self.postprocessing_figure,
+                    self.sanity_check_figure,
+                    self.amplitude_distribution_figure
+                )
+            ):
+                plt.show()
+
     
     def reload_preprocessing_parameters(self):
         self.q_lab_reference = self.parameters["q_lab_reference"]
@@ -395,7 +414,7 @@ class BcdiProcessor:
 
         self._compute_dspacing_lattice()
     
-    def orthogonalize(self, target_frame: Optional[str]=None):
+    def orthogonalize(self):
         """
         Orthogonalize detector data to the lab frame.
         """
@@ -541,7 +560,7 @@ class BcdiProcessor:
             amplitude,
             nbins=100,
             sigma_criterion=2,
-            show=self.parameters["show"]
+            plot=self.parameters["show"]
         )
         self.verbose_print("done.")
         self.verbose_print(f"[INFO] isosurface estimated to be {isosurface}")
@@ -579,8 +598,8 @@ class BcdiProcessor:
         self.postprocessing_figure = summary_slice_plot(
             title=f"Summary figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            show=self.parameters["show"],
-            dpi=300,
+            # show=self.parameters["show"],
+            dpi=200,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
             det_reference_voxel=self.parameters["det_reference_voxel"],
@@ -599,8 +618,8 @@ class BcdiProcessor:
         self.sanity_check_figure = summary_slice_plot(
             title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            show=self.parameters["show"],
-            dpi=300,
+            # show=self.parameters["show"],
+            dpi=200,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
             det_reference_voxel=self.parameters["det_reference_voxel"],
@@ -610,8 +629,6 @@ class BcdiProcessor:
             single_vmax=self.structural_properties["local_strain"].ptp()/2,
             **sanity_check_plots
         )
-
-
 
     def save_postprocessed_data(self) -> None:
 
@@ -733,13 +750,13 @@ class BcdiProcessor:
 
         self.postprocessing_figure.savefig(
             f"{template_path}_summary_slice_plot.png",
-            dpi=300,
+            dpi=200,
             bbox_inches="tight"
         )
 
         self.sanity_check_figure.savefig(
             f"{template_path}_sanity_check_plot.png",
-            dpi=300,
+            dpi=200,
             bbox_inches="tight"
         )
 

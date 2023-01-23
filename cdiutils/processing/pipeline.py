@@ -183,6 +183,9 @@ class BcdiPipeline:
             self.bcdi_processor.save_preprocessed_data()
             pynx_input_template = "*S*_pynx_input_data.npz"
             pynx_mask_template = "*S*_pynx_input_mask.npz"
+            self.bcdi_processor.show_figures(
+                self.parameters["cdiutils"]["show"]
+            )
 
         else:
             raise ValueError(
@@ -468,6 +471,9 @@ class BcdiPipeline:
             # )
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()
+            self.bcdi_processor.show_figures(
+                self.parameters["cdiutils"]["show"]
+            )
         
         else:
             raise ValueError(
@@ -476,7 +482,7 @@ class BcdiPipeline:
             )
 
 
-    def save_parameter_file(self: Callable) -> None:
+    def save_parameter_file(self) -> None:
         pretty_print(
             "Saving scan parameter file at the following location:\n"
             f"{self.dump_directory}"
