@@ -1,6 +1,6 @@
 # cdiutils
 
-My python package to help Bragg Coherent Diffraction Imaging (BCDI) practionionners in their analysis and visualisation workflow. This is a 'personal' package developped during my PhD. This provides utility functions to analyse ```bcdi```-processed data and to plot them for potential publication.
+My python package to help Bragg Coherent Diffraction Imaging (BCDI) practitioner in their analysis and visualisation workflow. This is a 'personal' package developped during my PhD. This provides utility functions to analyse ```bcdi```-processed data and to plot them for potential publication.
 
 It requires the following libraries :
 
