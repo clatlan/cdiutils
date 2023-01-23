@@ -173,6 +173,7 @@ def get_structural_properties(
         final_shape: Optional[Union[np.array, list, tuple]]=None,
         phase_factor: Optional[int]=1,
         normalize_amplitude: Optional[bool]=True,
+        normal_strain_axis: Optional[Union[int, str]]=1 
 ) -> dict:
 
     """
@@ -201,7 +202,7 @@ def get_structural_properties(
         - local_strain
         - numpy_local_strain
         - dspacing
-        - lattice_constant
+        - lattice_parameter
     """
 
     amplitude = np.abs(complex_object)
@@ -217,11 +218,11 @@ def get_structural_properties(
     # center the arrays at the center of mass of the support
     support, former_center = center(
         support,
-        method="com",
+        where="com",
         return_former_center=True
     )
-    amplitude  = center(amplitude, center_coordinates=former_center)
-    phase = center(phase, center_coordinates=former_center)
+    amplitude  = center(amplitude, where=former_center)
+    phase = center(phase, where=former_center)
 
 
     # if final_shape is not provided, find one
@@ -274,38 +275,58 @@ def get_structural_properties(
     displacement = phase / q_norm
     displacement_with_ramp = phase_with_ramp / q_norm
 
-    dx, dy, dz = voxel_size # voxel size in nm
+    # dx, dy, dz = voxel_size # voxel size in nm
 
-    # compute the strain along the dim 1
-    _, numpy_local_strain, _, = np.gradient(
-        support * displacement * 1e-1, dx, dy, dz)
-    _, local_strain, _, = hybrid_gradient(
-        support * displacement * 1e-1, dx, dy, dz)
-    _, local_strain_with_ramp, _, = hybrid_gradient(
-        support * displacement_with_ramp * 1e-1, dx, dy, dz)
+    # compute the strain along the axis 1
+    numpy_local_strain = np.gradient(
+        support * displacement * 1e-1, *voxel_size)
+    local_strain = hybrid_gradient(
+        support * displacement * 1e-1, *voxel_size)
+    local_strain_with_ramp = hybrid_gradient(
+        support * displacement_with_ramp * 1e-1, *voxel_size)
 
-    # convert the strain in percent
-    local_strain = 100 * local_strain
-    local_strain_with_ramp = 100 * local_strain_with_ramp
-    numpy_local_strain *= 100
+    if isinstance(normal_strain_axis, int):
+        numpy_local_strain = numpy_local_strain[normal_strain_axis]
+        local_strain = local_strain[normal_strain_axis]
+        local_strain_with_ramp = local_strain_with_ramp[normal_strain_axis]
 
-    # compute the dspacing and lattice_constant
-    dspacing =  2*np.pi / q_norm * (1 + local_strain_with_ramp/100)
-    lattice_constant =  np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2) *dspacing
+        # convert the strain in percent
+        local_strain = 100 * local_strain
+        local_strain_with_ramp = 100 * local_strain_with_ramp
+        numpy_local_strain *= 100
 
-    # compute the heterogeneous local strain from the dspacing
-    dspacing_mean = np.nanmean(dspacing)
-    local_strain_from_dspacing= 100 * (dspacing - dspacing_mean)/dspacing_mean
+        # compute the dspacing and lattice_parameter
+        dspacing =  2*np.pi / q_norm * (1 + local_strain_with_ramp/100)
+        lattice_parameter =  np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2) *dspacing
 
-    print("done.")
+        # compute the heterogeneous local strain from the dspacing
+        dspacing_mean = np.nanmean(dspacing)
+        local_strain_from_dspacing= 100 * (dspacing - dspacing_mean)/dspacing_mean
 
-    print(
-        "[DEBUG] strain average: (%)\n"
-        f"-local strain: {np.nanmean(local_strain)}\n"
-        f"-local strain with ramp: {np.nanmean(local_strain_with_ramp)}\n"
-        f"-local strain from dspacing: {np.nanmean(local_strain_from_dspacing)}"
-        "\n"
-    )
+        print("done.")
+
+        print(
+            "[DEBUG] strain average: (%)\n"
+            f"-local strain: {np.nanmean(local_strain)}\n"
+            f"-local strain with ramp: {np.nanmean(local_strain_with_ramp)}\n"
+            f"-local strain from dspacing: {np.nanmean(local_strain_from_dspacing)}"
+            "\n"
+        )
+
+    elif normal_strain_axis in ("all", "a"):
+        print(
+            "[INFO] normal strain is computed in the 3 directions "
+            "dspacing and lattice parameter maps won't be computed"
+        )
+        dspacing = None
+        lattice_parameter = None
+        local_strain_from_dspacing = None
+    else:
+        raise ValueError(
+            "normal_strain_axis must be an integer (0, 1 or 3) or a string "
+            "'all' or 'a'"
+        )
+
 
     return {
         "amplitude": normalize(amplitude)
@@ -318,7 +339,7 @@ def get_structural_properties(
         "local_strain_from_dspacing": nan_to_zero(local_strain_from_dspacing),
         "numpy_local_strain": numpy_local_strain,
         "dspacing": dspacing,
-        "lattice_constant": lattice_constant,
+        "lattice_parameter": lattice_parameter,
         "hkl": hkl,
         "q_vector": q_vector,
         "q_norm": q_norm,

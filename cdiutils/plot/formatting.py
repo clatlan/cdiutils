@@ -48,8 +48,8 @@ def set_plot_configs():
             "vmin": None,
             "vmax": None,
         },
-        "lattice_constant": {
-            "title": fr"lattice constant ({ANGSTROM_SYMBOL})",
+        "lattice_parameter": {
+            "title": fr"Lattice parameter ({ANGSTROM_SYMBOL})",
             "cmap": "turbo",
             "vmin": None,
             "vmax": None
