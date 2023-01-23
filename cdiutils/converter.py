@@ -63,6 +63,10 @@ class SpaceConverter():
     @cropped_shape.setter
     def cropped_shape(self, shape: Union[tuple, np.ndarray, list]):
         self._cropped_shape = shape
+    
+    @property
+    def full_shape(self):
+        return self._full_shape
 
     def init_q_space_area(self, det_calib_parameters: dict=None):
         """
@@ -344,7 +348,7 @@ class SpaceConverter():
     def init_interpolator(
             self,
             detector_data: np.ndarray,
-            direct_space_data: Optional[np.ndarray]=None,
+            direct_space_data_shape: Optional[tuple]=None,
             direct_space_voxel_size: Union[tuple, np.ndarray, list, float]=None,
             space: str="direct",
             shift_method: str="center"
@@ -383,12 +387,12 @@ class SpaceConverter():
                 "q", "rcp", "rcp_space",
                 "reciprocal", "reciprocal_space", "both"):
             
-            if direct_space_data is None:
+            if direct_space_data_shape is None:
                 raise ValueError(
                     "if space is 'direct' direct_space_data must be provided"
                 )
 
-            if shape != direct_space_data.shape:
+            if shape != direct_space_data_shape:
                 raise ValueError(
                     "The cropped_raw_data should have the same shape as the"
                     "reconstructed object"
@@ -414,7 +418,8 @@ class SpaceConverter():
                 axis=1
             )
             print(
-                "[INFO] Voxel size in the direct lab space is",
+                "[INFO] Voxel size in the direct lab space due to the "
+                "orthognolization process",
                 direct_lab_voxel_size
             )
 
@@ -449,7 +454,7 @@ class SpaceConverter():
                 )
             self.init_interpolator(
                 detector_data,
-                direct_space_data,
+                direct_space_data.shape,
                 space="direct",
                 direct_space_voxel_size=direct_space_voxel_size
             )
@@ -578,7 +583,42 @@ class SpaceConverter():
             raise ValueError(
                 "arrangement should be 'l', 'list', 'c' or 'cubinates'"
             )
-    
+
+    @staticmethod
+    def lab_to_cxi_conventions(
+            data: Union[np.ndarray, tuple, list]
+    ) -> Union[np.ndarray, tuple, list]:
+        """
+        Convert the a np.ndarray, a list or a tuple from the lab frame
+        system to the cxi frame conventions.
+        [
+            axis0=Xlab (pointing away from the light source),
+            axis1=Ylab (outboard),
+            axis2=Zlab (vertical up)
+        ]
+        will be converted into
+        [
+            axis0=Zcxi (pointing away from the light source),
+            axis1=Ycxi (vertical up),
+            axis2=Xcxi (horizontal completing the right handed system)
+        ]
+        """
+        if isinstance(data, (tuple, list)):
+            axis0, axis1, axis2 = data
+            return type(data)((axis0, axis2, axis1))
+        elif isinstance(data, np.ndarray):
+            if data.shape == (3, ):
+                return np.array([data[0], data[2], data[1]])
+            else:
+                return np.swapaxes(data, axis1=1, axis2=2)
+        else:
+            raise TypeError(
+                "data should be a 3D np.ndarray, a list of 3 values, a tuple "
+                "of 3 values or a np.ndarray of 3 values."
+            )
+
+
+
     @staticmethod
     def run_detector_calibration(
             detector_calibration_frames: np.ndarray,
