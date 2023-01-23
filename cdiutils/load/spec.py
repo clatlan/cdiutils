@@ -3,6 +3,7 @@ from typing import Union, Optional
 import fabio
 import numpy as np
 import silx.io
+import silx.io.specfile
 
 
 def safe(func):
