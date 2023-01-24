@@ -507,24 +507,12 @@ def summary_slice_plot(
     
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
+        ax.set_aspect("equal")
         if (
                 i % array_nb == 0
                 and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude"
         ):
-            ax.tick_params(axis="x",direction="in", pad=-20, colors="w")
-            ax.tick_params(axis="y",direction="in", pad=-20, colors="w")
-            ax.xaxis.set_ticks_position("bottom")
-
-            # remove the first ticks and labels
-            xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
-            xticks_loc[1] = yticks_loc[1] = None
-            
-            xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
-            xlabels[1] = ylabels[1] = ""
-            ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
-            ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
-            ax.set_xticklabels(xlabels)
-            ax.set_yticklabels(ylabels)
+            white_interior_ticks_labels(ax)
 
         else:
             ax.axes.xaxis.set_ticks([])
