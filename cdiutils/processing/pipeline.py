@@ -3,6 +3,7 @@ import os
 import shutil
 from string import Template
 import subprocess
+import sys
 from typing import Callable, Dict, Optional
 import time
 import traceback
@@ -82,15 +83,6 @@ class BcdiPipelineParser(ConfigParser):
         )[procedure]
         raw_args.update(raw_args["general"])
         return self._check_args(raw_args)
-    
-    # def load_preprocessing_parameters(self) -> Dict:
-    #     return self.load_bcdi_parameters(procedure="preprocessing")
-    
-    # def load_postprocessing_parameters(self) -> Dict:
-    #     return self.load_bcdi_parameters(procedure="postprocessing")
-
-    # def load_pynx_parameters(self) -> Dict:
-    #     return yaml.load(self.raw_config, Loader=yaml.SafeLoader)["pynx"]
 
 
 def process(func: Callable) -> Callable:
@@ -103,7 +95,7 @@ def process(func: Callable) -> Callable:
                 f"'{func.__name__}' method... here is the traceback:\n"
             )
             traceback.print_exc()
-            quit(1)
+            sys.exit(1)
     return wrapper
 
 
@@ -121,14 +113,23 @@ class BcdiPipeline:
     """
     def __init__(
             self,
-            parameter_file_path: str,
+            parameter_file_path: Optional[str]=None,
+            parameters: Optional[dict]=None,
             backend: Optional[str]="cdiutils"
         ):
 
         self.parameter_file_path = parameter_file_path
+        self.parameters = parameters
+
+        if parameters is None:
+            if parameter_file_path is None:
+                raise ValueError(
+                    "parameter_file_path or parameters must be provided"
+                )
+            self.parameters = self.load_parameters(backend)
+
         self.backend = backend
 
-        self.parameters = self.load_parameters(backend)
         if backend == "cdiutils":
             self.dump_directory = (
                 self.parameters["cdiutils"]["metadata"]["dump_dir"]
@@ -177,7 +178,8 @@ class BcdiPipeline:
                 f" (scan {self.parameters['cdiutils']['metadata']['scan']})"
             )
             self.bcdi_processor = BcdiProcessor(
-                parameter_file_path=self.parameter_file_path
+                parameter_file_path=self.parameter_file_path,
+                parameters=self.parameters["cdiutils"]
             )
             self.bcdi_processor.load_data()
             self.bcdi_processor.center_crop_data()
@@ -192,9 +194,6 @@ class BcdiPipeline:
                 f"[ERROR] Unknwon backend value ({backend}), it must be either"
                 " 'cdiutils' or 'bcdi'"
             )
-            
-
-        pretty_print("[INFO] Updating scan parameter file")
 
         try:
             data_path = glob.glob(
@@ -206,10 +205,13 @@ class BcdiPipeline:
                 "[ERROR] file missing, something went"
                 " wrong during preprocessing"
             ) from exc
-        update_parameter_file(
-            self.parameter_file_path, {"data": data_path, "mask": mask_path}
-        )
-        self.parameters = self.load_parameters(backend)
+        if self.parameter_file_path is not None:
+            pretty_print("[INFO] Updating scan parameter file")
+            update_parameter_file(
+                self.parameter_file_path,
+                {"data": data_path, "mask": mask_path}
+            )
+            self.parameters = self.load_parameters(backend)
 
     def load_parameters(self, backend: Optional[str]=None):
         """
@@ -236,13 +238,17 @@ class BcdiPipeline:
     @process
     def phase_retrieval(
             self,
-            machine: str="lid01pwr9",
+            machine: str="slurm-nice-devel",
             user: str=os.environ["USER"],
-            key_file_name: str=f"{os.environ['HOME']}/.ssh/id_rsa",
-            pynx_slurm_file_template=None,
-            remove_last_results=False
+            key_file_path: str=os.environ["HOME"] + "/.ssh/id_rsa",
+            pynx_slurm_file_template: str=None,
+            remove_last_results: bool=False
     ) -> None:
-        
+        """
+        Run the phase retrieval using pynx through ssh connection to a
+        gpu machine.
+        """
+
         pretty_print(
             "[INFO] Proceeding to PyNX phase retrieval "
             f"(scan {self.scan})"
@@ -272,7 +278,7 @@ class BcdiPipeline:
                 )
                 print("Pynx slurm file template not provided, will take "
                       f"the default: {pynx_slurm_file_template}")
-            
+
             with open(pynx_slurm_file_template, "r", encoding="utf8") as file:
                 source = Template(file.read())
                 pynx_slurm_text = source.substitute(
@@ -295,7 +301,7 @@ class BcdiPipeline:
         client.connect(
             hostname=machine,
             username=user,
-            pkey=paramiko.RSAKey.from_private_key_file(key_file_name)
+            pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
         )
 
         print(f"[INFO] Connected to {machine}")
@@ -338,9 +344,9 @@ class BcdiPipeline:
                     print(stdout.read().decode("utf-8"))
                 
                 elif process_status == "CANCELLED+":
-                    raise Exception("[INFO] Job has been cancelled")
+                    raise RuntimeError("[INFO] Job has been cancelled")
                 elif process_status == "FAILED":
-                    raise Exception("[ERROR] Job has failed")
+                    raise RuntimeError("[ERROR] Job has failed")
             
             if process_status == "COMPLETED":
                 print(f"[INFO] Job {job_id} is completed.")
@@ -353,7 +359,7 @@ class BcdiPipeline:
                 f"2>&1 | tee phase_retrieval_{machine}.log"
             )
             if stdout.channel.recv_exit_status():
-                raise Exception(
+                raise RuntimeError(
                     f"Error pulling the remote runtime {stderr.readline()}")
             for line in iter(lambda: stdout.readline(1024), ""):
                 print(line, end="")
@@ -410,18 +416,19 @@ class BcdiPipeline:
                     "[STDERR FROM SUBPROCESS]\n",
                     stderr.decode("utf-8")
                 )
-        pretty_print("[INFO] Updating scan parameter file")
-        if self.backend == "bcdi":
-            update_parameter_file(
-                self.parameter_file_path,
-                {"reconstruction_files": f"{self.dump_directory}mode.h5"}
-            )
-        else:
-            update_parameter_file(
-                self.parameter_file_path,
-                {"reconstruction_file": f"{self.dump_directory}mode.h5"}
-            )
-        self.parameters = self.load_parameters()
+        if self.parameter_file_path is not None:
+            pretty_print("[INFO] Updating scan parameter file")
+            if self.backend == "bcdi":
+                update_parameter_file(
+                    self.parameter_file_path,
+                    {"reconstruction_files": f"{self.dump_directory}mode.h5"}
+                )
+            else:
+                update_parameter_file(
+                    self.parameter_file_path,
+                    {"reconstruction_file": f"{self.dump_directory}mode.h5"}
+                )
+            self.parameters = self.load_parameters()
 
     @process
     def postprocess(self, backend: Optional[str]=None) -> None:
@@ -457,7 +464,8 @@ class BcdiPipeline:
 
             if self.bcdi_processor is None:
                 self.bcdi_processor = BcdiProcessor(
-                    parameter_file_path=self.parameter_file_path
+                    parameter_file_path=self.parameter_file_path,
+                    parameters=self.parameters["cdiutils"]
                 )
                 self.bcdi_processor.reload_preprocessing_parameters()
                 self.bcdi_processor.load_data()
@@ -480,14 +488,23 @@ class BcdiPipeline:
                 " 'cdiutils' or 'bcdi'"
             )
 
-
     def save_parameter_file(self) -> None:
+        """
+        Save the parameter file used during the analysis.
+        """
         pretty_print(
             "Saving scan parameter file at the following location:\n"
             f"{self.dump_directory}"
         )
-        shutil.copyfile(
-            self.parameter_file_path,
-            f"{self.dump_directory}/"
-            f"{os.path.basename(self.parameter_file_path)}"
+        output_file_path = (
+            f"{self.dump_directory}/parameter_file.yml"
+            # f"{os.path.basename(self.parameter_file_path)}"
         )
+        if self.parameter_file_path is not None:
+            shutil.copyfile(
+                self.parameter_file_path,
+                output_file_path
+            )
+        else:
+            with open(output_file_path, "w", encoding="utf8") as file:
+                yaml.dump(self.parameters, file)

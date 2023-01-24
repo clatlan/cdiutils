@@ -470,6 +470,11 @@ class BcdiProcessor:
         reconstruction_file_path = (
             self.parameters["metadata"]["reconstruction_file"]
         )
+        if not os.path.isabs(reconstruction_file_path):
+            reconstruction_file_path = (
+                self.parameters["metadata"]["dump_dir"]
+                + reconstruction_file_path
+            )
         if not os.path.isfile(reconstruction_file_path):
             raise FileNotFoundError(
                 f"File was not found at: {reconstruction_file_path}"

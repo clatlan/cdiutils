@@ -54,7 +54,7 @@ if __name__ == "__main__":
     if phr:
         bcdi_pipeline.phase_retrieval(
             # machine="lid01pwr9"
-            machine="slurm-nice-devel",
+            machine="p9",
             remove_last_results=True
         )
     if fpop:
