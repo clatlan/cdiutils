@@ -438,7 +438,6 @@ class BcdiProcessor:
         """
         if any(value["figure"] for value in self.figures.values()):
             plt.show()
-
     
     def reload_preprocessing_parameters(self):
         self.q_lab_reference = self.parameters["q_lab_reference"]
