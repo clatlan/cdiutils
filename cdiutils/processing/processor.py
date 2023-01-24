@@ -427,7 +427,7 @@ class BcdiProcessor:
             template_path + "pynx_input_mask.npz", mask=self.mask)
         
         # save the values of the det_reference_voxel and the q_labs
-        if parameter_file_path is not None:
+        if self.parameter_file_path is not None:
             update_parameter_file(
                 self.parameter_file_path,
                 {
