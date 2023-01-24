@@ -250,11 +250,11 @@ class BcdiProcessor:
 
     def center_crop_data(self) -> None:
 
-        final_shape = self.parameters["preprocessing_output_shape"]
+        final_shape = tuple(self.parameters["preprocessing_output_shape"])
         initial_shape = self.detector_data.shape
         # if the final_shape is 2D convert it in 3D
         if len(final_shape) == 2:
-            final_shape = (self.detector_data.shape[0], ) +  final_shape
+            final_shape = (self.detector_data.shape[0], ) + final_shape
         print(f"The preprocessing output shape is: {final_shape}")
 
         # Find the max and com voxel in the detector frame without
