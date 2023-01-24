@@ -48,10 +48,6 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
                     ):
                         config[key][sub_key][updated_key] = updated_value
 
-            # elif (
-            #     isinstance(config[key][updated_key], dict)):
-            #     config[key][updated_key] = updated_value
-
     yaml_file = ruamel.yaml.YAML()
     yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
     with open(file_path, "w", encoding="utf8") as file:
@@ -173,11 +169,6 @@ class BcdiProcessor:
         )
     
     def _init_plot_parameters(self):
-        # print(font_manager.findSystemFonts(fontpaths=None, fontext='ttf'))
-        # available_fonts = {
-        #     os.path.splitext(os.path.basename(p))[0]: p
-        #     for p in font_manager.findSystemFonts(fontpaths=None, fontext='ttf')
-        # }
         update_plot_params(
             usetex=True,
             **{
@@ -187,7 +178,6 @@ class BcdiProcessor:
                 "figure.titlesize": 18,
             }
         )
-
 
     def load_parameters(self, path: str) -> None:
         with open(path, "r", encoding="utf8") as file:
