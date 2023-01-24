@@ -277,7 +277,9 @@ class BcdiProcessor:
         # provided method
         if (
                 self.parameters["det_reference_voxel_method"] is None
-                and isinstance(self.parameters["det_reference_voxel"], list)
+                and isinstance(
+                    self.parameters["det_reference_voxel"], (list, tuple)
+                )
         ):
             det_reference_voxel = [
                 int(e) for e in self.parameters["det_reference_voxel"]
