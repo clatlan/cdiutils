@@ -12,7 +12,7 @@ helptext =  (
 )
 
 if __name__ == "__main__":
-    notebook_path = (
+    notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
         + "/../scripts/analyze_bcdi_data.ipynb"
     )
