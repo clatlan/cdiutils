@@ -18,9 +18,13 @@ setuptools.setup(
             "scripts/prepare_bcdi_notebook.py"
       ],
       packages=setuptools.find_packages(),
-      package_data={
-            "cdiutils": ["cdiutils/processing/pynx-id01cdi_template.slurm"]
-      },
+      include_package_data=True,
+      # package_data={
+      #       "cdiutils": [
+      #             "cdiutils/processing/pynx-id01cdi_template.slurm",
+      #             "scripts/"
+      #       ]
+      # },
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
       python_requires=">=3.8, <3.10",
