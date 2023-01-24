@@ -55,7 +55,7 @@ def preprocessing_detector_data_plot(
 
 
     axes[0, 0].matshow(
-        log_data[det_max_voxel[0]],
+        log_data[det_reference_voxel[0]],
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
@@ -95,7 +95,7 @@ def preprocessing_detector_data_plot(
     )
 
     axes[0, 1].matshow(
-        log_data[:, det_max_voxel[1], :],
+        log_data[:, det_reference_voxel[1], :],
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
@@ -135,7 +135,7 @@ def preprocessing_detector_data_plot(
     )
 
     mappable = axes[0, 2].matshow(
-        np.swapaxes(log_data[..., det_max_voxel[2]], axis1=0, axis2=1),
+        np.swapaxes(log_data[..., det_reference_voxel[2]], axis1=0, axis2=1),
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
@@ -173,7 +173,7 @@ def preprocessing_detector_data_plot(
     )
 
     axes[1, 0].matshow(
-        log_cropped_data[cropped_max_voxel[0]],
+        log_cropped_data[final_shape[0]//2],
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
@@ -210,7 +210,7 @@ def preprocessing_detector_data_plot(
     )
 
     axes[1, 1].matshow(
-        log_cropped_data[:, cropped_max_voxel[1], :],
+        log_cropped_data[:, final_shape[1]//2, :],
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
@@ -249,7 +249,7 @@ def preprocessing_detector_data_plot(
 
     mappable = axes[1, 2].matshow(
         np.swapaxes(
-            log_cropped_data[..., cropped_max_voxel[2]], axis1=0, axis2=1),
+            log_cropped_data[..., final_shape[2]//2], axis1=0, axis2=1),
         vmin=vmin,
         vmax=vmax,
         cmap="turbo",
