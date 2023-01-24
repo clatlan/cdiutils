@@ -22,6 +22,7 @@ setuptools.setup(
       },
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
+      python_requires=">=3.8, <3.10",
       install_requires=[
             "bcdi @ git+https://github.com/carnisj/bcdi.git@6a2d2515d9b7e3a5fc7b6e7ecc13da712e071486",
             "colorcet>=3.0.0",
