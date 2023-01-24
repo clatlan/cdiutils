@@ -427,15 +427,18 @@ class BcdiProcessor:
             template_path + "pynx_input_mask.npz", mask=self.mask)
         
         # save the values of the det_reference_voxel and the q_labs
-        update_parameter_file(
-            self.parameter_file_path,
-            {
-                "det_reference_voxel": self.parameters["det_reference_voxel"],
-                "q_lab_reference": self.q_lab_reference,
-                "q_lab_max": self.q_lab_max,
-                "q_lab_com": self.q_lab_com
-            }
-        )
+        if parameter_file_path is not None:
+            update_parameter_file(
+                self.parameter_file_path,
+                {
+                    "det_reference_voxel": (
+                        self.parameters["det_reference_voxel"]
+                    ),
+                    "q_lab_reference": self.q_lab_reference,
+                    "q_lab_max": self.q_lab_max,
+                    "q_lab_com": self.q_lab_com
+                }
+            )
 
     def show_figures(self) -> None:
         """
