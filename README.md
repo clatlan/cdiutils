@@ -1,6 +1,6 @@
 # cdiutils
 
-My python package to help Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflow. This is a 'personal' package developped during my PhD. It provides utility functions to analyse ```bcdi```-processed data and to plot them for potential publication.
+My python package to help Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflow. This is a 'personal' package developped during my PhD. It provides utility functions to analyse ``bcdi``-processed data and to plot them for potential publication.
 
 It requires the following libraries :
 
@@ -13,8 +13,9 @@ It requires the following libraries :
 * colorcet
 
 ## Installation
+
 You can install the package with the following command:
-`pip install https://github.com/clatlan/cdiutils`
+`pip install git+https://github.com/clatlan/cdiutils.git`
 
 ## Slice plot
 
@@ -33,20 +34,17 @@ cdiutils.plot.slice.plot_3D_volume_slices function
 ![Phase](https://github.com/clatlan/cdiutils/blob/master/images/phase.png)
 
 ## Cross section quiver
+
 cdiutils.plot.quiver.quiver_plot
 
 * The cross section quiver allows to plot cross section of strain and displacement field on the same plot.
-![Cross Section Quiver](https://github.com/clatlan/cdiutils/blob/master/images/cross_section_quiver.png)
-
+  ![Cross Section Quiver](https://github.com/clatlan/cdiutils/blob/master/images/cross_section_quiver.png)
 * For different conditions
-![Quivers](https://github.com/clatlan/cdiutils/blob/master/images/multi_cross_sections.png)
-
+  ![Quivers](https://github.com/clatlan/cdiutils/blob/master/images/multi_cross_sections.png)
 * Can also be used to plot the curves/arrows only
-![arrows](https://github.com/clatlan/cdiutils/blob/master/images/arrows.png)
-
+  ![arrows](https://github.com/clatlan/cdiutils/blob/master/images/arrows.png)
 * Can also be used to plot basic cross sections
-![strain](https://github.com/clatlan/cdiutils/blob/master/images/strain.png)
-
+  ![strain](https://github.com/clatlan/cdiutils/blob/master/images/strain.png)
 
 ## Diffraction pattern plots in the reciprocal space
 
