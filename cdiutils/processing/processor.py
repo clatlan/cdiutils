@@ -29,21 +29,34 @@ from cdiutils.plot.formatting import update_plot_params
 
 
 def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
-    with open(file_path, "r", encoding="utf8") as f:
-        config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(f)
+    """
+    Update a parameter file with the provided dictionary that contains
+    the parameters (keys, values) to uptade.
+    """
+    with open(file_path, "r", encoding="utf8") as file:
+        config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
 
     for key in config.keys():
-        for sub_key, v in updated_parameters.items():
-            if sub_key in config[key]:
-                config[key][sub_key] = v
+        for updated_key, updated_value in updated_parameters.items():
+            if updated_key in config[key]:
+                config[key][updated_key] = updated_value
+            elif (
+                    isinstance(updated_value, dict)
+                    and updated_key in updated_value.keys()
+            ):
+                config[key][updated_key] = updated_value
 
     yaml_file = ruamel.yaml.YAML()
     yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
-    with open(file_path, "w", encoding="utf8") as f:
-        yaml_file.dump(config, f)
+    with open(file_path, "w", encoding="utf8") as file:
+        yaml_file.dump(config, file)
 
 
 def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
+    """
+    Load the right loader based on the beamline_setup parameter 
+    in the metadata dictionary
+    """
     if metadata["beamline_setup"] == "ID01BLISS":
         return BlissLoader(
             experiment_file_path=metadata["experiment_file_path"],
@@ -69,9 +82,20 @@ class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
     """
-    def __init__(self, parameter_file_path: str):
+    def __init__(
+            self,
+            parameter_file_path: Optional[str]=None,
+            parameters: Optional[dict]=None
+    ) -> None:
         self.parameter_file_path = parameter_file_path
-        self.parameters = None
+        self.parameters = parameters
+
+        if parameters is None:
+            if parameter_file_path is None:
+                raise ValueError(
+                    "parameter_file_path or parameters must be provided"
+                )
+            self.load_parameters(parameter_file_path)
 
         self.loader = None
         self.space_converter = None
@@ -108,7 +132,7 @@ class BcdiProcessor:
         self.sanity_check_figure = None
         self.amplitude_distribution_figure = None
 
-        self.load_parameters(parameter_file_path)
+        
         # initialise the loader, the space converter and the plot parameters
         self._init_loader()
         self._init_space_converter()
@@ -390,21 +414,20 @@ class BcdiProcessor:
             }
         )
 
-    def show_figures(self, show: bool=False) -> None:
+    def show_figures(self) -> None:
         """
         Show the figures that were plotted during the processing.
         """
         print("Running who-figure function")
-        if show:
-            if any(
-                (
-                    self.preprocessing_figure,
-                    self.postprocessing_figure,
-                    self.sanity_check_figure,
-                    self.amplitude_distribution_figure
-                )
-            ):
-                plt.show()
+        if any(
+            (
+                self.preprocessing_figure,
+                self.postprocessing_figure,
+                self.sanity_check_figure,
+                self.amplitude_distribution_figure
+            )
+        ):
+            plt.show()
 
     
     def reload_preprocessing_parameters(self):
@@ -551,19 +574,27 @@ class BcdiProcessor:
         
         # first compute the histogram of the amplitude to get an
         # isosurface estimate
-        self.verbose_print(
-            "[PROCESSING] Finding an isosurface estimate based on the "
-            "reconstructed Bragg electron density histogram: ",
-            end=""
-        )
-        isosurface, self.amplitude_distribution_figure = find_isosurface(
-            amplitude,
-            nbins=100,
-            sigma_criterion=2,
-            plot=self.parameters["show"]
-        )
-        self.verbose_print("done.")
-        self.verbose_print(f"[INFO] isosurface estimated to be {isosurface}")
+        if self.parameters["isosurface"] is None:
+            self.verbose_print(
+                "[PROCESSING] Finding an isosurface estimate based on the "
+                "reconstructed Bragg electron density histogram: ",
+                end=""
+            )
+            isosurface, self.amplitude_distribution_figure = find_isosurface(
+                amplitude,
+                nbins=100,
+                sigma_criterion=2,
+                plot=self.parameters["show"]
+            )
+            self.verbose_print("done.")
+            self.verbose_print(
+                f"[INFO] isosurface estimated to be {isosurface}")
+        else:
+            self.verbose_print(
+                "[INFO] Isosurface provided by user: "
+                f"{self.parameters['isosurface']}"
+            )
+            isosurface = self.parameters["isosurface"]
 
         # store the the averaged dspacing and lattice constant in variables
         # so they can be saved later in the output file

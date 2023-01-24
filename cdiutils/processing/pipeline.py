@@ -166,6 +166,7 @@ class BcdiPipeline:
             run_preprocessing(prm=self.parameters["preprocessing"])
             pynx_input_template = "S*_pynx_norm_*.npz"
             pynx_mask_template = "S*_maskpynx_norm_*.npz"
+        
         elif backend == "cdiutils":
             os.makedirs(
                 self.parameters["cdiutils"]["metadata"]["dump_dir"],
@@ -422,6 +423,9 @@ class BcdiPipeline:
                 {"reconstruction_file": f"{self.dump_directory}mode.h5"}
             )
         self.parameters = self.load_parameters()
+        print(
+            f'\n HELLO: new path:{self.parameters["cdiutils"]["metadata"]["reconstruction_file"]}\n'
+        )
 
     @process
     def postprocess(self, backend: Optional[str]=None) -> None:
@@ -471,9 +475,8 @@ class BcdiPipeline:
             # )
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()
-            self.bcdi_processor.show_figures(
-                self.parameters["cdiutils"]["show"]
-            )
+            if self.parameters["cdiutils"]["show"]:
+                self.bcdi_processor.show_figures()
         
         else:
             raise ValueError(
