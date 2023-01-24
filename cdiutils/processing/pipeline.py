@@ -184,9 +184,8 @@ class BcdiPipeline:
             self.bcdi_processor.save_preprocessed_data()
             pynx_input_template = "*S*_pynx_input_data.npz"
             pynx_mask_template = "*S*_pynx_input_mask.npz"
-            self.bcdi_processor.show_figures(
-                self.parameters["cdiutils"]["show"]
-            )
+            if self.parameters["cdiutils"]["show"]:
+                self.bcdi_processor.show_figures()
 
         else:
             raise ValueError(

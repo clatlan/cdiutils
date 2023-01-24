@@ -132,12 +132,24 @@ class BcdiProcessor:
         self.averaged_dspacing = None
         self.averaged_lattice_parameter = None
 
-        # initialize figures= variables
-        self.preprocessing_figure = None
-        self.postprocessing_figure = None
-        self.sanity_check_figure = None
-        self.amplitude_distribution_figure = None
 
+        # initialize figures
+        self.figures = {
+            "preprocessing_fig": {
+                "name": "centering_cropping_detector_data_plot"
+            },
+            "postprocessing_fig":{
+                "name": "summary_slice_plot"
+            },
+            "strain_fig": {
+                "name": "different_strain_methods"
+            },
+            "amplitude_fig":{
+                "name": "amplitude_distribution_plot"
+            }
+        }
+        for value in self.figures.values():
+            value["figure"] = None
         
         # initialise the loader, the space converter and the plot parameters
         self._init_loader()
@@ -363,17 +375,19 @@ class BcdiProcessor:
 
         # plot the detector data in the full detector frame and in the
         # final frame
-        self.preprocessing_figure = preprocessing_detector_data_plot(
-            detector_data=self.detector_data,
-            cropped_data=self.cropped_detector_data,
-            det_reference_voxel=det_reference_voxel,
-            det_max_voxel=det_max_voxel,
-            det_com_voxel=det_com_voxel,
-            cropped_max_voxel=cropped_max_voxel,
-            cropped_com_voxel=cropped_com_voxel,
-            title=(
-                "Detector data preprocessing, "
-                f"S{self.parameters['metadata']['scan']}"
+        self.figures["preprocessing_fig"]["figure"] = (
+            preprocessing_detector_data_plot(
+                detector_data=self.detector_data,
+                cropped_data=self.cropped_detector_data,
+                det_reference_voxel=det_reference_voxel,
+                det_max_voxel=det_max_voxel,
+                det_com_voxel=det_com_voxel,
+                cropped_max_voxel=cropped_max_voxel,
+                cropped_com_voxel=cropped_com_voxel,
+                title=(
+                    "Detector data preprocessing, "
+                    f"S{self.parameters['metadata']['scan']}"
+                )
             )
         )
 
@@ -396,8 +410,11 @@ class BcdiProcessor:
             + "_"
         )
 
-        self.preprocessing_figure.savefig(
-            template_path + "centering_cropping_detector_data.png",
+        self.figures["preprocessing_fig"]["figure"].savefig(
+            (
+                f"{template_path}"
+                f"{self.figures['preprocessing_fig']['name']}.png"
+            ),
             bbox_inches="tight",
             dpi=200
         )
@@ -425,14 +442,7 @@ class BcdiProcessor:
         Show the figures that were plotted during the processing.
         """
         print("Running who-figure function")
-        if any(
-            (
-                self.preprocessing_figure,
-                self.postprocessing_figure,
-                self.sanity_check_figure,
-                self.amplitude_distribution_figure
-            )
-        ):
+        if any(value["figure"] for value in self.figures.values()):
             plt.show()
 
     
@@ -580,24 +590,24 @@ class BcdiProcessor:
         
         # first compute the histogram of the amplitude to get an
         # isosurface estimate
-        if self.parameters["isosurface"] is None:
+        self.verbose_print(
+            "[PROCESSING] Finding an isosurface estimate based on the "
+            "reconstructed Bragg electron density histogram: ",
+            end=""
+        )
+        isosurface, self.figures["amplitude_fig"]["figure"] = find_isosurface(
+            amplitude,
+            nbins=100,
+            sigma_criterion=2,
+            plot=self.parameters["show"]
+        )
+        self.verbose_print("done.")
+        self.verbose_print(
+            f"[INFO] isosurface estimated to be {isosurface}")
+        
+        if self.parameters["isosurface"] is not None:
             self.verbose_print(
-                "[PROCESSING] Finding an isosurface estimate based on the "
-                "reconstructed Bragg electron density histogram: ",
-                end=""
-            )
-            isosurface, self.amplitude_distribution_figure = find_isosurface(
-                amplitude,
-                nbins=100,
-                sigma_criterion=2,
-                plot=self.parameters["show"]
-            )
-            self.verbose_print("done.")
-            self.verbose_print(
-                f"[INFO] isosurface estimated to be {isosurface}")
-        else:
-            self.verbose_print(
-                "[INFO] Isosurface provided by user: "
+                "[INFO] Isosurface provided by user will be used: "
                 f"{self.parameters['isosurface']}"
             )
             isosurface = self.parameters["isosurface"]
@@ -632,10 +642,9 @@ class BcdiProcessor:
                       "local_strain", "lattice_parameter"]
         }
 
-        self.postprocessing_figure = summary_slice_plot(
+        self.figures["postprocessing_fig"]["figure"] = summary_slice_plot(
             title=f"Summary figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            # show=self.parameters["show"],
             dpi=200,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
@@ -645,17 +654,16 @@ class BcdiProcessor:
             **final_plots
         )
 
-        sanity_check_plots = {
+        strain_plots = {
             k: self.structural_properties[k]
             for k in ["local_strain", "local_strain_from_dspacing",
                       "local_strain_from_dspacing", "numpy_local_strain",
                       "local_strain_with_ramp"]
         }
 
-        self.sanity_check_figure = summary_slice_plot(
+        self.figures["strain_fig"]["figure"] = summary_slice_plot(
             title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
             support=zero_to_nan(self.structural_properties["support"]),
-            # show=self.parameters["show"],
             dpi=200,
             voxel_size=self.voxel_size,
             isosurface=isosurface,
@@ -664,7 +672,7 @@ class BcdiProcessor:
             averaged_lattice_parameter=self.averaged_lattice_parameter,
             single_vmin=-self.structural_properties["local_strain"].ptp()/2,
             single_vmax=self.structural_properties["local_strain"].ptp()/2,
-            **sanity_check_plots
+            **strain_plots
         )
 
     def save_postprocessed_data(self) -> None:
@@ -785,21 +793,27 @@ class BcdiProcessor:
                 data=self.parameters["hkl"]
             )
 
-        self.postprocessing_figure.savefig(
-            f"{template_path}_summary_slice_plot.png",
+        self.figures["postprocessing_fig"]["figure"].savefig(
+            (
+                f"{template_path}_"
+                f"{self.figures['postprocessing_fig']['name']}.png"
+            ),
             dpi=200,
             bbox_inches="tight"
         )
 
-        self.sanity_check_figure.savefig(
-            f"{template_path}_sanity_check_plot.png",
+        self.figures["strain_fig"]["figure"].savefig(
+            (
+                f"{template_path}_"
+                f"{self.figures['strain_fig']['name']}.png"
+            ),
             dpi=200,
             bbox_inches="tight"
         )
 
         # save the amplitude distriubtion figure
-        self.amplitude_distribution_figure.savefig(
-            f"{template_path}_amplitude_distribution.png",
+        self.figures["amplitude_fig"]["figure"].savefig(
+            f"{template_path}_{self.figures['amplitude_fig']['name']}.png",
             dpi=200,
             bbox_inches="tight"
         )
