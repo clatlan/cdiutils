@@ -455,7 +455,7 @@ class BcdiProcessor:
             )
 
         reconstruction_file_path = (
-            self.parameters["metadata"]["dump_dir"] + "/mode.h5"
+            self.parameters["metadata"]["reconstruction_file"]
         )
         if not os.path.isfile(reconstruction_file_path):
             raise FileNotFoundError(

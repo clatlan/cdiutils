@@ -423,9 +423,6 @@ class BcdiPipeline:
                 {"reconstruction_file": f"{self.dump_directory}mode.h5"}
             )
         self.parameters = self.load_parameters()
-        print(
-            f'\n HELLO: new path:{self.parameters["cdiutils"]["metadata"]["reconstruction_file"]}\n'
-        )
 
     @process
     def postprocess(self, backend: Optional[str]=None) -> None:
