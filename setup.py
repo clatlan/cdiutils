@@ -17,6 +17,9 @@ setuptools.setup(
             "scripts/bcdi_analysis.py"
       ],
       packages=setuptools.find_packages(),
+      package_data={
+            "cdiutils": ["cdiutils/processing/pynx-id01cdi_template.slurm"]
+      },
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
       install_requires=[
