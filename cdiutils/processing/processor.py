@@ -436,7 +436,6 @@ class BcdiProcessor:
         """
         Show the figures that were plotted during the processing.
         """
-        print("Running who-figure function")
         if any(value["figure"] for value in self.figures.values()):
             plt.show()
 
