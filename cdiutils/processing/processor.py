@@ -40,11 +40,17 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
         for updated_key, updated_value in updated_parameters.items():
             if updated_key in config[key]:
                 config[key][updated_key] = updated_value
-            elif (
-                    isinstance(updated_value, dict)
-                    and updated_key in updated_value.keys()
-            ):
-                config[key][updated_key] = updated_value
+            else:
+                for sub_key in config[key].keys():
+                    if (
+                            isinstance(config[key][sub_key], dict)
+                            and updated_key in config[key][sub_key]
+                    ):
+                        config[key][sub_key][updated_key] = updated_value
+
+            # elif (
+            #     isinstance(config[key][updated_key], dict)):
+            #     config[key][updated_key] = updated_value
 
     yaml_file = ruamel.yaml.YAML()
     yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
