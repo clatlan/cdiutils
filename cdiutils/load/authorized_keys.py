@@ -16,6 +16,7 @@ AUTHORIZED_KEYS = {
         "apodize",
         "flip",
         "isosurface",
+        "usetex",
         "show",
         "verbose"
     ],
