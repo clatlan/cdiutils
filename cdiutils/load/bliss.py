@@ -11,6 +11,7 @@ import xrayutilities as xu
 #             return func(self, h5file, *args, **kwargs)
 #     return wrap
 
+@h5py_utils.retry
 def safe(func: Callable) -> Callable:
     def wrap(self, *args, **kwargs):
         with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
