@@ -285,23 +285,23 @@ def preprocessing_detector_data_plot(
     )
 
     # handle the labels
-    axes[0, 0].set_xlabel(r"detector $axis_2$")
-    axes[0, 0].set_ylabel(r"detector $axis_1$")
+    axes[0, 0].set_xlabel(r"detector axis$_2$")
+    axes[0, 0].set_ylabel(r"detector axis$_1$")
 
-    axes[0, 1].set_xlabel(r"detector $axis_2$")
+    axes[0, 1].set_xlabel(r"detector axis$_2$")
     axes[0, 1].set_ylabel("rocking angle axis")
 
     axes[0, 2].set_xlabel("rocking angle axis")
-    axes[0, 2].set_ylabel(r"detector $axis_1$")
+    axes[0, 2].set_ylabel(r"detector axis$_1$")
 
-    axes[1, 0].set_xlabel(r"cropped $axis_2$")
-    axes[1, 0].set_ylabel(r"cropped $axis_1$")
+    axes[1, 0].set_xlabel(r"cropped axis$_2$")
+    axes[1, 0].set_ylabel(r"cropped axis$_1$")
 
-    axes[1, 1].set_xlabel(r"cropped $axis_2$")
+    axes[1, 1].set_xlabel(r"cropped axis$_2$")
     axes[1, 1].set_ylabel("cropped rocking angle axis")
 
     axes[1, 2].set_xlabel("cropped rocking angle axis")
-    axes[1, 2].set_ylabel(r"cropped $axis_1$")
+    axes[1, 2].set_ylabel(r"cropped axis$_1$")
 
     axes[0, 1].set_title("raw detector data", size=20, y=1.8)
     axes[1, 1].set_title("cropped detector data", size=20, y=1.05)
@@ -366,7 +366,7 @@ def summary_slice_plot(
     figure, axes = plt.subplots(3, array_nb, figsize=(18, 9))
     
     axes[0, 0].annotate(
-                "ZY slice",
+                r"(xy)$_{cxi}$ slice",
                 xy=(0.2, 0.5),
                 xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
                 xycoords=axes[0, 0].yaxis.label,
@@ -377,7 +377,7 @@ def summary_slice_plot(
     )
 
     axes[1, 0].annotate(
-                "ZX slice",
+                r"(xz)$_{cxi}$ slice",
                 xy=(0.2, 0.5),
                 xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
                 xycoords=axes[1, 0].yaxis.label,
@@ -388,7 +388,7 @@ def summary_slice_plot(
     )
 
     axes[2, 0].annotate(
-                "YX slice",
+                r"(zy)$_{cxi}$ slice",
                 xy=(0.2, 0.5),
                 xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
                 xycoords=axes[2, 0].yaxis.label,
@@ -445,7 +445,7 @@ def summary_slice_plot(
             aspect=aspect_ratios["xz"]
         )
         mappables[key] = axes[2, i].matshow(
-            array[..., shape[2] // 2],
+            np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
             vmin=vmin,
             vmax=vmax,
             cmap=cmap,
@@ -456,7 +456,11 @@ def summary_slice_plot(
         if key == "amplitude":
             plot_contour(axes[0, i], support[shape[0] // 2], color="k")
             plot_contour(axes[1, i], support[:, shape[1] // 2, :], color="k")
-            plot_contour(axes[2, i], support[..., shape[2] // 2], color="k")
+            plot_contour(
+                axes[2, i],
+                np.swapaxes(support[..., shape[2] // 2], axis1=0, axis2=1),
+                color="k"
+            )
     
 
     table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.2])
@@ -503,7 +507,10 @@ def summary_slice_plot(
     
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
-        if i % array_nb == 0 and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude":
+        if (
+                i % array_nb == 0
+                and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude"
+        ):
             ax.tick_params(axis="x",direction="in", pad=-20, colors="w")
             ax.tick_params(axis="y",direction="in", pad=-20, colors="w")
             ax.xaxis.set_ticks_position("bottom")
@@ -577,12 +584,12 @@ def plot_q_lab_orthogonalization_process(
     axes[0, 2].plot(
         where_in_det_space[0], where_in_det_space[1], color="w", marker="x")
 
-    axes[0, 0].set_xlabel(r"detector $axis_2$")
-    axes[0, 0].set_ylabel(r"detector $axis_1$")
-    axes[0, 1].set_xlabel(r"detector $axis_2$")
-    axes[0, 1].set_ylabel(r"detector $axis_0$")
-    axes[0, 2].set_xlabel(r"detector $axis_0$")
-    axes[0, 2].set_ylabel(r"detector $axis_1$")
+    axes[0, 0].set_xlabel(r"detector axis$_2$")
+    axes[0, 0].set_ylabel(r"detector axis$_1$")
+    axes[0, 1].set_xlabel(r"detector axis$_2$")
+    axes[0, 1].set_ylabel(r"detector axis$_0$")
+    axes[0, 2].set_xlabel(r"detector axis$_0$")
+    axes[0, 2].set_ylabel(r"detector axis$_1$")
 
     if where_in_ortho_space is None:
         print(
@@ -618,12 +625,12 @@ def plot_q_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+    axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
+    axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
 
     # load the orthogonalized grid values
     x_array, y_array, z_array = q_lab_regular_grid
@@ -666,17 +673,17 @@ def plot_q_lab_orthogonalization_process(
     )
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
     axes[2, 0].set_xlabel(
-        r"$Q_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 0].set_ylabel(
-        r"$Q_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_xlabel(
-        r"$Q_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_ylabel(
-        r"$Q_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_xlabel(
-        r"$Q_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_ylabel(
-        r"$Q_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
 
     axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
@@ -725,12 +732,12 @@ def plot_direct_lab_orthogonalization_process(
         )
     )
 
-    axes[0, 0].set_xlabel(r"detector $axis_2$")
-    axes[0, 0].set_ylabel(r"detector $axis_1$")
-    axes[0, 1].set_xlabel(r"detector $axis_2$")
-    axes[0, 1].set_ylabel(r"detector $axis_0$")
-    axes[0, 2].set_xlabel(r"detector $axis_0$")
-    axes[0, 2].set_ylabel(r"detector $axis_1$")
+    axes[0, 0].set_xlabel(r"detector axis$_2$")
+    axes[0, 0].set_ylabel(r"detector axis$_1$")
+    axes[0, 1].set_xlabel(r"detector axis$_2$")
+    axes[0, 1].set_ylabel(r"detector axis$_0$")
+    axes[0, 2].set_xlabel(r"detector axis$_0$")
+    axes[0, 2].set_ylabel(r"detector axis$_1$")
 
     plot_at = tuple(e // 2 for e in direct_lab_data.shape)
 
@@ -788,19 +795,19 @@ def plot_direct_lab_orthogonalization_process(
     for ax in axes.ravel():
         ax.set_aspect("equal")
 
-    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+    axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
+    axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
 
-    axes[2, 0].set_xlabel(r"$y_{lab}$ (nm)")
-    axes[2, 0].set_ylabel(r"$z_{lab}$ (nm)")
-    axes[2, 1].set_xlabel(r"$x_{lab}$ (nm)")
-    axes[2, 1].set_ylabel(r"$z_{lab}$ (nm)")
-    axes[2, 2].set_xlabel(r"$y_{lab}$ (nm)")
-    axes[2, 2].set_ylabel(r"$x_{lab}$ (nm)")
+    axes[2, 0].set_xlabel(r"y$_{lab}$ (nm)")
+    axes[2, 0].set_ylabel(r"z$_{lab}$ (nm)")
+    axes[2, 1].set_xlabel(r"x$_{lab}$ (nm)")
+    axes[2, 1].set_ylabel(r"z$_{lab}$ (nm)")
+    axes[2, 2].set_xlabel(r"y$_{lab}$ (nm)")
+    axes[2, 2].set_ylabel(r"x$_{lab}$ (nm)")
 
 
 
