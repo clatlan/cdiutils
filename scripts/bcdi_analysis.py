@@ -19,9 +19,9 @@ if __name__ == "__main__":
 
     if len(sys.argv) <= 1:
         print(usage_text)
-        exit(1)
+        sys.exit(1)
 
-    backend = "bcdi"
+    backend = "cdiutils"
     for arg in sys.argv[1:]:
         if arg.endswith(".yml") or arg.endswith(".yaml"):
             scan_file = arg
@@ -44,13 +44,13 @@ if __name__ == "__main__":
         else:
             print("Unknown arguments")
             print(usage_text)
-            exit(1)
+            sys.exit(1)
 
     bcdi_pipeline = BcdiPipeline(scan_file, backend=backend)
-    
+
     if prp:
         bcdi_pipeline.preprocess(backend=backend)
-    
+
     if phr:
         bcdi_pipeline.phase_retrieval(
             # machine="lid01pwr9"
@@ -62,13 +62,10 @@ if __name__ == "__main__":
         bcdi_pipeline.mode_decomposition()
         bcdi_pipeline.postprocess(backend=backend)
         bcdi_pipeline.save_parameter_file()
-    
+
     if md:
         bcdi_pipeline.mode_decomposition()
-    
+
     if pop:
         bcdi_pipeline.postprocess(backend=backend)
         bcdi_pipeline.save_parameter_file()
-
-## TODO : functional programming + static methods
-
