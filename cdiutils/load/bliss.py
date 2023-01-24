@@ -1,7 +1,6 @@
 from typing import Optional, Union, Callable
 import numpy as np
 import silx.io.h5py_utils
-# import hdf5plugin
 import xrayutilities as xu
 
 
@@ -11,7 +10,6 @@ import xrayutilities as xu
 #             return func(self, h5file, *args, **kwargs)
 #     return wrap
 
-@h5py_utils.retry
 def safe(func: Callable) -> Callable:
     def wrap(self, *args, **kwargs):
         with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
@@ -42,8 +40,7 @@ class BlissLoader():
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
                 "np.ndarray or leave it to None"
             )
-
-    
+    @silx.io.h5py_utils.retry()
     @safe
     def load_detector_data(
             self,
@@ -80,6 +77,7 @@ class BlissLoader():
         key_path = "_".join((sample_name, str(scan))) + ".1"
         print(h5file[key_path].keys())
     
+    @silx.io.h5py_utils.retry()
     @safe
     def load_motor_positions(
             self,
@@ -199,7 +197,7 @@ class BlissLoader():
         return intensity, (qx, qy, qz), detector_to_Q_space, data
     
     @staticmethod
-    def get_mask(channel: Optional[int]) -> np.array:
+    def get_mask(channel: Optional[int]) -> np.ndarray:
         mask = np.zeros(shape=(516, 516))
         mask[:, 255:261] = 1
         mask[255:261, :] = 1
