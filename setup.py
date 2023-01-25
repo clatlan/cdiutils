@@ -18,7 +18,7 @@ setuptools.setup(
             "scripts/prepare_bcdi_notebook.py"
       ],
       packages=setuptools.find_packages(),
-      # include_package_data=True,
+      include_package_data=True,
       package_data={
             "cdiutils": [
                   "cdiutils/processing/pynx-id01cdi_template.slurm",
