@@ -1,0 +1,2 @@
+include examples/analyze_bcdi_data.ipynb
+include cdiutils/processing/pynx-id01cdi_template.slurm

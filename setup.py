@@ -18,18 +18,18 @@ setuptools.setup(
             "scripts/prepare_bcdi_notebook.py"
       ],
       packages=setuptools.find_packages(),
-      # include_package_data=True,
-      data_files=[
-            (
-                  '',
-                  [
-                        "cdiutils/processing/pynx-id01cdi_template.slurm",
-                        "scripts/analyze_bcdi_data.py",
-                        "examples/analyze_bcdi_data.ipynb",
-                        "scripts/prepare_bcdi_notebook.py"
-                  ]
-            )
-      ],
+      # data_files=[
+      #       (
+      #             '',
+      #             [
+      #                   "cdiutils/processing/pynx-id01cdi_template.slurm",
+      #                   "scripts/analyze_bcdi_data.py",
+      #                   "examples/analyze_bcdi_data.ipynb",
+      #                   "scripts/prepare_bcdi_notebook.py"
+      #             ]
+      #       )
+      # ],
+      include_package_data=True,
       # package_data={
       #       "cdiutils": [
       #             "cdiutils/processing/pynx-id01cdi_template.slurm",
