@@ -16,6 +16,7 @@ def safe(func: Callable) -> Callable:
             return func(self, *args, **kwargs)
     return wrap
 
+
 class BlissLoader():
     def __init__(
             self,
@@ -60,7 +61,7 @@ class BlissLoader():
                 data = h5file[key_path + "/measurement/mpxgaas"][()]
         else:
             data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
-        if not self.flatfield is None: 
+        if not self.flatfield is None:
             data = data * self.flatfield
         return data
     
@@ -93,13 +94,13 @@ class BlissLoader():
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/instrument/positioners"
-        
+    
         nu = h5file[key_path + "/nu"][()]
         delta = h5file[key_path + "/delta"][()]
         eta = h5file[key_path + "/eta"][()]
         phi = h5file[key_path + "/phi"][()]
         return eta, phi, nu, delta
-    
+
     @safe
     def load_measurement_parameter(
             self,
@@ -117,7 +118,7 @@ class BlissLoader():
         ) + ".1/measurement"
         requested_mes_parameter = h5file[f"{key_path}/{parameter_name}"][()]
         return requested_mes_parameter
-    
+ 
     @safe
     def load_instrument_parameter(
             self,
