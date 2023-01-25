@@ -7,7 +7,7 @@ import sys
 
 import cdiutils
 
-helptext =  (
+helptext = (
     f"Usage: {sys.argv[0]} path/to/destination.ipynb"
 )
 
