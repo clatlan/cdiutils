@@ -198,10 +198,26 @@ class BlissLoader():
         return intensity, (qx, qy, qz), detector_to_Q_space, data
     
     @staticmethod
-    def get_mask(channel: Optional[int]) -> np.ndarray:
-        mask = np.zeros(shape=(516, 516))
-        mask[:, 255:261] = 1
-        mask[255:261, :] = 1
+    def get_mask(channel: Optional[int], detector_name: str="Maxipix") -> np.ndarray:
+        if detector_name in ("maxipix", "Maxipix"):
+            mask = np.zeros(shape=(516, 516))
+            mask[:, 255:261] = 1
+            mask[255:261, :] = 1
+        elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
+            mask[:, 255:259] = 1
+            mask[:, 513:517] = 1
+            mask[:, 771:775] = 1
+            mask[0:257, 72:80] = 1
+            mask[255:259, :] = 1
+            mask[511:552, :] = 1
+            mask[804:809, :] = 1
+            mask[1061:1102, :] = 1
+            mask[1355:1359, :] = 1
+            mask[1611:1652, :] = 1
+            mask[1905:1909, :] = 1
+            mask[1248:1290, 478] = 1
+            mask[1214:1298, 481] = 1
+            mask[1649:1910, 620:628] = 1
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
         else:

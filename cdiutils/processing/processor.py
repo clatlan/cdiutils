@@ -204,7 +204,10 @@ class BcdiProcessor:
                 self.detector_outofplane_angle,
                 self.detector_inplane_angle
         )
-        self.mask = self.loader.get_mask(channel=self.detector_data.shape[0])
+        self.mask = self.loader.get_mask(
+            channel=self.detector_data.shape[0],
+            detector_name=self.parameters["metadata"]["detector_name"]
+        )
 
     def verbose_print(self, text: str, **kwargs) -> None:
         if self.parameters["verbose"]:
