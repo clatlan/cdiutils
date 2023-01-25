@@ -14,8 +14,11 @@ helptext = (
 if __name__ == "__main__":
     notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
-        + "/examples/analyze_bcdi_data.ipynb"
+        + "/../examples/analyze_bcdi_data.ipynb"
     )
+    if len(sys.argv) < 1:
+        print(helptext)
+        sys.exit(1)
     for arg in sys.argv[1:]:
         if not arg.endswith(".ipynb"):
             arg += ".ipynb"
