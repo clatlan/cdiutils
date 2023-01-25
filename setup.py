@@ -27,7 +27,6 @@ setuptools.setup(
       #             "scripts/prepare_bcdi_notebook.py"
       #       ]
       # },
-      include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
       python_requires=">=3.8, <3.10",
       install_requires=[

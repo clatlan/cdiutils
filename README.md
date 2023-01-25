@@ -15,7 +15,9 @@ It requires the following libraries :
 ## Installation
 
 You can install the package with the following command:
-`pip install git+https://github.com/clatlan/cdiutils.git`
+```
+pip install git+https://github.com/clatlan/cdiutils.git
+```
 
 ## Slice plot
 
