@@ -53,7 +53,7 @@ setuptools.setup(
             "ruamel.yaml>=0.17.21",
             "ruamel.yaml.clib>=0.2.7",
             "scikit-image>=0.19.2",
-            "scikit-learn>=0.0.post2",
+            "scikit-learn>=0.0.post1",
             "scipy>=1.8.0",
             "seaborn>=0.12.1",
             "silx>=1.0.0",
