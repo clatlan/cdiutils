@@ -874,7 +874,7 @@ class BcdiProcessor:
             point_data.AddArray(vtk_array)
             point_data.GetArray(i).SetName(key)
             point_data.Update()
-        
+
         writer = vtk.vtkXMLImageDataWriter()
         writer.SetFileName(output_path)
         writer.SetInputData(image_data)
