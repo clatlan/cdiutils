@@ -1,5 +1,6 @@
 from typing import Optional, Union, Callable
 import numpy as np
+import os
 import silx.io.h5py_utils
 import xrayutilities as xu
 
@@ -29,6 +30,8 @@ class BlissLoader():
         self.detector_name = detector_name
         self.sample_name = sample_name
         self.h5file = None
+
+        self.experiment_root_directory = os.path.dirname(experiment_file_path)
 
         if isinstance(flatfield, str) and flatfield.endswith(".npz"):
             self.flatfield = np.load(flatfield)["arr_0"]
@@ -218,6 +221,8 @@ class BlissLoader():
             mask[1248:1290, 478] = 1
             mask[1214:1298, 481] = 1
             mask[1649:1910, 620:628] = 1
+        else:
+            raise ValueError("Unknown detector_name")
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
         else:
