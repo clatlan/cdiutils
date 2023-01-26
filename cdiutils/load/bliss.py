@@ -207,6 +207,7 @@ class BlissLoader():
             mask[:, 255:261] = 1
             mask[255:261, :] = 1
         elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
+            mask = np.zeros(shape=(1030, 2164))
             mask[:, 255:259] = 1
             mask[:, 513:517] = 1
             mask[:, 771:775] = 1
