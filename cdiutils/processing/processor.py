@@ -322,12 +322,10 @@ class BcdiProcessor:
             centered_data,
             final_shape=final_shape
         )
-        
 
         # center and crop the mask
         self.mask = center(self.mask, where=det_reference_voxel)
         self.mask = crop_at_center(self.mask, final_shape=final_shape)
-        print("Here")
 
         # redefine the max and com voxel coordinates in the new cropped data
         # frame
@@ -336,13 +334,11 @@ class BcdiProcessor:
             - (det_reference_voxel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
-        print("Heres")
         cropped_com_voxel = (
             det_com_voxel 
             - (det_reference_voxel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
-        print("Heres")
 
         # save the voxel reference in the detector frame and Q_lab frame
         self.det_reference_voxel = det_reference_voxel
@@ -407,7 +403,7 @@ class BcdiProcessor:
                 "[INFO] Creating the dump directory at: "
                 f"{self.parameters['metadata']['dump_dir']}")
             os.mkdir(self.parameters['metadata']["dump_dir"])
-        
+
         template_path = (
             self.parameters["metadata"]["dump_dir"]
             + "/cdiutils_S"
@@ -430,7 +426,7 @@ class BcdiProcessor:
         )
         np.savez(
             template_path + "pynx_input_mask.npz", mask=self.mask)
-        
+
         # save the values of the det_reference_voxel and the q_labs
         if self.parameter_file_path is not None:
             update_parameter_file(
@@ -535,7 +531,7 @@ class BcdiProcessor:
         # initialize the interpolator in reciprocal and direct spaces
         # (note that the orthogonalization is done in the lab frame
         #  with xrayutilities conventions. We switch to cxi convention
-        # afterwards). 
+        # afterwards).
         self.verbose_print(
             "[INFO] Voxel size in the direct lab frame provided by user: "
             f"{self.parameters['voxel_size']} nm"
