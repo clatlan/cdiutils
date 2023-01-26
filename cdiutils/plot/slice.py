@@ -444,4 +444,4 @@ def plot_contour(ax, support_2D, linewidth=2, color="k"):
             levels=[0, 1],
             linewidths=linewidth,
             colors=color
-    )
+        )

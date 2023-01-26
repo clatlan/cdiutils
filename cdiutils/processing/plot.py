@@ -438,7 +438,7 @@ def summary_slice_plot(
         )
         axes[1, i].matshow(
             array[:, shape[1] // 2, :],
-            vmin=vmin, 
+            vmin=vmin,
             vmax=vmax,
             cmap=cmap,
             origin="lower",
@@ -461,7 +461,7 @@ def summary_slice_plot(
                 np.swapaxes(support[..., shape[2] // 2], axis1=0, axis2=1),
                 color="k"
             )
-    
+
 
     table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.2])
     table_ax.axis("tight")
