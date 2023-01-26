@@ -553,7 +553,6 @@ class BcdiProcessor:
                 reconstructed_phase,
             )
         )
-
         self.orthgonolized_data = self.space_converter.lab_to_cxi_conventions(
             orthogonalized_amplitude
             * np.exp(1j * orthogonalized_phase)
@@ -718,9 +717,10 @@ class BcdiProcessor:
                       "lattice_parameter", "numpy_local_strain", "dspacing"]
         }
         # save to vti file
-        self._save_to_vti(
+        self.save_to_vti(
             f"{template_path}_structural_properties.vti",
             voxel_size=self.voxel_size,
+            cxi_convention=True,
             **to_save_as_vti
         )
 
@@ -838,11 +838,12 @@ class BcdiProcessor:
             dpi=200,
             bbox_inches="tight"
         )
-
-    def _save_to_vti(
-            self,
+    
+    @staticmethod
+    def save_to_vti(
             output_path: str,
             voxel_size: Union[tuple, list, np.ndarray],
+            cxi_convention: bool=False,
             origin: tuple=(0, 0, 0),
             **np_arrays: dict[np.ndarray]
     ) -> None :
@@ -857,9 +858,9 @@ class BcdiProcessor:
                 "(fieldnames: np.ndarray) you want to save."
             )
         is_init = False
-        for i, (key, value) in enumerate(np_arrays.items()):
+        for i, (key, array) in enumerate(np_arrays.items()):
             if not is_init:
-                shape = value.shape
+                shape = array.shape
                 image_data = vtk.vtkImageData()
                 image_data.SetOrigin(origin)
                 image_data.SetSpacing(voxel_size)
@@ -870,7 +871,10 @@ class BcdiProcessor:
                 )
                 point_data = image_data.GetPointData()
                 is_init = True
-            vtk_array = numpy_support.numpy_to_vtk(value.ravel())
+            
+            if cxi_convention:
+                array = np.flip(array, 2).T
+            vtk_array = numpy_support.numpy_to_vtk(array.ravel())
             point_data.AddArray(vtk_array)
             point_data.GetArray(i).SetName(key)
             point_data.Update()
