@@ -9,6 +9,8 @@ import ruamel.yaml
 from scipy.ndimage import center_of_mass
 import silx.io.h5py_utils
 import textwrap
+import vtk
+from vtk.util import numpy_support
 import yaml
 
 from cdiutils.utils import (
@@ -200,15 +202,15 @@ class BcdiProcessor:
         )
         self.space_converter.set_q_space_area(
                 self.sample_outofplane_angle,
-                self.sample_inplane_angle, 
+                self.sample_inplane_angle,
                 self.detector_outofplane_angle,
                 self.detector_inplane_angle
         )
+        
         self.mask = self.loader.get_mask(
             channel=self.detector_data.shape[0],
             detector_name=self.parameters["metadata"]["detector_name"]
         )
-
     def verbose_print(self, text: str, **kwargs) -> None:
         if self.parameters["verbose"]:
             wrapper = textwrap.TextWrapper(
@@ -242,7 +244,6 @@ class BcdiProcessor:
         )
 
     def center_crop_data(self) -> None:
-
         final_shape = tuple(self.parameters["preprocessing_output_shape"])
         initial_shape = self.detector_data.shape
         # if the final_shape is 2D convert it in 3D
@@ -312,14 +313,21 @@ class BcdiProcessor:
         # now proceed to the centering and cropping using
         # the det_reference_voxel as a reference
         centered_data = center(self.detector_data, where=det_reference_voxel)
+        self.verbose_print(f"Shape before checking: {final_shape}")
+        final_shape = shape_for_safe_centered_cropping(
+            initial_shape, det_reference_voxel, final_shape
+        )
+        self.verbose_print(f"Shape after checking: {final_shape}")
         self.cropped_detector_data = crop_at_center(
             centered_data,
             final_shape=final_shape
         )
+        
 
         # center and crop the mask
         self.mask = center(self.mask, where=det_reference_voxel)
         self.mask = crop_at_center(self.mask, final_shape=final_shape)
+        print("Here")
 
         # redefine the max and com voxel coordinates in the new cropped data
         # frame
@@ -328,11 +336,13 @@ class BcdiProcessor:
             - (det_reference_voxel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
+        print("Heres")
         cropped_com_voxel = (
             det_com_voxel 
             - (det_reference_voxel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
+        print("Heres")
 
         # save the voxel reference in the detector frame and Q_lab frame
         self.det_reference_voxel = det_reference_voxel
@@ -488,6 +498,7 @@ class BcdiProcessor:
         # find the maximum of the Bragg peak, this is will be taken as
         # the space origin for the orthogonalization
         max_pos = find_max_pos(self.detector_data)
+        max_pos = self.parameters["det_reference_voxel"]
 
         # find a safe shape that will enable centering and cropping the
         # q values without rolling them
@@ -704,6 +715,19 @@ class BcdiProcessor:
             **self.structural_properties,
         )
 
+        to_save_as_vti = {
+            k: self.structural_properties[k]
+            for k in ["amplitude", "support", "phase", "displacement",
+                      "local_strain", "local_strain_from_dspacing",
+                      "lattice_parameter", "numpy_local_strain", "dspacing"]
+        }
+        # save to vti file
+        self._save_to_vti(
+            f"{template_path}_structural_properties.vti",
+            voxel_size=self.voxel_size,
+            **to_save_as_vti
+        )
+
         with h5py.File(f"{template_path}_structural_properties.h5", "w") as hf:
             volumes = hf.create_group("volumes")
             scalars = hf.create_group("scalars")
@@ -818,3 +842,46 @@ class BcdiProcessor:
             dpi=200,
             bbox_inches="tight"
         )
+
+    def _save_to_vti(
+            self,
+            output_path: str,
+            voxel_size: Union[tuple, list, np.ndarray],
+            origin: tuple=(0, 0, 0),
+            **np_arrays: dict[np.ndarray]
+    ) -> None :
+        """
+        Save numpy arrays to .vti file.
+        """
+        voxel_size = tuple(voxel_size)
+        nb_arrays = len(np_arrays)
+        if not nb_arrays:
+            raise ValueError(
+                "np_arrays is empty, please provide a dictionary of "
+                "(fieldnames: np.ndarray) you want to save."
+            )
+        is_init = False
+        for i, (key, value) in enumerate(np_arrays.items()):
+            if not is_init:
+                shape = value.shape
+                image_data = vtk.vtkImageData()
+                image_data.SetOrigin(origin)
+                image_data.SetSpacing(voxel_size)
+                image_data.SetExtent(
+                    0, shape[0] - 1,
+                    0, shape[1] - 1,
+                    0, shape[2] - 1
+                )
+                point_data = image_data.GetPointData()
+                is_init = True
+            vtk_array = numpy_support.numpy_to_vtk(value.ravel())
+            point_data.AddArray(vtk_array)
+            point_data.GetArray(i).SetName(key)
+            point_data.Update()
+        
+        writer = vtk.vtkXMLImageDataWriter()
+        writer.SetFileName(output_path)
+        writer.SetInputData(image_data)
+        writer.Write()
+
+
