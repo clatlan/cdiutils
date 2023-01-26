@@ -136,16 +136,28 @@ class SpaceConverter():
         """
         Compute the _q_space_transitions provided by xrayutilities
         """
-        self._q_space_transitions = np.asarray(
-            self.hxrd.Ang2Q.area(
+
+        qx, qy, qz = self.hxrd.Ang2Q.area(
                 sample_outofplane_angle,
                 sample_inplane_angle,
                 detector_inplane_angle,
                 detector_outofplane_angle
-            ),
-        )
+            )
+        qx = np.array(qx)
+        qy = np.array(qy)
+        qz = np.array(qz)
+        self._q_space_transitions = np.asarray([qx, qy, qz])
+        # self._q_space_transitions = np.empty((3, ) + q_space_transitions[0].shape)
+        # print("Hello")
+        # iteratable = (q_space_transitions[i] for i in range(3))
+        # print("Hello")
+        # self._q_space_transitions = np.fromiter(iteratable,  dtype=np.dtype((float, q_space_transitions[0].shape)))
+        # print("Hello")
+
+        # for i in range(3):
+        #     self._q_space_transitions[i] = q_space_transitions[i]
         self._full_shape = self._q_space_transitions.shape[1:]
-    
+
     def index_det_to_q_lab(
             self,
             ijk: Union[np.ndarray, list, tuple],
@@ -164,7 +176,7 @@ class SpaceConverter():
             ijk,
             self._q_space_transitions
         )
-    
+
     def index_cropped_det_to_det(
             self,
             ijk: Union[np.ndarray, list, tuple]
