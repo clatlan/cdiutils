@@ -295,6 +295,24 @@ class BcdiPipeline:
             ) as file:
                 file.write(pynx_slurm_text)
 
+        if os.environ["HOSTNAME"].startswith("p9"):
+            with subprocess.Popen(
+                    "source /sware/exp/pynx/activate_pynx.sh;"
+                    f"cd {self.dump_directory};"
+                    "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
+                    "pynx-cdi-id01 pynx-cdi-inputs.txt",
+                    shell=True,
+                    executable="/bin/bash",
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+            ) as proc:
+                stdout, stderr = proc.communicate()
+                print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
+                if proc.returncode:
+                    print(
+                        "[STDERR FROM SUBPROCESS]\n",
+                        stderr.decode("utf-8")
+                    )
         # ssh to p9 machine and run phase retrieval
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -416,6 +434,7 @@ class BcdiPipeline:
                     "[STDERR FROM SUBPROCESS]\n",
                     stderr.decode("utf-8")
                 )
+
         if self.parameter_file_path is not None:
             pretty_print("[INFO] Updating scan parameter file")
             if self.backend == "bcdi":
