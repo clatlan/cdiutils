@@ -11,15 +11,17 @@ from cdiutils.utils import nan_to_zero
 def plot_slice(
         *data,
         figsize=(6, 4),
+        title="",
         vmin=None,
         vmax=None,
         origin="lower",
         cmap="turbo",
+        show_cbar=True,
         return_fig=False,
 ):
     fig, axes = plt.subplots(1, len(data), figsize=figsize, squeeze=False)
     for ax, d in zip(axes.ravel(), data):
-        ax.matshow(
+        im = ax.matshow(
             d,
             origin=origin, 
             vmin=vmin, 
@@ -28,6 +30,12 @@ def plot_slice(
         )
         ax.xaxis.set_ticks([])
         ax.yaxis.set_ticks([])
+        if show_cbar:
+            l, _, w, h = ax.get_position().bounds
+            cax = fig.add_axes([l+ w + 0.025, 0.005, 0.05, h])
+            cax.set_title(title, size=18)
+            fig.colorbar(im, cax=cax, orientation="vertical")
+    fig.tight_layout()
     if return_fig:
         return fig
 
