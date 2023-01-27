@@ -8,6 +8,7 @@ AUTHORIZED_KEYS = {
         "hkl",
         "det_reference_voxel_method",
         "det_reference_voxel",
+        "binning_along_axis0",
         "q_lab_reference",
         "q_lab_max",
         "q_lab_com",

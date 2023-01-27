@@ -50,7 +50,11 @@ class BlissLoader():
             self,
             # h5file: silx.io.h5py_utils.File,
             scan: int,
-            sample_name: Optional[str]=None
+            sample_name: Optional[str]=None,
+            # roi: Optional[tuple]=None,
+            binning_along_axis0: Optional[int]=None,
+            binning_method: Optional[str]="sum"
+
         ):
         h5file = self.h5file
         if sample_name is None:
@@ -66,6 +70,18 @@ class BlissLoader():
             data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
         if not self.flatfield is None:
             data = data * self.flatfield
+        if binning_along_axis0:
+            original_dim0 = data.shape[0]
+            nb_of_bins = original_dim0 // binning_along_axis0
+            last_slices = original_dim0 % binning_along_axis0
+            if binning_method == "sum":
+                binned_data = [
+                    np.sum(e, axis=0)
+                    for e in np.array_split(data[:-last_slices], nb_of_bins)
+                ]
+                if last_slices != 0:
+                    binned_data.append(np.sum(data[last_slices:], axis=0))
+                data = np.asarray(binned_data)
         return data
     
     @safe
@@ -73,7 +89,8 @@ class BlissLoader():
             self,
             # h5file: silx.io.h5py_utils.File,
             scan: int,
-            sample_name: Optional[str]=None
+            sample_name: Optional[str]=None,
+            
         ):
         h5file = self.h5file
         if sample_name is None:
@@ -88,6 +105,8 @@ class BlissLoader():
             # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None,
+            binning_along_axis0: Optional[int]=None,
+            binning_method: Optional[str]="mean"
     ):
         h5file = self.h5file
 
@@ -102,6 +121,25 @@ class BlissLoader():
         delta = h5file[key_path + "/delta"][()]
         eta = h5file[key_path + "/eta"][()]
         phi = h5file[key_path + "/phi"][()]
+
+        if binning_along_axis0:
+            original_dim0 = eta.shape[0]
+            nb_of_bins = original_dim0 // binning_along_axis0
+            last_slices = original_dim0 % binning_along_axis0
+            if binning_method == "mean":
+                if last_slices != 0:
+                    binned_eta = [
+                        e
+                        for e in np.split(eta[:-last_slices], nb_of_bins)
+                    ]
+                    binned_eta.append(np.mean(eta[last_slices:], axis=0))
+                else:
+                    binned_eta = [
+                        e
+                        for e in np.split(eta, nb_of_bins)
+                    ]
+                eta = np.asarray(binned_eta)
+
         return eta, phi, nu, delta
 
     @safe
@@ -202,7 +240,7 @@ class BlissLoader():
     
     @staticmethod
     def get_mask(channel: Optional[int], detector_name: str="Maxipix") -> np.ndarray:
-        if detector_name in ("maxipix", "Maxipix"):
+        if detector_name in ("maxipix", "Maxipix", "mpxgaas"):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
             mask[255:261, :] = 1
