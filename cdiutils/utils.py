@@ -358,7 +358,7 @@ def find_suitable_array_shape(
 def find_isosurface(
         amplitude: np.ndarray,
         nbins: Optional[int]=100,
-        sigma_criterion: Optional[float]=2,
+        sigma_criterion: Optional[float]=3,
         plot: Optional[bool]=False,
         show: Optional[bool]=False
 ) -> Union[Tuple[float, matplotlib.axes.Axes], float]:
