@@ -335,11 +335,12 @@ def compute_corrected_angles(
 
 def find_suitable_array_shape(
         support: np.array,
-        padding: Optional[list]=[4, 4, 4],
+        padding: Optional[list]=None,
         symmetrical_shape: Optional[bool]=True
 ) -> np.array:
     """Find a more suitable shape of an array"""
-
+    if padding is None:
+        padding = [4, 4, 4]
     hull = find_hull(support, boolean_values=True)
     coordinates = np.where(hull == 1)
     axis_0_range = np.ptp(coordinates[0]) + padding[0]
@@ -369,7 +370,7 @@ def find_isosurface(
     :param nbins: the number of bins to considerate when making the
     histogram (Optional, int)
     :param sigma_criterion: the factor to compute the isosurface wich is
-    calculated as: mu - sigma_criterion * sigma. By default set to 2.
+    calculated as: mu - sigma_criterion * sigma. By default set to 3.
     (Optional, float)
     :param show: whether or not to show the the figure
 
