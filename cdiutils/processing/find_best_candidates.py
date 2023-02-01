@@ -4,22 +4,24 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import shutil
+from scipy.stats import gaussian_kde
 import argparse
 
-from cdiutils.load.load_data import get_data_from_cxi
+from cdiutils.load.load_data import load_data_from_cxi
 
 
 def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
 
-    if criterion == "llkf":
 
-        print("\n[INFO] Candidates with the lowest llkf will be saved.\n")
+    print(f"\n[INFO] Candidates with the lowest {criterion} will be saved.\n")
+
+    if criterion == "llkf":
 
         # make a dictionary with file names as keys and llkf as values
         LLKFs = {}
         LLKs = {}
         for f in files:
-            data_dic = get_data_from_cxi(f, "llkf", "llk")
+            data_dic = load_data_from_cxi(f, "llkf", "llk")
             LLKFs[f] = data_dic["llkf"]
             LLKs[f] = data_dic["llk"]
 
@@ -45,14 +47,12 @@ def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
 
         print("Files saved.")
 
-    elif criterion == "std":
-
-        print("\n[INFO] Candidates with the lowest std will be saved.\n")
-
+    else:
         # make a dictionary with file names as keys and std as values
-        STDs = {f: 0 for f in files}
-        LLKFs = {f: 0 for f in files}
-        LLKs = {f: 0 for f in files}
+        STDs = {f: None for f in files}
+        LLKFs = {f: None for f in files}
+        LLKs = {f: None for f in files}
+        mean_to_maxs = {f: None for f in files}
 
         if len(files) <= nb_to_keep:
             print(
@@ -61,39 +61,68 @@ def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
             )
             files_of_interest = files
             nb_to_keep = len(files)
+            for i, f in enumerate(files_of_interest):
+                dir_name, file_name = os.path.split(f)
+                run_nb = file_name.split("Run")[1][2:4]
+                scan_nb = file_name.split("_")[0]
+                file_name = (
+                    f"/candidate_{i+1}-{nb_to_keep}_{scan_nb}_run_{run_nb}.cxi"
+                )
+                shutil.copy(f, dir_name + file_name)
         else:
             for i, f in enumerate(files):
                 print("[INFO] Opening file:", os.path.basename(f))
-                data_dic = get_data_from_cxi(f, "support", "electronic_density",
-                                            "llkf", "llk")
+                data_dic = load_data_from_cxi(
+                    f, "support", "reconstructed_data", "llkf", "llk")
 
                 support = data_dic["support"]
-                eletronic_density = data_dic["electronic_density"]
+                amplitude = np.abs(data_dic["reconstructed_data"])
                 LLKFs[f] = data_dic["llkf"]
                 LLKs[f] = data_dic["llk"]
 
-                density_of_interest = eletronic_density[support > 0]
-                modulus = np.abs(density_of_interest)
-                STDs[f] = np.std(modulus)
+                amplitude = amplitude[support > 0]
+                amplitude /= np.max(amplitude)                
+                # fit the amplitude distribution
+                kernel = gaussian_kde(amplitude)
+                x = np.linspace(0, 1, 200)
+                fitted_counts = kernel(x)
+                max_index = np.argmax(fitted_counts)
 
+                mean_to_maxs[f] = 1 - x[max_index]
+                STDs[f] = np.std(amplitude)
+
+            if criterion == "std":
             # sort the dictionary
-            sorted_STDs = dict(sorted(STDs.items(),
-                            key=lambda item: item[1],
-                            reverse=False))
+                sorted_dict = dict(
+                    sorted(
+                        STDs.items(),
+                        key=lambda item: item[1],
+                        reverse=False
+                    )
+                )
+            elif criterion == "mean_to_max":
+                sorted_dict = dict(
+                    sorted(
+                        mean_to_maxs.items(),
+                        key=lambda item: item[1],
+                        reverse=False
+                    )
+                )
 
             # pick only file names with the lowest std values
-            files_of_interest = list(sorted_STDs.keys())[:nb_to_keep]
+            files_of_interest = list(sorted_dict.keys())[:nb_to_keep]
 
         # copy these files with a different name
-        for i, f in enumerate(files_of_interest):
-            dir_name, file_name = os.path.split(f)
-            run_nb = file_name.split("Run")[1][2:4]
-            scan_nb = file_name.split("_")[0]
-            file_name = ("/candidate_{}-{}_".format(i+1, nb_to_keep)
-                         + scan_nb + "_run_" + run_nb
-                         + "_STD{:5f}_".format(STDs[f])
-                         + "_LLKF{:5f}_LLK{:5f}.cxi".format(LLKFs[f], LLKs[f]))
-            shutil.copy(f, dir_name + file_name)
+            for i, f in enumerate(files_of_interest):
+                dir_name, file_name = os.path.split(f)
+                run_nb = file_name.split("Run")[1][2:4]
+                scan_nb = file_name.split("_")[0]
+                file_name = (
+                    f"/candidate_{i+1}-{nb_to_keep}_{scan_nb}_run_{run_nb}"
+                    f"_MeanToMax{mean_to_maxs[f]:4f}_STD{STDs[f]:4f}_"
+                    f"_LLKF{LLKFs[f]:4f}_LLK{LLKs[f]:4f}.cxi"
+                )
+                shutil.copy(f, dir_name + file_name)
 
         print("Files saved.")
 
