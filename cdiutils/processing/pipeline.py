@@ -1,5 +1,6 @@
 import glob
 import os
+import ruamel.yaml
 import shutil
 from string import Template
 import subprocess
@@ -18,9 +19,7 @@ from bcdi.utils.parser import ConfigParser
 
 from cdiutils.utils import pretty_print
 from cdiutils.processing.find_best_candidates import find_best_candidates
-from cdiutils.processing.processor import (
-    BcdiProcessor, update_parameter_file
-)
+from cdiutils.processing.processor import BcdiProcessor
 
 
 def make_parameter_file_path(
@@ -51,6 +50,32 @@ def make_parameter_file_path(
     )
     with open(output_parameter_file_path, "w", encoding="utf8") as f:
         f.write(parameter_file_path)
+
+
+def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
+    """
+    Update a parameter file with the provided dictionary that contains
+    the parameters (keys, values) to uptade.
+    """
+    with open(file_path, "r", encoding="utf8") as file:
+        config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
+
+    for key in config.keys():
+        for updated_key, updated_value in updated_parameters.items():
+            if updated_key in config[key]:
+                config[key][updated_key] = updated_value
+            else:
+                for sub_key in config[key].keys():
+                    if (
+                            isinstance(config[key][sub_key], dict)
+                            and updated_key in config[key][sub_key]
+                    ):
+                        config[key][sub_key][updated_key] = updated_value
+
+    yaml_file = ruamel.yaml.YAML()
+    yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
+    with open(file_path, "w", encoding="utf8") as file:
+        yaml_file.dump(config, file)
 
 
 class BcdiPipelineParser(ConfigParser):
@@ -99,9 +124,6 @@ def process(func: Callable) -> Callable:
     return wrapper
 
 
-# TODO:
-# check find_best_candidates loads files twice -> should load
-# them only once
 class BcdiPipeline:
     """
     A class to handle the bcdi worfklow, from pre-processing to
@@ -146,8 +168,36 @@ class BcdiPipeline:
             )
 
         # the bcdi_processor attribute will be used only if backend
-        # is True
+        # is cdiutils
         self.bcdi_processor = None
+
+    def load_parameters(
+            self,
+            backend: Optional[str]=None,
+            file_path: Optional[str]=None
+    ) -> dict:
+        """
+        Load the paratemters from the configuration files.
+        """
+        if backend is None:
+            backend = self.backend
+        if file_path is None:
+            file_path = self.parameter_file_path
+        if backend  == "bcdi":
+            return BcdiPipelineParser(
+                file_path
+            ).load_arguments()
+        elif backend == "cdiutils":
+            with open(file_path, "r", encoding="utf8") as file:
+                return yaml.load(
+                    file,
+                    Loader=yaml.FullLoader
+                )
+        else:
+            raise ValueError(
+                f"[ERROR] Unknwon backend value ({backend}), it must be either"
+                " 'cdiutils' or 'bcdi'"
+            )
 
     @process
     def preprocess(self, backend: Optional[str]=None) -> None:
@@ -167,7 +217,8 @@ class BcdiPipeline:
             run_preprocessing(prm=self.parameters["preprocessing"])
             pynx_input_template = "S*_pynx_norm_*.npz"
             pynx_mask_template = "S*_maskpynx_norm_*.npz"
-        
+            self.save_parameter_file()
+
         elif backend == "cdiutils":
             os.makedirs(
                 self.parameters["cdiutils"]["metadata"]["dump_dir"],
@@ -178,16 +229,18 @@ class BcdiPipeline:
                 f" (scan {self.parameters['cdiutils']['metadata']['scan']})"
             )
             self.bcdi_processor = BcdiProcessor(
-                parameter_file_path=self.parameter_file_path,
                 parameters=self.parameters["cdiutils"]
             )
             self.bcdi_processor.load_data()
             self.bcdi_processor.center_crop_data()
             self.bcdi_processor.save_preprocessed_data()
-            pynx_input_template = "*S*_pynx_input_data.npz"
-            pynx_mask_template = "*S*_pynx_input_mask.npz"
+            pynx_input_template = "S*_pynx_input_data.npz"
+            pynx_mask_template = "S*_pynx_input_mask.npz"
             if self.parameters["cdiutils"]["show"]:
                 self.bcdi_processor.show_figures()
+            # update the parameters
+            self.parameters["cdiutils"].update(self.bcdi_processor.parameters)
+            self.save_parameter_file()
 
         else:
             raise ValueError(
@@ -213,28 +266,6 @@ class BcdiPipeline:
             )
             self.parameters = self.load_parameters(backend)
 
-    def load_parameters(self, backend: Optional[str]=None):
-        """
-        Load the paratemters from the configuration files.
-        """
-        if backend is None:
-            backend = self.backend
-        if backend  == "bcdi":
-            return BcdiPipelineParser(
-                self.parameter_file_path
-            ).load_arguments()
-        elif backend == "cdiutils":
-            with open(self.parameter_file_path, "r", encoding="utf8") as file:
-                return yaml.load(
-                    file,
-                    Loader=yaml.SafeLoader
-                )
-        else:
-            raise ValueError(
-                f"[ERROR] Unknwon backend value ({backend}), it must be either"
-                " 'cdiutils' or 'bcdi'"
-            )
-    
     @process
     def phase_retrieval(
             self,
@@ -295,7 +326,7 @@ class BcdiPipeline:
             ) as file:
                 file.write(pynx_slurm_text)
 
-        if os.environ["HOSTNAME"].startswith("p9"):
+        if os.uname()[1].startswith("p9"):
             with subprocess.Popen(
                     "source /sware/exp/pynx/activate_pynx.sh;"
                     f"cd {self.dump_directory};"
@@ -404,7 +435,7 @@ class BcdiPipeline:
             find_best_candidates(
                     files,
                     nb_to_keep=nb_to_keep,
-                    criterion="std"
+                    criterion="mean_to_max"
                 )
 
     @process
@@ -460,47 +491,47 @@ class BcdiPipeline:
                 "[INFO] Running post-processing from bcdi_strain.py "
                 f"(scan {self.scan})"
             )
-            
+
             run_postprocessing(prm=self.parameters["postprocessing"])
+            self.save_parameter_file()
 
-        elif (backend == "cdiutils"):
-            # pretty_print(
-            #     "[INFO] bcdi package will be used for the orthogonalization "
-            #     "only, cdiutils will be used for the phase manipulation"
-            # )
-
-            # pretty_print("[INFO] First, running orthogonalization")
-            # with warnings.catch_warnings():
-            #     warnings.simplefilter("ignore", category=UserWarning)
-            #     run_postprocessing(
-            #         prm=self.parameters["postprocessing"],
-            #         procedure="orthogonalization"
-            #     )
-            # pretty_print(
-            #     "[INFO] Now, processing the phase to get the structural "
-            #     "properties."
-            # )
+        elif backend == "cdiutils":
 
             if self.bcdi_processor is None:
+                if any(
+                        p not in self.parameters["cdiutils"].keys() 
+                        for p in (
+                            "q_lab_reference", "q_lab_max",
+                            "q_lab_com", "det_reference_voxel"
+                        )
+                ):
+                    preprocessing_parameters = self.load_parameters(
+                        file_path=f"{self.dump_directory}/parameter_file.yml"
+                    )["cdiutils"]
+                    self.parameters["cdiutils"].update(
+                        {
+                            "det_reference_voxel": preprocessing_parameters[
+                                "det_reference_voxel"
+                            ],
+                            "q_lab_reference": preprocessing_parameters[
+                                "q_lab_reference"
+                            ],
+                            "q_lab_max": preprocessing_parameters["q_lab_max"],
+                            "q_lab_com": preprocessing_parameters["q_lab_com"]
+                        }
+                    )
                 self.bcdi_processor = BcdiProcessor(
-                    parameter_file_path=self.parameter_file_path,
                     parameters=self.parameters["cdiutils"]
                 )
                 self.bcdi_processor.reload_preprocessing_parameters()
                 self.bcdi_processor.load_data()
-
             self.bcdi_processor.orthogonalize()
-            # self.bcdi_processor.load_orthogonolized_data(
-            #     f"{self.parameters['postprocessing']['save_dir'][0]}/"
-            #     f"S{self.scan}"
-            #     "_orthogonolized_reconstruction_"
-            #     f"{self.parameters['postprocessing']['save_frame']}.npz"
-            # )
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()
             if self.parameters["cdiutils"]["show"]:
                 self.bcdi_processor.show_figures()
-        
+            self.save_parameter_file()
+
         else:
             raise ValueError(
                 f"[ERROR] Unknwon backend value ({backend}), it must be either"

@@ -702,12 +702,12 @@ def plot_direct_lab_orthogonalization_process(
         direct_lab_regular_grid: list[np.ndarray]
 ) -> matplotlib.figure.Figure:
     """
-    Plot the intensity in the detector frame, index-of-q lab frame
-    and q lab frame.
+    Plot the intensity in the detector frame, index-of-direct lab frame
+    and direct lab frame.
     """
 
     plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
-        
+
     figure, axes = plt.subplots(3, 3, figsize=(12, 8))
 
     axes[0, 0].matshow(detector_direct_space_data[plot_at[0]])
