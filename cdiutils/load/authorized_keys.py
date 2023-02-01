@@ -19,7 +19,8 @@ AUTHORIZED_KEYS = {
         "isosurface",
         "usetex",
         "show",
-        "verbose"
+        "verbose",
+        "debug"
     ],
     "pynx": [
         "data",
