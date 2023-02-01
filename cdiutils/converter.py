@@ -441,12 +441,12 @@ class SpaceConverter():
                 original_to_target_matrix=direct_lab_transformation_matrix,
                 target_voxel_size=direct_space_voxel_size
             )
-        
+
         else:
             raise ValueError(
                 "Unknown space"
             )
-            
+
     def orthogonalize_to_direct_lab(
             self,
             direct_space_data: np.ndarray,
@@ -548,7 +548,7 @@ class SpaceConverter():
             raise ValueError(
                 "arrangement should be 'l', 'list', 'c' or 'cubinates'"
             )
-    
+
     def get_q_lab_regular_grid(self, arrangement: str="list"):
         """
         Get the regular grid used for the orthogonalization in the q lab
@@ -725,7 +725,7 @@ class Interpolator3D:
     """
     A class to handle 3D interpolations using the
     RegularGridInterpolator of scipy.interpolate. This class deals with the 
-    shape of the target space based on the shape in the original sapce and the
+    shape of the target space based on the shape in the original space and the
     given transfer matrix.
     """
     def __init__(
@@ -804,7 +804,7 @@ class Interpolator3D:
 
         if scale is None:
             scale = [1, 1, 1]
-        
+
         return np.meshgrid(
             np.arange(-shape[0]//2, shape[0]//2, 1) * scale[0],
             np.arange(-shape[1]//2, shape[1]//2, 1) * scale[1],
@@ -867,7 +867,7 @@ class Interpolator3D:
     
     def __call__(self, data: np.ndarray) -> np.ndarray:
         """
-        Override the __call__ function. When called, the class 
+        Override the __call__ function. When called, the class
         instance runs the interpolation.
         """
         rgi = RegularGridInterpolator(

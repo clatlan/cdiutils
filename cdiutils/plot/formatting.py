@@ -75,52 +75,50 @@ def set_plot_configs():
 
 
 def update_plot_params(
-        usetex=True,
-        max_open_warning=100,
-        dpi=200,
-        lines_marker="",
-        lines_linewidth=2.5,
-        lines_linestyle="-",
-        lines_markersize=7,
-        figure_titlesize=22,
-        font_size=16,
-        axes_titlesize=16,
-        axes_labelsize=16,
-        xtick_labelsize=12,
-        ytick_labelsize=12,
-        legend_fontsize=10,
+        usetex: bool=True,
+        max_open_warning: int=100,
+        dpi: int=200,
+        lines_marker: str="",
+        lines_linewidth: str=2.5,
+        lines_linestyle: str="-",
+        lines_markersize: int=7,
+        figure_titlesize: int=22,
+        font_size: int=16,
+        axes_titlesize: int=16,
+        axes_labelsize: int=16,
+        xtick_labelsize: int=12,
+        ytick_labelsize: int=12,
+        legend_fontsize: int=10,
         **kwargs
-):
-    if usetex:
-        matplotlib.pyplot.rcParams.update(
-            {
-                "figure.max_open_warning": max_open_warning,
-                "figure.dpi": dpi,
-                "lines.marker": lines_marker,
-                "text.usetex": True,
-                'text.latex.preamble':
-                    r'\usepackage{siunitx}'
-                    r'\sisetup{detect-all}'
-                    r'\usepackage{helvet}'
-                    r'\usepackage{sansmath}'
-                    r'\sansmath',
-                "lines.linewidth": lines_linewidth,
-                "lines.linestyle": lines_linestyle,
-                "lines.markersize": lines_markersize,
-                "figure.titlesize": figure_titlesize,
-                "font.size": font_size,
-                "axes.titlesize": axes_titlesize,
-                "axes.labelsize": axes_labelsize,
-                "xtick.labelsize": xtick_labelsize,
-                "ytick.labelsize": ytick_labelsize,
-                "legend.fontsize": legend_fontsize,
-                "image.cmap": "turbo"
-            }
-        )
-    else:
-        matplotlib.pyplot.rcParams.update({"mathtext.default": "regular"})
-
-    # set_plot_configs()
+) -> None:
+    """Update the matplotlib plot parameters to plublication style"""
+    matplotlib.pyplot.rcParams.update(
+        {
+            "figure.max_open_warning": max_open_warning,
+            "figure.dpi": dpi,
+            "lines.marker": lines_marker,
+            "mathtext.default": "regular",
+            "text.usetex": usetex,
+            'text.latex.preamble':
+                r'\usepackage{siunitx}'
+                r'\sisetup{detect-all}'
+                r'\usepackage{helvet}'
+                r'\usepackage{sansmath}'
+                r'\sansmath' if usetex else None,
+            "lines.linewidth": lines_linewidth,
+            "lines.linestyle": lines_linestyle,
+            "lines.markersize": lines_markersize,
+            "figure.titlesize": figure_titlesize,
+            "font.size": font_size,
+            "axes.titlesize": axes_titlesize,
+            "axes.labelsize": axes_labelsize,
+            "xtick.labelsize": xtick_labelsize,
+            "ytick.labelsize": ytick_labelsize,
+            "legend.fontsize": legend_fontsize,
+            "image.cmap": "turbo"
+        }
+    )
+    matplotlib.pyplot.rcParams.update(kwargs)
 
 
 def plot_background(
@@ -135,7 +133,8 @@ def plot_background(
     return ax
 
 
-def white_interior_ticks_labels(ax):
+def white_interior_ticks_labels(ax: matplotlib.axes.Axes) -> None:
+    """Place the ticks and labels inside the provided axis."""
     ax.tick_params(axis="x",direction="in", pad=-15, colors="w")
     ax.tick_params(axis="y",direction="in", pad=-25, colors="w")
     ax.xaxis.set_ticks_position("bottom")
@@ -163,9 +162,9 @@ class MathTextSciFormatter(mticker.Formatter):
         sign = tup[1][0].replace(positive_sign, '')
         exponent = tup[1][1:].lstrip('0')
         if exponent:
-            exponent = '10^{%s%s}' % (sign, exponent)
+            exponent = f"10^{sign, exponent}"
         if significand and exponent:
-            s =  r'%s{\times}%s' % (significand, exponent)
+            s =  fr"{significand}\times{exponent}"
         else:
-            s =  r'%s%s' % (significand, exponent)
-        return "${}$".format(s)
+            s =  fr"{significand, exponent}"
+        return f"${s}$"

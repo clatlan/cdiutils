@@ -27,7 +27,7 @@ def get_cmap_dict_from_json(file_path):
     return my_cmap
 
 
-def get_data_from_cxi(file, *items):
+def load_data_from_cxi(file, *items):
 
     """
     Get data from .cxi file.
@@ -40,7 +40,6 @@ def get_data_from_cxi(file, *items):
     """
 
     data_dic = {}
-    print("[INFO] Opening file:", file)
 
     try:
         data = h5py.File(file, "r")
@@ -48,8 +47,8 @@ def get_data_from_cxi(file, *items):
         if "support" in items:
             data_dic["support"] = data["entry_1/image_1/support"][...]
 
-        if "electronic_density" in items:
-            data_dic["electronic_density"] = data["entry_1/data_1/data"][...]
+        if "reconstructed_data" in items:
+            data_dic["reconstructed_data"] = data["entry_1/data_1/data"][...]
 
         if "llkf" in items:
             data_dic["llkf"] = float(data["entry_1/image_1/process_1/results/"
