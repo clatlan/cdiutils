@@ -26,24 +26,29 @@ def pretty_print(text: str, max_char_per_line: int=80) -> None:
     print(stars + "\n")
 
 
-def size_up_support(support):
+def size_up_support(support: np.ndarray) -> np.ndarray:
     kernel = np.ones(shape=(3, 3, 3))
     convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
     return np.where(convolved_support > 3, 1, 0)
 
 # TODO:  Check out new parameters in function find_hull
 def find_hull(
-        volume,
-        threshold=18,
-        kernel_size=3,
-        boolean_values=False,
-        nan_value=False):
+        volume: np.ndarray,
+        threshold: float=18,
+        kernel_size: int=3,
+        boolean_values: bool=False,
+        nan_value: bool=False
+) -> np.ndarray:
     """
     Find the convex hull of a 3D volume object.
     :param volume: 3D np.array. The volume to get the hull from.
     :param threshold: threshold that selects what belongs to the
     hull or not (int). If threshold >= 27, the returned hull will be
     similar to volume.
+    :kernel_size: the size of the kernel used to convolute (int).
+    :boolean_values: whether or not to return 1 and 0 np.ndarray
+    or the computed coordination.
+
     :returns: the convex hull of the shape accordingly to the given
     threshold (np.array).
     """
@@ -57,20 +62,31 @@ def find_hull(
     return hull
 
 
-def make_support(data, isosurface=0.5, nan_values=False):
+def make_support(
+        data: np.ndarray,
+        isosurface: float=0.5,
+        nan_values: bool=False
+) -> np.ndarray:
+    """Create a support using the provided isosurface value."""
     return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
 
 
-def unit_vector(vector):
+def unit_vector(
+        vector: Union[tuple, list, np.ndarray]
+)-> Union[tuple, list, np.ndarray]:
     """Return a unit vector."""
     return vector / np.linalg.norm(vector)
 
 
-def angle(v1, v2):
+def angle(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Compute angle between two vectors."""
     return np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
 
 
-def v1_to_v2_rotation_matrix(v1, v2):
+def v1_to_v2_rotation_matrix(
+        v1: np.ndarray,
+        v2: np.ndarray
+) -> np.ndarray:
     """ 
     Rotation matrix around axis v1xv2
     """
@@ -90,7 +106,11 @@ def v1_to_v2_rotation_matrix(v1, v2):
     return r
 
 
-def normalize(data, zero_centered=False):
+def normalize(
+        data: np.ndarray,
+        zero_centered: bool=False
+) -> np.ndarray:
+    """Normalize a np.ndarray so the values are between 0 and 1."""
     if zero_centered:
         abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
         vmin, vmax = -abs_max, abs_max
@@ -103,7 +123,7 @@ def normalize(data, zero_centered=False):
 def basic_filter(data, maplog_min_value=3.5):
     return np.power(xu.maplog(data, maplog_min_value, 0), 10)
 
-def normalize_complex_array(array):
+def normalize_complex_array(array: np.ndarray) -> np.ndarray:
     """Normalize a array of complex numbers."""
     shifted_array = array - array.real.min() - 1j*array.imag.min()
     return shifted_array/np.abs(shifted_array).max()
@@ -179,10 +199,13 @@ def center(
     return centered_data
 
 
-def symmetric_pad(data, final_shape=None, values=0):
-    if final_shape is None:
-        print("No final_shape given, data will not be padded")
-        return data
+def symmetric_pad(
+        data: np.ndarray,
+        final_shape: Union[tuple, list, np.ndarray],
+        values: float=0
+) -> np.ndarray:
+    """Return padded data so it matches the provided final_shape"""
+
     shape = data.shape
 
     axis0_pad_width = (final_shape[0] - shape[0]) // 2
@@ -239,7 +262,15 @@ def crop_at_center(data, final_shape=None):
     return cropped
 
 
-def compute_distance_from_com(data, com=None):
+def compute_distance_from_com(
+        data: np.ndarray,
+        com: Union[tuple, list, np.ndarray]=None
+) -> np.ndarray:
+    """
+    Return a np.ndarray of the same shape of the provided data.
+    (i, j, k) Value will correspond to the distance of the (i, j, k)
+    voxel in data to the center of mass if that voxel is not null.
+    """
     nonzero_coordinates = np.nonzero(data)
     distance_matrix = np.zeros(shape=data.shape)
 
@@ -255,19 +286,31 @@ def compute_distance_from_com(data, com=None):
     return distance_matrix
 
 
-def zero_to_nan(data, boolean_value=False):
-    return np.where(data == 0, np.nan, 1 if boolean_value else data)
+def zero_to_nan(
+        data: np.ndarray,
+        boolean_values: bool=False
+) -> np.ndarray:
+    """Convert zero values to np.nan."""
+    return np.where(data == 0, np.nan, 1 if boolean_values else data)
 
 
-def nan_to_zero(data, boolean_value=False):
-    return np.where(np.isnan(data), 0, 1 if boolean_value else data)
+def nan_to_zero(data: np.ndarray,
+        boolean_values: bool=False
+) -> np.ndarray:
+     """Convert np.nan values to 0."""
+    return np.where(np.isnan(data), 0, 1 if boolean_values else data)
 
 
-def to_bool(data, nan_value=False):
+def to_bool(data: np.ndarray, nan_value: bool=False) -> np.ndarray:
+    """Convert values to 1 (True) if not nan otherwise to 0 (False)"""
     return np.where(np.isnan(data), np.nan if nan_value else 0, 1)
 
 
-def nan_center_of_mass(data, indices=None):
+def nan_center_of_mass(data: np.ndarray, indices=None) -> np.ndarray:
+    """
+    Compute the center of mass of a np.ndarray that may contain
+    nan values.
+    """
     non_nan_coord = np.where(np.invert(np.isnan(data)))
     com = np.average(
         [non_nan_coord], axis=2,
@@ -284,7 +327,7 @@ def compute_corrected_angles(
         direct_beam_position: tuple,
         pixel_size: float=55e-6,
         verbose=False
-):
+) -> tuple[float, float]:
     """
     Compute the detector corrected angles given the angles saved in the
     experiment data file and the position of interest in the detector frame
