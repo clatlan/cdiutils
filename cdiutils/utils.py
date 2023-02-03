@@ -31,7 +31,6 @@ def size_up_support(support: np.ndarray) -> np.ndarray:
     convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
     return np.where(convolved_support > 3, 1, 0)
 
-# TODO:  Check out new parameters in function find_hull
 def find_hull(
         volume: np.ndarray,
         threshold: float=18,
