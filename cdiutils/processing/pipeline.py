@@ -28,15 +28,15 @@ def make_parameter_file_path(
         scan: int,
         sample_name: str,
         working_directory: str,
-        data_dir: str=None 
+        data_dir: str=None
 ) -> None:
 
     dump_directory = "/".join((
         working_directory, sample_name, f"S{scan}"))
-    
+
     with open(parameter_file_path_template, "r", encoding="utf8") as f:
         source = Template(f.read())
-    
+
     parameter_file_path = source.substitute(
         {
             "scan": scan,
