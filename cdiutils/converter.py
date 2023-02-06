@@ -618,11 +618,42 @@ class SpaceConverter():
         if isinstance(data, (tuple, list)):
             axis0, axis1, axis2 = data
             return type(data)((axis0, axis2, axis1))
-        elif isinstance(data, np.ndarray):
+        if isinstance(data, np.ndarray):
             if data.shape == (3, ):
                 return np.array([data[0], data[2], data[1]])
-            else:
-                return np.swapaxes(data, axis1=1, axis2=2)
+            return np.swapaxes(data, axis1=1, axis2=2)
+        else:
+            raise TypeError(
+                "data should be a 3D np.ndarray, a list of 3 values, a tuple "
+                "of 3 values or a np.ndarray of 3 values."
+            )
+    @staticmethod
+    def cxi_to_lab_conventions(
+            data: Union[np.ndarray, tuple, list]
+    ) -> Union[np.ndarray, tuple, list]:
+        """
+        Convert the a np.ndarray, a list or a tuple from the cxi frame
+        system to the lab frame conventions.
+        [
+            axis0=Zcxi (pointing away from the light source),
+            axis1=Ycxi (vertical up),
+            axis2=Xcxi (horizontal completing the right handed system)
+        ]
+        will be converted into
+        [
+            axis0=Xlab (pointing away from the light source),
+            axis1=Ylab (outboard),
+            axis2=Zlab (vertical up)
+        ]
+        
+        """
+        if isinstance(data, (tuple, list)):
+            axis0, axis1, axis2 = data
+            return type(data)((axis0, axis2, axis1))
+        if isinstance(data, np.ndarray):
+            if data.shape == (3, ):
+                return np.array([data[0], data[2], data[1]])
+            return np.swapaxes(data, axis1=1, axis2=2)
         else:
             raise TypeError(
                 "data should be a 3D np.ndarray, a list of 3 values, a tuple "
@@ -769,7 +800,7 @@ class Interpolator3D:
         original space grid in the target space.
         """
 
-        grid_axis0, grid_axis1, grid_axis2 = self._zero_centered_meshgrid(
+        grid_axis0, grid_axis1, grid_axis2 = self.zero_centered_meshgrid(
             self.original_shape
         )
         
@@ -787,13 +818,13 @@ class Interpolator3D:
         )
 
         # define a regular grid in the target space with the computed extent
-        self.target_grid = self._zero_centered_meshgrid(
+        self.target_grid = self.zero_centered_meshgrid(
             shape=self.extents,
             scale=self.target_voxel_size
         )
 
-    def _zero_centered_meshgrid(
-            self,
+    @staticmethod
+    def zero_centered_meshgrid(
             shape: Union[np.ndarray, list, tuple],
             scale: Optional[Union[np.ndarray, list, tuple]]=None
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
