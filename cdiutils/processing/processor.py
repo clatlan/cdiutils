@@ -14,11 +14,12 @@ from vtk.util import numpy_support
 
 from cdiutils.utils import (
     center, crop_at_center, find_isosurface, zero_to_nan, find_max_pos,
-    shape_for_safe_centered_cropping, make_support
+    shape_for_safe_centered_cropping, make_support, symmetric_pad,
+    normalize
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
-from cdiutils.converter import SpaceConverter
+from cdiutils.converter import SpaceConverter, Interpolator3D
 from cdiutils.geometry import Geometry
 from cdiutils.processing.phase import (
     get_structural_properties, blackman_apodize, flip_reconstruction
@@ -26,14 +27,15 @@ from cdiutils.processing.phase import (
 from cdiutils.processing.plot import (
     preprocessing_detector_data_plot, summary_slice_plot,
     plot_direct_lab_orthogonalization_process,
-    plot_q_lab_orthogonalization_process
+    plot_q_lab_orthogonalization_process,
+    plot_final_object_fft
 )
 from cdiutils.plot.formatting import update_plot_params
 
 
 def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
     """
-    Load the right loader based on the beamline_setup parameter 
+    Load the right loader based on the beamline_setup parameter
     in the metadata dictionary
     """
     if metadata["beamline_setup"] == "ID01BLISS":
@@ -56,7 +58,7 @@ def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
             "The provided beamline_setup is not known yet"
         )
 
-
+# TODO: Redundancy of attributes and parameters 
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
@@ -91,6 +93,7 @@ class BcdiProcessor:
         self.lattice_parameter_com = None
 
         self.orthgonolized_data = None
+        self.orthogonalized_intensity = None
         self.voxel_size = None
         self.structural_properties = {}
         self.averaged_dspacing = None
@@ -122,18 +125,20 @@ class BcdiProcessor:
             "q_lab_orthogonalization": {
                 "name": "q_lab_orthogonaliztion_plot",
                 "debug": True
+            },
+            "final_object_fft": {
+                "name": "final_object_fft",
+                "debug": True
             }
         }
         for value in self.figures.values():
             value["figure"] = None
-        
+
         # initialise the loader, the space converter and the plot parameters
         self._init_loader()
         self._init_space_converter()
         self._init_plot_parameters()
 
-
-    
     def _init_loader(self) -> None:
         self.loader = loader_factory(self.parameters["metadata"])
 
@@ -147,7 +152,7 @@ class BcdiProcessor:
         self.space_converter.init_q_space_area(
             self.parameters["det_calib_parameters"]
         )
-    
+
     def _init_plot_parameters(self):
         update_plot_params(
             usetex=self.parameters["usetex"],
@@ -158,15 +163,6 @@ class BcdiProcessor:
                 "figure.titlesize": 18,
             }
         )
-
-    # def load_parameters(self, path: str) -> None:
-    #     with open(path, "r", encoding="utf8") as file:
-    #         args = yaml.load(file, Loader=yaml.FullLoader)["cdiutils"]
-    #         args["preprocessing_output_shape"] = tuple(
-    #             args["preprocessing_output_shape"]
-    #         )
-
-    #     self.parameters = args
 
     def load_data(self) -> None:
         self.detector_data = self.loader.load_detector_data(
@@ -186,11 +182,12 @@ class BcdiProcessor:
                 self.detector_outofplane_angle,
                 self.detector_inplane_angle
         )
-        
+
         self.mask = self.loader.get_mask(
             channel=self.detector_data.shape[0],
             detector_name=self.parameters["metadata"]["detector_name"]
         )
+
     def verbose_print(self, text: str, **kwargs) -> None:
         if self.parameters["verbose"]:
             wrapper = textwrap.TextWrapper(
@@ -342,7 +339,7 @@ class BcdiProcessor:
             f"The max corresponds to a d-spacing of {self.dspacing_max:.4f} A "
             f"and a lattice parameter of {self.lattice_parameter_max:.4f} A\n\n"
             f"Com in the full detector frame at "
-            f"{tuple([round(det_com_voxel[i], 2) for i in range(3)])} "
+            f"{(round(det_com_voxel[i], 2) for i in range(3))} "
             f"(based on a {final_shape[1], final_shape[2]} max-centered "
             "bounding box)\n"
             "Com in the cropped detector frame at "
@@ -454,14 +451,21 @@ class BcdiProcessor:
             reconstruction_file_path
         )
         # check if the reconstructed object is correctly centered
-        reconstructed_amplitude = np.abs(reconstructed_object)
+        reconstructed_amplitude = normalize(np.abs(reconstructed_object))
         support = make_support(
             reconstructed_amplitude,
             isosurface=find_isosurface(reconstructed_amplitude)
         )
-        com = tuple(int(e) for e in center_of_mass(support))
+        com = tuple(e for e in center_of_mass(support))
         reconstructed_amplitude = center(reconstructed_amplitude, where=com)
         reconstructed_phase = center(np.angle(reconstructed_object), where=com)
+
+        support, c = center(support, where=com, return_former_center=True)
+        print(
+            tuple(e for e in center_of_mass(support)),
+            reconstructed_amplitude.shape,
+            c
+        )
 
         # find the maximum of the Bragg peak, this is will be taken as
         # the space origin for the orthogonalization
@@ -490,7 +494,7 @@ class BcdiProcessor:
 
         # crop the detector data and the reconstructed data to the same
         # shape
-        cropped_data = crop_at_center(cropped_data, final_shape)
+        self.cropped_detector_data = crop_at_center(cropped_data, final_shape)
         reconstructed_amplitude = crop_at_center(
             reconstructed_amplitude,
             final_shape
@@ -509,7 +513,7 @@ class BcdiProcessor:
             f"{self.parameters['voxel_size']} nm"
         )
         self.space_converter.init_interpolator(
-            cropped_data,
+            self.cropped_detector_data,
             final_shape,
             space="both",
             direct_space_voxel_size=self.parameters["voxel_size"]
@@ -544,15 +548,21 @@ class BcdiProcessor:
                 plot_direct_lab_orthogonalization_process(
                     reconstructed_amplitude,
                     orthogonalized_amplitude,
-                    self.space_converter.get_direct_lab_regular_grid()
+                    self.space_converter.get_direct_lab_regular_grid(),
+                    title=(
+                    r"From \textbf{detector frame} to \textbf{direct lab frame}"
+                    f", S{self.parameters['metadata']['scan']}"
+                    )
                 )
             )
 
-            orthogonalized_intensity = self.space_converter.orthogonalize_to_q_lab(
-                cropped_data
+            self.orthogonalized_intensity = (
+                self.space_converter.orthogonalize_to_q_lab(
+                    self.cropped_detector_data
+                )
             )
 
-            where_in_det_space = find_max_pos(cropped_data)
+            where_in_det_space = find_max_pos(self.cropped_detector_data)
             where_in_ortho_space = (
                 self.space_converter.index_cropped_det_to_index_of_q_lab(
                     where_in_det_space
@@ -562,11 +572,15 @@ class BcdiProcessor:
 
             self.figures["q_lab_orthogonalization"]["figure"] = (
                 plot_q_lab_orthogonalization_process(
-                    cropped_data,
-                    orthogonalized_intensity,
+                    self.cropped_detector_data,
+                    self.orthogonalized_intensity,
                     q_lab_regular_grid,
                     where_in_det_space,
-                    where_in_ortho_space
+                    where_in_ortho_space,
+                    title=(
+                        r"From \textbf{detector frame} to \textbf{q lab frame}"
+                        f", S{self.parameters['metadata']['scan']}"
+                    )
                 )
             )
 
@@ -614,7 +628,7 @@ class BcdiProcessor:
         )
         self.verbose_print("done.")
         self.verbose_print(
-            f"[INFO] isosurface estimated to be {isosurface}")
+            f"[INFO] isosurface estimated at {isosurface}")
 
         if self.parameters["isosurface"] is not None:
             self.verbose_print(
@@ -685,6 +699,52 @@ class BcdiProcessor:
             single_vmax=self.structural_properties["local_strain"].ptp()/2,
             **strain_plots
         )
+
+        if self.parameters["debug"]:
+            shape = self.orthogonalized_intensity.shape
+            # convert to lab conventions and pad the data
+            final_object_fft = symmetric_pad(
+                self.space_converter.cxi_to_lab_conventions(
+                    self.structural_properties["amplitude"]
+                    * np.exp(1j*self.structural_properties["phase"])
+                ),
+                final_shape=shape
+            )
+            final_object_fft = np.abs(
+                np.fft.ifftshift(
+                    np.fft.fftn(
+                        np.fft.fftshift(final_object_fft)
+                    )
+                )
+            )
+
+            extension = np.multiply(self.voxel_size, shape)
+            voxel_size_of_fft_object = (2*np.pi / (10 * extension))
+
+            final_object_q_lab_grid = (
+                np.arange(-shape[0]//2, shape[0]//2, 1) * voxel_size_of_fft_object[0],
+                np.arange(-shape[1]//2, shape[1]//2, 1) * voxel_size_of_fft_object[1],
+                np.arange(-shape[2]//2, shape[2]//2, 1) * voxel_size_of_fft_object[2],
+            )            
+
+            where_in_det_space = find_max_pos(self.cropped_detector_data)
+            where_in_ortho_space = (
+                self.space_converter.index_cropped_det_to_index_of_q_lab(
+                    where_in_det_space
+                )
+            )
+            exp_data_q_lab_grid = self.space_converter.get_q_lab_regular_grid()
+            self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
+                final_object_fft,
+                self.orthogonalized_intensity,
+                final_object_q_lab_grid,
+                exp_data_q_lab_grid,
+                where_in_ortho_space=where_in_ortho_space,
+                title=(
+                    r"FFT of final object \textit{vs.} experimental data"
+                    f", S{self.parameters['metadata']['scan']}"
+                )
+            )
 
     def save_postprocessed_data(self) -> None:
 

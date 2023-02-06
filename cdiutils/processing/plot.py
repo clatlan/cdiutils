@@ -536,6 +536,7 @@ def plot_q_lab_orthogonalization_process(
         q_lab_regular_grid: np.ndarray,
         where_in_det_space: Optional[tuple]=None,
         where_in_ortho_space: Optional[tuple]=None,
+        title: str=""
 ) -> matplotlib.figure.Figure:
     """
     Plot the intensity in the detector frame, index-of-q lab frame
@@ -607,7 +608,7 @@ def plot_q_lab_orthogonalization_process(
         ),
         origin="lower"
     )
-    
+
     axes[1, 2].matshow(
         np.log(orthogonalized_data[:, :, where_in_ortho_space[2]]+1),
         origin="lower"
@@ -685,7 +686,7 @@ def plot_q_lab_orthogonalization_process(
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
-    figure.suptitle(r"From \textbf{detector frame} to \textbf{q lab frame}")
+    figure.suptitle(title)
     text = (
         "The white X marker shows the\nreference voxel used for the"
         "\ntransformation"
@@ -699,7 +700,8 @@ def plot_q_lab_orthogonalization_process(
 def plot_direct_lab_orthogonalization_process(
         detector_direct_space_data: np.ndarray,
         direct_lab_data: np.ndarray,
-        direct_lab_regular_grid: list[np.ndarray]
+        direct_lab_regular_grid: list[np.ndarray],
+        title: str=""
 ) -> matplotlib.figure.Figure:
     """
     Plot the intensity in the detector frame, index-of-direct lab frame
@@ -807,7 +809,181 @@ def plot_direct_lab_orthogonalization_process(
     for ax in axes.ravel():
         white_interior_ticks_labels(ax)
 
-    figure.suptitle(r"From \textbf{detector frame} to \textbf{direct lab frame}")
+    figure.suptitle(title)
+    figure.tight_layout()
+
+    return figure
+
+
+def plot_final_object_fft(
+        final_object_fft: np.ndarray,
+        experimental_ortho_data: np.ndarray,
+        final_object_q_lab_regular_grid: np.ndarray,
+        exp_data_q_lab_regular_grid: np.ndarray,
+        where_in_ortho_space: Optional[tuple]=None,
+        title: str=""
+) -> matplotlib.figure.Figure:
+    figure, axes = plt.subplots(2, 3, figsize=(12, 8))
+
+    plot_at = tuple(e // 2 for e in final_object_fft.shape)
+
+    # load the orthogonalized grid values
+    x_array, y_array, z_array = final_object_q_lab_regular_grid
+
+     # careful here, in contourf it is not the matrix convention !
+    axes[0, 0].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                final_object_fft[plot_at[0]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[0, 1].contourf(
+        x_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                final_object_fft[:, plot_at[1]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[0, 2].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        x_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            final_object_fft[:, :, plot_at[2]]
+            +1 # add 1 to avoid log(0)
+        ),
+        levels=100,
+    )
+
+    # axes[0, 0].matshow(
+    #     np.log10(np.swapaxes(final_object_fft[plot_at[0]], axis1=0, axis2=1)+1),
+    #     origin="lower"
+    # )
+
+    # axes[0, 1].matshow(
+    #     np.log10(
+    #         np.swapaxes(final_object_fft[:, plot_at[1]] + 1, axis1=0, axis2=1)
+    #     ),
+    #     origin="lower"
+    # )
+
+    # axes[0, 2].matshow(
+    #     np.log10(final_object_fft[:, :, plot_at[2]] + 1),
+    #     origin="lower"
+    # )
+
+    # plot_at = tuple(e // 2 for e in experimental_data.shape)
+    # axes[1, 0].matshow(
+    #     np.log10(
+    #         np.swapaxes(experimental_data[plot_at[0]] + 1, axis1=0, axis2=1)
+    #     ),
+    #     origin="lower"
+    # )
+
+    # axes[1, 1].matshow(
+    #     np.log10(
+    #         np.swapaxes(experimental_data[:, plot_at[1]], axis1=0, axis2=1)+1),
+    #     origin="lower"
+    # )
+
+    # axes[1, 2].matshow(
+    #     np.log10(experimental_data[:, :, plot_at[2]]+1),
+    #     origin="lower"
+    # )
+
+    # load the orthogonalized grid values
+    x_array, y_array, z_array = exp_data_q_lab_regular_grid
+
+    # careful here, in contourf it is not the matrix convention !
+    axes[1, 0].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                experimental_ortho_data[where_in_ortho_space[0]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[1, 1].contourf(
+        x_array, # must be the matplotlib xaxis array / numpy axis1
+        z_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            np.swapaxes(
+                experimental_ortho_data[:, where_in_ortho_space[1]]+1,
+                axis1=0,
+                axis2=1
+            )
+        ),
+        levels=100,
+    )
+
+    axes[1, 2].contourf(
+        y_array, # must be the matplotlib xaxis array / numpy axis1
+        x_array, # must be the matplotlib yaxis array / numpy axis0
+        np.log(
+            experimental_ortho_data[:, :, where_in_ortho_space[2]]
+            +1 # add 1 to avoid log(0)
+        ),
+        levels=100,
+    )
+
+    ANGSTROM_SYMBOL, _, _ = set_plot_configs()
+    for i in range(2):
+        axes[i, 0].set_xlabel(
+            r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        axes[i, 0].set_ylabel(
+            r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        axes[i, 1].set_xlabel(
+            r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        axes[i, 1].set_ylabel(
+            r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        axes[i, 2].set_xlabel(
+            r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        axes[i, 2].set_ylabel(
+            r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+
+
+    # axes[0, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    # axes[0, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    # axes[0, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
+    # axes[0, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    # axes[0, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    # axes[0, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
+
+    # axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    # axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    # axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
+    # axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
+    # axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
+    # axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
+
+    axes[0, 1].set_title(
+        r"FFT of final object in \textbf{centered q lab frame}")
+    axes[1, 1].set_title(
+        r"Orthogonalized experimental data in \textbf{q lab frame}")
+
+    figure.canvas.draw()
+    for ax in axes.ravel():
+        ax.set_aspect("equal")
+        white_interior_ticks_labels(ax)
+
+    figure.suptitle(title)
     figure.tight_layout()
 
     return figure
