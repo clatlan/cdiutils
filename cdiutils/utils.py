@@ -10,7 +10,6 @@ import xrayutilities as xu
 from cdiutils.plot.formatting import plot_background
 
 
-
 def pretty_print(text: str, max_char_per_line: int=80) -> None:
     """Print text with a frame of stars."""
 
@@ -94,10 +93,10 @@ def v1_to_v2_rotation_matrix(
 
     theta = angle(v1, v2)
 
-    n1, n2, n3 = normed_vrot    
+    n1, n2, n3 = normed_vrot
     ct = np.cos(theta)
     st = np.sin(theta)
-    
+
     r = np.array(((ct+n1**2*(1-ct), n1*n2*(1-ct)-n3*st, n1*n3*(1-ct)+n2*st),
                   (n1*n2*(1-ct)+n3*st, ct+n2**2*(1-ct), n2*n3*(1-ct)-n1*st),
                   (n1*n3*(1-ct)-n2*st, n2*n3*(1-ct)+n1*st, ct+n3**2*(1-ct))
@@ -154,7 +153,21 @@ def shape_for_safe_centered_cropping(
         return tuple(secured_shape)
     else:
         return tuple(np.min([secured_shape, final_shape], axis=0))
-    
+
+
+def _center_at_com(data: np.ndarray):
+    shape = data.shape
+    com = tuple(e for e in center_of_mass(data))
+    print((np.array(shape)/2 == np.array(com)).all())
+    com_to_center = np.array([
+        int(np.rint(shape[i]/2 - com[i]))
+        for i in range(3)
+    ])
+    if (com_to_center == np.array((0, 0, 0)).astype(int)).all():
+        return data, com
+    data = center(data, where=com)
+    return _center_at_com(data)
+
 
 def center(
         data: np.ndarray,
@@ -178,19 +191,27 @@ def center(
     if where == "max":
         reference_position = find_max_pos(data)
     elif where == "com":
-        reference_position = tuple(int(e) for e in center_of_mass(data))
+        reference_position = tuple(e for e in center_of_mass(data))
     elif isinstance(where, (tuple, list)) and len(where) == 3:
-        reference_position = tuple(where) if isinstance(where, list) else where
+        reference_position = tuple(where)
     else:
         raise ValueError(
-            "where must be 'max', 'com' or tuple or list of 3 integer "
+            "where must be 'max', 'com' or tuple or list of 3 floats "
             f"coordinates, can't be {where}"
         )
     xcenter, ycenter, zcenter = reference_position
 
-    centered_data = np.roll(data, shape[0] // 2 - xcenter, axis=0)
-    centered_data = np.roll(centered_data, shape[1] // 2 - ycenter, axis=1)
-    centered_data = np.roll(centered_data, shape[2] // 2 - zcenter, axis=2)
+    centered_data = np.roll(data, int(np.rint(shape[0] / 2 - xcenter)), axis=0)
+    centered_data = np.roll(
+        centered_data,
+        int(np.rint(shape[1] / 2 - ycenter)),
+        axis=1
+    )
+    centered_data = np.roll(
+        centered_data,
+        int(np.rint(shape[2] / 2 - zcenter)),
+        axis=2
+    )
 
     if return_former_center:
         return centered_data, (xcenter, ycenter, zcenter)
@@ -222,7 +243,6 @@ def symmetric_pad(
         constant_values=values
     )
 
-
 def crop_at_center(data, final_shape=None):
     """
     Crop 3D array data to match the final_shape. Center of the input
@@ -232,7 +252,7 @@ def crop_at_center(data, final_shape=None):
     happens.
     :returns: cropped 3D array (np.array).
     """
-    
+
     if final_shape is None:
         print("No final shape specified, did not proceed to cropping")
         return data
@@ -243,8 +263,8 @@ def crop_at_center(data, final_shape=None):
     if not (final_shape <= data.shape).all():
         print(
             "One of the axis of the final shape is larger than "
-            "the initial axis (initial shape: {}, final shape: {}).\n"
-            "Did not proceed to cropping.".format(shape, tuple(final_shape))
+            f"the initial axis (initial shape: {shape}, final shape: "
+            f"{tuple(final_shape)}).\nDid not proceed to cropping."
         )
         return data
 
@@ -293,10 +313,11 @@ def zero_to_nan(
     return np.where(data == 0, np.nan, 1 if boolean_values else data)
 
 
-def nan_to_zero(data: np.ndarray,
+def nan_to_zero(
+        data: np.ndarray,
         boolean_values: bool=False
 ) -> np.ndarray:
-     """Convert np.nan values to 0."""
+    """Convert np.nan values to 0."""
     return np.where(np.isnan(data), 0, 1 if boolean_values else data)
 
 
@@ -443,13 +464,13 @@ def find_isosurface(
 
     max_index = np.argmax(fitted_counts)
     right_gaussian_part = np.where(x >= x[max_index], fitted_counts, 0)
-    
+
     # find the closest indexes
     right_HM_index = np.argmin(
         np.abs(right_gaussian_part - fitted_counts.max() / 2)
     )  
     left_HM_index = max_index - (right_HM_index - max_index)
-    
+
     fwhm = x[right_HM_index] - x[left_HM_index]
     sigma_estimate = fwhm / 2*np.sqrt(2*np.log(2))
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
