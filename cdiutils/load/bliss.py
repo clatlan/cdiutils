@@ -2,16 +2,10 @@ from typing import Optional, Union, Callable
 import numpy as np
 import os
 import silx.io.h5py_utils
-import xrayutilities as xu
 
-
-# def safe(func: Callable) -> Callable:
-#     def wrap(self, *args, **kwargs):
-#         with silx.io.h5py_utils.File(self.experiment_file_path) as h5file:
-#             return func(self, h5file, *args, **kwargs)
-#     return wrap
 
 def safe(func: Callable) -> Callable:
+    """A wrapper to safely load data in h5 file"""
     def wrap(self, *args, **kwargs):
         with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
             return func(self, *args, **kwargs)
@@ -19,6 +13,10 @@ def safe(func: Callable) -> Callable:
 
 
 class BlissLoader():
+    """
+    A class to handle loading/reading .h5 files that were created using
+    Bliss on the ID01 beamline.
+    """
     def __init__(
             self,
             experiment_file_path: str,
@@ -44,22 +42,21 @@ class BlissLoader():
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
                 "np.ndarray or leave it to None"
             )
-    # @silx.io.h5py_utils.retry()
+
     @safe
     def load_detector_data(
             self,
-            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None,
-            # roi: Optional[tuple]=None,
             binning_along_axis0: Optional[int]=None,
             binning_method: Optional[str]="sum"
+    ) -> np.ndarray:
+        """Load the detector data of a given scan number."""
 
-        ):
         h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
-        
+
         key_path = "_".join((sample_name, str(scan))) + ".1"
         if self.detector_name == "flexible":
             try:
@@ -83,15 +80,14 @@ class BlissLoader():
                     binned_data.append(np.sum(data[last_slices:], axis=0))
                 data = np.asarray(binned_data)
         return data
-    
+
     @safe
     def show_scan_attributes(
             self,
-            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None,
-            
-        ):
+    ) -> None:
+        """Print the attributes (keys) of a given scan number"""
         h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
@@ -102,25 +98,30 @@ class BlissLoader():
     @safe
     def load_motor_positions(
             self,
-            # h5file: silx.io.h5py_utils.File,
             scan: int,
             sample_name: Optional[str]=None,
             binning_along_axis0: Optional[int]=None,
             binning_method: Optional[str]="mean"
-    ):
-        h5file = self.h5file
+    ) -> tuple:
+        """
+        Load the motor positions and return it in the following order:
+        - sample out of plane angle
+        - sample in plane angle
+        - detector in plane angle
+        - detector out of plane angle
+        """
 
         if sample_name is None:
             sample_name = self.sample_name
 
         key_path = "_".join(
-             (sample_name, str(scan))
+                (sample_name, str(scan))
         ) + ".1/instrument/positioners"
-    
-        nu = h5file[key_path + "/nu"][()]
-        delta = h5file[key_path + "/delta"][()]
-        eta = h5file[key_path + "/eta"][()]
-        phi = h5file[key_path + "/phi"][()]
+
+        nu = self.h5file[key_path + "/nu"][()]
+        delta = self.h5file[key_path + "/delta"][()]
+        eta = self.h5file[key_path + "/eta"][()]
+        phi = self.h5file[key_path + "/phi"][()]
 
         if binning_along_axis0:
             original_dim0 = eta.shape[0]
@@ -143,107 +144,80 @@ class BlissLoader():
         return eta, phi, nu, delta
 
     @safe
-    def load_measurement_parameter(
+    def load_measurement_parameters(
             self,
-            # h5file,
             sample_name: str,
             scan: int,
             parameter_name: str
-    ):
-        """
-        laod the measurement parameters of the specified scan
-        """
-        h5file = self.h5file
+    ) -> tuple:
+        """Load the measurement parameters of the specified scan."""
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/measurement"
-        requested_mes_parameter = h5file[f"{key_path}/{parameter_name}"][()]
-        return requested_mes_parameter
- 
+        requested_mes_parameters = self.h5file[
+            f"{key_path}/{parameter_name}"
+        ][()]
+        return requested_mes_parameters
+
     @safe
-    def load_instrument_parameter(
+    def load_instrument_parameters(
             self,
-            # h5file,
-            sample_name,
-            scan,
-            ins_parameter
-    ):
-        h5file = self.h5file
+            scan: int,
+            sample_name: str,
+            ins_parameter: str
+    ) -> tuple:
+        """Load the instrument parameters of the specified scan."""
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
-        requested_parameter = h5file[key_path + "/" + ins_parameter][()]
-        return requested_parameter
+        requested_parameters = self.h5file[
+            key_path + "/" + ins_parameter
+        ][()]
+        return requested_parameters
 
     @safe
-    def load_sample_parameter(
+    def load_sample_parameters(
             self,
-            # h5file,
-            sample_name,
-            scan,
-            sam_parameter
-    ):
-        h5file = self.h5file
+            scan: int,
+            sample_name: str,
+            sam_parameter: str
+    ) -> tuple:
+        """Load the sample parameters of the specified scan."""
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/sample"
-        requested_parameter = h5file[key_path + "/" + sam_parameter][()]
-        return requested_parameter
+        requested_parameters = self.h5file[
+            key_path + "/" + sam_parameter
+        ][()]
+        return requested_parameters
     
     @safe
     def load_plotselect_parameter(
             self,
-            # h5file,
             sample_name,
             scan,
             plot_parameter
-    ):
+    ) -> tuple:
+        """Load the plotselect parameters of the specified scan."""
         h5file = self.h5file
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/plotselect"
         requested_parameter = h5file[key_path + "/" + plot_parameter][()]
         return requested_parameter
-    
-    # def load_parameter(self, h5file, sample_name, scan, extra_path: str):
-    #     key_path = "_".join(sample_name, str(scan)) + extra_path
-    #     requested_parameter = h5file[key_path + "/" + ]
-        
-   
-    
-    def load_data_in_Q_space(
-            self,
-            scan: str,
-            sample_name: str,
-            hxrd: xu.HXRD
-    ):
-        data = self.load_detector_data(
-            sample_name=sample_name,
-            scan=scan,
-        )
-        eta, phi, nu, delta = self.load_motor_positions(
-            sample_name=sample_name,
-            scan=scan
-        )
-        detector_to_Q_space = hxrd.Ang2Q.area(eta, phi, nu, delta)# delta=(0, 0, 0, 0))
-        nx, ny, nz = data.shape
-        gridder = xu.FuzzyGridder3D(nx, ny, nz) # xu.Gridder3D
-        gridder(
-            detector_to_Q_space[0],
-            detector_to_Q_space[1],
-            detector_to_Q_space[2],
-            data
-        )
-        qx, qy, qz = gridder.xaxis, gridder.yaxis, gridder.zaxis
-        intensity = gridder.data
-        return intensity, (qx, qy, qz), detector_to_Q_space, data
-    
+
     @staticmethod
-    def get_mask(channel: Optional[int], detector_name: str="Maxipix") -> np.ndarray:
+    def get_mask(
+            channel: Optional[int],
+            detector_name: str="Maxipix"
+    ) -> np.ndarray:
+        """Load the mask of the given detector_name."""
+
         if detector_name in ("maxipix", "Maxipix", "mpxgaas"):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
             mask[255:261, :] = 1
+
         elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
             mask = np.zeros(shape=(2164, 1030))
             mask[:, 255:259] = 1
@@ -264,5 +238,4 @@ class BlissLoader():
             raise ValueError("Unknown detector_name")
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
-        else:
-            return mask
+        return mask
