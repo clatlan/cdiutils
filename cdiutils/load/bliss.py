@@ -93,7 +93,7 @@ class BlissLoader():
             sample_name = self.sample_name
         key_path = "_".join((sample_name, str(scan))) + ".1"
         print(h5file[key_path].keys())
-    
+
     # @silx.io.h5py_utils.retry()
     @safe
     def load_motor_positions(
@@ -190,7 +190,7 @@ class BlissLoader():
             key_path + "/" + sam_parameter
         ][()]
         return requested_parameters
-    
+
     @safe
     def load_plotselect_parameter(
             self,
