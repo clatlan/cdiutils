@@ -15,11 +15,10 @@ from vtk.util import numpy_support
 from cdiutils.utils import (
     center, crop_at_center, find_isosurface, zero_to_nan, find_max_pos,
     shape_for_safe_centered_cropping, make_support, symmetric_pad,
-    normalize
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
-from cdiutils.converter import SpaceConverter, Interpolator3D
+from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.processing.phase import (
     get_structural_properties, blackman_apodize, flip_reconstruction
@@ -58,7 +57,7 @@ def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
             "The provided beamline_setup is not known yet"
         )
 
-# TODO: Redundancy of attributes and parameters 
+# TODO: Redundancy of attributes and parameters
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
@@ -312,7 +311,7 @@ class BcdiProcessor:
             - (np.array(initial_shape)- final_shape)//2
         )
         cropped_com_voxel = (
-            det_com_voxel 
+            det_com_voxel
             - (det_reference_voxel - np.array(initial_shape)//2)
             - (np.array(initial_shape)- final_shape)//2
         )
@@ -343,7 +342,7 @@ class BcdiProcessor:
             f"(based on a {final_shape[1], final_shape[2]} max-centered "
             "bounding box)\n"
             "Com in the cropped detector frame at "
-            f"{tuple([round(cropped_com_voxel[i], 2) for i in range(3)])}\n"
+            f"{(round(cropped_com_voxel[i], 2) for i in range(3))}\n"
             f"The com corresponds to a d-spacing of {self.dspacing_com:.4f} A "
             f"and a lattice parameter of {self.lattice_parameter_com:.4f} A\n\n"
             f"The reference q_lab_reference corresponds "
@@ -451,7 +450,7 @@ class BcdiProcessor:
             reconstruction_file_path
         )
         # check if the reconstructed object is correctly centered
-        reconstructed_amplitude = normalize(np.abs(reconstructed_object))
+        reconstructed_amplitude = np.abs(reconstructed_object)
         support = make_support(
             reconstructed_amplitude,
             isosurface=find_isosurface(reconstructed_amplitude)
@@ -550,8 +549,9 @@ class BcdiProcessor:
                     orthogonalized_amplitude,
                     self.space_converter.get_direct_lab_regular_grid(),
                     title=(
-                    r"From \textbf{detector frame} to \textbf{direct lab frame}"
-                    f", S{self.parameters['metadata']['scan']}"
+                    r"From \textbf{detector frame} to "
+                    r"\textbf{direct lab frame}, "
+                    f"S{self.parameters['metadata']['scan']}"
                     )
                 )
             )

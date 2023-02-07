@@ -66,6 +66,7 @@ def make_support(
         nan_values: bool=False
 ) -> np.ndarray:
     """Create a support using the provided isosurface value."""
+    data = normalize(data)
     return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
 
 
