@@ -60,12 +60,10 @@ if __name__ == "__main__":
     if fpop:
         bcdi_pipeline.find_best_candidates(nb_to_keep=5)
         bcdi_pipeline.mode_decomposition()
-        bcdi_pipeline.postprocess(backend=backend)
-        bcdi_pipeline.save_parameter_file()
+        bcdi_pipeline.postprocess()
 
     if md:
         bcdi_pipeline.mode_decomposition()
 
     if pop:
-        bcdi_pipeline.postprocess(backend=backend)
-        bcdi_pipeline.save_parameter_file()
+        bcdi_pipeline.postprocess()
