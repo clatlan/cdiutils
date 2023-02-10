@@ -59,7 +59,11 @@ def plot_3D_volume_slices(
             cbar_location="top",
             aspect_ratios=None,
             data_stacking="vertical",
-            slice_names=["ZY slice", "ZX slice", "YX slice"]
+            slice_names=[
+                r"(xy)$_{cxi}$ slice",
+                r"(xz)$_{cxi}$ slice",
+                r"(yz)$_{cxi}$ slice"
+            ]
 ):
     """
     Plot 2D slices of a 3D volume data in three directions.
