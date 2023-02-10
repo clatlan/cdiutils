@@ -374,7 +374,7 @@ class BcdiPipeline:
                 _, stdout, _ = client.exec_command(
                     f"sacct -j {job_id} -o state | head -n 3 | tail -n 1"
                 )
-                
+
                 # python process needs to sleep here, otherwise it gets in
                 # trouble with standard output management. Anyway, we need
                 # to sleep in the while loop in order to wait for the remote
@@ -391,15 +391,15 @@ class BcdiPipeline:
                     )
                     time.sleep(1)
                     print(stdout.read().decode("utf-8"))
-                
+
                 elif process_status == "CANCELLED+":
                     raise RuntimeError("[INFO] Job has been cancelled")
                 elif process_status == "FAILED":
                     raise RuntimeError("[ERROR] Job has failed")
-            
+
             if process_status == "COMPLETED":
                 print(f"[INFO] Job {job_id} is completed.")
-            
+
         else:
             _, stdout, stderr = client.exec_command(
                 "source /sware/exp/pynx/activate_pynx.sh;"
@@ -449,12 +449,12 @@ class BcdiPipeline:
 
         # run the mode decomposition as a subprocesss
         with subprocess.Popen(
-                "source /sware/exp/pynx/activate_pynx.sh;"
+                "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
                 f"cd {self.dump_directory};"
                 "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
-                "modes_output=mode.h5 | tee mode_decomposition.log",
+                "modes_output=mode.h5", # | tee mode_decomposition.log",
                 shell=True,
-                executable="/bin/bash",
+                executable="/usr/bin/bash",
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
         ) as proc:

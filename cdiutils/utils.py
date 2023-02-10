@@ -327,7 +327,7 @@ def to_bool(data: np.ndarray, nan_value: bool=False) -> np.ndarray:
     return np.where(np.isnan(data), np.nan if nan_value else 0, 1)
 
 
-def nan_center_of_mass(data: np.ndarray, indices=None) -> np.ndarray:
+def nan_center_of_mass(data: np.ndarray) -> np.ndarray:
     """
     Compute the center of mass of a np.ndarray that may contain
     nan values.

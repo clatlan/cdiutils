@@ -774,6 +774,15 @@ class BcdiProcessor:
             **self.structural_properties,
         )
 
+        if self.parameters["debug"]:
+            np.savez(
+                f"{template_path}_orthogonalized_intensity.npz",
+                q_xlab=self.space_converter.get_q_lab_regular_grid()[0],
+                q_ylab=self.space_converter.get_q_lab_regular_grid()[1],
+                q_zlab=self.space_converter.get_q_lab_regular_grid()[2],
+                orthogonalized_intensity=self.orthogonalized_intensity
+            )
+
         to_save_as_vti = {
             k: self.structural_properties[k]
             for k in ["amplitude", "support", "phase", "displacement",
@@ -824,7 +833,6 @@ class BcdiProcessor:
                 "lattice_parameter",
                 data=self.structural_properties["lattice_parameter"]
             )
-
             scalars.create_dataset(
                 "q_lab_reference",
                 data=self.q_lab_reference
