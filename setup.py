@@ -15,7 +15,8 @@ setuptools.setup(
       author_email="c.atlan@outlook.com",
       scripts=[
             "scripts/analyze_bcdi_data.py",
-            "scripts/prepare_bcdi_notebook.py"
+            "scripts/prepare_bcdi_notebook.py",
+            "scripts/prepare_parameter_files.py"
       ],
       packages=setuptools.find_packages(),
       # data_files=[
