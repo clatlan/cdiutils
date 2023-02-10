@@ -624,7 +624,7 @@ class BcdiProcessor:
             amplitude,
             nbins=100,
             sigma_criterion=3,
-            plot=self.parameters["show"]
+            plot=True # plot in any case
         )
         self.verbose_print("done.")
         self.verbose_print(
