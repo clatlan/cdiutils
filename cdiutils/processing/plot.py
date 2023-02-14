@@ -614,12 +614,12 @@ def plot_q_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
-    axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
+    axes[1, 0].set_xlabel(r"y$_{lab}/$x$x_{cxi}$")
+    axes[1, 0].set_ylabel(r"z$_{lab}$y$_{cxi}$")
+    axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
+    axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
+    axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
+    axes[1, 2].set_ylabel(r"x$_{lab}/$z$_{cxi}$")
 
     # load the orthogonalized grid values
     x_array, y_array, z_array = q_lab_regular_grid
@@ -785,12 +785,12 @@ def plot_direct_lab_orthogonalization_process(
     for ax in axes.ravel():
         ax.set_aspect("equal")
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
-    axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
+    axes[1, 0].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
+    axes[1, 0].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
+    axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
+    axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
+    axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
+    axes[1, 2].set_ylabel(r"x$_{lab}/$z$_{cxi}$")
 
     axes[2, 0].set_xlabel(r"y$_{lab}$ (nm)")
     axes[2, 0].set_ylabel(r"z$_{lab}$ (nm)")
@@ -798,8 +798,6 @@ def plot_direct_lab_orthogonalization_process(
     axes[2, 1].set_ylabel(r"z$_{lab}$ (nm)")
     axes[2, 2].set_xlabel(r"y$_{lab}$ (nm)")
     axes[2, 2].set_ylabel(r"x$_{lab}$ (nm)")
-
-
 
     axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
     axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-direct lab frame}")
@@ -867,42 +865,6 @@ def plot_final_object_fft(
         levels=100,
     )
 
-    # axes[0, 0].matshow(
-    #     np.log10(np.swapaxes(final_object_fft[plot_at[0]], axis1=0, axis2=1)+1),
-    #     origin="lower"
-    # )
-
-    # axes[0, 1].matshow(
-    #     np.log10(
-    #         np.swapaxes(final_object_fft[:, plot_at[1]] + 1, axis1=0, axis2=1)
-    #     ),
-    #     origin="lower"
-    # )
-
-    # axes[0, 2].matshow(
-    #     np.log10(final_object_fft[:, :, plot_at[2]] + 1),
-    #     origin="lower"
-    # )
-
-    # plot_at = tuple(e // 2 for e in experimental_data.shape)
-    # axes[1, 0].matshow(
-    #     np.log10(
-    #         np.swapaxes(experimental_data[plot_at[0]] + 1, axis1=0, axis2=1)
-    #     ),
-    #     origin="lower"
-    # )
-
-    # axes[1, 1].matshow(
-    #     np.log10(
-    #         np.swapaxes(experimental_data[:, plot_at[1]], axis1=0, axis2=1)+1),
-    #     origin="lower"
-    # )
-
-    # axes[1, 2].matshow(
-    #     np.log10(experimental_data[:, :, plot_at[2]]+1),
-    #     origin="lower"
-    # )
-
     # load the orthogonalized grid values
     x_array, y_array, z_array = exp_data_q_lab_regular_grid
 
@@ -957,21 +919,6 @@ def plot_final_object_fft(
             r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_ylabel(
             r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-
-
-    # axes[0, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    # axes[0, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    # axes[0, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
-    # axes[0, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    # axes[0, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    # axes[0, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
-
-    # axes[1, 0].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    # axes[1, 0].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    # axes[1, 1].set_xlabel(r"x$_{lab}/\text{z}_{cxi}$")
-    # axes[1, 1].set_ylabel(r"z$_{lab}/\text{y}_{cxi}$")
-    # axes[1, 2].set_xlabel(r"y$_{lab}/\text{x}_{cxi}$")
-    # axes[1, 2].set_ylabel(r"x$_{lab}/\text{z}_{cxi}$")
 
     axes[0, 1].set_title(
         r"FFT of final object in \textbf{centered q lab frame}")
