@@ -104,7 +104,7 @@ def update_plot_params(
                 r'\sisetup{detect-all}'
                 r'\usepackage{helvet}'
                 r'\usepackage{sansmath}'
-                r'\sansmath' if usetex else None,
+                r'\sansmath' if usetex else "",
             "lines.linewidth": lines_linewidth,
             "lines.linestyle": lines_linestyle,
             "lines.markersize": lines_markersize,
