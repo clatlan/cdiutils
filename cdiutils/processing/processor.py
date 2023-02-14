@@ -230,8 +230,7 @@ class BcdiProcessor:
         # Find the max and com voxel in the detector frame without
         # considering the method provided by the user
         # first determine the maximum value position in the det frame
-        det_max_voxel = np.unravel_index(
-            self.detector_data.argmax(), initial_shape)
+        det_max_voxel = find_max_pos(self.detector_data)
 
         # find the com nearby the max using the given
         # preprocessing_output_shape
@@ -316,7 +315,7 @@ class BcdiProcessor:
             - (np.array(initial_shape)- final_shape)//2
         )
 
-        # save the voxel reference in the detector frame and Q_lab frame
+        # save the voxel reference in the detector frame and q_lab frame
         self.det_reference_voxel = det_reference_voxel
         self.q_lab_reference = self.space_converter.index_det_to_q_lab(
             det_reference_voxel)
