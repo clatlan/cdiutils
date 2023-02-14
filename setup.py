@@ -19,15 +19,15 @@ setuptools.setup(
             "scripts/prepare_parameter_files.py"
       ],
       packages=setuptools.find_packages(),
-      # data_files=[
-      #       (
-      #             '',
-      #             [
-      #                   "cdiutils/processing/pynx-id01cdi_template.slurm",
-      #                   "cdiutils/examples/analyze_bcdi_data.ipynb",
-      #             ]
-      #       )
-      # ],
+      data_files=[
+            (
+                  '',
+                  [
+                        "cdiutils/processing/pynx-id01cdi_template.slurm",
+                        "cdiutils/examples/analyze_bcdi_data.ipynb",
+                  ]
+            )
+      ],
       include_package_data=True,
       # package_data={
       #       "cdiutils": [
