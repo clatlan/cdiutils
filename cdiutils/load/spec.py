@@ -47,8 +47,9 @@ class SpecLoader():
             self,
             specfile: silx.io.specfile.SpecFile,
             scan: int,
+            binning_along_axis0=None
     ):
-        # TODO: implement flatfield consideration
+        # TODO: implement flatfield consideration and binning_along_axis0
         frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
         
         detector_data = []
@@ -65,7 +66,8 @@ class SpecLoader():
     def load_motor_positions(
             self, 
             specfile: silx.io.specfile.SpecFile,
-            scan: int
+            scan: int,
+            binning_along_axis0=None
     ):
         positioners = specfile[f"{scan}.1/instrument/positioners"]
 
@@ -108,14 +110,38 @@ class SpecLoader():
         )
 
     @staticmethod
-    def get_mask(channel: Optional[int]) -> np.array:
-        mask = np.zeros(shape=(516, 516))
-        mask[:, 255:261] = 1
-        mask[255:261, :] = 1
+    def get_mask(
+            channel: Optional[int],
+            detector_name: str="Maxipix"
+    ) -> np.ndarray:
+        """Load the mask of the given detector_name."""
+
+        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr"):
+            mask = np.zeros(shape=(516, 516))
+            mask[:, 255:261] = 1
+            mask[255:261, :] = 1
+
+        elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
+            mask = np.zeros(shape=(2164, 1030))
+            mask[:, 255:259] = 1
+            mask[:, 513:517] = 1
+            mask[:, 771:775] = 1
+            mask[0:257, 72:80] = 1
+            mask[255:259, :] = 1
+            mask[511:552, :] = 1
+            mask[804:809, :] = 1
+            mask[1061:1102, :] = 1
+            mask[1355:1359, :] = 1
+            mask[1611:1652, :] = 1
+            mask[1905:1909, :] = 1
+            mask[1248:1290, 478] = 1
+            mask[1214:1298, 481] = 1
+            mask[1649:1910, 620:628] = 1
+        else:
+            raise ValueError("Unknown detector_name")
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
-        else:
-            return mask
+        return mask
 
 
 def get_positions(specfile_path, scan, beamline="ID01"):

@@ -8,7 +8,6 @@ import sys
 from typing import Callable, Dict, Optional
 import time
 import traceback
-import warnings
 
 import paramiko
 import yaml
@@ -22,34 +21,39 @@ from cdiutils.processing.find_best_candidates import find_best_candidates
 from cdiutils.processing.processor import BcdiProcessor
 
 
-def make_parameter_file_path(
+def make_scan_parameter_file(
         output_parameter_file_path: str,
-        parameter_file_path_template: str,
-        scan: int,
-        sample_name: str,
-        working_directory: str,
-        data_dir: str=None
+        parameter_file_template_path: str,
+        updated_parameters: dict,
+#         scan: int,
+#         sample_name: str,
+#         working_directory: str,
+#         data_dir: str=None
 ) -> None:
+    """
+    Create a scan parameter file given a template and the parameters 
+    to update.
+    """
 
-    dump_directory = "/".join((
-        working_directory, sample_name, f"S{scan}"))
+    # dump_directory = "/".join((
+    #     working_directory, sample_name, f"S{scan}"))
 
-    with open(parameter_file_path_template, "r", encoding="utf8") as f:
+    with open(parameter_file_template_path, "r", encoding="utf8") as f:
         source = Template(f.read())
 
-    parameter_file_path = source.substitute(
-        {
-            "scan": scan,
-            "save_dir": dump_directory,
-            # "reconstruction_file": dump_directory + "/modes.h5",
-            "sample_name": sample_name,
-            "data": "$data",
-            "mask": "$mask",
-            "data_dir": data_dir
-        }
-    )
+    scan_parameter_file = source.substitute(updated_parameters)
+    #     {
+    #         "scan": scan,
+    #         "save_dir": dump_directory,
+    #         # "reconstruction_file": dump_directory + "/modes.h5",
+    #         "sample_name": sample_name,
+    #         "data": "$data",
+    #         "mask": "$mask",
+    #         "data_dir": data_dir
+    #     }
+    # )
     with open(output_parameter_file_path, "w", encoding="utf8") as f:
-        f.write(parameter_file_path)
+        f.write(scan_parameter_file)
 
 
 def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
@@ -73,11 +77,11 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
                         config[key][sub_key][updated_key] = updated_value
 
     yaml_file = ruamel.yaml.YAML()
-    yaml_file.indent(mapping=ind, sequence=ind, offset=bsi) 
+    yaml_file.indent(mapping=ind, sequence=ind, offset=bsi)
     with open(file_path, "w", encoding="utf8") as file:
         yaml_file.dump(config, file)
 
-
+# TODO: better handling of parameter file, updating etc
 class BcdiPipelineParser(ConfigParser):
     def __init__(self, file_path: str) -> None:
         super().__init__(file_path)
@@ -187,7 +191,7 @@ class BcdiPipeline:
             return BcdiPipelineParser(
                 file_path
             ).load_arguments()
-        elif backend == "cdiutils":
+        if backend == "cdiutils":
             with open(file_path, "r", encoding="utf8") as file:
                 return yaml.load(
                     file,
@@ -271,6 +275,7 @@ class BcdiPipeline:
             self,
             machine: str="slurm-nice-devel",
             user: str=os.environ["USER"],
+            number_of_gpus: int=2,
             key_file_path: str=os.environ["HOME"] + "/.ssh/id_rsa",
             pynx_slurm_file_template: str=None,
             remove_last_results: bool=False
@@ -297,9 +302,9 @@ class BcdiPipeline:
         )
 
         # Make the pynx input file
-        with open(pynx_input_file_path, "w", encoding="utf8") as f:
+        with open(pynx_input_file_path, "w", encoding="utf8") as file:
             for key, value in self.parameters["pynx"].items():
-                f.write(f"{key} = {value}\n")
+                file.write(f"{key} = {value}\n")
 
         if machine == "slurm-nice-devel":
             # Make the pynx slurm file
@@ -314,6 +319,7 @@ class BcdiPipeline:
                 source = Template(file.read())
                 pynx_slurm_text = source.substitute(
                     {
+                        "number_of_gpus": number_of_gpus,
                         "data_path": self.dump_directory,
                         "SLURM_JOBID": "$SLURM_JOBID",
                         "SLURM_NTASKS": "$SLURM_NTASKS"
@@ -402,7 +408,7 @@ class BcdiPipeline:
 
         else:
             _, stdout, stderr = client.exec_command(
-                "source /sware/exp/pynx/activate_pynx.sh;"
+                "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
                 f"cd {self.dump_directory};"
                 "pynx-id01cdi.py pynx-cdi-inputs.txt "
                 f"2>&1 | tee phase_retrieval_{machine}.log"

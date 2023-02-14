@@ -322,9 +322,15 @@ class BcdiProcessor:
         self.q_lab_max = self.space_converter.index_det_to_q_lab(
             det_max_voxel
         )
-        self.q_lab_com = self.space_converter.index_det_to_q_lab(
-            np.rint(det_com_voxel).astype(int)
-        )
+        try:
+            self.q_lab_com = self.space_converter.index_det_to_q_lab(
+                np.rint(det_com_voxel).astype(int)
+            )
+        except IndexError:
+            self.verbose_print(
+                "COM has been found out of the detector frame, will be set to max"
+            )
+            self.q_lab_com = self.q_lab_max
 
         self._compute_dspacing_lattice()
 

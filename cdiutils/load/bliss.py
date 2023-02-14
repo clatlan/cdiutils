@@ -11,7 +11,7 @@ def safe(func: Callable) -> Callable:
             return func(self, *args, **kwargs)
     return wrap
 
-
+# TODO: get_mask function should be detector beamline setup independent
 class BlissLoader():
     """
     A class to handle loading/reading .h5 files that were created using
@@ -213,7 +213,7 @@ class BlissLoader():
     ) -> np.ndarray:
         """Load the mask of the given detector_name."""
 
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas"):
+        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr"):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
             mask[255:261, :] = 1
