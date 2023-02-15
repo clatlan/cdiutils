@@ -781,9 +781,8 @@ def plot_direct_lab_orthogonalization_process(
         direct_lab_data[:, :, plot_at[2]],
         levels=100
     )
-    for ax in axes[2, :].ravel():
-        ax.xaxis.set_minor_locator(mticker.AutoMinorLocator())
-        ax.yaxis.set_minor_locator(mticker.AutoMinorLocator())
+    # for ax in axes[2, :].ravel():
+    #     ax.minorticks_on()
     for ax in axes.ravel():
         ax.set_aspect("equal")
 
