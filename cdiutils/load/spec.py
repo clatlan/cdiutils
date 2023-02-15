@@ -20,6 +20,7 @@ class SpecLoader():
             detector_data_path: str,
             edf_file_template: str,
             flatfield: Union[str, np.array]=None,
+            alien_mask: Union[np.ndarray, str]=None,
             detector_name: str="mpx4inr"
     ):
         self.experiment_file_path = experiment_file_path
@@ -40,6 +41,18 @@ class SpecLoader():
             raise ValueError(
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
                 "np.array or leave it to None"
+            )
+        
+        if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
+            self.alien_mask = np.load(alien_mask)["arr_0"]
+        elif isinstance(alien_mask, np.ndarray):
+            self.alien_mask=alien_mask
+        elif alien_mask is None:
+            self.alien_mask = None
+        else:
+            raise ValueError(
+                "[ERROR] wrong value for alien_mask parameter, provide a path, "
+                "np.ndarray or leave it to None"
             )
 
     @safe
@@ -116,7 +129,7 @@ class SpecLoader():
     ) -> np.ndarray:
         """Load the mask of the given detector_name."""
 
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr"):
+        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
             mask[255:261, :] = 1

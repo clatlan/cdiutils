@@ -228,7 +228,7 @@ class BlissLoader():
     ) -> np.ndarray:
         """Load the mask of the given detector_name."""
 
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr"):
+        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
             mask[255:261, :] = 1
