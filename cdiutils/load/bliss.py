@@ -22,8 +22,9 @@ class BlissLoader():
             experiment_file_path: str,
             detector_name: str="flexible",
             sample_name: Optional[str]=None,
-            flatfield: Union[np.ndarray, str]=None
-        ):
+            flatfield: Union[np.ndarray, str]=None,
+            alien_mask: Union[np.ndarray, str]=None
+    ):
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
         self.sample_name = sample_name
@@ -40,6 +41,18 @@ class BlissLoader():
         else:
             raise ValueError(
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
+                "np.ndarray or leave it to None"
+            )
+        
+        if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
+            self.alien_mask = np.load(alien_mask)["arr_0"]
+        elif isinstance(alien_mask, np.ndarray):
+            self.alien_mask=alien_mask
+        elif alien_mask is None:
+            self.alien_mask = None
+        else:
+            raise ValueError(
+                "[ERROR] wrong value for alien_mask parameter, provide a path, "
                 "np.ndarray or leave it to None"
             )
 
@@ -65,8 +78,10 @@ class BlissLoader():
                 data = h5file[key_path + "/measurement/mpxgaas"][()]
         else:
             data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
-        if not self.flatfield is None:
+        if self.flatfield is not None:
             data = data * self.flatfield
+        if self.alien_mask is not None:
+            data = data * self.alien_mask
         if binning_along_axis0:
             original_dim0 = data.shape[0]
             nb_of_bins = original_dim0 // binning_along_axis0

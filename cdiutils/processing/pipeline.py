@@ -458,7 +458,7 @@ class BcdiPipeline:
                 "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
                 f"cd {self.dump_directory};"
                 "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
-                "modes_output=mode.h5", # | tee mode_decomposition.log",
+                "modes_output=mode.h5 2>&1 | tee mode_decomposition.log",
                 shell=True,
                 executable="/usr/bin/bash",
                 stdout=subprocess.PIPE,
