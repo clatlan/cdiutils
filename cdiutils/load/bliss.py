@@ -47,7 +47,7 @@ class BlissLoader():
         if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
             self.alien_mask = np.load(alien_mask)["arr_0"]
         elif isinstance(alien_mask, np.ndarray):
-            self.alien_mask=alien_mask
+            self.alien_mask = alien_mask
         elif alien_mask is None:
             self.alien_mask = None
         else:

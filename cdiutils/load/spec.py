@@ -27,7 +27,7 @@ class SpecLoader():
         if not detector_data_path.endswith("/"):
             detector_data_path += "/"
         self.detector_data_path = detector_data_path
-        self.edf_file_template= edf_file_template
+        self.edf_file_template = edf_file_template
         self.detector_name = detector_name
 
         # load the flatfield
