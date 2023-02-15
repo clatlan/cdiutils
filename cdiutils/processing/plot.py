@@ -765,8 +765,8 @@ def plot_direct_lab_orthogonalization_process(
         levels=100
     )
     axes[2, 1].contourf(
-        x_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        x_array,
+        z_array,
         np.swapaxes(
             direct_lab_data[:, plot_at[1]],
             axis1=0,
@@ -776,12 +776,14 @@ def plot_direct_lab_orthogonalization_process(
     )
 
     axes[2, 2].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        x_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,
+        x_array,
         direct_lab_data[:, :, plot_at[2]],
         levels=100
     )
-
+    for ax in axes[2, :].ravel():
+        ax.xaxis.set_minor_locator(mticker.AutoMinorLocator())
+        ax.yaxis.set_minor_locator(mticker.AutoMinorLocator())
     for ax in axes.ravel():
         ax.set_aspect("equal")
 
