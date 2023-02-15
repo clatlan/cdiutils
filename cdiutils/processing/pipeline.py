@@ -373,7 +373,7 @@ class BcdiPipeline:
             print(output)
 
             # get the job id and remove '\n' and space characters
-            job_id = output.split(" ")[3].strip() # 
+            job_id = output.split(" ")[3].strip()
 
             # while loop to check if job has terminated
             process_status = "PENDING"
