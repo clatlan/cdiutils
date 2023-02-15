@@ -636,6 +636,12 @@ class BcdiProcessor:
                 f"{self.parameters['isosurface']}"
             )
             isosurface = self.parameters["isosurface"]
+        
+        elif isosurface < 0:
+            isosurface = 0
+            self.verbose_print(
+                f"[INFO] isosurface being negative is set to 0")
+
 
         # store the the averaged dspacing and lattice constant in variables
         # so they can be saved later in the output file
