@@ -456,9 +456,14 @@ class BcdiProcessor:
         )
         # check if the reconstructed object is correctly centered
         reconstructed_amplitude = np.abs(reconstructed_object)
+
+        # Need to hard code the isosurface if it is negative
+        isosurface = find_isosurface(reconstructed_amplitude)
+        if isosurface < 0:
+            isosurface = 0.3
         support = make_support(
             reconstructed_amplitude,
-            isosurface=find_isosurface(reconstructed_amplitude)
+            isosurface=isosurface
         )
         com = tuple(e for e in center_of_mass(support))
         reconstructed_amplitude = center(reconstructed_amplitude, where=com)
