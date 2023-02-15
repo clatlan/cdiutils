@@ -465,11 +465,6 @@ class BcdiProcessor:
         reconstructed_phase = center(np.angle(reconstructed_object), where=com)
 
         support, c = center(support, where=com, return_former_center=True)
-        print(
-            tuple(e for e in center_of_mass(support)),
-            reconstructed_amplitude.shape,
-            c
-        )
 
         # find the maximum of the Bragg peak, this is will be taken as
         # the space origin for the orthogonalization
