@@ -638,9 +638,9 @@ class BcdiProcessor:
             isosurface = self.parameters["isosurface"]
         
         elif isosurface < 0:
-            isosurface = 0
+            isosurface = 0.3
             self.verbose_print(
-                f"[INFO] isosurface being negative is set to 0")
+                f"[INFO] isosurface being negative is set to 0.3")
 
 
         # store the the averaged dspacing and lattice constant in variables
