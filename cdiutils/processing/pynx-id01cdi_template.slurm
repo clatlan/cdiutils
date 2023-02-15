@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --partition=p9gpu
-#SBATCH --nodes=2
+#SBATCH --nodes=$number_of_nodes
 #SBATCH --ntasks-per-node=2
 #SBATCH --ntasks=4
 #SBATCH --gres=gpu:$number_of_gpus

@@ -275,7 +275,7 @@ class BcdiPipeline:
             self,
             machine: str="slurm-nice-devel",
             user: str=os.environ["USER"],
-            number_of_gpus: int=2,
+            number_of_nodes: int=2,
             key_file_path: str=os.environ["HOME"] + "/.ssh/id_rsa",
             pynx_slurm_file_template: str=None,
             remove_last_results: bool=False
@@ -319,7 +319,8 @@ class BcdiPipeline:
                 source = Template(file.read())
                 pynx_slurm_text = source.substitute(
                     {
-                        "number_of_gpus": number_of_gpus,
+                        "number_of_gpus": number_of_nodes * 2,
+                        "number_of_nodes": number_of_nodes,
                         "data_path": self.dump_directory,
                         "SLURM_JOBID": "$SLURM_JOBID",
                         "SLURM_NTASKS": "$SLURM_NTASKS"
