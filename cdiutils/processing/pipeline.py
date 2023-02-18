@@ -319,7 +319,6 @@ class BcdiPipeline:
                 source = Template(file.read())
                 pynx_slurm_text = source.substitute(
                     {
-                        "number_of_gpus": number_of_nodes * 2,
                         "number_of_nodes": number_of_nodes,
                         "data_path": self.dump_directory,
                         "SLURM_JOBID": "$SLURM_JOBID",
@@ -421,8 +420,8 @@ class BcdiPipeline:
                 print(line, end="")
         client.close()
 
-    def find_best_candidates(self, nb_to_keep=10) -> None:
-        # Find the best candidates of the PyNX output
+    def find_best_candidates(self, nb_to_keep: int=10) -> None:
+        """Find the best candidates of the PyNX output"""
         pretty_print(
             "[INFO] Finding the best candidates of the PyNX run. "
             f"(scan {self.scan})"
@@ -503,6 +502,11 @@ class BcdiPipeline:
             self.save_parameter_file()
 
         elif backend == "cdiutils":
+
+            pretty_print(
+                "[INFO] Running post-processing using cdiutils backend."
+                f"(scan {self.scan})"
+            )
 
             if self.bcdi_processor is None:
                 if any(
