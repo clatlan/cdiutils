@@ -457,9 +457,9 @@ class BcdiProcessor:
         # check if the reconstructed object is correctly centered
         reconstructed_amplitude = np.abs(reconstructed_object)
 
-        # Need to hard code the isosurface if it is negative
+        # Need to hard code the isosurface if it is < 0 or > 1
         isosurface = find_isosurface(reconstructed_amplitude)
-        if isosurface < 0:
+        if isosurface < 0 or isosurface > 1:
             isosurface = 0.3
         support = make_support(
             reconstructed_amplitude,
@@ -642,10 +642,10 @@ class BcdiProcessor:
             )
             isosurface = self.parameters["isosurface"]
         
-        elif isosurface < 0:
+        elif isosurface < 0 or isosurface > 1:
             isosurface = 0.3
             self.verbose_print(
-                f"[INFO] isosurface being negative is set to 0.3")
+                f"[INFO] isosurface < 0 or > 1 is set to 0.3")
 
 
         # store the the averaged dspacing and lattice constant in variables
