@@ -1,5 +1,7 @@
 # cdiutils
 
+[![DOI](https://zenodo.org/badge/360442527.svg)](https://zenodo.org/badge/latestdoi/360442527)
+
 My python package to help Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflow. This is a 'personal' package developped during my PhD. It provides utility functions to analyse ``bcdi``-processed data and to plot them for potential publication.
 
 It requires the following libraries :
