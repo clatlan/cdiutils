@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 import xrayutilities as xu
@@ -8,36 +9,121 @@ import warnings
 from cdiutils.utils import nan_to_zero
 
 
-def plot_slice(
-        *data,
-        figsize=(6, 4),
-        title="",
-        vmin=None,
-        vmax=None,
-        origin="lower",
-        cmap="turbo",
-        show_cbar=True,
-        return_fig=False,
-):
-    fig, axes = plt.subplots(1, len(data), figsize=figsize, squeeze=False)
-    for ax, d in zip(axes.ravel(), data):
-        im = ax.matshow(
-            d,
-            origin=origin, 
-            vmin=vmin, 
+def plot_slices(
+            *data: list[np.ndarray],
+            slice_labels: list=None,
+            figsize: tuple[float]=None,
+            data_stacking="vertical",
+            nan_supports: list=None,
+            vmin: float=None,
+            vmax: float=None,
+            origin: str="lower",
+            cmap: str="turbo",
+            show_cbar: bool=True,
+            slice_name: str=None,
+            cbar_title: str="",
+            suptitle: str="",
+            show: bool=True,
+) -> matplotlib.figure.Figure:
+    if figsize is None:
+        if data_stacking in ("vertical", "v"):
+            figsize = (6, 4 * len(data))
+        else:
+            figsize = (6 * len(data), 4)
+    if data_stacking in ("vertical", "v"):
+        nrows_ncols = (len(data), 1)
+    elif data_stacking in ("horizontal", "h"):
+        nrows_ncols = (1, len(data))
+    else:
+        raise ValueError(
+            "data_stacking should be 'vertical' or 'horizontal'.")
+    if slice_labels is None:
+        slice_labels = [None for i in range(len(data))]
+    elif len(slice_labels) != len(data):
+        print(
+            "Number of titles should be identical to number of *data.\n"
+            "Titles won't be displayed.")
+        slice_labels = ["" for i in range(len(data))]
+
+    figure = plt.figure(figsize=figsize)
+    grid = AxesGrid(
+        figure,
+        111,
+        nrows_ncols=nrows_ncols,
+        axes_pad=0.05,
+        cbar_mode="single" if show_cbar else None,
+        cbar_location="top" if show_cbar else None,
+        cbar_pad=0.25 if show_cbar else None,
+        cbar_size=0.2 if show_cbar else None
+    )
+
+    for i, to_plot in enumerate(data):
+        if nan_supports is not None:
+            if type(nan_supports) is list:
+                to_plot = to_plot * nan_supports[i]
+            else:
+                to_plot = to_plot * nan_supports
+
+        im = grid[i].matshow(
+            to_plot,
+            vmin=vmin,
             vmax=vmax,
-            cmap=cmap
+            cmap=cmap,
+            origin=origin,
         )
-        ax.xaxis.set_ticks([])
-        ax.yaxis.set_ticks([])
-        if show_cbar:
-            l, _, w, h = ax.get_position().bounds
-            cax = fig.add_axes([l+ w + 0.025, 0.005, 0.05, h])
-            cax.set_title(title, size=18)
-            fig.colorbar(im, cax=cax, orientation="vertical")
-    fig.tight_layout()
-    if return_fig:
-        return fig
+
+        if data_stacking in ("vertical", "v"):
+            grid[i].annotate(
+                slice_labels[i] if slice_labels is not None else "",
+                xy=(0.2, 0.5),
+                xytext=(-grid[i].yaxis.labelpad - 2, 0),
+                xycoords=grid[i].yaxis.label,
+                textcoords='offset points',
+                ha='right',
+                va='center'
+            )
+        else:
+            grid[i].annotate(
+                slice_labels[i] if slice_labels is not None else "",
+                xy=(0.5, 0.9),
+                xytext=(0, -grid[i].xaxis.labelpad - 2),
+                xycoords=grid[i].xaxis.label,
+                textcoords='offset points',
+                ha='center',
+                va='top'
+            )
+
+    if data_stacking in ("vertical", "v"):
+        grid[len(data)-1].annotate(
+            slice_name,
+            xy=(0.5, 0.2),
+            xytext=(0, -grid[len(data)-1].xaxis.labelpad - 2),
+            xycoords=grid[len(data)-1].xaxis.label,
+            textcoords='offset points',
+            ha='center',
+            va='top'
+        )
+    else:
+        grid[0].annotate(
+            slice_name,
+            xy=(0.2, 0.5),
+            xytext=(-grid[0].yaxis.labelpad - 2, 0),
+            xycoords=grid[0].yaxis.label,
+            textcoords='offset points',
+            ha='right',
+            va='center'
+        )
+    for i, ax in enumerate(grid):
+        ax.axes.xaxis.set_ticks([])
+        ax.axes.yaxis.set_ticks([])
+    if show_cbar:
+        grid.cbar_axes[0].colorbar(im)
+        grid.cbar_axes[0].set_title(cbar_title)
+    figure.suptitle(suptitle)
+    figure.tight_layout()
+    if show:
+        plt.show()
+    return figure
 
 
 def plot_3D_volume_slices(
@@ -107,8 +193,8 @@ def plot_3D_volume_slices(
     elif data_stacking == "horizontal":
         nrows_ncols = (3, len(data))
     else:
-        print("data_stacking should be 'vertical' or 'horizontal'.")
-        return
+        raise ValueError(
+            "data_stacking should be 'vertical' or 'horizontal'.")
     if titles is None:
         titles = ["" for i in range(len(data))]
     elif len(titles) != len(data):
@@ -197,8 +283,8 @@ def plot_3D_volume_slices(
                 xytext=(0, -grid[ind].xaxis.labelpad - 2),
                 xycoords=grid[ind].xaxis.label,
                 textcoords='offset points',
-                ha='right',
-                va='center'
+                ha='center',
+                va='top'
             )
 
         else:
