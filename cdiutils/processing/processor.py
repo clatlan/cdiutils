@@ -901,7 +901,6 @@ class BcdiProcessor:
                 f"{self.parameters['metadata']['dump_dir']}/debug",
                 exist_ok=True
             )
-        
 
         for fig in self.figures.values():
             if fig["figure"] is not None:
@@ -913,37 +912,10 @@ class BcdiProcessor:
                 )
                 fig["figure"].savefig(
                     fig_path,
-                    # f"{template_path}"
-                    # f"{'/debug/' if fig['debug'] else '_'}"
-                    # f"{fig['name']}.png",
                     dpi=200,
                     bbox_inches="tight"
                 )
-        # self.figures["postprocessing"]["figure"].savefig(
-        #     (
-        #         f"{template_path}_"
-        #         f"{self.figures['postprocessing']['name']}.png"
-        #     ),
-        #     dpi=200,
-        #     bbox_inches="tight"
-        # )
 
-        # self.figures["strain"]["figure"].savefig(
-        #     (
-        #         f"{template_path}_"
-        #         f"{self.figures['strain']['name']}.png"
-        #     ),
-        #     dpi=200,
-        #     bbox_inches="tight"
-        # )
-
-        # # save the amplitude distriubtion figure
-        # self.figures["amplitude"]["figure"].savefig(
-        #     f"{template_path}_{self.figures['amplitude']['name']}.png",
-        #     dpi=200,
-        #     bbox_inches="tight"
-        # )
-    
     @staticmethod
     def save_to_vti(
             output_path: str,
