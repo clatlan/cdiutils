@@ -10,21 +10,23 @@ from cdiutils.utils import nan_to_zero
 
 
 def plot_slices(
-            *data: list[np.ndarray],
-            slice_labels: list=None,
-            figsize: tuple[float]=None,
-            data_stacking="vertical",
-            nan_supports: list=None,
-            vmin: float=None,
-            vmax: float=None,
-            origin: str="lower",
-            cmap: str="turbo",
-            show_cbar: bool=True,
-            slice_name: str=None,
-            cbar_title: str="",
-            suptitle: str="",
-            show: bool=True,
+        *data: list[np.ndarray],
+        slice_labels: list=None,
+        figsize: tuple[float]=None,
+        data_stacking="vertical",
+        nan_supports: list=None,
+        vmin: float=None,
+        vmax: float=None,
+        origin: str="lower",
+        cmap: str="turbo",
+        show_cbar: bool=True,
+        slice_name: str=None,
+        cbar_title: str="",
+        suptitle: str="",
+        show: bool=True,
 ) -> matplotlib.figure.Figure:
+    """Plot 2D slices of the provided data."""
+
     if figsize is None:
         if data_stacking in ("vertical", "v"):
             figsize = (6, 4 * len(data))
