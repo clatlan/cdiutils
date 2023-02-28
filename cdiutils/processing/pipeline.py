@@ -349,14 +349,23 @@ class BcdiPipeline:
                 f"cd {self.dump_directory};"
                 "sbatch pynx-id01cdi.slurm"
             )
+            job_submitted = False
             time.sleep(0.5)
 
             # read the standard output, decode it and print it
             output = stdout.read().decode("utf-8")
-            print(output)
-
+            
             # get the job id and remove '\n' and space characters
-            job_id = output.split(" ")[3].strip()
+            while not job_submitted:
+                try:
+                    job_id = output.split(" ")[3].strip()
+                    job_submitted = True
+                    print(output)
+                except IndexError:
+                    print("Job still not submitted...")
+                    time.sleep(3)
+                    output = stdout.read().decode("utf-8")
+                    print(output)
 
             # while loop to check if job has terminated
             process_status = "PENDING"
