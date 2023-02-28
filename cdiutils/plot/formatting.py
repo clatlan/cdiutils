@@ -133,10 +133,14 @@ def plot_background(
     return ax
 
 
-def white_interior_ticks_labels(ax: matplotlib.axes.Axes) -> None:
+def white_interior_ticks_labels(
+        ax: matplotlib.axes.Axes,
+        xtick_pad: int=-15,
+        ytick_pad: int=-25
+) -> None:
     """Place the ticks and labels inside the provided axis."""
-    ax.tick_params(axis="x", direction="in", pad=-15, colors="w")
-    ax.tick_params(axis="y", direction="in", pad=-25, colors="w")
+    ax.tick_params(axis="x", direction="in", pad=xtick_pad, colors="w")
+    ax.tick_params(axis="y", direction="in", pad=ytick_pad, colors="w")
     ax.xaxis.set_ticks_position("bottom")
 
     xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
