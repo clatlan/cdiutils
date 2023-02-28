@@ -20,8 +20,10 @@ def plot_slices(
         origin: str="lower",
         cmap: str="turbo",
         show_cbar: bool=True,
-        slice_name: str=None,
         cbar_title: str="",
+        cbar_location: str="top",
+        cbar_extend: str="both",
+        slice_name: str=None,
         suptitle: str="",
         show: bool=True,
 ) -> matplotlib.figure.Figure:
@@ -43,8 +45,9 @@ def plot_slices(
         slice_labels = [None for i in range(len(data))]
     elif len(slice_labels) != len(data):
         print(
-            "Number of titles should be identical to number of *data.\n"
-            "Titles won't be displayed.")
+            "Number of slice_labels should be identical to number of *data.\n"
+            "slice_labels won't be displayed."
+        )
         slice_labels = ["" for i in range(len(data))]
 
     figure = plt.figure(figsize=figsize)
@@ -54,14 +57,14 @@ def plot_slices(
         nrows_ncols=nrows_ncols,
         axes_pad=0.05,
         cbar_mode="single" if show_cbar else None,
-        cbar_location="top" if show_cbar else None,
+        cbar_location=cbar_location if show_cbar else None,
         cbar_pad=0.25 if show_cbar else None,
         cbar_size=0.2 if show_cbar else None
     )
 
     for i, to_plot in enumerate(data):
         if nan_supports is not None:
-            if type(nan_supports) is list:
+            if isinstance(nan_supports, list):
                 to_plot = to_plot * nan_supports[i]
             else:
                 to_plot = to_plot * nan_supports
@@ -119,7 +122,7 @@ def plot_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        grid.cbar_axes[0].colorbar(im)
+        grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
         grid.cbar_axes[0].set_title(cbar_title)
     figure.suptitle(suptitle)
     figure.tight_layout()
@@ -129,38 +132,39 @@ def plot_slices(
 
 
 def plot_3D_volume_slices(
-            *data,
-            titles=None,
-            shapes=None,
-            nan_support=None,
-            figsize=(6, 4),
-            cmap="turbo",
-            vmin=None,
-            vmax=None,
-            log_scale=False,
-            do_sum=False,
-            suptitle=None,
-            show=True,
-            return_fig=False,
-            cbar_title=None,
-            show_cbar=False,
-            cbar_location="top",
-            aspect_ratios=None,
-            data_stacking="vertical",
-            slice_names=[
-                r"(xy)$_{cxi}$ slice",
-                r"(xz)$_{cxi}$ slice",
-                r"(yz)$_{cxi}$ slice"
-            ]
+        *data: list[np.ndarray],
+        slice_labels: list[str]=None,
+        shapes: list[tuple]=None,
+        nan_supports: list[np.ndarray]=None,
+        figsize: tuple[float]=None,
+        cmap: str="turbo",
+        vmin: float=None,
+        vmax: float=None,
+        log_scale: bool=False,
+        do_sum: bool=False,
+        suptitle: str=None,
+        show: bool=True,
+        return_fig: bool=False,
+        show_cbar: bool=True,
+        cbar_title: str="",
+        cbar_location: str="top",
+        cbar_extend: str="both",
+        aspect_ratios: dict=None,
+        data_stacking="vertical",
+        slice_names=[
+            r"(xy)$_{cxi}$ slice",
+            r"(xz)$_{cxi}$ slice",
+            r"(yz)$_{cxi}$ slice"
+        ]
 ):
     """
     Plot 2D slices of a 3D volume data in three directions.
 
     :param *data: the 3D data to plot (np.array). Several 3D matrices
     may be given. For each matrice, three slices are plotted.
-    :param titles: list of titles corresponding to the given 3D
+    :param slice_labels: list of slice_labels corresponding to the given 3D
     matrices (list). Must be the same length as the number of provided
-    *data. Otherwise, no titles will be displayed. Default: None.
+    *data. Otherwise, no slice_labels will be displayed. Default: None.
     :param figsize: figure size (tuple). Default: (6, 4).
     :param cmap: the matplotlib colormap (str) used for the colorbar
     (default: "turbo").
@@ -181,6 +185,11 @@ def plot_3D_volume_slices(
     :return: figure if show is false.
     """
 
+    if figsize is None:
+        if data_stacking in ("vertical", "v"):
+            figsize = (18, 4 * len(data))
+        else:
+            figsize = (6 * len(data), 12)
     fig = plt.figure(figsize=figsize)
 
     if log_scale:
@@ -190,39 +199,43 @@ def plot_3D_volume_slices(
     if vmax is None:
         vmax = None if do_sum or len(data) > 1 else np.nanmax(data)
 
-    if data_stacking == "vertical":
+    if data_stacking in ("vertical", "v"):
         nrows_ncols = (len(data), 3)
-    elif data_stacking == "horizontal":
+    elif data_stacking in ("horizontal", "h"):
         nrows_ncols = (3, len(data))
     else:
         raise ValueError(
-            "data_stacking should be 'vertical' or 'horizontal'.")
-    if titles is None:
-        titles = ["" for i in range(len(data))]
-    elif len(titles) != len(data):
+            "data_stacking should be 'vertical', 'v', 'horizontal' or 'h'.")
+    if slice_labels is None:
+        slice_labels = ["" for i in range(len(data))]
+    elif len(slice_labels) != len(data):
         print(
-            "Number of titles should be identical to number of *data.\n"
-            "Titles won't be displayed.")
-        titles = ["" for i in range(len(data))]
+            "Number of slice_labels should be identical to number of *data.\n"
+            "slice_labels won't be displayed.")
+        slice_labels = ["" for i in range(len(data))]
     
-    grid = AxesGrid(fig, 111,
-                    nrows_ncols=nrows_ncols,
-                    axes_pad=0.05,
-                    cbar_mode='single' if show_cbar else None,
-                    cbar_location=cbar_location if show_cbar else None,
-                    cbar_pad=0.25 if show_cbar else None)
+    grid = AxesGrid(
+        fig,
+        111,
+        nrows_ncols=nrows_ncols,
+        axes_pad=0.05,
+        cbar_mode="single" if show_cbar else None,
+        cbar_location=cbar_location if show_cbar else None,
+        cbar_pad=0.25 if show_cbar else None,
+        cbar_size=0.2 if show_cbar else None
+    )
 
     for i, plot in enumerate(data):
-        if nan_support is not None:
-            if type(nan_support) is list:
-                plot = plot * nan_support[i]
+        if nan_supports is not None:
+            if isinstance(nan_supports, list):
+                plot = plot * nan_supports[i]
             else:
-                plot = plot * nan_support
+                plot = plot * nan_supports
         if not shapes:
             shape = plot.shape
         else:
             shape = shapes[i]
-        if data_stacking == "vertical":
+        if data_stacking in ("vertical", "v"):
             ind1 = 3 * i
             ind2 = 3 * i + 1
             ind3 = 3 * i + 2
@@ -255,9 +268,9 @@ def plot_3D_volume_slices(
             aspect=aspect_ratios["xy"] if aspect_ratios else "auto"
         )
 
-        if data_stacking == "vertical":
+        if data_stacking in ("vertical", "v"):
             grid[ind1].annotate(
-                titles[i] if titles is not None else "",
+                slice_labels[i] if slice_labels is not None else "",
                 xy=(0.2, 0.5),
                 xytext=(-grid[ind1].yaxis.labelpad - 2, 0),
                 xycoords=grid[ind1].yaxis.label,
@@ -267,7 +280,7 @@ def plot_3D_volume_slices(
             )
         else:
             grid[ind3].annotate(
-                titles[i] if titles is not None else "",
+                slice_labels[i] if slice_labels is not None else "",
                 xy=(0.5, 0.9),
                 xytext=(0, -grid[ind3].xaxis.labelpad - 2),
                 xycoords=grid[ind3].xaxis.label,
@@ -305,7 +318,7 @@ def plot_3D_volume_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        grid.cbar_axes[0].colorbar(im)
+        grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
         grid.cbar_axes[0].set_title(cbar_title)
     fig.suptitle(suptitle)
     if show:
