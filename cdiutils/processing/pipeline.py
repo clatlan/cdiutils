@@ -24,36 +24,20 @@ from cdiutils.processing.processor import BcdiProcessor
 def make_scan_parameter_file(
         output_parameter_file_path: str,
         parameter_file_template_path: str,
-        updated_parameters: dict,
-#         scan: int,
-#         sample_name: str,
-#         working_directory: str,
-#         data_dir: str=None
+        updated_parameters: dict
 ) -> None:
     """
     Create a scan parameter file given a template and the parameters 
     to update.
     """
 
-    # dump_directory = "/".join((
-    #     working_directory, sample_name, f"S{scan}"))
-
-    with open(parameter_file_template_path, "r", encoding="utf8") as f:
-        source = Template(f.read())
+    with open(parameter_file_template_path, "r", encoding="utf8") as file:
+        source = Template(file.read())
 
     scan_parameter_file = source.substitute(updated_parameters)
-    #     {
-    #         "scan": scan,
-    #         "save_dir": dump_directory,
-    #         # "reconstruction_file": dump_directory + "/modes.h5",
-    #         "sample_name": sample_name,
-    #         "data": "$data",
-    #         "mask": "$mask",
-    #         "data_dir": data_dir
-    #     }
-    # )
-    with open(output_parameter_file_path, "w", encoding="utf8") as f:
-        f.write(scan_parameter_file)
+
+    with open(output_parameter_file_path, "w", encoding="utf8") as file:
+        file.write(scan_parameter_file)
 
 
 def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
@@ -365,14 +349,23 @@ class BcdiPipeline:
                 f"cd {self.dump_directory};"
                 "sbatch pynx-id01cdi.slurm"
             )
+            job_submitted = False
             time.sleep(0.5)
 
             # read the standard output, decode it and print it
             output = stdout.read().decode("utf-8")
-            print(output)
-
+            
             # get the job id and remove '\n' and space characters
-            job_id = output.split(" ")[3].strip()
+            while not job_submitted:
+                try:
+                    job_id = output.split(" ")[3].strip()
+                    job_submitted = True
+                    print(output)
+                except IndexError:
+                    print("Job still not submitted...")
+                    time.sleep(3)
+                    output = stdout.read().decode("utf-8")
+                    print(output)
 
             # while loop to check if job has terminated
             process_status = "PENDING"
@@ -558,7 +551,7 @@ class BcdiPipeline:
             f"{self.dump_directory}"
         )
         output_file_path = (
-            f"{self.dump_directory}/parameter_file.yml"
+            f"{self.dump_directory}/S{self.scan}_parameter_file.yml"
             # f"{os.path.basename(self.parameter_file_path)}"
         )
         if self.parameter_file_path is not None:
