@@ -660,6 +660,21 @@ class SpaceConverter():
                 "of 3 values or a np.ndarray of 3 values."
             )
 
+    def get_q_norm_histogram(self, q_lab_data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """
+        This funtion calculates the magnitude of the Q vector for each position
+        in reciprocal space in the lab frame. It returns the Q norms as a 
+        1D array as well as the intensities flattened to a 1D array to coresspond 
+        directly with the Q norms. This can be best visualized using a 
+        """
+        try:
+            grid = self.get_q_lab_regular_grid(arrangement="c")
+        except ValueError:
+            grid = self.get_xu_q_lab_regular_grid(arrangement="c")
+        grid = np.reshape(grid, (grid.size//3, 3))
+        q_norm = np.linalg.norm(grid, axis=1)
+        flattend_intensity  =np.reshape(q_lab_data, q_lab_data.size)
+        return q_norm, flattend_intensity
 
 
     @staticmethod
