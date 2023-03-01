@@ -510,7 +510,7 @@ class BcdiPipeline:
                         )
                 ):
                     preprocessing_parameters = self.load_parameters(
-                        file_path=f"{self.dump_directory}/parameter_file.yml"
+                        file_path=f"{self.dump_directory}/S{self.scan}_parameter_file.yml"
                     )["cdiutils"]
                     self.parameters["cdiutils"].update(
                         {
