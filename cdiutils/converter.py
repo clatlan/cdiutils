@@ -55,7 +55,7 @@ class SpaceConverter():
             self._reference_voxel = tuple(voxel)
         else:
             self._reference_voxel = voxel
-    
+
     @property
     def cropped_shape(self):
         return self._cropped_shape
@@ -63,7 +63,7 @@ class SpaceConverter():
     @cropped_shape.setter
     def cropped_shape(self, shape: Union[tuple, np.ndarray, list]):
         self._cropped_shape = shape
-    
+
     @property
     def full_shape(self):
         return self._full_shape
@@ -214,7 +214,7 @@ class SpaceConverter():
             cubinates.shape[:-1]
         )
         return ijk
-    
+
     def dspacing(
                 self,
                 q_lab_coordinates: Union[np.ndarray, list, tuple]
@@ -249,7 +249,7 @@ class SpaceConverter():
         new_x = transition_matrix[0][ijk[0], ijk[1], ijk[2]]
         new_y = transition_matrix[1][ijk[0], ijk[1], ijk[2]]
         new_z = transition_matrix[2][ijk[0], ijk[1], ijk[2]]
-        
+
         return float(new_x), float(new_y), float(new_z)
 
     def crop_q_space_transitions(self) -> None:
@@ -267,7 +267,7 @@ class SpaceConverter():
                 final_shape=self._cropped_shape
             )
         return q_space_transitions
-    
+
     def _center_shift_q_space_transitions(
             self,
             q_space_transitions: np.ndarray,
@@ -331,7 +331,6 @@ class SpaceConverter():
             )
         return self.q_lab_interpolator(data)
 
-    
     def _check_shape(self, shape: tuple) -> None:
         """
         Raise an error if the shape is different to the original raw
@@ -565,7 +564,7 @@ class SpaceConverter():
             raise ValueError(
                 "arrangement should be 'l', 'list', 'c' or 'cubinates'"
             )
-    
+
     def get_direct_lab_regular_grid(self, arrangement: str="list"):
         """
         Get the regular grid used for the orthogonalization in the
