@@ -497,7 +497,7 @@ class BcdiPipeline:
         elif backend == "cdiutils":
 
             pretty_print(
-                "[INFO] Running post-processing using cdiutils backend."
+                "[INFO] Running post-processing using cdiutils backend "
                 f"(scan {self.scan})"
             )
 
