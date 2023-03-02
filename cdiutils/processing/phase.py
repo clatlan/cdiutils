@@ -164,16 +164,45 @@ def hybrid_gradient(
         np.pad(grad_z, ((0, 0),  (0, 0), (1, 1)), constant_values=np.nan)
     )
 
+def compute_normal_strain(
+        displacement: np.ndarray,
+        q_vector: Union[np.ndarray, tuple, list],
+        voxel_size: Union[np.ndarray, tuple, list],
+        gradient_method: str="hybrid"
+) -> np.ndarray:
+    """
+    Compute the strain given a projected displacement nd.array and the
+    q_vector it has been projected along.  displacement, q_vector and
+    voxel_size must be given with the same conventions (either cxi or
+    lab).
+    Note that units of displacement and voxel must be the same.
+    """
+    if gradient_method == "numpy":
+        displacement_gradient = np.gradient(displacement, *voxel_size)
+    elif gradient_method in ("hybrid", "h"):
+        displacement_gradient = hybrid_gradient(displacement, *voxel_size)
+    else:
+        raise ValueError("Unknown method for normal strain computing.")
+    
+    displacement_gradient = np.moveaxis(
+         np.asarray(displacement_gradient),
+         source=0,
+         destination=3
+    )
+
+    return np.dot(displacement_gradient, q_vector)
+
+
+
 def get_structural_properties(
         complex_object: np.array,
         isosurface: float,
-        q_vector: float,
+        q_vector: Union[np.array, tuple, list],
         hkl: Union[tuple, list],
         voxel_size: Union[np.array, tuple, list],
         final_shape: Optional[Union[np.array, list, tuple]]=None,
         phase_factor: Optional[int]=1,
         normalize_amplitude: Optional[bool]=True,
-        normal_strain_axis: Optional[Union[int, str]]=1
 ) -> dict:
 
     """
@@ -184,7 +213,9 @@ def get_structural_properties(
     (np.nrdarray)
     :param isosurface: the isosurface amplitude threshold to determine
     the surface
-    :param qnorm: the norm of the q vector (float)
+    :param q_vector: q vector (tuple, list, ndarray) in the same conventions
+    as complex_object (cxi if complex_object is in cxi convetions, lab
+    if complex_object is in lab conventions)
     :param hkl: the indexes of the probed Bragg peak (tuple, list)
     :voxe_size: the voxe size in nm ( np.array, tuple, list)
     :final_shape: the shape of the processed output arrays
@@ -277,55 +308,48 @@ def get_structural_properties(
 
     # dx, dy, dz = voxel_size # voxel size in nm
 
-    # compute the strain along the axis 1
-    numpy_local_strain = np.gradient(
-        support * displacement * 1e-1, *voxel_size)
-    local_strain = hybrid_gradient(
-        support * displacement * 1e-1, *voxel_size)
-    local_strain_with_ramp = hybrid_gradient(
-        support * displacement_with_ramp * 1e-1, *voxel_size)
+    # compute the strain along the bragg vector
+    numpy_local_strain = compute_normal_strain(
+        support * displacement * 1e-1,
+        q_vector,
+        voxel_size,
+        gradient_method="numpy"
+    )
+    local_strain = compute_normal_strain(
+        support * displacement * 1e-1,
+        q_vector,
+        voxel_size,
+        gradient_method="hybrid"
+    )
+    local_strain_with_ramp = compute_normal_strain(
+        support * displacement_with_ramp * 1e-1,
+        q_vector,
+        voxel_size,
+        gradient_method="hybrid"
+    )
 
-    if isinstance(normal_strain_axis, int):
-        numpy_local_strain = numpy_local_strain[normal_strain_axis]
-        local_strain = local_strain[normal_strain_axis]
-        local_strain_with_ramp = local_strain_with_ramp[normal_strain_axis]
+    # convert the strain in percent
+    local_strain = 100 * local_strain
+    local_strain_with_ramp = 100 * local_strain_with_ramp
+    numpy_local_strain *= 100
 
-        # convert the strain in percent
-        local_strain = 100 * local_strain
-        local_strain_with_ramp = 100 * local_strain_with_ramp
-        numpy_local_strain *= 100
+    # compute the dspacing and lattice_parameter
+    dspacing =  2*np.pi / q_norm * (1 + local_strain_with_ramp/100)
+    lattice_parameter =  np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2) *dspacing
 
-        # compute the dspacing and lattice_parameter
-        dspacing =  2*np.pi / q_norm * (1 + local_strain_with_ramp/100)
-        lattice_parameter =  np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2) *dspacing
+    # compute the heterogeneous local strain from the dspacing
+    dspacing_mean = np.nanmean(dspacing)
+    local_strain_from_dspacing= 100 * (dspacing - dspacing_mean)/dspacing_mean
 
-        # compute the heterogeneous local strain from the dspacing
-        dspacing_mean = np.nanmean(dspacing)
-        local_strain_from_dspacing= 100 * (dspacing - dspacing_mean)/dspacing_mean
+    print("done.")
 
-        print("done.")
-
-        print(
-            "[DEBUG] strain average: (%)\n"
-            f"-local strain: {np.nanmean(local_strain)}\n"
-            f"-local strain with ramp: {np.nanmean(local_strain_with_ramp)}\n"
-            f"-local strain from dspacing: {np.nanmean(local_strain_from_dspacing)}"
-            "\n"
-        )
-
-    elif normal_strain_axis in ("all", "a"):
-        print(
-            "[INFO] normal strain is computed in the 3 directions "
-            "dspacing and lattice parameter maps won't be computed"
-        )
-        dspacing = None
-        lattice_parameter = None
-        local_strain_from_dspacing = None
-    else:
-        raise ValueError(
-            "normal_strain_axis must be an integer (0, 1 or 3) or a string "
-            "'all' or 'a'"
-        )
+    print(
+        "[DEBUG] strain average: (%)\n"
+        f"-local strain: {np.nanmean(local_strain)}\n"
+        f"-local strain with ramp: {np.nanmean(local_strain_with_ramp)}\n"
+        f"-local strain from dspacing: {np.nanmean(local_strain_from_dspacing)}"
+        "\n"
+    )
 
 
     return {
