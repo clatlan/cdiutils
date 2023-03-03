@@ -664,7 +664,10 @@ class SpaceConverter():
         grid = np.reshape(grid, (grid.size//3, 3))
         q_norm = np.linalg.norm(grid, axis=1)
         flattend_intensity  =np.reshape(q_lab_data, q_lab_data.size)
-        return q_norm, flattend_intensity
+        sort_order = q_norm.argsort()
+        sorted_q_norm = q_norm[sort_order]
+        sorted_flat_intens =  flattend_intensity[sort_order]
+        return sorted_q_norm, sorted_flat_intens
 
 
     @staticmethod
