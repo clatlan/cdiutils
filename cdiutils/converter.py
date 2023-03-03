@@ -655,7 +655,8 @@ class SpaceConverter():
         This funtion calculates the magnitude of the Q vector for each position
         in reciprocal space in the lab frame. It returns the Q norms as a 
         1D array as well as the intensities flattened to a 1D array to coresspond 
-        directly with the Q norms. This can be best visualized using a 
+        directly with the Q norms. This can be best visualized using a histogram.
+        The q_norms and data are sorted,
         """
         try:
             grid = self.get_q_lab_regular_grid(arrangement="c")
