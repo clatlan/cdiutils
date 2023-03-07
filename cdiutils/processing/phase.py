@@ -184,13 +184,14 @@ def compute_normal_strain(
     else:
         raise ValueError("Unknown method for normal strain computing.")
     
+    normalized_q_vector = q_vector / np.linalg.norm(q_vector)
     displacement_gradient = np.moveaxis(
          np.asarray(displacement_gradient),
          source=0,
          destination=3
     )
 
-    return np.dot(displacement_gradient, q_vector)
+    return np.dot(displacement_gradient, normalized_q_vector)
 
 
 
