@@ -139,7 +139,7 @@ def shape_for_safe_centered_cropping(
         final_shape: Optional[tuple]=None
 ) -> tuple:
     """
-    Utility function that find the smallest shape that allows a safe
+    Utility function that finds the smallest shape that allows a safe
     cropping, i.e. without moving data from one side to another when
     using the np.roll() function.
     """
