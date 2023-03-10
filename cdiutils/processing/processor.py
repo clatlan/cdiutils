@@ -645,7 +645,7 @@ class BcdiProcessor:
         elif isosurface < 0 or isosurface > 1:
             isosurface = 0.3
             self.verbose_print(
-                f"[INFO] isosurface < 0 or > 1 is set to 0.3")
+                "[INFO] isosurface < 0 or > 1 is set to 0.3")
 
 
         # store the the averaged dspacing and lattice constant in variables
@@ -658,7 +658,8 @@ class BcdiProcessor:
         self.structural_properties = get_structural_properties(
             data,
             isosurface,
-            q_vector=self.q_lab_reference,
+            q_vector=SpaceConverter.lab_to_cxi_conventions(
+                self.q_lab_reference),
             hkl=self.parameters["hkl"],
             voxel_size=self.voxel_size,
             phase_factor=-1 # it came out of pynx, phase must be -phase
@@ -774,6 +775,15 @@ class BcdiProcessor:
             q_lab_reference=self.q_lab_reference,
             q_lab_max=self.q_lab_max,
             q_lab_com=self.q_lab_com,
+            q_cxi_reference=SpaceConverter.lab_to_cxi_conventions(
+                self.q_lab_reference
+            ),
+            q_cxi_max=SpaceConverter.lab_to_cxi_conventions(
+                self.q_lab_max
+            ),
+            q_cxi_com=SpaceConverter.lab_to_cxi_conventions(
+                self.q_lab_com
+            ),
             dspacing_reference=self.dspacing_reference,
             dspacing_max=self.dspacing_max,
             dspacing_com=self.dspacing_com,
@@ -855,6 +865,24 @@ class BcdiProcessor:
             scalars.create_dataset(
                 "q_lab_com",
                 data=self.q_lab_com
+            )
+            scalars.create_dataset(
+                "q_cxi_reference",
+                data=SpaceConverter.lab_to_cxi_conventions(
+                    self.q_lab_reference
+                )
+            )
+            scalars.create_dataset(
+                "q_cxi_max",
+                data=SpaceConverter.lab_to_cxi_conventions(
+                    self.q_lab_max
+                )
+            )
+            scalars.create_dataset(
+                "q_cxi_com",
+                data=SpaceConverter.lab_to_cxi_conventions(
+                    self.q_lab_com
+                )
             )
             scalars.create_dataset(
                 "dspacing_reference",

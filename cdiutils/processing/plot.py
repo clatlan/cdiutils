@@ -614,8 +614,8 @@ def plot_q_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/$x$x_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}$y$_{cxi}$")
+    axes[1, 0].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
+    axes[1, 0].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
     axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
     axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
     axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")

@@ -38,7 +38,7 @@ class Geometry:
         if beamline_name in ("ID01", "ID01SPEC", "ID01BLISS"):
             return cls(
                 sample_circles=["x-", "y-"],
-                detector_circles=["y+", "x-"],
+                detector_circles=["y-", "x-"], # detector_circles=["y+", "x-"] this one is wrong !!!
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]

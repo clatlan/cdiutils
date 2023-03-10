@@ -486,7 +486,7 @@ class SpaceConverter():
 
     def get_q_space_transitions(self, arrangement: str="list"):
         """
-        Get the q space transitions calculated by xrayutilities and 
+        Get the q space transitions calculated by xrayutilities and
         chose the arrangement either a list of three 1d array
         or a cube of q coordinates in the q lab space.
         """
