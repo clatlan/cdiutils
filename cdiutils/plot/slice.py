@@ -23,6 +23,8 @@ def plot_slices(
         cbar_title: str="",
         cbar_location: str="top",
         cbar_extend: str="both",
+        norm: matplotlib.colors.Normalize=None,
+        cbar_ticks: list=None,
         slice_name: str=None,
         suptitle: str="",
         show: bool=True,
@@ -75,6 +77,7 @@ def plot_slices(
             vmax=vmax,
             cmap=cmap,
             origin=origin,
+            norm=norm
         )
 
         if data_stacking in ("vertical", "v"):
@@ -122,8 +125,11 @@ def plot_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
+        cbar = grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
         grid.cbar_axes[0].set_title(cbar_title)
+        if cbar_ticks:
+            cbar.set_ticks(cbar_ticks)
+            cbar.set_ticklabels(cbar_ticks)
     figure.suptitle(suptitle)
     figure.tight_layout()
     if show:
@@ -149,7 +155,9 @@ def plot_3D_volume_slices(
         cbar_title: str="",
         cbar_location: str="top",
         cbar_extend: str="both",
+        cbar_ticks: list=None,
         aspect_ratios: dict=None,
+        norm: matplotlib.colors.Normalize=None,
         data_stacking="vertical",
         slice_names=[
             r"(xy)$_{cxi}$ slice",
@@ -194,10 +202,13 @@ def plot_3D_volume_slices(
 
     if log_scale:
         data = np.log(data)
-    if vmin is None:
-        vmin = None if do_sum or len(data) > 1 else np.nanmin(data)
-    if vmax is None:
-        vmax = None if do_sum or len(data) > 1 else np.nanmax(data)
+    if norm is None:
+        if vmin is None:
+            vmin = None if do_sum or len(data) > 1 else np.nanmin(data)
+        if vmax is None:
+            vmax = None if do_sum or len(data) > 1 else np.nanmax(data)
+    else:
+        vmin = vmax = None
 
     if data_stacking in ("vertical", "v"):
         nrows_ncols = (len(data), 3)
@@ -249,7 +260,8 @@ def plot_3D_volume_slices(
             vmin=vmin,
             vmax=vmax,
             origin="lower",
-            aspect=aspect_ratios["yz"] if aspect_ratios else "auto"
+            aspect=aspect_ratios["yz"] if aspect_ratios else "auto",
+            norm=norm
         )
         grid[ind2].matshow(
             np.sum(plot, axis=1) if do_sum else plot[:, shape[1]//2, :],
@@ -257,7 +269,8 @@ def plot_3D_volume_slices(
             vmin=vmin,
             vmax=vmax,
             origin="lower",
-            aspect=aspect_ratios["xz"] if aspect_ratios else "auto"
+            aspect=aspect_ratios["xz"] if aspect_ratios else "auto",
+            norm=norm
         )
         grid[ind3].matshow(
             np.sum(plot, axis=2) if do_sum else plot[..., shape[2]//2],
@@ -265,7 +278,8 @@ def plot_3D_volume_slices(
             vmin=vmin,
             vmax=vmax,
             origin="lower",
-            aspect=aspect_ratios["xy"] if aspect_ratios else "auto"
+            aspect=aspect_ratios["xy"] if aspect_ratios else "auto",
+            norm=norm
         )
 
         if data_stacking in ("vertical", "v"):
@@ -318,8 +332,11 @@ def plot_3D_volume_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
+        cbar = grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
         grid.cbar_axes[0].set_title(cbar_title)
+        if cbar_ticks:
+            cbar.set_ticks(cbar_ticks)
+            cbar.set_ticklabels(cbar_ticks)
     fig.suptitle(suptitle)
     if show:
         plt.show()
