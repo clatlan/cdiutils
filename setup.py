@@ -1,6 +1,6 @@
-# CDIUTILS: Utilities for BCDI practionners
+# CDIUTILS: Utilities for BCDI practitioners
 
-# authors :
+# authors:
 #              Clement Atlan, c.atlan@outlook.com
 import setuptools
 
@@ -29,18 +29,10 @@ setuptools.setup(
             )
       ],
       include_package_data=True,
-      # package_data={
-      #       "cdiutils": [
-      #             "cdiutils/processing/pynx-id01cdi_template.slurm",
-      #             "scripts/analyze_bcdi_data.py",
-      #             "scripts/analyze_bcdi_data.ipynb",
-      #             "scripts/prepare_bcdi_notebook.py"
-      #       ]
-      # },
       url="https://github.com/clatlan/cdiutils",
       python_requires=">=3.8, <3.10",
       install_requires=[
-            "bcdi @ git+https://github.com/carnisj/bcdi.git@6a2d2515d9b7e3a5fc7b6e7ecc13da712e071486",
+            # "bcdi @ git+https://github.com/carnisj/bcdi.git@6a2d2515d9b7e3a5fc7b6e7ecc13da712e071486",
             "colorcet>=3.0.0",
             "h5py>=3.6.0",
             "hdf5plugin>=3.2.0",
@@ -56,7 +48,6 @@ setuptools.setup(
             "scipy>=1.8.0",
             "seaborn>=0.12.1",
             "silx>=1.0.0",
-            # "sklearn>=0.0.post1",
             "vtk>=9.0.1",
             "xrayutilities>=1.7.3"
       ]

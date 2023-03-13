@@ -12,9 +12,18 @@ import traceback
 import paramiko
 import yaml
 
-from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
-from bcdi.postprocessing.postprocessing_runner import run as run_postprocessing
-from bcdi.utils.parser import ConfigParser
+try:
+    from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
+    from bcdi.postprocessing.postprocessing_runner import run as run_postprocessing
+    from bcdi.utils.parser import ConfigParser
+    IS_BCDI_AVAILABLE = True
+except ModuleNotFoundError:
+    print("The bcdi package is not installed. bcdi backend won't be available")
+    IS_BCDI_AVAILABLE = False # is_bcdi_available
+    BCDI_ERROR_TEXT = (
+        "Cannot use 'bcdi' backend if bcdi package is not"
+        "installed."
+    )
 
 from cdiutils.utils import pretty_print
 from cdiutils.processing.find_best_candidates import find_best_candidates
@@ -65,37 +74,38 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
     with open(file_path, "w", encoding="utf8") as file:
         yaml_file.dump(config, file)
 
-# TODO: better handling of parameter file, updating etc
-class BcdiPipelineParser(ConfigParser):
-    def __init__(self, file_path: str) -> None:
-        super().__init__(file_path)
 
-    def load_arguments(self) -> Dict:
-        raw_args = yaml.load(self.raw_config, Loader=yaml.SafeLoader)
+if IS_BCDI_AVAILABLE:
+    class BcdiPipelineParser(ConfigParser):
+        def __init__(self, file_path: str) -> None:
+            super().__init__(file_path)
 
-        raw_args["preprocessing"].update(raw_args["general"])
-        raw_args["postprocessing"].update(raw_args["general"])
-        raw_args["pynx"].update(
-            {"detector_distance": raw_args["general"]["detector_distance"]})
+        def load_arguments(self) -> Dict:
+            raw_args = yaml.load(self.raw_config, Loader=yaml.SafeLoader)
 
-        self.arguments = {
-            "preprocessing": self._check_args(raw_args["preprocessing"]),
-            "pynx": raw_args["pynx"],
-            "postprocessing": self._check_args(raw_args["postprocessing"]),
-        }
-        try:
-            self.arguments["cdiutils"] = raw_args["cdiutils"]
-        except KeyError:
-            print("No cdiutils arguments given")
-        return self.arguments
-    
-    def load_bcdi_parameters(self, procedure: str="preprocessing") -> Dict:
-        raw_args = yaml.load(
-            self.raw_config,
-            Loader=yaml.SafeLoader
-        )[procedure]
-        raw_args.update(raw_args["general"])
-        return self._check_args(raw_args)
+            raw_args["preprocessing"].update(raw_args["general"])
+            raw_args["postprocessing"].update(raw_args["general"])
+            raw_args["pynx"].update(
+                {"detector_distance": raw_args["general"]["detector_distance"]})
+
+            self.arguments = {
+                "preprocessing": self._check_args(raw_args["preprocessing"]),
+                "pynx": raw_args["pynx"],
+                "postprocessing": self._check_args(raw_args["postprocessing"]),
+            }
+            try:
+                self.arguments["cdiutils"] = raw_args["cdiutils"]
+            except KeyError:
+                print("No cdiutils arguments given")
+            return self.arguments
+        
+        def load_bcdi_parameters(self, procedure: str="preprocessing") -> Dict:
+            raw_args = yaml.load(
+                self.raw_config,
+                Loader=yaml.SafeLoader
+            )[procedure]
+            raw_args.update(raw_args["general"])
+            return self._check_args(raw_args)
 
 
 def process(func: Callable) -> Callable:
@@ -111,7 +121,7 @@ def process(func: Callable) -> Callable:
             sys.exit(1)
     return wrapper
 
-
+# TODO: better handling of parameter file, updating etc
 class BcdiPipeline:
     """
     A class to handle the bcdi worfklow, from pre-processing to
@@ -146,6 +156,8 @@ class BcdiPipeline:
             )
             self.scan = self.parameters["cdiutils"]["metadata"]["scan"]
         elif backend == "bcdi":
+            if not IS_BCDI_AVAILABLE:
+                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             self.dump_directory = self.parameters["preprocessing"][
                 "save_dir"][0]
             self.scan = self.parameters['preprocessing']['scans'][0]
@@ -194,6 +206,8 @@ class BcdiPipeline:
             backend = self.backend
 
         if backend == "bcdi":
+            if not IS_BCDI_AVAILABLE:
+                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             os.makedirs(
                 self.parameters["preprocessing"]["save_dir"][0],
                 exist_ok=True
@@ -486,6 +500,8 @@ class BcdiPipeline:
             backend = self.backend
 
         if backend == "bcdi":
+            if not IS_BCDI_AVAILABLE:
+                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             pretty_print(
                 "[INFO] Running post-processing from bcdi_strain.py "
                 f"(scan {self.scan})"
