@@ -640,12 +640,13 @@ class BcdiProcessor:
                 "[INFO] Isosurface provided by user will be used: "
                 f"{self.parameters['isosurface']}"
             )
-            isosurface = self.parameters["isosurface"]
-        
+
         elif isosurface < 0 or isosurface > 1:
-            isosurface = 0.3
+            self.parameters["isosurface"] = 0.3
             self.verbose_print(
                 "[INFO] isosurface < 0 or > 1 is set to 0.3")
+        else:
+            self.parameters["isosurface"] = isosurface
 
 
         # store the the averaged dspacing and lattice constant in variables
@@ -657,7 +658,7 @@ class BcdiProcessor:
 
         self.structural_properties = get_structural_properties(
             data,
-            isosurface,
+            self.parameters["isosurface"],
             q_vector=SpaceConverter.lab_to_cxi_conventions(
                 self.q_lab_reference),
             hkl=self.parameters["hkl"],
@@ -684,7 +685,7 @@ class BcdiProcessor:
             support=zero_to_nan(self.structural_properties["support"]),
             dpi=200,
             voxel_size=self.voxel_size,
-            isosurface=isosurface,
+            isosurface=self.parameters["isosurface"],
             det_reference_voxel=self.parameters["det_reference_voxel"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_parameter=self.averaged_lattice_parameter,
@@ -703,7 +704,7 @@ class BcdiProcessor:
             support=zero_to_nan(self.structural_properties["support"]),
             dpi=200,
             voxel_size=self.voxel_size,
-            isosurface=isosurface,
+            isosurface=self.parameters["isosurface"],
             det_reference_voxel=self.parameters["det_reference_voxel"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_parameter=self.averaged_lattice_parameter,
@@ -792,6 +793,7 @@ class BcdiProcessor:
             lattice_parameter_com=self.lattice_parameter_com,
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_parameter=self.averaged_lattice_parameter,
+            processing_isosurface=self.parameters["isosurface"],
             **self.structural_properties,
         )
 
@@ -923,6 +925,10 @@ class BcdiProcessor:
             scalars.create_dataset(
                 "hkl",
                 data=self.parameters["hkl"]
+            )
+            scalars.create_dataset(
+                "processing_isosurface",
+                data=self.parameters["isosurface"]
             )
         if self.parameters["debug"]:
             os.makedirs(
