@@ -221,6 +221,15 @@ class BlissLoader():
         requested_parameter = h5file[key_path + "/" + plot_parameter][()]
         return requested_parameter
 
+    @safe
+    def get_start_time(self, scan: int, sample_name: str=None):
+        h5file = self.h5file
+        if sample_name is None:
+            sample_name = self.sample_name
+        key_path = "_".join((sample_name, str(scan))) + ".1/start_time"
+        return h5file[key_path][()]
+
+
     @staticmethod
     def get_mask(
             channel: Optional[int],
