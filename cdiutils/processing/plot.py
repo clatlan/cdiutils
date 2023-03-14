@@ -2,7 +2,6 @@ from typing import Union, Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 
 from cdiutils.utils import zero_to_nan

@@ -1,3 +1,4 @@
+import colorcet
 import matplotlib
 import matplotlib.ticker as mticker
 import numpy as np
