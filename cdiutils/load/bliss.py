@@ -2,7 +2,7 @@ from typing import Optional, Union, Callable
 import numpy as np
 import os
 import silx.io.h5py_utils
-
+import dateutil.parser
 
 def safe(func: Callable) -> Callable:
     """A wrapper to safely load data in h5 file"""
@@ -221,13 +221,18 @@ class BlissLoader():
         requested_parameter = h5file[key_path + "/" + plot_parameter][()]
         return requested_parameter
 
+    """
+    This functions will return the start time of the given scan.
+    the returned object is of type datetime.datetime and can
+    be easily manipulated arithmetically.
+    """ 
     @safe
     def get_start_time(self, scan: int, sample_name: str=None):
         h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
         key_path = "_".join((sample_name, str(scan))) + ".1/start_time"
-        return h5file[key_path][()]
+        return dateutil.parser.isoparse(h5file[key_path][()])
 
 
     @staticmethod
