@@ -59,7 +59,7 @@ def plot_slices(
         nrows_ncols=nrows_ncols,
         axes_pad=0.05,
         cbar_mode="single" if show_cbar else None,
-        cbar_location=cbar_location if show_cbar else None,
+        cbar_location=cbar_location,
         cbar_pad=0.25 if show_cbar else None,
         cbar_size=0.2 if show_cbar else None
     )
@@ -231,7 +231,7 @@ def plot_3D_volume_slices(
         nrows_ncols=nrows_ncols,
         axes_pad=0.05,
         cbar_mode="single" if show_cbar else None,
-        cbar_location=cbar_location if show_cbar else None,
+        cbar_location=cbar_location,
         cbar_pad=0.25 if show_cbar else None,
         cbar_size=0.2 if show_cbar else None
     )
