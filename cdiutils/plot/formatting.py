@@ -1,7 +1,22 @@
+from typing import Union
+
 import colorcet
 import matplotlib
 import matplotlib.ticker as mticker
 import numpy as np
+
+
+NATURE_FORMAT_CONFIGS = {
+    "lines.linewidth": 1,
+    "lines.markersize": 1,
+    "figure.titlesize": 8,
+    "font.size": 7,
+    "axes.titlesize": 7,
+    "axes.labelsize": 7,
+    "xtick.labelsize": 6,
+    "ytick.labelsize": 6,
+    "legend.fontsize": 7,
+}
 
 
 def set_plot_configs():
@@ -74,7 +89,6 @@ def set_plot_configs():
 # ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS = set_plot_configs()
 
 
-
 def update_plot_params(
         usetex: bool=True,
         max_open_warning: int=100,
@@ -120,6 +134,74 @@ def update_plot_params(
         }
     )
     matplotlib.pyplot.rcParams.update(kwargs)
+
+
+def get_figure_size(
+        width: Union[int, str],
+        fraction: float=1,
+        subplots: tuple=(1, 1)
+) -> tuple:
+    """
+    Get the figure dimensions to avoid scaling in LaTex.
+    
+    This function was copied from
+    https://jwalton.info/Embed-Publication-Matplotlib-Latex/
+
+    :param width: Document width in points, or string of predefined
+    document type (float or string)
+    :param fraction: fraction of the width which you wish the figure to
+    occupy (float)
+    :param subplots: the number of rows and columns of subplots
+
+    :return: dimensions of the figure in inches (tuple)
+    """
+    if width == 'thesis':
+        width_pt = 426.79135
+    elif width == 'beamer':
+        width_pt = 307.28987
+    else:
+        width_pt = width
+
+    # Width of figure (in pts)
+    fig_width_pt = width_pt * fraction
+    # Convert from pt to inches
+    inches_per_pt = 1 / 72.27
+
+    # Golden ratio to set aesthetic figure height
+    # https://disq.us/p/2940ij3
+    golden_ratio = (5**.5 - 1) / 2
+
+    # Figure width in inches
+    fig_width_in = fig_width_pt * inches_per_pt
+    # Figure height in inches
+    fig_height_in = fig_width_in * golden_ratio * (subplots[0] / subplots[1])
+
+    return (fig_width_in, fig_height_in)
+
+
+def two_spine_frameless_ax(
+        ax: matplotlib.axes.Axes,
+        left_spine_pos: float,
+        bottom_spine_pos: float
+) -> None:
+    ax.spines["left"].set_position(("data", left_spine_pos))
+    ax.spines["bottom"].set_position(("data", bottom_spine_pos))
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.plot(
+        left_spine_pos,
+        1,
+        "^k", 
+        transform=ax.get_xaxis_transform(), 
+        clip_on=False
+    )
+    ax.plot(
+        1,
+        bottom_spine_pos,
+        ">k", 
+        transform=ax.get_yaxis_transform(),
+        clip_on=False
+    )
 
 
 def plot_background(
