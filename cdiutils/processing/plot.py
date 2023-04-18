@@ -660,18 +660,31 @@ def plot_q_lab_orthogonalization_process(
         levels=100,
     )
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
+    # axes[2, 0].set_xlabel(
+    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    # axes[2, 0].set_ylabel(
+    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    # axes[2, 1].set_xlabel(
+    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    # axes[2, 1].set_ylabel(
+    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    # axes[2, 2].set_xlabel(
+    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    # axes[2, 2].set_ylabel(
+    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+    
     axes[2, 0].set_xlabel(
-        r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 0].set_ylabel(
-        r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_xlabel(
-        r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_ylabel(
-        r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_xlabel(
-        r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_ylabel(
-        r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
 
     axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
@@ -907,18 +920,31 @@ def plot_final_object_fft(
 
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
     for i in range(2):
+        # axes[i, 0].set_xlabel(
+        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        # axes[i, 0].set_ylabel(
+        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        # axes[i, 1].set_xlabel(
+        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        # axes[i, 1].set_ylabel(
+        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        # axes[i, 2].set_xlabel(
+        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        # axes[i, 2].set_ylabel(
+        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        
         axes[i, 0].set_xlabel(
-            r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 0].set_ylabel(
-            r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_xlabel(
-            r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_ylabel(
-            r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_xlabel(
-            r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_ylabel(
-            r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(
         r"FFT of final object in \textbf{centered q lab frame}")
