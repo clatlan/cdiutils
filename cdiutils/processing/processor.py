@@ -169,7 +169,7 @@ class BcdiProcessor:
             binning_along_axis0=self.parameters["binning_along_axis0"]
         )
         (
-            self.sample_outofplane_angle, self.sample_inplane_angle, 
+            self.sample_outofplane_angle, self.sample_inplane_angle,
             self.detector_inplane_angle, self.detector_outofplane_angle
         ) = self.loader.load_motor_positions(
             scan=self.parameters["metadata"]["scan"],
@@ -698,20 +698,20 @@ class BcdiProcessor:
                       "local_strain_from_dspacing", "numpy_local_strain",
                       "local_strain_with_ramp"]
         }
-
-        self.figures["strain"]["figure"] = summary_slice_plot(
-            title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
-            support=zero_to_nan(self.structural_properties["support"]),
-            dpi=200,
-            voxel_size=self.voxel_size,
-            isosurface=self.parameters["isosurface"],
-            det_reference_voxel=self.parameters["det_reference_voxel"],
-            averaged_dspacing=self.averaged_dspacing,
-            averaged_lattice_parameter=self.averaged_lattice_parameter,
-            single_vmin=-self.structural_properties["local_strain"].ptp()/2,
-            single_vmax=self.structural_properties["local_strain"].ptp()/2,
-            **strain_plots
-        )
+        if self.parameters["debug"]:
+            self.figures["strain"]["figure"] = summary_slice_plot(
+                title=f"Strain check figure, S{self.parameters['metadata']['scan']}",
+                support=zero_to_nan(self.structural_properties["support"]),
+                dpi=200,
+                voxel_size=self.voxel_size,
+                isosurface=self.parameters["isosurface"],
+                det_reference_voxel=self.parameters["det_reference_voxel"],
+                averaged_dspacing=self.averaged_dspacing,
+                averaged_lattice_parameter=self.averaged_lattice_parameter,
+                single_vmin=-self.structural_properties["local_strain"].ptp()/2,
+                single_vmax=self.structural_properties["local_strain"].ptp()/2,
+                **strain_plots
+            )
 
         if self.parameters["debug"]:
             shape = self.orthogonalized_intensity.shape
@@ -812,6 +812,21 @@ class BcdiProcessor:
                       "local_strain", "local_strain_from_dspacing",
                       "lattice_parameter", "numpy_local_strain", "dspacing"]
         }
+
+        # add the dspacing average and lattice constant average around 
+        # the NP to avoid nan values that are annoying for 3D
+        # visualisation
+        to_save_as_vti["dspacing"] = np.where(
+            np.isnan(to_save_as_vti["dspacing"]),
+            self.averaged_dspacing,
+            to_save_as_vti["dspacing"]
+        )
+        to_save_as_vti["lattice_parameter"] = np.where(
+            np.isnan(to_save_as_vti["lattice_parameter"]),
+            self.averaged_lattice_parameter,
+            to_save_as_vti["lattice_parameter"]
+        )
+
         # save to vti file
         self.save_to_vti(
             f"{template_path}_structural_properties.vti",
@@ -931,10 +946,17 @@ class BcdiProcessor:
                 data=self.parameters["isosurface"]
             )
         if self.parameters["debug"]:
+            debug_dir = f"{self.parameters['metadata']['dump_dir']}/debug"
             os.makedirs(
-                f"{self.parameters['metadata']['dump_dir']}/debug",
+                debug_dir,
                 exist_ok=True
             )
+            if os.path.isdir(debug_dir):
+                self.verbose_print(f"Debug directory is: {debug_dir}")
+            else:
+                raise FileNotFoundError(
+                    "Could not create the directory:\n{debug_dir}"
+                )
 
         for fig in self.figures.values():
             if fig["figure"] is not None:
