@@ -3,12 +3,83 @@ from typing import Union, Optional
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.fft import fftn, fftshift, ifftshift
+import os
+import silx.io
+import h5py
 
-from cdiutils.utils import zero_to_nan
+from cdiutils.utils import (
+    zero_to_nan, find_suitable_array_shape, nan_center_of_mass, center,
+    crop_at_center
+)
 from cdiutils.plot.formatting import (
     set_plot_configs, white_interior_ticks_labels
 )
 from cdiutils.plot.slice import plot_contour
+
+
+def plot_phasing_result(file_path: str) -> None:
+    """
+    Plot the reconstructed object in reciprocal and direct spaces.
+    """
+    if os.path.isfile(file_path):
+        with silx.io.h5py_utils.File(file_path, "r") as file:
+            data = file["entry_1/data_1/data"][()]
+            support = file["entry_1/image_1/support"][()]
+
+        shape = find_suitable_array_shape(support)
+        reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
+
+        subplots = (2, 3)
+        figure, axes = plt.subplots(
+            subplots[0],
+            subplots[1],
+            figsize=(6, 4)
+        )
+
+        com = nan_center_of_mass(support)
+        data = center(data, where=com)
+        data = crop_at_center(data, final_shape=shape)
+        shape = data.shape
+
+        direct_space_amplitude = np.abs(data)
+        direct_space_amplitude = (
+            (direct_space_amplitude - np.min(direct_space_amplitude))
+            / np.ptp(direct_space_amplitude)
+        )
+        direct_space_phase = np.angle(data)
+
+        for i in range(3):
+            s = [slice(None) for k in range(3)]
+            s[i] = shape[i] // 2
+            s = tuple(s)
+
+            rcp_im = axes[0, i].matshow(
+                np.log10(np.sum(reciprocal_space_data, axis=i)),
+                cmap="turbo"
+            )
+            direct_space_im = axes[1, i].matshow(
+                direct_space_phase[s],
+                vmin=-np.pi,
+                vmax=np.pi,
+                alpha=direct_space_amplitude[s],
+                 cmap="cet_CET_C9s"
+            )
+        figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
+        figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
+
+        axes[0, 1].set_title("Log(Int.) (a.u.)")
+        axes[1, 1].set_title("Phase (rad)")
+
+        for ax in axes.ravel():
+            ax.set_xticks([])
+            ax.set_yticks([])
+        
+        run_number = int(file_path.split("Run")[1][:4])
+        scan_number = file_path.split("/")[-2][1:]
+        figure.suptitle(
+            f"Phasing results, scan {scan_number}, run {run_number}"
+        )
 
 
 def preprocessing_detector_data_plot(
