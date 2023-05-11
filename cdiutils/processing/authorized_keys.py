@@ -1,69 +1,103 @@
+import warnings
 
 AUTHORIZED_KEYS = {
-    "cdiutils": [
-        "metadata",
-        "preprocessing_output_shape",
-        "energy",
-        "roi",
-        "hkl",
-        "det_reference_voxel_method",
-        "det_reference_voxel",
-        "binning_along_axis0",
-        "q_lab_reference",
-        "q_lab_max",
-        "q_lab_com",
-        "det_calib_parameters",
-        "voxel_size",
-        "apodize",
-        "flip",
-        "isosurface",
-        "usetex",
-        "show",
-        "verbose",
-        "debug"
-    ],
-    "pynx": [
-        "data",
-        "mask",
-        "data2cxi",
-        "auto_center_resize",
-        "support_type",
-        "support_size",
-        "support",
-        "support_threshold",
-        "support_threshold_method",
-        "support_only_shrink",
-        "support_update_period",
-        "support_smooth_width_begin",
-        "support_smooth_width_end",
-        "support_post_expand",
-        "psf",
-        "nb_raar",
-        "nb_hio",
-        "nb_er",
-        "nb_ml",
-        "nb_run",
-        "nb_run_keep",
-        "zero_mask",
-        "crop_output",
-        "positivity",
-        "beta",
-        "detwin",
-        "rebin",
-        "detector_distance",
-        "pixel_size_detector",
-        "wavelength",
-        "verbose",
-        "output_format",
-        "live_plot",
-        "save_plot",
-        "mpi"
-    ]
+    "cdiutils": {
+        "metadata": "REQUIRED",
+        "preprocessing_output_shape": "REQUIRED",
+        "energy": "REQUIRED",
+        "roi": "REQUIRED",
+        "hkl": "REQUIRED",
+        "det_reference_voxel_method": "REQUIRED",
+        "det_reference_voxel": None,
+        "binning_along_axis0": None,
+        "q_lab_reference": None,
+        "q_lab_max": None,
+        "q_lab_com": None,
+        "det_calib_parameters": "REQUIRED",
+        "voxel_size": None,
+        "apodize": True,
+        "flip": False,
+        "isosurface": None,
+        "usetex": False,
+        "show": False,
+        "verbose": True,
+        "debug": True,
+        "show_phasing_results": False,
+        "unwrap_before_orthogonalization": False
+    },
+    "pynx": {
+        "data": None,
+        "mask": None,
+        "data2cxi": True,
+        "auto_center_resize": False,
+        "support_type": "square",
+        "support_size": (40, 20, 40),
+        "support": "auto",
+        "support_threshold": "0.25, 0.40",
+        "support_threshold_method": "rms",
+        "support_only_shrink": False,
+        "support_update_period": 20,
+        "support_smooth_width_begin": 2,
+        "support_smooth_width_end": 1,
+        "support_post_expand": "1,-2,1",
+        "psf": "pseudo-voigt,0.5,0.1,10",
+        "nb_raar": 1000,
+        "nb_hio": 150,
+        "nb_er": 150,
+        "nb_ml": 10,
+        "nb_run": 20,
+        "nb_run_keep": 5,
+        "zero_mask": False,
+        "crop_output": 0,
+        "positivity": False,
+        "beta": 0.9,
+        "detwin": False,
+        "rebin": "1, 1, 1",
+        "detector_distance": "REQUIRED",
+        "pixel_size_detector": "REQUIRED",
+        "wavelength": "REQUIRED",
+        "verbose": 100,
+        "output_format": "cxi",
+        "live_plot": False,
+        "save_plot": True,
+        "mpi": "run"
+    }
 }
+
+class MissingArgumentError(ValueError):
+    pass
+
+
+def check_parameters(parameters: dict):
+    """
+    Check parameters given by user, handle when parameters are
+    required or not provided.
+    """
+    for e in ["cdiutils", "pynx"]:
+        for name, value in AUTHORIZED_KEYS[e].items():
+            if not name in parameters[e].keys():
+                if value == "REQUIRED":
+                    raise MissingArgumentError(f"Arguement '{name}' is required")
+                else:
+                    parameters[e].update({name: value})
+        for name in parameters[e].keys():
+            if not isparameter(name):
+                warnings.warn(
+                    f"Parameter '{name}' is unknown, will not be used"                )
+    for name in parameters.keys():
+        if not isparameter(name):
+            warnings.warn(
+                f"Parameter '{name}' is unknown, will not be used."
+            )
+
 
 def isparameter(string: str):
     """Return whether or not the given string is in AUTHORIZED_KEYS."""
-    return (string in AUTHORIZED_KEYS["cdiutils"] +  AUTHORIZED_KEYS["pynx"])
+    return (
+        string in list(AUTHORIZED_KEYS["cdiutils"].keys())
+        +  list(AUTHORIZED_KEYS["pynx"].keys())
+        + ["cdiutils", "pynx"]
+    )
 
 def get_parameters_from_notebook_variables(
             dir_list: list,

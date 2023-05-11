@@ -1,16 +1,22 @@
+from typing import Callable, Dict, Optional
+from string import Template
 import glob
 import os
-import ruamel.yaml
 import shutil
-from string import Template
 import subprocess
 import sys
-from typing import Callable, Dict, Optional
 import time
 import traceback
 
 import paramiko
+import ruamel.yaml
 import yaml
+
+from cdiutils.utils import pretty_print
+from .find_best_candidates import find_best_candidates
+from .processor import BcdiProcessor
+from .plot import plot_phasing_result
+from .authorized_keys import check_parameters
 
 try:
     from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
@@ -20,14 +26,11 @@ try:
 except ModuleNotFoundError:
     print("The bcdi package is not installed. bcdi backend won't be available")
     IS_BCDI_AVAILABLE = False # is_bcdi_available
-    BCDI_ERROR_TEXT = (
-        "Cannot use 'bcdi' backend if bcdi package is not"
-        "installed."
-    )
 
-from cdiutils.utils import pretty_print
-from cdiutils.processing.find_best_candidates import find_best_candidates
-from cdiutils.processing.processor import BcdiProcessor
+BCDI_ERROR_TEXT = (
+    "Cannot use 'bcdi' backend if bcdi package is not"
+    "installed."
+)
 
 
 def make_scan_parameter_file(
@@ -61,6 +64,8 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
         for updated_key, updated_value in updated_parameters.items():
             if updated_key in config[key]:
                 config[key][updated_key] = updated_value
+            elif updated_key == key:
+                config[key] = updated_value
             else:
                 for sub_key in config[key].keys():
                     if (
@@ -169,7 +174,8 @@ class BcdiPipeline:
 
         # the bcdi_processor attribute will be used only if backend
         # is cdiutils
-        self.bcdi_processor = None
+        self.bcdi_processor: BcdiProcessor = None
+        self.phasing_results: list = None
 
     def load_parameters(
             self,
@@ -177,7 +183,7 @@ class BcdiPipeline:
             file_path: Optional[str]=None
     ) -> dict:
         """
-        Load the paratemters from the configuration files.
+        Load the parameters from the configuration files.
         """
         if backend is None:
             backend = self.backend
@@ -189,11 +195,12 @@ class BcdiPipeline:
             ).load_arguments()
         if backend == "cdiutils":
             with open(file_path, "r", encoding="utf8") as file:
-                return yaml.load(
+                parameters = yaml.load(
                     file,
                     Loader=yaml.FullLoader
                 )
-        else:
+                return check_parameters(parameters)
+
             raise ValueError(
                 f"[ERROR] Unknwon backend value ({backend}), it must be either"
                 " 'cdiutils' or 'bcdi'"
@@ -240,13 +247,9 @@ class BcdiPipeline:
             pynx_mask_template = "S*_pynx_input_mask.npz"
             if self.parameters["cdiutils"]["show"]:
                 self.bcdi_processor.show_figures()
-            # update the parameters
-            self.parameters["cdiutils"].update(self.bcdi_processor.parameters)
-            self.save_parameter_file()
-
         else:
             raise ValueError(
-                f"[ERROR] Unknwon backend value ({backend}), it must be either"
+                f"[ERROR] Unknown backend value ({backend}), it must be either"
                 " 'cdiutils' or 'bcdi'"
             )
 
@@ -260,13 +263,23 @@ class BcdiPipeline:
                 "[ERROR] file missing, something went"
                 " wrong during preprocessing"
             ) from exc
+
+        # update the parameters
         if self.parameter_file_path is not None:
             pretty_print("[INFO] Updating scan parameter file")
             update_parameter_file(
                 self.parameter_file_path,
-                {"data": data_path, "mask": mask_path}
+                {
+                    "data": data_path,
+                    "mask": mask_path,
+                    "cdiutils": self.bcdi_processor.parameters
+                }
             )
-            self.parameters = self.load_parameters(backend)
+
+        self.parameters["cdiutils"].update(self.bcdi_processor.parameters)
+        self.parameters["pynx"].update({"data": data_path})
+        self.parameters["pynx"].update({"mask": mask_path})
+        self.save_parameter_file()
 
     @process
     def phase_retrieval(
@@ -368,7 +381,7 @@ class BcdiPipeline:
 
             # read the standard output, decode it and print it
             output = stdout.read().decode("utf-8")
-            
+
             # get the job id and remove '\n' and space characters
             while not job_submitted:
                 try:
@@ -426,33 +439,76 @@ class BcdiPipeline:
             for line in iter(lambda: stdout.readline(1024), ""):
                 print(line, end="")
         client.close()
+        self.phasing_results = self.find_phasing_results(
+            self.phasing_results,
+            plot=self.parameters["show_phasing_results"]
+        )
 
-    def find_best_candidates(self, nb_to_keep: int=10) -> None:
+    def find_phasing_results(self, paths: list=None, plot: bool=False) -> list:
+        """
+        Find the last phasing results (.cxi files) and add them to the
+        given list if provided, otherwise create the list.
+        """
+        fetched_paths = glob.glob(self.dump_directory + "/*Run*.cxi")
+
+        if paths == [] or paths is None:
+            if plot:
+                for path in fetched_paths:
+                    if os.path.isfile(path):
+                        try:
+                            plot_phasing_result(path)
+                        except OSError:
+                            pass
+            return fetched_paths
+
+        for path in fetched_paths:
+            if not path in paths:
+                paths.append(path)
+                if plot and os.path.isfile(path):
+                    try:
+                        plot_phasing_result(path)
+                    except OSError:
+                        pass
+        for path in paths:
+            if not os.path.isfile(path):
+                paths.remove(path)
+        return paths
+
+    def find_best_candidates(
+            self,
+            nb_to_keep: int=10,
+            criterion: str="mean_to_max"
+        ) -> None:
         """Find the best candidates of the PyNX output"""
+
         pretty_print(
-            "[INFO] Finding the best candidates of the PyNX run. "
-            f"(scan {self.scan})"
+            "[INFO] Finding the best candidates of the PyNX run whith"
+            f"criterion: {criterion}.(scan {self.scan})"
         )
         # remove the previous candidates if needed
         files = glob.glob(self.dump_directory + "/candidate_*.cxi")
         if files:
             for f in files:
                 os.remove(f)
-        files = glob.glob(self.dump_directory + "/*Run*.cxi")
-        if not files:
-            print(
+
+        self.phasing_results = self.find_phasing_results(self.phasing_results)
+        if not self.find_phasing_results:
+            raise ValueError(
                 "No PyNX output in the following directory: "
                 f"{self.dump_directory} "
             )
-        else:
-            find_best_candidates(
-                    files,
-                    nb_to_keep=nb_to_keep,
-                    criterion="mean_to_max"
-                )
+        find_best_candidates(
+                self.phasing_results,
+                nb_to_keep=nb_to_keep,
+                criterion=criterion
+            )
 
     @process
     def mode_decomposition(self) -> None:
+        """
+        Run the mode decomposition using PyNX pynx-cdi-analysis.py 
+        script as a subprocess.
+        """
 
         pretty_print(
             "[INFO] Running mode decomposition from /sware pynx "
@@ -462,7 +518,7 @@ class BcdiPipeline:
 
         # run the mode decomposition as a subprocesss
         with subprocess.Popen(
-                "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
+                "source /sware/exp/pynx/activate_pynx.sh 2023.1;"
                 f"cd {self.dump_directory};"
                 "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
                 "modes_output=mode.h5 2>&1 | tee mode_decomposition.log",
