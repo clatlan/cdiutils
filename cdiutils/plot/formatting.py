@@ -6,19 +6,6 @@ import matplotlib.ticker as mticker
 import numpy as np
 
 
-NATURE_FORMAT_CONFIGS = {
-    "lines.linewidth": 1,
-    "lines.markersize": 1,
-    "figure.titlesize": 8,
-    "font.size": 7,
-    "axes.titlesize": 7,
-    "axes.labelsize": 7,
-    "xtick.labelsize": 6,
-    "ytick.labelsize": 6,
-    "legend.fontsize": 7,
-}
-
-
 def set_plot_configs():
 
     ANGSTROM_SYMBOL = None
@@ -42,7 +29,7 @@ def set_plot_configs():
         },
         "phase": {
             "title": "Phase (rad)",
-            "cmap": "turbo",
+            "cmap": "cet_CET_C9s",
             "vmin": -np.pi / 8,
             "vmax": np.pi / 8,
         },
@@ -90,7 +77,9 @@ def set_plot_configs():
 
 
 def update_plot_params(
+        style: str="nature",
         usetex: bool=True,
+        use_siunitx: bool=True,
         max_open_warning: int=100,
         dpi: int=200,
         lines_marker: str="",
@@ -107,32 +96,82 @@ def update_plot_params(
         **kwargs
 ) -> None:
     """Update the matplotlib plot parameters to plublication style"""
+
+    if style in ("nature", "NATURE"):
+        parameters =  {
+            "lines.linewidth": 1,
+            "lines.markersize": 1,
+            "figure.titlesize": 8,
+            "font.size": 7,
+            "axes.titlesize": 7,
+            "axes.labelsize": 7,
+            "xtick.labelsize": 6,
+            "ytick.labelsize": 6,
+            "legend.fontsize": 7,
+        }
+
     matplotlib.pyplot.rcParams.update(
-        {
-            "figure.max_open_warning": max_open_warning,
-            "figure.dpi": dpi,
-            "lines.marker": lines_marker,
-            "mathtext.default": "regular",
-            "text.usetex": usetex,
-            'text.latex.preamble':
+        **parameters
+    )
+    if use_siunitx:
+        usetex = True
+        matplotlib.pyplot.rcParams.update(
+            **{
+                'text.latex.preamble':
                 r'\usepackage{siunitx}'
                 r'\sisetup{detect-all}'
                 r'\usepackage{helvet}'
                 r'\usepackage{sansmath}'
-                r'\sansmath' if usetex else "",
-            "lines.linewidth": lines_linewidth,
-            "lines.linestyle": lines_linestyle,
-            "lines.markersize": lines_markersize,
-            "figure.titlesize": figure_titlesize,
-            "font.size": font_size,
-            "axes.titlesize": axes_titlesize,
-            "axes.labelsize": axes_labelsize,
-            "xtick.labelsize": xtick_labelsize,
-            "ytick.labelsize": ytick_labelsize,
-            "legend.fontsize": legend_fontsize,
-            "image.cmap": "turbo"
+                r'\sansmath'
+            }
+        )
+
+    if usetex:
+        matplotlib.pyplot.rcParams.update(
+            **{
+                "mathtext.default": "regular",
+                "text.usetex": usetex,
+                "font.family":"sans-serif",
+                "font.sans-serif":["Liberation Sans"]
+            }
+        )
+    
+    # in any case
+    matplotlib.pyplot.rcParams.update(
+        {
+        "image.cmap": "turbo",
+        "figure.dpi": 200
         }
     )
+
+    # matplotlib.pyplot.rcParams.update(
+    #     {
+    #         "figure.max_open_warning": max_open_warning,
+    #         "figure.dpi": dpi,
+    #         "lines.marker": lines_marker,
+    #         "mathtext.default": "regular",
+    #         "text.usetex": usetex,
+    #         # 'text.latex.preamble':
+    #         #     r'\usepackage{siunitx}'
+    #         #     r'\sisetup{detect-all}'
+    #         #     r'\usepackage{helvet}'
+    #         #     r'\usepackage{sansmath}'
+    #         #     r'\sansmath' if usetex else "",
+    #         "font.family":"sans-serif",
+    #         "font.sans-serif":["Liberation Sans"],
+    #         "lines.linewidth": lines_linewidth,
+    #         "lines.linestyle": lines_linestyle,
+    #         "lines.markersize": lines_markersize,
+    #         "figure.titlesize": figure_titlesize,
+    #         "font.size": font_size,
+    #         "axes.titlesize": axes_titlesize,
+    #         "axes.labelsize": axes_labelsize,
+    #         "xtick.labelsize": xtick_labelsize,
+    #         "ytick.labelsize": ytick_labelsize,
+    #         "legend.fontsize": legend_fontsize,
+    #         "image.cmap": "turbo"
+    #     }
+    # )
     matplotlib.pyplot.rcParams.update(kwargs)
 
 
@@ -155,10 +194,16 @@ def get_figure_size(
 
     :return: dimensions of the figure in inches (tuple)
     """
+    print(f"Chosen width is '{width}'.")
     if width == 'thesis':
         width_pt = 426.79135
+        print(f"(It corresponds to {width_pt} pt).")
     elif width == 'beamer':
-        width_pt = 307.28987
+        width_pt = 398.3386
+        print(f"(It corresponds to {width_pt} pt).")
+    elif width == "nature":
+        width_pt = 518.74
+        print(f"(It corresponds to {width_pt} pt).")
     else:
         width_pt = width
 
