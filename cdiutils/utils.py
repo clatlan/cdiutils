@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 import numpy as np
 import matplotlib
 import seaborn as sns
@@ -149,6 +149,7 @@ def shape_for_safe_centered_cropping(
         position = np.array(position)
 
     secured_shape = 2 * np.min([position, data_shape - position], axis=0)
+    secured_shape = tuple([round(e) for e in secured_shape])
 
     if final_shape is None:
         return tuple(secured_shape)
@@ -172,9 +173,9 @@ def _center_at_com(data: np.ndarray):
 
 def center(
         data: np.ndarray,
-        where: Union[str, tuple, list]="com",
+        where: Union[str, tuple, list, np.ndarray]="com",
         return_former_center: bool=False
-) -> Union[np.ndarray, tuple[np.ndarray, tuple]]:
+) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
     """
     Center 3D volume data such that the center of mass or max  of data
     is at the very center of the 3D matrix.
@@ -189,16 +190,16 @@ def center(
     """
     shape = data.shape
 
-    if where == "max":
+    if isinstance(where, (tuple, list, np.ndarray)) and len(where) == 3:
+        reference_position = tuple(where)
+    elif where == "max":
         reference_position = find_max_pos(data)
     elif where == "com":
         reference_position = tuple(e for e in center_of_mass(data))
-    elif isinstance(where, (tuple, list)) and len(where) == 3:
-        reference_position = tuple(where)
     else:
         raise ValueError(
             "where must be 'max', 'com' or tuple or list of 3 floats "
-            f"coordinates, can't be {where}"
+            f"coordinates, can't be type: {type(where)} ({where}) "
         )
     xcenter, ycenter, zcenter = reference_position
 
@@ -244,7 +245,10 @@ def symmetric_pad(
         constant_values=values
     )
 
-def crop_at_center(data, final_shape=None):
+def crop_at_center(
+        data: np.ndarray,
+        final_shape: Union[list, tuple, np.ndarray]
+) -> np.ndarray:
     """
     Crop 3D array data to match the final_shape. Center of the input
     data remains the center of cropped data.
@@ -253,11 +257,6 @@ def crop_at_center(data, final_shape=None):
     happens.
     :returns: cropped 3D array (np.array).
     """
-
-    if final_shape is None:
-        print("No final shape specified, did not proceed to cropping")
-        return data
-
     shape = data.shape
     final_shape = np.array(final_shape)
 
@@ -275,9 +274,11 @@ def crop_at_center(data, final_shape=None):
     # final_shape[i] + 1 // 2
     plus_one = np.where((final_shape % 2 == 0), 0, 1)
 
-    cropped = data[c[0] - to_crop[0]: c[0] + to_crop[0] + plus_one[0],
-                   c[1] - to_crop[1]: c[1] + to_crop[1] + plus_one[1],
-                   c[2] - to_crop[2]: c[2] + to_crop[2] + plus_one[2]]
+    cropped = data[
+        c[0] - to_crop[0]: c[0] + to_crop[0] + plus_one[0],
+        c[1] - to_crop[1]: c[1] + to_crop[1] + plus_one[1],
+        c[2] - to_crop[2]: c[2] + to_crop[2] + plus_one[2]
+    ]
 
     return cropped
 
@@ -327,17 +328,140 @@ def to_bool(data: np.ndarray, nan_value: bool=False) -> np.ndarray:
     return np.where(np.isnan(data), np.nan if nan_value else 0, 1)
 
 
-def nan_center_of_mass(data: np.ndarray) -> np.ndarray:
+def nan_center_of_mass(
+        data: np.ndarray,
+        return_int: bool=False
+) -> np.ndarray:
     """
     Compute the center of mass of a np.ndarray that may contain
     nan values.
     """
+    if not np.isnan(data).any():
+        com = center_of_mass(data)
+
     non_nan_coord = np.where(np.invert(np.isnan(data)))
     com = np.average(
         [non_nan_coord], axis=2,
         weights=data[non_nan_coord]
     )[0]
-    return com
+    if return_int:
+        return tuple([int(round(e)) for e in com])
+    return tuple(com)
+
+
+class PeakCenteringHandler:
+    """
+    A class to handle centering of Bragg peak.
+    """
+
+    @staticmethod
+    def get_masked_data(
+            data: np.ndarray,
+            where: tuple,
+            crop: List[list]
+    ) -> None:
+        """
+        Return the masked data. Data are masked outside of the box
+        defined by the crop and where parameter.
+        """
+
+        mask = np.ones_like(data)
+        shape = data.shape
+
+        slices = [np.s_[:] for k in range(len(shape))]
+        for i, s in enumerate(shape):
+            slices[i] = np.s_[
+                np.max([where[i]-crop[i][0], 0]):
+                np.min([where[i]+crop[i][1], s])
+            ]
+        slices = tuple(slices)
+        mask[slices] = 0
+
+        return np.ma.array(data, mask=mask)
+
+    @staticmethod
+    def get_position(method: Union[str, list], data: np.ndarray) -> tuple:
+        """
+        Get the position in the full data frame given the provided
+        method.
+        """
+
+        if isinstance(method, str):
+            if method == "max":
+                return find_max_pos(data)
+            if method == "com":
+                return nan_center_of_mass(data, return_int=True)
+
+        elif isinstance(method, (tuple, list)):
+            if all(isinstance(e, int) for e in method):
+                return method
+
+        raise ValueError(
+            f"'method' cannot be {method} (type {type(method)})\n"
+            "It must be either 'max', 'com' or a list or a tuple of int."
+        )
+
+    @classmethod
+    def chain_centering(
+            cls,
+            data: np.ndarray,
+            output_shape: Union[list ,tuple, np.ndarray],
+            methods: List[Union[str, tuple]]
+    ) -> Tuple[np.ndarray, tuple]:
+        """
+        Main method of the class. It runs several centering methods,
+        defined in the methods parameter. Each time, a mask is created
+        and the next method takes into account the new mask.
+
+        Note that the cropping of the data is done according to the
+        following convention:
+        position of the reference
+        (com or max...) must always be at
+        cropped_data[output_shape[i]//2].
+            - if output_shape[i] is even: the exact center does not
+            exist and the center will be shift towards the higher value
+            indexes. More values before the center than after.
+            - if output_shape[i] is odd, exact center can be defined and
+            the numbers of values before and after the center are equal.
+        """
+
+        output_shape = np.array(output_shape)
+
+        # define how much to crop data
+        # plus_one is whether or not to add one to the bounds.
+        plus_one = np.where((output_shape % 2 == 0), 0, 1)
+        crop = [
+            [output_shape[i]//2, output_shape[i]//2 + plus_one[i]]
+            for i in range(len(output_shape))
+        ]
+
+        # For the first method, the data are not masked.
+        masked_data = data
+
+        for method in methods:
+            print(f"Centering with method: {method}... ", end="")
+            # position is found in the masked data
+            position = cls.get_position(method, masked_data)
+            # mask the data in the roi defined by the output shape and
+            # position
+            masked_data = cls.get_masked_data(
+                data,
+                where=position,
+                crop=crop
+            )
+            print(masked_data)
+
+        # select the data that are not masked
+        indexes_of_interest = np.where(np.logical_not(masked_data.mask))
+        slices = [np.s_[:] for k in range(len(data.shape))]
+        for i in range(len(data.shape)):
+            bounds = (
+                np.min(indexes_of_interest[i]),
+                np.max(indexes_of_interest[i]) + 1
+            )
+            slices[i] = np.s_[bounds[0]:bounds[1]]
+
+        return masked_data.data[tuple(slices)], position
 
 
 def compute_corrected_angles(
