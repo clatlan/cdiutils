@@ -17,6 +17,7 @@ def plot_slices(
         nan_supports: list=None,
         vmin: float=None,
         vmax: float=None,
+        alphas: list=None,
         origin: str="lower",
         cmap: str="turbo",
         show_cbar: bool=True,
@@ -77,7 +78,8 @@ def plot_slices(
             vmax=vmax,
             cmap=cmap,
             origin=origin,
-            norm=norm
+            norm=norm,
+            alpha=None if alphas is None else alphas[i]
         )
 
         if data_stacking in ("vertical", "v"):
@@ -146,6 +148,7 @@ def plot_3D_volume_slices(
         cmap: str="turbo",
         vmin: float=None,
         vmax: float=None,
+        alphas: list[np.ndarray]=None,
         log_scale: bool=False,
         do_sum: bool=False,
         suptitle: str=None,
@@ -255,13 +258,14 @@ def plot_3D_volume_slices(
             ind2 = i + len(data)
             ind3 = i + 2 * len(data)
         im = grid[ind1].matshow(
-            np.sum(plot, axis=0) if do_sum else plot[shape[0]//2, ...],
+            np.sum(plot, axis=0) if do_sum else plot[shape[0]//2,],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
             origin="lower",
             aspect=aspect_ratios["yz"] if aspect_ratios else "auto",
-            norm=norm
+            norm=norm,
+            alpha=None if alphas is None else alphas[i][shape[0]//2,]
         )
         grid[ind2].matshow(
             np.sum(plot, axis=1) if do_sum else plot[:, shape[1]//2, :],
@@ -270,16 +274,18 @@ def plot_3D_volume_slices(
             vmax=vmax,
             origin="lower",
             aspect=aspect_ratios["xz"] if aspect_ratios else "auto",
-            norm=norm
+            norm=norm,
+            alpha=None if alphas is None else alphas[i][:, shape[1]//2, :]
         )
         grid[ind3].matshow(
-            np.sum(plot, axis=2) if do_sum else plot[..., shape[2]//2],
+            np.sum(plot, axis=2) if do_sum else plot[:, shape[2]//2],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
             origin="lower",
             aspect=aspect_ratios["xy"] if aspect_ratios else "auto",
-            norm=norm
+            norm=norm,
+            alpha=None if alphas is None else alphas[i][:, shape[2]//2]
         )
 
         if data_stacking in ("vertical", "v"):
@@ -562,7 +568,7 @@ def plot_diffraction_patterns(
         return fig, cnt
 
 
-def plot_contour(ax, support_2D, linewidth=2, color="k"):
+def plot_contour(ax, support_2D, linewidth=1, color="k"):
     shape = support_2D.shape
     X, Y = np.meshgrid(np.arange(0, shape[0]), np.arange(0, shape[1]))
     with warnings.catch_warnings():
