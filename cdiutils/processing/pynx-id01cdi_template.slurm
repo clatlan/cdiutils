@@ -13,5 +13,5 @@ env | grep CUDA
 scontrol --details show jobs $SLURM_JOBID | grep RES
   
 cd $data_path
- 
-mpiexec -n $SLURM_NTASKS /sware/exp/pynx/devel.p9/bin/pynx-cdi-id01 pynx-cdi-inputs.txt
+
+mpiexec -n $SLURM_NTASKS /sware/exp/pynx/2023.1/p9/bin/pynx-cdi-id01 pynx-cdi-inputs.txt
