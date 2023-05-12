@@ -1,4 +1,6 @@
 from typing import Optional, Tuple, Union, List
+import warnings
+
 import numpy as np
 import matplotlib
 import seaborn as sns
@@ -419,7 +421,7 @@ class PeakCenteringHandler:
         (com or max...) must always be at
         cropped_data[output_shape[i]//2].
             - if output_shape[i] is even: the exact center does not
-            exist and the center will be shift towards the higher value
+            exist and the center will be shifted towards the higher value
             indexes. More values before the center than after.
             - if output_shape[i] is odd, exact center can be defined and
             the numbers of values before and after the center are equal.
@@ -437,11 +439,11 @@ class PeakCenteringHandler:
 
         # For the first method, the data are not masked.
         masked_data = data
-
+        print(f"Chain centering:")
         for method in methods:
-            print(f"Centering with method: {method}... ", end="")
             # position is found in the masked data
             position = cls.get_position(method, masked_data)
+            print(f"\t-{method}: {position}, value: {data[position]}")
             # mask the data in the roi defined by the output shape and
             # position
             masked_data = cls.get_masked_data(
@@ -449,8 +451,14 @@ class PeakCenteringHandler:
                 where=position,
                 crop=crop
             )
-            print(masked_data)
-
+        if (
+                methods[-1] == "com"
+                and (position != cls.get_position("com", masked_data))
+        ):
+            warnings.warn(
+                "The center of the final box does not correspond to the com.\n"
+                "You might want to keep looking for it."
+            )
         # select the data that are not masked
         indexes_of_interest = np.where(np.logical_not(masked_data.mask))
         slices = [np.s_[:] for k in range(len(data.shape))]
