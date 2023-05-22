@@ -13,7 +13,7 @@ from cdiutils.utils import (
     crop_at_center
 )
 from cdiutils.plot.formatting import (
-    set_plot_configs, white_interior_ticks_labels
+    set_plot_configs, white_interior_ticks_labels, get_figure_size
 )
 from cdiutils.plot.slice import plot_contour
 
@@ -94,7 +94,7 @@ def preprocessing_detector_data_plot(
 ) -> matplotlib.figure.Figure:
     """
     Plot the detector data in the full detector data frame and in the 
-    cropped/centered frame.fits
+    cropped/centered frame.
 
     :param detector_data: the raw detector data (np.array)
     :param cropped_data: the cropped/centered data (np.array)
@@ -112,8 +112,10 @@ def preprocessing_detector_data_plot(
 
     :return: the matplotlib figure object
     """
-
-    figure, axes = plt.subplots(2, 3, figsize=(14, 10))
+    
+    subplots = (2+1, 3)
+    figsize = get_figure_size("nature", subplots=subplots)
+    figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
     log_data = np.log10(detector_data +1)
     log_cropped_data = np.log10(cropped_data +1)
@@ -122,6 +124,8 @@ def preprocessing_detector_data_plot(
 
     initial_shape = detector_data.shape
     final_shape = cropped_data.shape
+
+    markersize = 4
 
 
     axes[0, 0].matshow(
@@ -149,7 +153,7 @@ def preprocessing_detector_data_plot(
         det_com_voxel[2],
         det_com_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="green",
         label="com",
@@ -158,7 +162,7 @@ def preprocessing_detector_data_plot(
         det_max_voxel[2], 
         det_max_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="red",
         label="max"
@@ -189,7 +193,7 @@ def preprocessing_detector_data_plot(
         det_com_voxel[2], 
         det_com_voxel[0],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="green",
         label="com",
@@ -198,7 +202,7 @@ def preprocessing_detector_data_plot(
         det_max_voxel[2],
         det_max_voxel[0],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="red",
         label="max"
@@ -229,7 +233,7 @@ def preprocessing_detector_data_plot(
         det_com_voxel[0],
         det_com_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="green",
         label="com"
     )
@@ -237,7 +241,7 @@ def preprocessing_detector_data_plot(
         det_max_voxel[0],
         det_max_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="red",
         label="max",
     )
@@ -266,7 +270,7 @@ def preprocessing_detector_data_plot(
         cropped_com_voxel[2],
         cropped_com_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="green",
         label="com",
     )
@@ -274,7 +278,7 @@ def preprocessing_detector_data_plot(
         cropped_max_voxel[2],
         cropped_max_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="red",
         label="max",
     )
@@ -302,7 +306,7 @@ def preprocessing_detector_data_plot(
         cropped_com_voxel[2],
         cropped_com_voxel[0],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="green",
         label="com",
@@ -311,7 +315,7 @@ def preprocessing_detector_data_plot(
         cropped_max_voxel[2],
         cropped_max_voxel[0],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         linestyle="None",
         color="red",
         label="max"
@@ -341,7 +345,7 @@ def preprocessing_detector_data_plot(
         cropped_com_voxel[0],
         cropped_com_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="green",
         label="com"
     )
@@ -349,7 +353,7 @@ def preprocessing_detector_data_plot(
         cropped_max_voxel[0],
         cropped_max_voxel[1],
         marker="x",
-        markersize=10,
+        markersize=markersize,
         color="red",
         label="max",
     )
@@ -373,19 +377,19 @@ def preprocessing_detector_data_plot(
     axes[1, 2].set_xlabel("cropped rocking angle axis")
     axes[1, 2].set_ylabel(r"cropped axis$_1$")
 
-    axes[0, 1].set_title("raw detector data", size=20, y=1.8)
-    axes[1, 1].set_title("cropped detector data", size=20, y=1.05)
+    axes[0, 1].set_title("raw detector data", y=1.8)
+    axes[1, 1].set_title("cropped detector data", y=1.05)
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax)
+        white_interior_ticks_labels(ax, -15, -15)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
     _, b1, _, h1 = axes[1, 1].get_position().bounds
     center_y = (b0 + (b1+h1)) / 2
-    # cax = figure.add_axes([l0, center_y, w0, 0.025])
-    cax = figure.add_axes([l0, 0.52, w0, 0.020])
+    cax = figure.add_axes([l0, center_y, w0, 0.020])
+    # cax = figure.add_axes([l0, 0.52, w0, 0.020])
     cax.set_title("Log(Int.) (a.u.)")
     figure.colorbar(mappable, cax=cax, orientation="horizontal")
 
@@ -432,9 +436,12 @@ def summary_slice_plot(
     else:
         aspect_ratios = {"xy": "auto", "xz": "auto","yz": "auto"}
 
-    array_nb = len(kwargs)
-    figure, axes = plt.subplots(3, array_nb, figsize=(18, 9))
-    
+    subplots = (4, len(kwargs))
+    figsize = get_figure_size("nature", fraction=1, subplots=subplots)
+    figure, axes = plt.subplots(
+        subplots[0]-1, subplots[1], figsize=figsize
+    )
+
     axes[0, 0].annotate(
                 r"(xy)$_{cxi}$ slice",
                 xy=(0.2, 0.5),
@@ -443,7 +450,6 @@ def summary_slice_plot(
                 textcoords="offset points",
                 ha="right",
                 va="center",
-                size=18
     )
 
     axes[1, 0].annotate(
@@ -454,7 +460,6 @@ def summary_slice_plot(
                 textcoords="offset points",
                 ha="right",
                 va="center",
-                size=18
     )
 
     axes[2, 0].annotate(
@@ -465,7 +470,6 @@ def summary_slice_plot(
                 textcoords="offset points",
                 ha="right",
                 va="center",
-                size=18
     )
 
     mappables = {}
@@ -533,7 +537,7 @@ def summary_slice_plot(
             )
 
 
-    table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.2])
+    table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.15])
     table_ax.axis("tight")
     table_ax.axis("off")
 
@@ -542,7 +546,6 @@ def summary_slice_plot(
     averaged_dspacing = round(averaged_dspacing, 4)
     averaged_lattice_parameter = round(averaged_lattice_parameter, 4)
 
-    # voxel_s
     table = table_ax.table(
         cellText=np.transpose([
             [np.array2string(
@@ -564,38 +567,38 @@ def summary_slice_plot(
         loc="center",
         cellLoc="center"
     )
-    table.scale(1.5, 2)
-    table.set_fontsize(18)
+    table.scale(1.5, 1.5)
+    table.set_fontsize(8)
 
     figure.subplots_adjust(hspace=0.04, wspace=0.04)
     
     for i, key in enumerate(kwargs.keys()):
         l, _, w, _ = axes[0, i].get_position().bounds
-        cax = figure.add_axes([l+0.01, 0.905, w-0.02, .02])
-        cax.set_title(PLOT_CONFIGS[key]["title"], size=18)
+        cax = figure.add_axes([l+0.01, 0.93, w-0.02, .02])
+        cax.set_title(PLOT_CONFIGS[key]["title"])
         figure.colorbar(mappables[key], cax=cax, orientation="horizontal")
     
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
         ax.set_aspect("equal")
         if (
-                i % array_nb == 0
+                i % len(kwargs) == 0
                 and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude"
         ):
-            white_interior_ticks_labels(ax)
+            white_interior_ticks_labels(ax, -10, -12)
 
         else:
             ax.axes.xaxis.set_ticks([])
             ax.axes.yaxis.set_ticks([])
 
-    figure.suptitle(title, size=22, y=1.03)
+    figure.suptitle(title, y=1.035)
     # figure.subplots_adjust(hspace=0.03, wspace=0.03)
 
     if show:
         plt.show()
     # save the figure
     if save:
-        figure.savefig(save, dpi=dpi, bbox_inches="tight")
+        figure.savefig(save, dpi=dpi)
     
     return figure
 

@@ -8,6 +8,7 @@ import numpy as np
 
 from scipy.ndimage import center_of_mass
 import silx.io.h5py_utils
+from tabulate import tabulate
 import textwrap
 import vtk
 from vtk.util import numpy_support
@@ -15,6 +16,7 @@ from vtk.util import numpy_support
 from cdiutils.utils import (
     center, crop_at_center, find_isosurface, zero_to_nan, find_max_pos,
     shape_for_safe_centered_cropping, make_support, symmetric_pad,
+    CroppingHandler
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
@@ -32,7 +34,7 @@ from cdiutils.processing.plot import (
 from cdiutils.plot.formatting import update_plot_params
 
 
-def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
+def loader_factory(metadata: dict) -> BlissLoader or SpecLoader:
     """
     Load the right loader based on the beamline_setup parameter
     in the metadata dictionary
@@ -58,6 +60,7 @@ def loader_factory(metadata: dict) -> Union[BlissLoader, SpecLoader]:
         )
 
 # TODO: Redundancy of attributes and parameters
+# REMOVE : reload_preprocessing_parameters, _dspacing_gnagna
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
@@ -72,10 +75,15 @@ class BcdiProcessor:
         self.space_converter = None
 
         self.detector_data = None
-        self.sample_outofplane_angle = None
-        self.sample_inplane_angle = None
-        self.detector_outofplane_angle = None
-        self.detector_inplane_angle = None
+
+        # initialize the diffractometer angles (corresponding to eta,
+        # phi, delta, nu at ID01) 
+        self.angles = {
+            "sample_outofplane_angle": None,
+            "sample_inplane_angle": None,
+            "detector_outofplane_angle": None,
+            "detector_inplane_angle": None
+        }
 
         self.cropped_detector_data = None
         self.mask = None
@@ -97,7 +105,6 @@ class BcdiProcessor:
         self.structural_properties = {}
         self.averaged_dspacing = None
         self.averaged_lattice_parameter = None
-
 
         # initialize figures
         self.figures = {
@@ -133,18 +140,21 @@ class BcdiProcessor:
         for value in self.figures.values():
             value["figure"] = None
 
-        # initialise the loader, the space converter and the plot parameters
+        # initialise the loader and the plot parameters
         self._init_loader()
-        self._init_space_converter()
         self._init_plot_parameters()
 
     def _init_loader(self) -> None:
         self.loader = loader_factory(self.parameters["metadata"])
 
-    def _init_space_converter(self) -> None:
+    def init_space_converter(self, roi: list) -> None:
+        """
+        Instantiate SpaceConverter which will handle q space
+        computation.
+        """
         self.space_converter = SpaceConverter(
             energy=self.parameters["energy"],
-            roi=self.parameters["roi"],
+            roi=roi,
             geometry=Geometry.from_name(
                 self.parameters["metadata"]["beamline_setup"])
         )
@@ -156,211 +166,173 @@ class BcdiProcessor:
         update_plot_params(
             usetex=self.parameters["usetex"],
             **{
-                "axes.labelsize": 12,
-                "xtick.labelsize": 10,
-                "ytick.labelsize": 10,
-                "figure.titlesize": 18,
+                "axes.labelsize": 7,
+                "xtick.labelsize": 6,
+                "ytick.labelsize": 6,
+                "figure.titlesize": 8,
             }
         )
 
-    def load_data(self) -> None:
+    def load_data(self, roi: tuple[slice]=None) -> None:
         self.detector_data = self.loader.load_detector_data(
             scan=self.parameters["metadata"]["scan"],
+            roi=roi,
             binning_along_axis0=self.parameters["binning_along_axis0"]
         )
-        (
-            self.sample_outofplane_angle, self.sample_inplane_angle,
-            self.detector_inplane_angle, self.detector_outofplane_angle
-        ) = self.loader.load_motor_positions(
-            scan=self.parameters["metadata"]["scan"],
-            binning_along_axis0=self.parameters["binning_along_axis0"]
+        self.angles.update(
+            self.loader.load_motor_positions(
+                scan=self.parameters["metadata"]["scan"],
+                roi=roi,
+                binning_along_axis0=self.parameters["binning_along_axis0"]
+            )
         )
-        self.space_converter.set_q_space_area(
-                self.sample_outofplane_angle,
-                self.sample_inplane_angle,
-                self.detector_outofplane_angle,
-                self.detector_inplane_angle
-        )
-
         self.mask = self.loader.get_mask(
             channel=self.detector_data.shape[0],
-            detector_name=self.parameters["metadata"]["detector_name"]
+            detector_name=self.parameters["metadata"]["detector_name"],
+            roi=roi
         )
 
-    def verbose_print(self, text: str, **kwargs) -> None:
+    def verbose_print(self, text: str, wrap: bool=True, **kwargs) -> None:
         if self.parameters["verbose"]:
-            wrapper = textwrap.TextWrapper(
-                width=80,
-                break_long_words=True,
-                replace_whitespace=False
-            )
-            text = "\n".join(wrapper.wrap(text))
+            if wrap:
+                wrapper = textwrap.TextWrapper(
+                    width=80,
+                    break_long_words=False,
+                    replace_whitespace=False
+                )
+                text = "\n".join(wrapper.wrap(text))
+
             print(text,  **kwargs)
 
 
-    def _compute_dspacing_lattice(self) -> None:
-        hkl = self.parameters["hkl"]
-        qnorm_reference = np.linalg.norm(self.q_lab_reference)
-        self.dspacing_reference = 2*np.pi/qnorm_reference
-        self.lattice_parameter_reference = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * self.dspacing_reference
-        )
-        qnorm_max = np.linalg.norm(self.q_lab_max)
-        self.dspacing_max = 2*np.pi/qnorm_max
-        self.lattice_parameter_max = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * self.dspacing_max
-        )
-        qnorm_com = np.linalg.norm(self.q_lab_com)
-        self.dspacing_com = 2*np.pi/qnorm_com
-        self.lattice_parameter_com = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * self.dspacing_com
-        )
+    def preprocess_data(self) -> None:
 
-    def center_crop_data(self) -> None:
         final_shape = tuple(self.parameters["preprocessing_output_shape"])
-        initial_shape = self.detector_data.shape
-        # if the final_shape is 2D convert it in 3D
-        if len(final_shape) == 2:
-            final_shape = (self.detector_data.shape[0], ) + final_shape
-        print(f"The preprocessing output shape is: {final_shape}")
 
-        # Find the max and com voxel in the detector frame without
-        # considering the method provided by the user
-        # first determine the maximum value position in the det frame
-        det_max_voxel = find_max_pos(self.detector_data)
-
-        # find the com nearby the max using the given
-        # preprocessing_output_shape
-        max_centered_data, former_center = center(
-                self.detector_data,
-                where=det_max_voxel,
-                return_former_center=True
-        )
-
-        max_cropped_data = crop_at_center(
-            max_centered_data,
-            final_shape=final_shape
-        )
-        cropped_com_voxel = center_of_mass(max_cropped_data)
-        # convert the com coordinates in the detector frame coordinates
-        det_com_voxel = (
-            cropped_com_voxel
-            + (np.array(initial_shape) - np.array(final_shape))//2
-            - (np.array(initial_shape)//2 - former_center)
-        )
-
-        # determine the detector voxel reference according to the
-        # provided method
-        if (
-                self.parameters["det_reference_voxel_method"] is None
-                and isinstance(
-                    self.parameters["det_reference_voxel"], (list, tuple)
+        if self.parameters["lite_loading"]:
+            if (
+                    len(final_shape) != 3
+                    and self.parameters["binning_along_axis0"] is None
+            ):
+                raise ValueError(
+                    "final_shape must include 3 axis lengths or you must "
+                    "provide binning_along_axis0 parameter."
                 )
-        ):
-            det_reference_voxel = [
-                int(e) for e in self.parameters["det_reference_voxel"]
-            ]
-            self.verbose_print(
-                "Reference voxel provided by user: "
-                f"{self.parameters['det_reference_voxel']}"
+            roi = CroppingHandler.get_roi(
+                final_shape,
+                self.parameters["det_reference_voxel_method"][-1]
             )
-        if self.parameters["det_reference_voxel_method"] == "max":
-            det_reference_voxel = det_max_voxel
             self.verbose_print(
-                "Method employed for the reference voxel determination is max"
+                f"Lite loading requested, will use roi {roi} for data loading."
             )
-        elif self.parameters["det_reference_voxel_method"] == "com":
-            det_reference_voxel = np.rint(det_com_voxel).astype(int)
+            self.load_data(roi=CroppingHandler.roi_list_to_slices(roi))
+            self.cropped_detector_data = self.detector_data
+            full_det_max, full_det_com = None, None
+            print(self.cropped_detector_data)
+
+        else:
+            self.load_data()
+            # if the final_shape is 2D convert it in 3D
+            if len(final_shape) == 2:
+                final_shape = (self.detector_data.shape[0], ) + final_shape
             self.verbose_print(
-                "Method employed for the reference voxel determination is com"
+                f"The preprocessing output shape is: {final_shape} and will be "
+                "used for ROI dimensions."
+            )
+            self.load_data()
+
+            self.verbose_print(
+                    "Method(s) employed for the reference voxel determination "
+                    f"are {self.parameters['det_reference_voxel_method']}"
+                )
+
+            (
+                self.cropped_detector_data,
+                det_ref,
+                cropped_det_ref,
+                roi
+            ) = CroppingHandler.chain_centering(
+                self.detector_data,
+                final_shape,
+                methods=self.parameters["det_reference_voxel_method"]
+            )
+            # position of the max and com the full detector frame
+            full_det_max = CroppingHandler.get_position(
+                self.detector_data, "max")
+            full_det_com = CroppingHandler.get_position(
+                self.detector_data, "com")
+
+            # convert numpy.int64 to int to make them serializable and
+            # store the det_reference_voxel in the parameters which will
+            # be saved later
+            self.parameters["det_reference_voxel"] = tuple(
+                int(e) for e in det_ref
             )
 
-        # convert numpy.int64 to int to make them serializable and
-        # store the det_reference_voxel in the parameters which will be
-        # saved later
-        self.parameters["det_reference_voxel"] = [
-            int(e) for e in det_reference_voxel
+            # center and crop the mask
+            self.mask = center(self.mask, where=det_ref)
+            self.mask = crop_at_center(self.mask, final_shape=final_shape)
+
+            self.verbose_print(
+                f"The reference voxel was found at {det_ref} in the "
+                "full detector frame.\n"
+                f"The processing_out_put_shape being {final_shape}, the roi "
+                f"used to crop the data is {roi}"
+            )
+
+            # set the q space area with the sample and detector angles that
+            # correspond to the requested preprocessing_output_shape
+            for key, value in self.angles.items():
+                if isinstance(value, (list, np.ndarray)):
+                    self.angles[key] = value[np.s_[roi[0]:roi[1]]]
+
+        # position of the max and com in the cropped detector frame
+        cropped_det_max = CroppingHandler.get_position(
+            self.cropped_detector_data, "max")
+        cropped_det_com =  CroppingHandler.get_position(
+            self.cropped_detector_data, "com")
+
+        self.init_space_converter(roi=roi[2:]) # we only need the 2D roi
+        self.space_converter.set_q_space_area(**self.angles)
+        table = [
+            ["voxel", "det. pos.", "cropped det. pos.",
+             "dspacing (A)", "lat. par. (A)"]
         ]
 
-        # now proceed to the centering and cropping using
-        # the det_reference_voxel as a reference
-        centered_data = center(self.detector_data, where=det_reference_voxel)
-        self.verbose_print(f"Shape before checking: {final_shape}")
-        final_shape = shape_for_safe_centered_cropping(
-            initial_shape, det_reference_voxel, final_shape
-        )
-        self.verbose_print(f"Shape after checking: {final_shape}")
-        self.cropped_detector_data = crop_at_center(
-            centered_data,
-            final_shape=final_shape
-        )
-
-        # center and crop the mask
-        self.mask = center(self.mask, where=det_reference_voxel)
-        self.mask = crop_at_center(self.mask, final_shape=final_shape)
-
-        # redefine the max and com voxel coordinates in the new cropped data
-        # frame
-        cropped_max_voxel = (
-            det_max_voxel
-            - (det_reference_voxel - np.array(initial_shape)//2)
-            - (np.array(initial_shape)- final_shape)//2
-        )
-        cropped_com_voxel = (
-            det_com_voxel
-            - (det_reference_voxel - np.array(initial_shape)//2)
-            - (np.array(initial_shape)- final_shape)//2
-        )
-
-        # save the voxel reference in the detector frame and q_lab frame
-        self.det_reference_voxel = det_reference_voxel
-        self.q_lab_reference = self.space_converter.index_det_to_q_lab(
-            det_reference_voxel)
-        self.q_lab_max = self.space_converter.index_det_to_q_lab(
-            det_max_voxel
-        )
-        try:
-            self.q_lab_com = self.space_converter.index_det_to_q_lab(
-                np.rint(det_com_voxel).astype(int)
-            )
-        except IndexError:
-            self.verbose_print(
-                "COM has been found out of the detector frame, will be set to max"
-            )
-            self.q_lab_com = self.q_lab_max
-
-        self._compute_dspacing_lattice()
-
-        # print some info
+        # get the position of the reference, max and det voxels in the
+        # q lab space
+        self.verbose_print("\nSummary table:")
         self.verbose_print(
-            "[INFO]\n"
-            f"\nMax in the full detector frame at {det_max_voxel}\n"
-            "Max in the cropped detector frame at "
-            f"{tuple(cropped_max_voxel)}\n"
-            f"The max corresponds to a d-spacing of {self.dspacing_max:.4f} A "
-            f"and a lattice parameter of {self.lattice_parameter_max:.4f} A\n\n"
-            f"Com in the full detector frame at "
-            f"{tuple(round(det_com_voxel[i], 2) for i in range(3))} "
-            f"(based on a {final_shape[1], final_shape[2]} max-centered "
-            "bounding box)\n"
-            "Com in the cropped detector frame at "
-            f"{tuple(round(cropped_com_voxel[i], 2) for i in range(3))}\n"
-            f"The com corresponds to a d-spacing of {self.dspacing_com:.4f} A "
-            f"and a lattice parameter of {self.lattice_parameter_com:.4f} A\n\n"
-            f"The reference q_lab_reference corresponds "
-            f"to a d-spacing of {self.dspacing_reference:.4f} A and a lattice "
-            f"parameter of {self.lattice_parameter_reference:.4f} A\n"
+            "(max and com in the cropped frame are different to max and com in"
+            " the full detector frame.)"
         )
-         # save the values ofthe q_labs in the parameters dict
-        self.parameters.update(
-            {
-                "q_lab_reference": self.q_lab_reference,
-                "q_lab_max": self.q_lab_max,
-                "q_lab_com": self.q_lab_com
-            }
+        for key, det_voxel, cropped_det_voxel in zip(
+            ["q_lab_reference", "q_lab_max", "q_lab_com"],
+            [det_ref, full_det_max, full_det_com],
+            [cropped_det_ref, cropped_det_max, cropped_det_com]
+        ):
+            (
+                self.parameters[key]
+            ) = self.space_converter.index_det_to_q_lab(cropped_det_voxel)
+            print(cropped_det_voxel, self.parameters[key])
+
+            # compute the corresponding dpsacing and lattice parameter
+            # for printing
+            dspacing = self.space_converter.dspacing(
+                    self.parameters[key]
+            )
+            lattice =  self.space_converter.lattice_parameter(
+                    self.parameters[key],
+                    self.parameters["hkl"]
+            )
+            table.append(
+                [key.split('_')[-1], det_voxel, cropped_det_voxel,
+                 f"{dspacing:.5f}", f"{lattice:.5f}"]
+            )
+
+        self.verbose_print(
+            tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
+            wrap=False
         )
 
         # plot the detector data in the full detector frame and in the
@@ -369,11 +341,11 @@ class BcdiProcessor:
             preprocessing_detector_data_plot(
                 detector_data=self.detector_data,
                 cropped_data=self.cropped_detector_data,
-                det_reference_voxel=det_reference_voxel,
-                det_max_voxel=det_max_voxel,
-                det_com_voxel=det_com_voxel,
-                cropped_max_voxel=cropped_max_voxel,
-                cropped_com_voxel=cropped_com_voxel,
+                det_reference_voxel=det_ref,
+                det_max_voxel=full_det_max,
+                det_com_voxel=full_det_com,
+                cropped_max_voxel=cropped_det_max,
+                cropped_com_voxel=cropped_det_com,
                 title=(
                     "Detector data preprocessing, "
                     f"S{self.parameters['metadata']['scan']}"
@@ -426,8 +398,6 @@ class BcdiProcessor:
         self.q_lab_max = self.parameters["q_lab_max"]
         self.q_lab_com = self.parameters["q_lab_com"]
 
-        self._compute_dspacing_lattice()
-
     def orthogonalize(self):
         """
         Orthogonalize detector data to the lab frame.
@@ -469,7 +439,25 @@ class BcdiProcessor:
         reconstructed_amplitude = center(reconstructed_amplitude, where=com)
         reconstructed_phase = center(np.angle(reconstructed_object), where=com)
 
-        support, c = center(support, where=com, return_former_center=True)
+        support = center(support, where=com)
+
+        ###############################################################
+        # This block of code aims to unwrap phase before ortho, it might #
+        # be useful in the future #
+        ###############################################################
+        # from skimage.restoration import unwrap_phase
+        # unwrapping_support = make_support(
+        #     reconstructed_amplitude,
+        #     isosurface=0.1
+        # )
+        # unwrapping_support = center(unwrapping_support, where=com)
+        # mask = np.where(unwrapping_support == 0, 1, 0)
+        # reconstructed_phase = np.ma.masked_array(reconstructed_phase, mask=mask)
+        # reconstructed_phase = unwrap_phase(
+        #     reconstructed_phase,
+        #     wrap_around=False,
+        #     seed=1
+        # ).data
 
         # find the maximum of the Bragg peak, this is will be taken as
         # the space origin for the orthogonalization
@@ -489,6 +477,26 @@ class BcdiProcessor:
             "The shape for a safe centered cropping is: "
             f"{final_shape}"
         )
+
+        # initialize the SpaceConverter
+        self.init_space_converter(
+            roi=[0, self.detector_data.shape[1], 0, self.detector_data.shape[2]]
+        )
+        self.space_converter.set_q_space_area(**self.angles)
+
+        for key in ["q_lab_reference", "q_lab_max", "q_lab_com"]:
+            # compute the corresponding dspacing and lattice parameter
+            self.parameters[f'dspacing_{key.split("_")[-1]}'] = (
+                self.space_converter.dspacing(self.parameters[key])
+            )
+
+            self.parameters[f'lattice_parameter_{key.split("_")[-1]}'] = (
+                self.space_converter.lattice_parameter(
+                    self.parameters[key],
+                    self.parameters["hkl"]
+                )
+            )
+
         # set the reference voxel and the cropped shape in the space
         # converter for further processing in the q lab space
         self.space_converter.reference_voxel = det_reference_voxel
@@ -604,10 +612,45 @@ class BcdiProcessor:
             raise NotImplementedError("Please provide a .npz file")
 
     def postprocess(self) -> None:
+
         if self.parameters["flip"]:
             data = flip_reconstruction(self.orthgonolized_data)
         else:
             data = self.orthgonolized_data
+
+        # np.savez(
+        #     "debug_amplitude_before_unwrap.npz",
+        #     amplitude=np.abs(data),
+        #     phase=np.angle(data),
+        #     data=data
+        # )
+
+        # from cdiutils.utils import normalize
+        # from skimage.restoration import unwrap_phase
+
+        # support = make_support(
+        #     normalize(np.abs(data)),
+        #     isosurface=0.5,
+        #     nan_values=False
+        # )
+        # phase = np.angle(data)
+        # mask = np.where(support == 0, 1, 0)
+        # phase = np.ma.masked_array(phase, mask=mask)
+        # phase = unwrap_phase(
+        #     phase,
+        #     wrap_around=False,
+        #     seed=1
+        # ).data
+
+        # data = np.abs(data) * np.exp(1j * phase)
+
+        # np.savez(
+        #     "debug_amplitude_before_apo.npz",
+        #     amplitude=np.abs(data),
+        #     phase=phase,
+        #     data=data
+        # )
+
 
         if self.parameters["apodize"]:
             self.verbose_print(
@@ -616,7 +659,12 @@ class BcdiProcessor:
             )
             data = blackman_apodize(data, initial_shape=data.shape)
             self.verbose_print("done.")
-        amplitude = np.abs(data)
+        # np.savez(
+        #     "debug_amplitude_after_apo.npz",
+        #     amplitude=np.abs(data),
+        #     phase=np.angle(data),
+        #     data=data
+        # )
 
         # first compute the histogram of the amplitude to get an
         # isosurface estimate
@@ -626,7 +674,7 @@ class BcdiProcessor:
             end=""
         )
         isosurface, self.figures["amplitude"]["figure"] = find_isosurface(
-            amplitude,
+            np.abs(data),
             nbins=100,
             sigma_criterion=3,
             plot=True # plot in any case
@@ -648,7 +696,6 @@ class BcdiProcessor:
         else:
             self.parameters["isosurface"] = isosurface
 
-
         # store the the averaged dspacing and lattice constant in variables
         # so they can be saved later in the output file
         self.verbose_print(
@@ -660,7 +707,8 @@ class BcdiProcessor:
             data,
             self.parameters["isosurface"],
             q_vector=SpaceConverter.lab_to_cxi_conventions(
-                self.q_lab_reference),
+                self.q_lab_reference
+            ),
             hkl=self.parameters["hkl"],
             voxel_size=self.voxel_size,
             phase_factor=-1 # it came out of pynx, phase must be -phase
@@ -903,27 +951,27 @@ class BcdiProcessor:
             )
             scalars.create_dataset(
                 "dspacing_reference",
-                data=self.dspacing_reference
+                data=self.parameters["dspacing_reference"]
             )
             scalars.create_dataset(
                 "dspacing_max",
-                data=self.dspacing_max
+                data=self.parameters["dspacing_max"]
             )
             scalars.create_dataset(
                 "dspacing_com",
-                data=self.dspacing_com
+                data=self.parameters["dspacing_com"]
             )
             scalars.create_dataset(
                 "lattice_parameter_reference",
-                data=self.lattice_parameter_reference
+                data=self.parameters["lattice_parameter_reference"]
             )
             scalars.create_dataset(
                 "lattice_parameter_max",
-                data=self.lattice_parameter_max
+                data=self.parameters["lattice_parameter_max"]
             )
             scalars.create_dataset(
                 "lattice_parameter_com",
-                data=self.lattice_parameter_com
+                data=self.parameters["lattice_parameter_com"]
             )
             scalars.create_dataset(
                 "averaged_dspacing",
@@ -952,7 +1000,7 @@ class BcdiProcessor:
                 exist_ok=True
             )
             if os.path.isdir(debug_dir):
-                self.verbose_print(f"Debug directory is: {debug_dir}")
+                self.verbose_print(f"[INFO] Debug directory is: {debug_dir}")
             else:
                 raise FileNotFoundError(
                     "Could not create the directory:\n{debug_dir}"

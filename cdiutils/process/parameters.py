@@ -5,9 +5,9 @@ AUTHORIZED_KEYS = {
         "metadata": "REQUIRED",
         "preprocessing_output_shape": "REQUIRED",
         "energy": "REQUIRED",
-        "roi": "REQUIRED",
         "hkl": "REQUIRED",
         "det_reference_voxel_method": "REQUIRED",
+        "lite_loading": False,
         "det_reference_voxel": None,
         "binning_along_axis0": None,
         "q_lab_reference": None,
@@ -64,11 +64,8 @@ AUTHORIZED_KEYS = {
     }
 }
 
-class MissingArgumentError(ValueError):
-    pass
 
-
-def check_parameters(parameters: dict):
+def check_parameters(parameters: dict) -> None:
     """
     Check parameters given by user, handle when parameters are
     required or not provided.
@@ -77,7 +74,7 @@ def check_parameters(parameters: dict):
         for name, value in AUTHORIZED_KEYS[e].items():
             if not name in parameters[e].keys():
                 if value == "REQUIRED":
-                    raise MissingArgumentError(f"Arguement '{name}' is required")
+                    raise ValueError(f"Arguement '{name}' is required")
                 else:
                     parameters[e].update({name: value})
         for name in parameters[e].keys():
@@ -105,7 +102,7 @@ def get_parameters_from_notebook_variables(
 ) -> dict:
     """
     Return a dictionary of parameters whose keys are authorized by the 
-    AUTORIZD_KEYS list.
+    AUTHORIZED_KEYS list.
     """
     parameters = {
         "cdiutils": {},

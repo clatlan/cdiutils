@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict
 from string import Template
 import glob
 import os
@@ -16,7 +16,7 @@ from cdiutils.utils import pretty_print
 from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
 from .plot import plot_phasing_result
-from .authorized_keys import check_parameters
+from .parameters import check_parameters
 
 try:
     from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
@@ -138,9 +138,9 @@ class BcdiPipeline:
     """
     def __init__(
             self,
-            parameter_file_path: Optional[str]=None,
-            parameters: Optional[dict]=None,
-            backend: Optional[str]="cdiutils"
+            parameter_file_path: str=None,
+            parameters: dict=None,
+            backend: str="cdiutils"
         ):
 
         self.parameter_file_path = parameter_file_path
@@ -152,6 +152,8 @@ class BcdiPipeline:
                     "parameter_file_path or parameters must be provided"
                 )
             self.parameters = self.load_parameters(backend)
+        else:
+            check_parameters(parameters)
 
         self.backend = backend
 
@@ -179,8 +181,8 @@ class BcdiPipeline:
 
     def load_parameters(
             self,
-            backend: Optional[str]=None,
-            file_path: Optional[str]=None
+            backend: str=None,
+            file_path: str=None
     ) -> dict:
         """
         Load the parameters from the configuration files.
@@ -189,25 +191,28 @@ class BcdiPipeline:
             backend = self.backend
         if file_path is None:
             file_path = self.parameter_file_path
+
         if backend  == "bcdi":
             return BcdiPipelineParser(
                 file_path
             ).load_arguments()
+
         if backend == "cdiutils":
             with open(file_path, "r", encoding="utf8") as file:
                 parameters = yaml.load(
                     file,
                     Loader=yaml.FullLoader
                 )
-                return check_parameters(parameters)
+            check_parameters(parameters)
+            return parameters
 
-            raise ValueError(
-                f"[ERROR] Unknwon backend value ({backend}), it must be either"
-                " 'cdiutils' or 'bcdi'"
-            )
+        raise ValueError(
+            f"[ERROR] Unknwon backend value ({backend}), it must be either"
+            " 'cdiutils' or 'bcdi'"
+        )
 
     @process
-    def preprocess(self, backend: Optional[str]=None) -> None:
+    def preprocess(self, backend: str=None) -> None:
 
         if backend is None:
             backend = self.backend
@@ -240,8 +245,7 @@ class BcdiPipeline:
             self.bcdi_processor = BcdiProcessor(
                 parameters=self.parameters["cdiutils"]
             )
-            self.bcdi_processor.load_data()
-            self.bcdi_processor.center_crop_data()
+            self.bcdi_processor.preprocess_data()
             self.bcdi_processor.save_preprocessed_data()
             pynx_input_template = "S*_pynx_input_data.npz"
             pynx_mask_template = "S*_pynx_input_mask.npz"
@@ -550,7 +554,7 @@ class BcdiPipeline:
             self.parameters = self.load_parameters()
 
     @process
-    def postprocess(self, backend: Optional[str]=None) -> None:
+    def postprocess(self, backend: str=None) -> None:
 
         if backend is None:
             backend = self.backend
