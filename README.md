@@ -32,19 +32,16 @@ pip install -U --no-deps git+https://github.com/clatlan/cdiutils.git
 
 ## Processing BCDI data
 
-Once data are processed, the BcdiPipeline saves the data in .npz, .cxi and .vti files. It also plot summary and debug figures such as:
+Once data are processed, the BcdiPipeline saves the data in .npz, .cxi and .vti files. It also plots summary and debug figures such as:
 
 * **Summary Slice Plot**
-![summary](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_summary_slice_plot.png)
-
+  ![summary](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_summary_slice_plot.png)
 * **Isosurface determination**
-![isosurface](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_amplitude_distribution_plot.png)
-
+  ![isosurface](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_amplitude_distribution_plot.png)
 * **Different strain computation methods**
-![strain](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_different_strain_methods.png)
-
+  ![strain](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_different_strain_methods.png)
 * **Orthogonalization in the direct space**
-![ortho](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_direct_lab_orthogonaliztion_plot.png)
+  ![ortho](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_direct_lab_orthogonaliztion_plot.png)
 
 ## Slice plot
 
@@ -77,6 +74,6 @@ cdiutils.plot.quiver.quiver_plot
 
 ## Diffraction pattern plots in the reciprocal space
 
-cdiutils.plot.plot.plot_diffraction_patterns
+cdiutils.plot.slice.plot_diffraction_patterns
 
 ![Diffraction Patterns](https://github.com/clatlan/cdiutils/blob/master/images/diffraction_patterns.png)
