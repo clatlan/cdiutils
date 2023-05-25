@@ -17,5 +17,6 @@ silx>=1.0.0
 sklearn>=0.0.post1
 vtk>=9.0.1
 xrayutilities>=1.7.3
+tabulate
 
 
