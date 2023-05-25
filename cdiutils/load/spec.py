@@ -12,7 +12,7 @@ def safe(func):
             return func(self, specfile, *args, **kwargs)
     return wrap
 
-
+# TODO: Impelement roi parameter for detector, motors and mask methods
 class SpecLoader():
     def __init__(
             self,
@@ -60,6 +60,7 @@ class SpecLoader():
             self,
             specfile: silx.io.specfile.SpecFile,
             scan: int,
+            roi: tuple[slice]=None,
             binning_along_axis0=None
     ):
         # TODO: implement flatfield consideration and binning_along_axis0
@@ -80,18 +81,19 @@ class SpecLoader():
             self, 
             specfile: silx.io.specfile.SpecFile,
             scan: int,
+            roi: tuple[slice]=None,
             binning_along_axis0=None
     ):
         positioners = specfile[f"{scan}.1/instrument/positioners"]
 
         # delta outofplane detector
-        outofplane_detector_angle = positioners["del"][...]
+        detector_outofplane_angle = positioners["del"][...]
         # eta incidence sample
-        outofplane_sample_angle = positioners["eta"][...]
+        sample_outofplane_angle = positioners["eta"][...]
         # nu inplane detector
-        inplane_detector_angle = positioners["nu"][...]
+        detector_inplane_angle = positioners["nu"][...]
         # phi azimuth sample angle
-        inplane_sample_angle = positioners["phi"][...]
+        sample_inplane_angle = positioners["phi"][...]
 
         # if outofplane_sample_angle.shape != ():
         #     # angular_step = (
@@ -115,17 +117,19 @@ class SpecLoader():
         #         )/ 2
             # rocking_angle = "inplane"
         
-        return (
-            outofplane_sample_angle,
-            inplane_sample_angle,
-            inplane_detector_angle,
-            outofplane_detector_angle
-        )
+        return {
+                "sample_outofplane_angle": sample_outofplane_angle,
+                "sample_inplane_angle": sample_inplane_angle,
+                "detector_outofplane_angle": detector_outofplane_angle,
+                "detector_inplane_angle": detector_inplane_angle
+            }
 
     @staticmethod
     def get_mask(
             channel: Optional[int],
-            detector_name: str="Maxipix"
+            detector_name: str="Maxipix",
+            roi: tuple[slice]=None
+            
     ) -> np.ndarray:
         """Load the mask of the given detector_name."""
 
