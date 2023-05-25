@@ -176,7 +176,7 @@ def update_plot_params(
 
 
 def get_figure_size(
-        width: Union[int, str],
+        width: int or str,
         fraction: float=1,
         subplots: tuple=(1, 1)
 ) -> tuple:
@@ -194,16 +194,12 @@ def get_figure_size(
 
     :return: dimensions of the figure in inches (tuple)
     """
-    print(f"Chosen width is '{width}'.")
     if width == 'thesis':
         width_pt = 426.79135
-        print(f"(It corresponds to {width_pt} pt).")
     elif width == 'beamer':
         width_pt = 398.3386
-        print(f"(It corresponds to {width_pt} pt).")
     elif width == "nature":
         width_pt = 518.74
-        print(f"(It corresponds to {width_pt} pt).")
     else:
         width_pt = width
 

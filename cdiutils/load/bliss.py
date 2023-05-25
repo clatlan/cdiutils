@@ -17,13 +17,21 @@ class BlissLoader():
     A class to handle loading/reading .h5 files that were created using
     Bliss on the ID01 beamline.
     """
+
+    angle_names = {
+            "sample_outofplane_angle": "eta",
+            "sample_inplane_angle": "phi",
+            "detector_outofplane_angle": "delta",
+            "detector_inplane_angle": "nu"
+        }
+
     def __init__(
             self,
             experiment_file_path: str,
-            detector_name: str="flexible",
-            sample_name: Optional[str]=None,
-            flatfield: Union[np.ndarray, str]=None,
-            alien_mask: Union[np.ndarray, str]=None
+            detector_name: str,
+            sample_name: str=None,
+            flatfield: np.ndarray or  str=None,
+            alien_mask: np.ndarray or str=None
     ):
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
@@ -60,9 +68,10 @@ class BlissLoader():
     def load_detector_data(
             self,
             scan: int,
-            sample_name: Optional[str]=None,
-            binning_along_axis0: Optional[int]=None,
-            binning_method: Optional[str]="sum"
+            sample_name: str=None,
+            roi: tuple[slice]=None,
+            binning_along_axis0: int=None,
+            binning_method: str="sum"
     ) -> np.ndarray:
         """Load the detector data of a given scan number."""
 
@@ -70,31 +79,57 @@ class BlissLoader():
         if sample_name is None:
             sample_name = self.sample_name
 
-        key_path = "_".join((sample_name, str(scan))) + ".1"
-        if self.detector_name == "flexible":
-            try:
-                data = h5file[key_path + "/measurement/mpx1x4"][()]
-            except KeyError:
-                data = h5file[key_path + "/measurement/mpxgaas"][()]
+        key_path = (
+            "_".join((sample_name, str(scan)))
+            + f".1/measurement/{self.detector_name}"
+        )
+
+        if roi is None:
+            roi = tuple(slice(None) for i in range(3))
+        elif len(roi) == 2:
+            roi = tuple([slice(None), roi[0], roi[1]])
+
+        if binning_along_axis0:
+            data = h5file[key_path][()]
         else:
-            data = h5file[key_path + f"/measurement/{self.detector_name}"][()]
-        if self.flatfield is not None:
-            data = data * self.flatfield
-        if self.alien_mask is not None:
-            data = data * self.alien_mask
+            data = h5file[key_path][roi]
+
         if binning_along_axis0:
             original_dim0 = data.shape[0]
             nb_of_bins = original_dim0 // binning_along_axis0
-            last_slices = original_dim0 % binning_along_axis0
+            first_slices = nb_of_bins * binning_along_axis0
+            last_slices = first_slices + original_dim0 % binning_along_axis0
             if binning_method == "sum":
                 binned_data = [
                     np.sum(e, axis=0)
-                    for e in np.array_split(data[:-last_slices], nb_of_bins)
+                    for e in np.array_split(data[:first_slices], nb_of_bins)
                 ]
-                if last_slices != 0:
+                if original_dim0 % binning_along_axis0 != 0:
                     binned_data.append(np.sum(data[last_slices:], axis=0))
                 data = np.asarray(binned_data)
+
+        if binning_along_axis0 and roi:
+            data = data[roi]
+
+        if self.flatfield is not None:
+            data = data * self.flatfield[roi[1:]]
+
+        if self.alien_mask is not None:
+            data = data * self.alien_mask[roi[1:]]
+
         return data
+
+    @safe
+    def get_array_shape(self, scan: int, sample_name: str=None) -> tuple:
+        h5file = self.h5file
+        if sample_name is None:
+            sample_name = self.sample_name
+
+        key_path = (
+            "_".join((sample_name, str(scan)))
+            + f".1/measurement/{self.detector_name}"
+        )
+        return h5file[key_path].shape
 
     @safe
     def show_scan_attributes(
@@ -115,15 +150,16 @@ class BlissLoader():
             self,
             scan: int,
             sample_name: Optional[str]=None,
+            roi: tuple[slice]=None,
             binning_along_axis0: Optional[int]=None,
             binning_method: Optional[str]="mean"
-    ) -> tuple:
+    ) -> dict:
         """
-        Load the motor positions and return it in the following order:
+        Load the motor positions and return it as a dict of:
         - sample out of plane angle
         - sample in plane angle
-        - detector in plane angle
         - detector out of plane angle
+        - detector in plane angle
         """
 
         if sample_name is None:
@@ -131,32 +167,62 @@ class BlissLoader():
 
         key_path = "_".join(
                 (sample_name, str(scan))
-        ) + ".1/instrument/positioners"
+        ) + ".1/instrument/positioners/"
 
-        nu = self.h5file[key_path + "/nu"][()]
-        delta = self.h5file[key_path + "/delta"][()]
-        eta = self.h5file[key_path + "/eta"][()]
-        phi = self.h5file[key_path + "/phi"][()]
+        if roi is None or len(roi) == 2:
+            roi = slice(None)
+        elif len(roi) == 3:
+            roi = roi[0]
+
+        angles = {key: None for key in BlissLoader.angle_names.keys()}
+
+        for angle, name in BlissLoader.angle_names.items():
+            if binning_along_axis0:
+                    angles[angle] = self.h5file[key_path + name][()]
+            else:
+                try:
+                    angles[angle] = self.h5file[key_path + name][roi]
+                except ValueError:
+                    angles[angle] = self.h5file[key_path + name][()]
 
         if binning_along_axis0:
-            original_dim0 = eta.shape[0]
+            original_dim0 = angles["sample_outofplane_angle"].shape[0]
             nb_of_bins = original_dim0 // binning_along_axis0
-            last_slices = original_dim0 % binning_along_axis0
+            first_slices = nb_of_bins * binning_along_axis0
+            last_slices = first_slices + original_dim0 % binning_along_axis0
             if binning_method == "mean":
-                if last_slices != 0:
-                    binned_eta = [
-                        e
-                        for e in np.split(eta[:-last_slices], nb_of_bins)
+                if original_dim0 % binning_along_axis0 != 0:
+                    binned_sample_outofplane_angle = [
+                        np.mean(e, axis=0)
+                        for e in np.split(
+                                angles["sample_outofplane_angle"][:first_slices],
+                                nb_of_bins
+                            )
                     ]
-                    binned_eta.append(np.mean(eta[last_slices:], axis=0))
+                    binned_sample_outofplane_angle.append(
+                        np.mean(
+                            angles["sample_outofplane_angle"][last_slices-1:],
+                            axis=0
+                        )
+                    )
                 else:
-                    binned_eta = [
-                        e
-                        for e in np.split(eta, nb_of_bins)
+                    binned_sample_outofplane_angle = [
+                        np.mean(e, axis=0)
+                        for e in np.split(
+                                angles["sample_outofplane_angle"],
+                                nb_of_bins
+                            )
                     ]
-                eta = np.asarray(binned_eta)
-
-        return eta, phi, nu, delta
+                angles["sample_outofplane_angle"] = np.asarray(
+                    binned_sample_outofplane_angle
+                )
+        if binning_along_axis0 and roi:
+            for name, value in angles.items():
+                try:
+                    angles[name] = value[roi]
+                except IndexError: # note that it is not the same error as above
+                    continue
+        return angles
 
     @safe
     def load_measurement_parameters(
@@ -232,10 +298,13 @@ class BlissLoader():
 
     @staticmethod
     def get_mask(
-            channel: Optional[int],
-            detector_name: str="Maxipix"
+            channel: Optional[int]=None,
+            detector_name: str="Maxipix",
+            roi: tuple[slice]=None
     ) -> np.ndarray:
         """Load the mask of the given detector_name."""
+        if roi is None:
+            roi = tuple(slice(None) for i in range(3 if channel else 2))
 
         if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
             mask = np.zeros(shape=(516, 516))
@@ -261,5 +330,5 @@ class BlissLoader():
         else:
             raise ValueError("Unknown detector_name")
         if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
-        return mask
+            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
+        return mask[roi]

@@ -83,168 +83,181 @@ def plot_phasing_result(file_path: str) -> None:
 
 
 def preprocessing_detector_data_plot(
-        detector_data: np.array,
         cropped_data: np.array,
-        det_reference_voxel: Union[np.array, list, tuple],
-        det_max_voxel: Union[np.array, list, tuple],
-        det_com_voxel: Union[np.array, list, tuple],
-        cropped_max_voxel: Union[np.array, list, tuple],
-        cropped_com_voxel: Union[np.array, list, tuple],
+        cropped_max_voxel: np.array or list or tuple,
+        cropped_com_voxel: np.array or list or tuple,
+        detector_data: np.array=None,
+        det_reference_voxel: np.array or list or tuple=None,
+        det_max_voxel: np.array or list or tuple=None,
+        det_com_voxel: np.array or list or tuple=None,
         title: str=""
 ) -> matplotlib.figure.Figure:
     """
-    Plot the detector data in the full detector data frame and in the 
+    Plot the detector data in the full detector data frame and the
     cropped/centered frame.
 
-    :param detector_data: the raw detector data (np.array)
-    :param cropped_data: the cropped/centered data (np.array)
-    :det_reference_voxel: the voxel reference in the full detector frame
-    (np.array, list or tuple)
-    :det_max_voxel: the max voxel in the full detector frame
-    (np.array, list or tuple)
-    :det_com_voxel: the com voxel in the full detector fame (np.array,
-    list, tuple)
-    :cropped_max_voxel: the max voxel in the centered/cropped detector
-    frame (np.array, list or tuple)
-    :cropped_com_voxel: the com voxel in the centered/cropped detector
-    frame (np.array, list or tuple)
-    :title: the tile of the figure (string)
+    Parameters:
+    ----------
+    detector_data: np.array
+        The raw detector data.
+    cropped_data: np.array
+        The cropped/centered data.
+    det_reference_voxel: np.array or list or tuple
+        The voxel reference in the full detector frame.
+    det_max_voxel: np.array or list or tuple
+        The max voxel in the full detector frame.
+    det_com_voxel: np.array or list or tuple
+        The center of mass voxel in the full detector frame.
+    cropped_max_voxel: np.array or list or tuple
+        The max voxel in the centered/cropped detector frame.
+    cropped_com_voxel: np.array or list or tuple
+        The center of mass voxel in the centered/cropped detector frame.
+    title: str
+        The title of the figure.
 
-    :return: the matplotlib figure object
+    Returns:
+    -------
+    matplotlib.figure.Figure
+        The matplotlib figure object.
     """
     
     subplots = (2+1, 3)
     figsize = get_figure_size("nature", subplots=subplots)
     figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
-    log_data = np.log10(detector_data +1)
     log_cropped_data = np.log10(cropped_data +1)
     vmin = 0
-    vmax = np.max(log_data)
-
-    initial_shape = detector_data.shape
+    vmax = np.max(log_cropped_data)
     final_shape = cropped_data.shape
 
     markersize = 4
+    plot_raw_data = (
+        detector_data is not None
+        and det_reference_voxel is not None
+    )
+    if plot_raw_data:
+        initial_shape = detector_data.shape
+        log_data = np.log10(detector_data +1)
 
+        axes[0, 0].matshow(
+            log_data[det_reference_voxel[0]],
+            vmin=vmin,
+            vmax=vmax,
+            cmap="turbo",
+            origin="upper"
+        )
+        axes[0, 0].plot(
+            np.repeat(det_reference_voxel[2], 2),
+            det_reference_voxel[1] + np.array(
+                [-0.1*initial_shape[1], 0.1*initial_shape[1]]),
+            color="w",
+            lw=0.5
+        )
+        axes[0, 0].plot(
+            det_reference_voxel[2] + np.array(
+                [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
+            np.repeat(det_reference_voxel[1], 2),
+            color="w",
+            lw=0.5
+        )
+        axes[0, 1].matshow(
+            log_data[:, det_reference_voxel[1], :],
+            vmin=vmin,
+            vmax=vmax,
+            cmap="turbo",
+            origin="lower"
+        )
+        axes[0, 1].plot(
+            np.repeat(det_reference_voxel[2], 2),
+            det_reference_voxel[0] + np.array(
+                [-0.1*initial_shape[0], 0.1*initial_shape[0]]),
+            color="w", 
+            lw=0.5
+        )
+        axes[0, 1].plot(
+            det_reference_voxel[2] + np.array(
+                [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
+            np.repeat(det_reference_voxel[0], 2),
+            color="w", 
+            lw=0.5
+        )
 
-    axes[0, 0].matshow(
-        log_data[det_reference_voxel[0]],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-    axes[0, 0].plot(
-        np.repeat(det_reference_voxel[2], 2),
-        det_reference_voxel[1] + np.array(
-            [-0.1*initial_shape[1], 0.1*initial_shape[1]]),
-        color="w",
-        lw=0.5
-    )
-    axes[0, 0].plot(
-        det_reference_voxel[2] + np.array(
-            [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_reference_voxel[1], 2),
-        color="w",
-        lw=0.5
-    )
-    axes[0, 0].plot(
-        det_com_voxel[2],
-        det_com_voxel[1],
-        marker="x",
-        markersize=markersize,
-        linestyle="None",
-        color="green",
-        label="com",
-    )
-    axes[0, 0].plot(
-        det_max_voxel[2], 
-        det_max_voxel[1],
-        marker="x",
-        markersize=markersize,
-        linestyle="None",
-        color="red",
-        label="max"
-    )
+        mappable = axes[0, 2].matshow(
+            np.swapaxes(log_data[..., det_reference_voxel[2]], axis1=0, axis2=1),
+            vmin=vmin,
+            vmax=vmax,
+            cmap="turbo",
+            origin="upper"
+        )
+        axes[0, 2].plot(
+            np.repeat(det_reference_voxel[0], 2),
+            det_reference_voxel[1] + np.array(
+                [- 0.1 * initial_shape[1],  + 0.1 * initial_shape[1]]),
+            color="w",
+            lw=0.5
+        )
+        axes[0, 2].plot(
+            det_reference_voxel[0] + np.array(
+                [- 0.1 * initial_shape[0],  + 0.1 * initial_shape[0]]),
+            np.repeat(det_reference_voxel[1], 2),
+            color="w",
+            lw=0.5
+        )
 
-    axes[0, 1].matshow(
-        log_data[:, det_reference_voxel[1], :],
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="lower"
-    )
-    axes[0, 1].plot(
-        np.repeat(det_reference_voxel[2], 2),
-        det_reference_voxel[0] + np.array(
-            [-0.1*initial_shape[0], 0.1*initial_shape[0]]),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 1].plot(
-        det_reference_voxel[2] + np.array(
-            [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
-        np.repeat(det_reference_voxel[0], 2),
-        color="w", 
-        lw=0.5
-    )
-    axes[0, 1].plot(
-        det_com_voxel[2], 
-        det_com_voxel[0],
-        marker="x",
-        markersize=markersize,
-        linestyle="None",
-        color="green",
-        label="com",
-    )
-    axes[0, 1].plot(
-        det_max_voxel[2],
-        det_max_voxel[0],
-        marker="x",
-        markersize=markersize,
-        linestyle="None",
-        color="red",
-        label="max"
-    )
-
-    mappable = axes[0, 2].matshow(
-        np.swapaxes(log_data[..., det_reference_voxel[2]], axis1=0, axis2=1),
-        vmin=vmin,
-        vmax=vmax,
-        cmap="turbo",
-        origin="upper"
-    )
-    axes[0, 2].plot(
-        np.repeat(det_reference_voxel[0], 2),
-        det_reference_voxel[1] + np.array(
-            [- 0.1 * initial_shape[1],  + 0.1 * initial_shape[1]]),
-        color="w",
-        lw=0.5
-    )
-    axes[0, 2].plot(
-        det_reference_voxel[0] + np.array(
-            [- 0.1 * initial_shape[0],  + 0.1 * initial_shape[0]]),
-        np.repeat(det_reference_voxel[1], 2),
-        color="w",
-        lw=0.5
-    )
-    axes[0, 2].plot(
-        det_com_voxel[0],
-        det_com_voxel[1],
-        marker="x",
-        markersize=markersize,
-        color="green",
-        label="com"
-    )
-    axes[0, 2].plot(
-        det_max_voxel[0],
-        det_max_voxel[1],
-        marker="x",
-        markersize=markersize,
-        color="red",
-        label="max",
-    )
+        if det_com_voxel:
+            axes[0, 0].plot(
+                det_com_voxel[2],
+                det_com_voxel[1],
+                marker="x",
+                markersize=markersize,
+                linestyle="None",
+                color="green",
+                label="com",
+            )
+            axes[0, 1].plot(
+                det_com_voxel[2],
+                det_com_voxel[0],
+                marker="x",
+                markersize=markersize,
+                linestyle="None",
+                color="green",
+                label="com",
+            )
+            axes[0, 2].plot(
+                det_com_voxel[0],
+                det_com_voxel[1],
+                marker="x",
+                markersize=markersize,
+                color="green",
+                label="com"
+            )
+        if det_max_voxel:
+            axes[0, 0].plot(
+                det_max_voxel[2], 
+                det_max_voxel[1],
+                marker="x",
+                markersize=markersize,
+                linestyle="None",
+                color="red",
+                label="max"
+            )
+            axes[0, 1].plot(
+                det_max_voxel[2],
+                det_max_voxel[0],
+                marker="x",
+                markersize=markersize,
+                linestyle="None",
+                color="red",
+                label="max"
+            )
+            axes[0, 2].plot(
+                det_max_voxel[0],
+                det_max_voxel[1],
+                marker="x",
+                markersize=markersize,
+                color="red",
+                label="max",
+            )
 
     axes[1, 0].matshow(
         log_cropped_data[final_shape[0]//2],
@@ -358,15 +371,18 @@ def preprocessing_detector_data_plot(
         label="max",
     )
 
-    # handle the labels
-    axes[0, 0].set_xlabel(r"detector axis$_2$")
-    axes[0, 0].set_ylabel(r"detector axis$_1$")
+    # handle the labels and titles
+    if plot_raw_data:
+        axes[0, 0].set_xlabel(r"detector axis$_2$")
+        axes[0, 0].set_ylabel(r"detector axis$_1$")
 
-    axes[0, 1].set_xlabel(r"detector axis$_2$")
-    axes[0, 1].set_ylabel("rocking angle axis")
+        axes[0, 1].set_xlabel(r"detector axis$_2$")
+        axes[0, 1].set_ylabel("rocking angle axis")
 
-    axes[0, 2].set_xlabel("rocking angle axis")
-    axes[0, 2].set_ylabel(r"detector axis$_1$")
+        axes[0, 2].set_xlabel("rocking angle axis")
+        axes[0, 2].set_ylabel(r"detector axis$_1$")
+        axes[0, 1].set_title("raw detector data", y=1.8)
+
 
     axes[1, 0].set_xlabel(r"cropped axis$_2$")
     axes[1, 0].set_ylabel(r"cropped axis$_1$")
@@ -377,7 +393,6 @@ def preprocessing_detector_data_plot(
     axes[1, 2].set_xlabel("cropped rocking angle axis")
     axes[1, 2].set_ylabel(r"cropped axis$_1$")
 
-    axes[0, 1].set_title("raw detector data", y=1.8)
     axes[1, 1].set_title("cropped detector data", y=1.05)
 
     figure.canvas.draw()
@@ -394,12 +409,16 @@ def preprocessing_detector_data_plot(
     figure.colorbar(mappable, cax=cax, orientation="horizontal")
 
     # handle the legend
-    axes[0, 1].legend(
+    axes[1, 1].legend(
         loc="center",
         ncol=2,
         bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
         bbox_transform=figure.transFigure
     )
+    if not plot_raw_data:
+        for i in range(3):
+            axes[0, i].remove()
+
 
     figure.suptitle(title, y=0.95)
 
@@ -570,7 +589,7 @@ def summary_slice_plot(
     table.scale(1.5, 1.5)
     table.set_fontsize(8)
 
-    figure.subplots_adjust(hspace=0.04, wspace=0.04)
+    figure.subplots_adjust(hspace=0.04, wspace=0.02)
     
     for i, key in enumerate(kwargs.keys()):
         l, _, w, _ = axes[0, i].get_position().bounds
@@ -622,17 +641,19 @@ def plot_q_lab_orthogonalization_process(
             " at the center"
         )
         where_in_det_space = tuple(e // 2 for e in detector_data.shape)
-
-    figure, axes = plt.subplots(3, 3, figsize=(12, 8))
+    subplots = (3, 3)
+    figsize = get_figure_size("nature", subplots=subplots)
+    figure, axes = plt.subplots(
+        subplots[0], subplots[1], figsize=figsize)
 
     axes[0, 0].matshow(np.log(detector_data[where_in_det_space[0]]+1))
-    axes[0, 0].plot(
-        where_in_det_space[2], where_in_det_space[1], color="w", marker="x")
+    axes[0, 0].plot(where_in_det_space[2], where_in_det_space[1],
+                    color="w", marker="x",  markersize=4)
 
     axes[0, 1].matshow(
         np.log(detector_data[:, where_in_det_space[1]]+1))
-    axes[0, 1].plot(
-        where_in_det_space[2], where_in_det_space[0], color="w", marker="x")
+    axes[0, 1].plot(where_in_det_space[2], where_in_det_space[0],
+                    color="w", marker="x",  markersize=4)
 
     axes[0, 2].matshow(
         np.log(
@@ -643,8 +664,8 @@ def plot_q_lab_orthogonalization_process(
             ) + 1
         ),
     )
-    axes[0, 2].plot(
-        where_in_det_space[0], where_in_det_space[1], color="w", marker="x")
+    axes[0, 2].plot(where_in_det_space[0], where_in_det_space[1],
+                    color="w", marker="x", markersize=4)
 
     axes[0, 0].set_xlabel(r"detector axis$_2$")
     axes[0, 0].set_ylabel(r"detector axis$_1$")
@@ -768,7 +789,7 @@ def plot_q_lab_orthogonalization_process(
     figure.canvas.draw()
     for ax in axes.ravel():
         # ax.tick_params(axis="x", bottom=True, top=False, labeltop=False, labelbottom=True)
-        white_interior_ticks_labels(ax)
+        white_interior_ticks_labels(ax, -10, -20)
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
@@ -777,7 +798,7 @@ def plot_q_lab_orthogonalization_process(
         "The white X marker shows the\nreference voxel used for the"
         "\ntransformation"
     )
-    figure.text(0.05, 0.92, text, fontsize=12, transform=figure.transFigure)
+    figure.text(0.05, 0.92, text, transform=figure.transFigure)
     figure.tight_layout()
 
     return figure
@@ -796,7 +817,10 @@ def plot_direct_lab_orthogonalization_process(
 
     plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
 
-    figure, axes = plt.subplots(3, 3, figsize=(12, 8))
+    subplots = (3, 3)
+    figsize = get_figure_size("nature", subplots=subplots)
+    figure, axes = plt.subplots(
+        subplots[0], subplots[1], figsize=figsize)
 
     axes[0, 0].matshow(detector_direct_space_data[plot_at[0]])
     axes[0, 1].matshow(detector_direct_space_data[:, plot_at[1]])
@@ -892,7 +916,7 @@ def plot_direct_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax)
+        white_interior_ticks_labels(ax, -10, -20)
 
     figure.suptitle(title)
     figure.tight_layout()
@@ -908,7 +932,10 @@ def plot_final_object_fft(
         where_in_ortho_space: Optional[tuple]=None,
         title: str=""
 ) -> matplotlib.figure.Figure:
-    figure, axes = plt.subplots(2, 3, figsize=(12, 8))
+
+    subplots = (2+1, 3)
+    figsize = get_figure_size("nature", fraction=1.5, subplots=subplots)
+    figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
     plot_at = tuple(e // 2 for e in final_object_fft.shape)
 
@@ -1028,7 +1055,7 @@ def plot_final_object_fft(
     figure.canvas.draw()
     for ax in axes.ravel():
         ax.set_aspect("equal")
-        white_interior_ticks_labels(ax)
+        white_interior_ticks_labels(ax, -10, -20)
 
     figure.suptitle(title)
     figure.tight_layout()

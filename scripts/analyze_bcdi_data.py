@@ -2,7 +2,7 @@
 
 import sys
 
-from cdiutils.processing.pipeline import BcdiPipeline
+from cdiutils.process.pipeline import BcdiPipeline
 
 usage_text = (
     f"Usage: {sys.argv[0]} [-a, -prp, -phr, -pop, -fpop, -md, --cdiutils, "

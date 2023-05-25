@@ -1,4 +1,7 @@
+from typing import Any, Dict
 import warnings
+
+import numpy as np
 
 AUTHORIZED_KEYS = {
     "cdiutils": {
@@ -7,7 +10,7 @@ AUTHORIZED_KEYS = {
         "energy": "REQUIRED",
         "hkl": "REQUIRED",
         "det_reference_voxel_method": "REQUIRED",
-        "lite_loading": False,
+        "light_loading": False,
         "det_reference_voxel": None,
         "binning_along_axis0": None,
         "q_lab_reference": None,
@@ -64,6 +67,45 @@ AUTHORIZED_KEYS = {
     }
 }
 
+
+def convert_np_arrays(dictionary) -> None:
+    """
+    Recursively converts np.ndarray values in a dictionary to tuple or
+    a single value.
+
+    Args:
+        dictionary (Dict[str, Any]): The dictionary to be processed.
+
+    Returns:
+        None: This function modifies the dictionary in-place.
+
+    """
+    for key, value in dictionary.items():
+        if isinstance(value, np.ndarray):
+            if value.size == 1:
+                dictionary[key] = value[0]
+            else:
+                if value.dtype == np.int:
+                    dictionary[key] = tuple(value.astype(int))
+
+        elif isinstance(value, list):
+            for i, v in enumerate(value):
+                if isinstance(v, np.int):
+                    dictionary[key][i] = int(v)
+
+        elif isinstance(value, (tuple, list)):
+            if isinstance(value[0], (np.int, np.int_, np.int64, np.int32)):
+                dictionary[key] = tuple(int(v) for v in value)
+            elif isinstance(
+                value[0],
+                (
+                    np.float, np.float_, np.float128, np.float64, np.float32
+                )
+            ):
+                dictionary[key] = tuple(float(v) for v in value)
+
+        elif isinstance(value, dict):
+            convert_np_arrays(value)
 
 def check_parameters(parameters: dict) -> None:
     """

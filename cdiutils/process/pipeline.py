@@ -16,7 +16,7 @@ from cdiutils.utils import pretty_print
 from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
 from .plot import plot_phasing_result
-from .parameters import check_parameters
+from .parameters import check_parameters, convert_np_arrays
 
 try:
     from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
@@ -57,6 +57,7 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
     Update a parameter file with the provided dictionary that contains
     the parameters (keys, values) to uptade.
     """
+    convert_np_arrays(updated_parameters)
     with open(file_path, "r", encoding="utf8") as file:
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
 
@@ -158,14 +159,15 @@ class BcdiPipeline:
         self.backend = backend
 
         if backend == "cdiutils":
-            self.dump_directory = (
+            self.dump_dir = (
                 self.parameters["cdiutils"]["metadata"]["dump_dir"]
             )
             self.scan = self.parameters["cdiutils"]["metadata"]["scan"]
+            self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         elif backend == "bcdi":
             if not IS_BCDI_AVAILABLE:
                 raise ModuleNotFoundError(BCDI_ERROR_TEXT)
-            self.dump_directory = self.parameters["preprocessing"][
+            self.dump_dir = self.parameters["preprocessing"][
                 "save_dir"][0]
             self.scan = self.parameters['preprocessing']['scans'][0]
         else:
@@ -234,23 +236,36 @@ class BcdiPipeline:
             self.save_parameter_file()
 
         elif backend == "cdiutils":
-            os.makedirs(
-                self.parameters["cdiutils"]["metadata"]["dump_dir"],
-                exist_ok=True
-            )
+            dump_dir = self.parameters["cdiutils"]["metadata"]["dump_dir"]
+            if os.path.isdir(dump_dir):
+                print(
+                    "\n[INFO] Dump directory already exists, results will be "
+                    f"saved in:\n{dump_dir}."
+                )
+            else:
+                print(
+                    f"[INFO] Creating the dump directory at: {dump_dir}")
+                os.makedirs(
+                    dump_dir,
+                    exist_ok=True
+                )
+            os.makedirs(self.pynx_phasing_dir, exist_ok=True)
             pretty_print(
                 "[INFO] Proceeding to preprocessing using the cdiutils backend"
-                f" (scan {self.parameters['cdiutils']['metadata']['scan']})"
+                f" (scan {self.scan})"
             )
             self.bcdi_processor = BcdiProcessor(
                 parameters=self.parameters["cdiutils"]
             )
             self.bcdi_processor.preprocess_data()
             self.bcdi_processor.save_preprocessed_data()
-            pynx_input_template = "S*_pynx_input_data.npz"
-            pynx_mask_template = "S*_pynx_input_mask.npz"
-            if self.parameters["cdiutils"]["show"]:
-                self.bcdi_processor.show_figures()
+            pynx_input_template = (
+                f"{self.pynx_phasing_dir}/S*_pynx_input_data.npz"
+            )
+            pynx_mask_template = (
+                f"{self.pynx_phasing_dir}/S*_pynx_input_mask.npz"
+            )
+
         else:
             raise ValueError(
                 f"[ERROR] Unknown backend value ({backend}), it must be either"
@@ -258,10 +273,8 @@ class BcdiPipeline:
             )
 
         try:
-            data_path = glob.glob(
-                f"{self.dump_directory}/{pynx_input_template}")[0]
-            mask_path = glob.glob(
-                    f"{self.dump_directory}/{pynx_mask_template}")[0]
+            data_path = glob.glob(pynx_input_template)[0]
+            mask_path = glob.glob(pynx_mask_template)[0]
         except IndexError as exc:
             raise FileNotFoundError(
                 "[ERROR] file missing, something went"
@@ -276,14 +289,16 @@ class BcdiPipeline:
                 {
                     "data": data_path,
                     "mask": mask_path,
-                    "cdiutils": self.bcdi_processor.parameters
+                    "cdiutils": self.bcdi_processor.params
                 }
             )
 
-        self.parameters["cdiutils"].update(self.bcdi_processor.parameters)
+        self.parameters["cdiutils"].update(self.bcdi_processor.params)
         self.parameters["pynx"].update({"data": data_path})
         self.parameters["pynx"].update({"mask": mask_path})
         self.save_parameter_file()
+        if self.parameters["cdiutils"]["show"] and backend == "cdiutils":
+                self.bcdi_processor.show_figures()
 
     @process
     def phase_retrieval(
@@ -307,13 +322,13 @@ class BcdiPipeline:
 
         if remove_last_results: 
             print("[INFO] Removing former results\n")
-            files = glob.glob(self.dump_directory + "/*Run*.cxi")
-            files += glob.glob(self.dump_directory + "/*Run*.png")
+            files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
+            files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
                 os.remove(f)
 
         pynx_input_file_path = (
-            self.dump_directory + "/pynx-cdi-inputs.txt"
+            self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
         )
 
         # Make the pynx input file
@@ -335,13 +350,13 @@ class BcdiPipeline:
                 pynx_slurm_text = source.substitute(
                     {
                         "number_of_nodes": number_of_nodes,
-                        "data_path": self.dump_directory,
+                        "data_path": self.pynx_phasing_dir,
                         "SLURM_JOBID": "$SLURM_JOBID",
                         "SLURM_NTASKS": "$SLURM_NTASKS"
                     }
                 )
             with open(
-                    self.dump_directory + "/pynx-id01cdi.slurm",
+                    self.pynx_phasing_dir+ "/pynx-id01cdi.slurm",
                     "w",
                     encoding="utf8"
             ) as file:
@@ -350,7 +365,7 @@ class BcdiPipeline:
         if os.uname()[1].startswith("p9"):
             with subprocess.Popen(
                     "source /sware/exp/pynx/activate_pynx.sh;"
-                    f"cd {self.dump_directory};"
+                    f"cd {self.pynx_phasing_dir};"
                     "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
                     "pynx-cdi-id01 pynx-cdi-inputs.txt",
                     shell=True,
@@ -377,7 +392,7 @@ class BcdiPipeline:
         print(f"[INFO] Connected to {machine}")
         if machine == "slurm-nice-devel":
             _, stdout, _= client.exec_command(
-                f"cd {self.dump_directory};"
+                f"cd {self.pynx_phasing_dir};"
                 "sbatch pynx-id01cdi.slurm"
             )
             job_submitted = False
@@ -415,7 +430,7 @@ class BcdiPipeline:
 
                 if process_status == "RUNNING":
                     _, stdout, _ = client.exec_command(
-                        f"cd {self.dump_directory};"
+                        f"cd {self.pynx_phasing_dir};"
                         f"cat pynx-id01cdi.slurm-{job_id}.out "
                         "| grep 'CDI Run:'"
                     )
@@ -425,7 +440,11 @@ class BcdiPipeline:
                 elif process_status == "CANCELLED+":
                     raise RuntimeError("[INFO] Job has been cancelled")
                 elif process_status == "FAILED":
-                    raise RuntimeError("[ERROR] Job has failed")
+                    raise RuntimeError(
+                        "[ERROR] Job has failed. Check out logs at: \n",
+                        f"{self.pynx_phasing_dir}/"
+                        f"pynx-id01cdi.slurm-{job_id}.out"
+                    )
 
             if process_status == "COMPLETED":
                 print(f"[INFO] Job {job_id} is completed.")
@@ -433,7 +452,7 @@ class BcdiPipeline:
         else:
             _, stdout, stderr = client.exec_command(
                 "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
-                f"cd {self.dump_directory};"
+                f"cd {self.pynx_phasing_dir};"
                 "pynx-id01cdi.py pynx-cdi-inputs.txt "
                 f"2>&1 | tee phase_retrieval_{machine}.log"
             )
@@ -445,7 +464,7 @@ class BcdiPipeline:
         client.close()
         self.phasing_results = self.find_phasing_results(
             self.phasing_results,
-            plot=self.parameters["show_phasing_results"]
+            plot=self.parameters["cdiutils"]["show_phasing_results"]
         )
 
     def find_phasing_results(self, paths: list=None, plot: bool=False) -> list:
@@ -453,7 +472,7 @@ class BcdiPipeline:
         Find the last phasing results (.cxi files) and add them to the
         given list if provided, otherwise create the list.
         """
-        fetched_paths = glob.glob(self.dump_directory + "/*Run*.cxi")
+        fetched_paths = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
 
         if paths == [] or paths is None:
             if plot:
@@ -486,11 +505,11 @@ class BcdiPipeline:
         """Find the best candidates of the PyNX output"""
 
         pretty_print(
-            "[INFO] Finding the best candidates of the PyNX run whith"
-            f"criterion: {criterion}.(scan {self.scan})"
+            "[INFO] Finding the best candidates of the PyNX run with "
+            f"criterion: {criterion}. (scan {self.scan})"
         )
         # remove the previous candidates if needed
-        files = glob.glob(self.dump_directory + "/candidate_*.cxi")
+        files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
         if files:
             for f in files:
                 os.remove(f)
@@ -499,13 +518,13 @@ class BcdiPipeline:
         if not self.find_phasing_results:
             raise ValueError(
                 "No PyNX output in the following directory: "
-                f"{self.dump_directory} "
+                f"{self.pynx_phasing_dir}."
             )
         find_best_candidates(
                 self.phasing_results,
                 nb_to_keep=nb_to_keep,
                 criterion=criterion
-            )
+        )
 
     @process
     def mode_decomposition(self) -> None:
@@ -523,7 +542,7 @@ class BcdiPipeline:
         # run the mode decomposition as a subprocesss
         with subprocess.Popen(
                 "source /sware/exp/pynx/activate_pynx.sh 2023.1;"
-                f"cd {self.dump_directory};"
+                f"cd {self.pynx_phasing_dir};"
                 "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
                 "modes_output=mode.h5 2>&1 | tee mode_decomposition.log",
                 shell=True,
@@ -540,16 +559,16 @@ class BcdiPipeline:
                 )
 
         if self.parameter_file_path is not None:
-            pretty_print("[INFO] Updating scan parameter file")
+            pretty_print("Scan parameter file updated.")
             if self.backend == "bcdi":
                 update_parameter_file(
                     self.parameter_file_path,
-                    {"reconstruction_files": f"{self.dump_directory}mode.h5"}
+                    {"reconstruction_files": f"{self.pynx_phasing_dir}mode.h5"}
                 )
             else:
                 update_parameter_file(
                     self.parameter_file_path,
-                    {"reconstruction_file": f"{self.dump_directory}mode.h5"}
+                    {"reconstruction_file": f"{self.pynx_phasing_dir}mode.h5"}
                 )
             self.parameters = self.load_parameters()
 
@@ -578,39 +597,42 @@ class BcdiPipeline:
             )
 
             if self.bcdi_processor is None:
-                if any(
-                        p not in self.parameters["cdiutils"].keys() 
+                print("BCDI processor is None")
+                if not all(
+                        p not in self.parameters["cdiutils"].keys()
                         for p in (
                             "q_lab_reference", "q_lab_max",
-                            "q_lab_com", "det_reference_voxel"
+                            "q_lab_com", "det_reference_voxel",
                         )
                 ):
-                    preprocessing_parameters = self.load_parameters(
-                        file_path=f"{self.dump_directory}/S{self.scan}_parameter_file.yml"
-                    )["cdiutils"]
+                    file_path = (
+                            f"{self.dump_dir}"
+                            f"S{self.scan}_parameter_file.yml"
+                        )
+                    print(f"Loading parameters from: {file_path}")
+                    preprocessing_params = self.load_parameters(
+                        file_path=file_path)["cdiutils"]
                     self.parameters["cdiutils"].update(
                         {
-                            "det_reference_voxel": preprocessing_parameters[
+                            "det_reference_voxel": preprocessing_params[
                                 "det_reference_voxel"
                             ],
-                            "q_lab_reference": preprocessing_parameters[
+                            "q_lab_reference": preprocessing_params[
                                 "q_lab_reference"
                             ],
-                            "q_lab_max": preprocessing_parameters["q_lab_max"],
-                            "q_lab_com": preprocessing_parameters["q_lab_com"]
+                            "q_lab_max": preprocessing_params["q_lab_max"],
+                            "q_lab_com": preprocessing_params["q_lab_com"]
                         }
                     )
                 self.bcdi_processor = BcdiProcessor(
                     parameters=self.parameters["cdiutils"]
                 )
-                self.bcdi_processor.reload_preprocessing_parameters()
-                self.bcdi_processor.load_data()
             self.bcdi_processor.orthogonalize()
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()
+            self.save_parameter_file()
             if self.parameters["cdiutils"]["show"]:
                 self.bcdi_processor.show_figures()
-            self.save_parameter_file()
 
         else:
             raise ValueError(
@@ -622,19 +644,23 @@ class BcdiPipeline:
         """
         Save the parameter file used during the analysis.
         """
-        pretty_print(
-            "Saving scan parameter file at the following location:\n"
-            f"{self.dump_directory}"
-        )
+
         output_file_path = (
-            f"{self.dump_directory}/S{self.scan}_parameter_file.yml"
+            f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
             # f"{os.path.basename(self.parameter_file_path)}"
         )
+
         if self.parameter_file_path is not None:
             shutil.copyfile(
                 self.parameter_file_path,
                 output_file_path
             )
         else:
+            convert_np_arrays(self.parameters)
             with open(output_file_path, "w", encoding="utf8") as file:
                 yaml.dump(self.parameters, file)
+
+        print(
+            "\nScan parameter file saved at:\n"
+            f"{output_file_path}"
+        )

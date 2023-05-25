@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union, List
+from typing import Optional
 import warnings
 
 import numpy as np
@@ -73,10 +73,10 @@ def make_support(
 
 
 def unit_vector(
-        vector: Union[tuple, list, np.ndarray]
-)-> Union[tuple, list, np.ndarray]:
+        vector: tuple or list or np.ndarray
+)->  np.ndarray:
     """Return a unit vector."""
-    return vector / np.linalg.norm(vector)
+    return np.array(vector) / np.linalg.norm(vector)
 
 
 def angle(v1: np.ndarray, v2: np.ndarray) -> float:
@@ -136,8 +136,8 @@ def find_max_pos(data: np.ndarray) -> tuple:
 
 
 def shape_for_safe_centered_cropping(
-        data_shape: Union[tuple, np.ndarray, list],
-        position: Union[tuple, np.ndarray, list],
+        data_shape: tuple or np.ndarray or list,
+        position: tuple or  np.ndarray or list,
         final_shape: Optional[tuple]=None
 ) -> tuple:
     """
@@ -151,12 +151,11 @@ def shape_for_safe_centered_cropping(
         position = np.array(position)
 
     secured_shape = 2 * np.min([position, data_shape - position], axis=0)
-    secured_shape = tuple([round(e) for e in secured_shape])
+    secured_shape = tuple(round(e) for e in secured_shape)
 
     if final_shape is None:
         return tuple(secured_shape)
-    else:
-        return tuple(np.min([secured_shape, final_shape], axis=0))
+    return tuple(np.min([secured_shape, final_shape], axis=0))
 
 
 def _center_at_com(data: np.ndarray):
@@ -175,9 +174,9 @@ def _center_at_com(data: np.ndarray):
 
 def center(
         data: np.ndarray,
-        where: Union[str, tuple, list, np.ndarray]="com",
+        where: str or tuple or  list or  np.ndarray="com",
         return_former_center: bool=False
-) -> Union[np.ndarray, Tuple[np.ndarray, tuple]]:
+) -> np.ndarray or tuple[np.ndarray, tuple]:
     """
     Center 3D volume data such that the center of mass or max  of data
     is at the very center of the 3D matrix.
@@ -225,7 +224,7 @@ def center(
 
 def symmetric_pad(
         data: np.ndarray,
-        final_shape: Union[tuple, list, np.ndarray],
+        final_shape: tuple or list or np.ndarray,
         values: float=0
 ) -> np.ndarray:
     """Return padded data so it matches the provided final_shape"""
@@ -249,7 +248,7 @@ def symmetric_pad(
 
 def crop_at_center(
         data: np.ndarray,
-        final_shape: Union[list, tuple, np.ndarray]
+        final_shape: list or tuple or  np.ndarray
 ) -> np.ndarray:
     """
     Crop 3D array data to match the final_shape. Center of the input
@@ -287,7 +286,7 @@ def crop_at_center(
 
 def compute_distance_from_com(
         data: np.ndarray,
-        com: Union[tuple, list, np.ndarray]=None
+        com: tuple or list or np.ndarray=None
 ) -> np.ndarray:
     """
     Return a np.ndarray of the same shape of the provided data.
@@ -351,125 +350,228 @@ def nan_center_of_mass(
     return tuple(com)
 
 
-class PeakCenteringHandler:
+class CroppingHandler:
     """
-    A class to handle centering of Bragg peak.
+    A class to handle data cropping. The class allows
+    finding the requested position of the center and crop the data
+    accordingly.
     """
 
     @staticmethod
-    def get_masked_data(
-            data: np.ndarray,
-            where: tuple,
-            crop: List[list]
-    ) -> None:
+    def get_position(
+            data: np.ndarray, method: str or tuple[int, ...]
+    ) -> tuple[int, ...]:
         """
-        Return the masked data. Data are masked outside of the box
-        defined by the crop and where parameter.
+        Get the position of the reference voxel based on the centering
+        method.
+
+        Args:
+            data: Input data array.
+            method: Centering method. Can be "max" for maximum
+                intensity, "com" for center of mass, or a tuple of
+                coordinates representing the voxel position.
+
+        Returns:
+            The position of the reference voxel as a tuple of
+            coordinates.
+
+        Raises:
+        ValueError: If an invalid method is provided.
+        """
+        if method == "max":
+            return np.unravel_index(np.argmax(data), data.shape)
+        elif method == "com":
+            com = nan_center_of_mass(data)
+            return tuple(int(round(e)) for e in com)
+        elif (
+            isinstance(method, (list, tuple))
+            and all(isinstance(e, (int, np.int64)) for e in method)
+        ):
+            return tuple(method)
+        else:
+            raise ValueError(
+                "Invalid method provided. Can be 'max', 'com' or a tuple of "
+                "coordinates."
+            )
+
+    @classmethod
+    def get_masked_data(
+        cls, data: np.ndarray, roi: list[int]
+    ) -> np.ma.MaskedArray:
+        """
+        Get the masked data array based on the region of interest (ROI).
+
+        Args:
+            data: Input data array.
+            roi: Region of interest as a list of representing
+                the cropped region ex: [start, end, start, end].
+
+        Returns:
+            The masked data array with the specified ROI.
         """
 
         mask = np.ones_like(data)
-        shape = data.shape
-
-        slices = [np.s_[:] for k in range(len(shape))]
-        for i, s in enumerate(shape):
-            slices[i] = np.s_[
-                np.max([where[i]-crop[i][0], 0]):
-                np.min([where[i]+crop[i][1], s])
-            ]
-        slices = tuple(slices)
-        mask[slices] = 0
-
+        mask[cls.roi_list_to_slices(roi)] = 0
         return np.ma.array(data, mask=mask)
 
     @staticmethod
-    def get_position(method: Union[str, list], data: np.ndarray) -> tuple:
+    def roi_list_to_slices(roi: list[int]) -> tuple[slice, ...]:
         """
-        Get the position in the full data frame given the provided
-        method.
+        Convert a ROI to a tuple of slices.
+
+        Args:
+            roi: Region of interest as a list of start and end values
+                for each dimension.
+
+        Returns:
+            The ROI converted to a tuple of slices.
         """
-
-        if isinstance(method, str):
-            if method == "max":
-                return find_max_pos(data)
-            if method == "com":
-                return nan_center_of_mass(data, return_int=True)
-
-        elif isinstance(method, (tuple, list)):
-            if all(isinstance(e, int) for e in method):
-                return method
-
-        raise ValueError(
-            f"'method' cannot be {method} (type {type(method)})\n"
-            "It must be either 'max', 'com' or a list or a tuple of int."
+        if len(roi) % 2 != 0:
+            raise ValueError(
+                "ROI should have start and end values for each dimension.")
+        return tuple(
+            slice(start, end) for start, end in zip(roi[::2], roi[1::2])
         )
+
+    @classmethod
+    def get_roi(
+            cls,
+            output_shape: tuple,
+            where: tuple,
+            input_shape: tuple=None
+    ) -> list[int]:
+        """
+        Calculate the region of interest (ROI) for cropping the data
+        based on the input shape, desired output shape, and reference
+        voxel position.
+
+        Args:
+            output_shape: Desired output shape after cropping.
+            where: Reference voxel position as a tuple of coordinates.
+            input_shape: Shape of the input data array.
+
+        Returns:
+            The region of interest as a list of start and end values for
+            each dimension.
+        """
+
+        # define how much to crop data
+        # plus_one is whether or not to add one to the bounds.
+        plus_one = np.where((np.array(output_shape) % 2 == 0), 0, 1)
+        crop = [[e//2, e//2 + plus_one[i]] for i, e in enumerate(output_shape)]
+        roi = []
+
+        if input_shape is None:
+            for i in range(len(output_shape)):
+                roi.append(where[i]-crop[i][0])
+                roi.append(where[i]+crop[i][1])
+            return roi
+
+        for i, s in enumerate(input_shape):
+            # extend the roi to comply with the output_shape
+            add_left = where[i]+crop[i][1]-s if where[i]+crop[i][1]>s else 0
+            add_right = crop[i][0]-where[i] if where[i]-crop[i][0]<0 else 0
+
+            roi.append(np.max([where[i]-crop[i][0], 0]) - add_left)
+            roi.append(np.min([where[i]+crop[i][1], s]) + add_right)
+        return roi
 
     @classmethod
     def chain_centering(
             cls,
-            data: np.ndarray,
-            output_shape: Union[list ,tuple, np.ndarray],
-            methods: List[Union[str, tuple]]
-    ) -> Tuple[np.ndarray, tuple]:
+            data: np.ndarray, output_shape: tuple[int, ...],
+            methods: list[str or tuple[int, ...]]
+    ) -> tuple[np.ndarray, tuple[int, ...]]:
         """
-        Main method of the class. It runs several centering methods,
-        defined in the methods parameter. Each time, a mask is created
-        and the next method takes into account the new mask.
+        Apply sequential centering methods to the input data and return
+        the cropped and centered data along with the position of the
+        reference voxel in the newly cropped data frame.
 
-        Note that the cropping of the data is done according to the
-        following convention:
-        position of the reference
-        (com or max...) must always be at
-        cropped_data[output_shape[i]//2].
-            - if output_shape[i] is even: the exact center does not
-            exist and the center will be shifted towards the higher value
-            indexes. More values before the center than after.
-            - if output_shape[i] is odd, exact center can be defined and
-            the numbers of values before and after the center are equal.
+        Args:
+            data: Input data array.
+            output_shape: Desired output shape after cropping.
+            methods: list of sequential centering methods. Each method
+                can be "max" for maximum intensity, "com" for center of
+                mass, or a tuple of coordinates representing the voxel
+                position.
+
+        Returns:
+            A tuple containing the cropped and centered data array, the
+            position of the reference voxel in the original data frame,
+            and the position of the reference voxel in the newly cropped
+            data frame and the roi as 
+
+        Raises:
+            ValueError: If an invalid method is provided.
         """
-
-        output_shape = np.array(output_shape)
-
-        # define how much to crop data
-        # plus_one is whether or not to add one to the bounds.
-        plus_one = np.where((output_shape % 2 == 0), 0, 1)
-        crop = [
-            [output_shape[i]//2, output_shape[i]//2 + plus_one[i]]
-            for i in range(len(output_shape))
-        ]
-
-        # For the first method, the data are not masked.
+        # For the first method the data are not masked
         masked_data = data
-        print(f"Chain centering:")
+        position = None
+        print("Chain centering:")
         for method in methods:
             # position is found in the masked data
-            position = cls.get_position(method, masked_data)
-            print(f"\t-{method}: {position}, value: {data[position]}")
-            # mask the data in the roi defined by the output shape and
-            # position
-            masked_data = cls.get_masked_data(
-                data,
-                where=position,
-                crop=crop
-            )
+            position = cls.get_position(masked_data, method)
+            print(f"\t- {method}: {position}, value: {data[position]}")
+
+            # get the roi
+            roi = cls.get_roi(output_shape, position, data.shape)
+
+            # mask the data in the out of roi 
+            masked_data = cls.get_masked_data(data, roi=roi)
         if (
                 methods[-1] == "com"
-                and (position != cls.get_position("com", masked_data))
+                and (position != cls.get_position(masked_data, "com"))
         ):
             warnings.warn(
                 "The center of the final box does not correspond to the com.\n"
                 "You might want to keep looking for it."
             )
-        # select the data that are not masked
-        indexes_of_interest = np.where(np.logical_not(masked_data.mask))
-        slices = [np.s_[:] for k in range(len(data.shape))]
-        for i in range(len(data.shape)):
-            bounds = (
-                np.min(indexes_of_interest[i]),
-                np.max(indexes_of_interest[i]) + 1
-            )
-            slices[i] = np.s_[bounds[0]:bounds[1]]
+        # actual position along which the data are centered using roi
+        position = tuple(
+            (start + stop) // 2
+            for start, stop in zip(roi[::2], roi[1::2])
+        )
+        cropped_data = masked_data.data[cls.roi_list_to_slices(roi)]
+        cropped_position = tuple(p - r for p, r in zip(position, roi[::2]))
+        return cropped_data, position, cropped_position, roi
 
-        return masked_data.data[tuple(slices)], position
+
+    @classmethod
+    def force_centered_crop(
+            cls,
+            data: np.ndarray,
+            output_shape: tuple,
+            where: tuple
+    ) -> np.ndarray:
+        """
+        Crop the data so the given reference position (where) is at
+        the center of the final data frame no matter the output_shape.
+        Therefore the real output shape might be different to the
+        output_shape. 
+        """
+        position = cls.get_position(data, where)
+        shape = data.shape
+        safe_shape = shape_for_safe_centered_cropping(
+            shape,
+            position,
+            output_shape
+        )
+        if safe_shape == output_shape:
+            print("Do not require forced-centered cropping.")
+        else:
+            print(f"Required shape for cropping at the center is {safe_shape}")
+        plus_one = np.where((safe_shape % 2 == 0), 0, 1)
+        crop = [
+            [safe_shape[i]//2, safe_shape[i]//2 + plus_one[i]]
+            for i in range(len(safe_shape))
+        ]
+        roi = []
+        for i, s in enumerate(shape):
+            roi.append(np.max([where[i]-crop[i][0], 0]))
+            roi.append(np.min([where[i]+crop[i][1], s]))
+
+        return data[cls.roi_list_to_slices(roi)]
+
 
 
 def compute_corrected_angles(
@@ -515,7 +617,9 @@ def compute_corrected_angles(
     )
 
     corrected_inplane_angle = float(inplane_angle - inplane_correction)
-    corrected_outofplane_angle = float(outofplane_angle - outofplane_correction)
+    corrected_outofplane_angle = float(
+        outofplane_angle - outofplane_correction
+    )
 
     if verbose:
         print(
@@ -558,7 +662,7 @@ def find_isosurface(
         sigma_criterion: Optional[float]=3,
         plot: Optional[bool]=False,
         show: Optional[bool]=False
-) -> Union[Tuple[float, matplotlib.axes.Axes], float]:
+) -> tuple[float, matplotlib.axes.Axes] or float:
     """
     Estimate the isosurface from the amplitude distribution
 
