@@ -21,6 +21,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise ValueError(helptext)
     for arg in sys.argv[1:]:
+        output_path = ""
         if arg == ".":
             output_path = os.getcwd() + "/analyze_bcdi_data.ipynb"
         elif "/" in arg:
@@ -36,4 +37,4 @@ if __name__ == "__main__":
              if not arg.endswith(".ipynb"):
                  output_path = os.getcwd() + "/" + arg + ".ipynb"
 
-    shutil.copy(notebook_path, output_path)
+        shutil.copy(notebook_path, output_path)
