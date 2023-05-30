@@ -999,11 +999,15 @@ class BcdiProcessor:
                 data=self.structural_properties["local_strain"]
             )
             volumes.create_dataset(
+                "local_strain",
+                data=self.structural_properties["local_strain"]
+            )
+            volumes.create_dataset(
                 "numpy_local_strain",
                 data=self.structural_properties["numpy_local_strain"]
             )
             volumes.create_dataset(
-                "dspacing",
+                "dspacing_from_local_strain",
                 data=self.structural_properties["dspacing"]
             )
             volumes.create_dataset(
