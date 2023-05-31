@@ -96,13 +96,6 @@ def convert_np_arrays(dictionary) -> None:
         elif isinstance(value, (tuple, list)):
             if isinstance(value[0], (np.int, np.int_, np.int64, np.int32)):
                 dictionary[key] = tuple(int(v) for v in value)
-            elif isinstance(
-                value[0],
-                (
-                    np.float, np.float_, np.float128, np.float64, np.float32
-                )
-            ):
-                dictionary[key] = tuple(float(v) for v in value)
 
         elif isinstance(value, dict):
             convert_np_arrays(value)
