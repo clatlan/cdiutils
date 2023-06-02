@@ -43,6 +43,14 @@ class Geometry:
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
+        if beamline_name == "P10":
+            return cls(
+                sample_circles=["z+", "y-"],
+                detector_circles=["y+", "x-"],
+                detector_vertical_orientation="y-",
+                detector_horizontal_orientation="x+",
+                beam_direction=[1, 0, 0]
+            )
         else:
             raise NotImplementedError(
                 f"The beamline_name {beamline_name} is not known"

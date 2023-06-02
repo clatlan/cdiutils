@@ -755,19 +755,19 @@ class SpaceConverter():
             com = center_of_mass(detector_calibration_frames[i])
             x_com.append(com[0])
             y_com.append(com[1])
-        
-        # get the sample to detector distance
-        # for that determine how much the the com has moved when the
-        # detector has rotated by 1 degree. We may find this value with
-        # delta or nu. Here, we do both and calculate the average. The
-        # leading coefficient of the function x_com = f(delta) gives
-        # how much the x_com has moved when delta has changed by one degree.
 
-        x_com_shift = np.polynomial.polynomial.polyfit(delta, x_com, 1)[1]
-        y_com_shift = np.polynomial.polynomial.polyfit(nu, y_com, 1)[1]
 
         angle1, angle2 = nu, delta
         if sdd_estimate is None:
+            # get the sample to detector distance
+            # for that determine how much the the com has moved when the
+            # detector has rotated by 1 degree. We may find this value with
+            # delta or nu. Here, we do both and calculate the average. The
+            # leading coefficient of the function x_com = f(delta) gives
+            # how much the x_com has moved when delta has changed by one degree.
+
+            x_com_shift = np.polynomial.polynomial.polyfit(delta, x_com, 1)[1]
+            y_com_shift = np.polynomial.polynomial.polyfit(nu, y_com, 1)[1]
             sdd_estimate = (
                 (1 / 2)
                 * (1 / np.tan(np.pi / 180))
@@ -785,7 +785,7 @@ class SpaceConverter():
             angle2,
             detector_calibration_frames,
             ["z-", "y-"],
-            "x+",
+            r_i="x+", # self.geometry.beam_direction
             start=(pixel_size_x, pixel_size_y, sdd_estimate, 0, 0, 0, 0),
             fix=(True, True, False, False, False, False, True),
             wl=xu.en2lam(energy),
