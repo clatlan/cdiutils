@@ -85,16 +85,16 @@ def convert_np_arrays(dictionary) -> None:
             if value.size == 1:
                 dictionary[key] = value[0]
             else:
-                if value.dtype == np.int:
+                if value.dtype == int:
                     dictionary[key] = tuple(value.astype(int))
 
         elif isinstance(value, list):
             for i, v in enumerate(value):
-                if isinstance(v, np.int):
+                if isinstance(v, int):
                     dictionary[key][i] = int(v)
 
         elif isinstance(value, (tuple, list)):
-            if isinstance(value[0], (np.int, np.int_, np.int64, np.int32)):
+            if isinstance(value[0], (int, int, np.int64, np.int32)):
                 dictionary[key] = tuple(int(v) for v in value)
 
         elif isinstance(value, dict):
