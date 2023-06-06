@@ -115,7 +115,7 @@ def check_parameters(parameters: dict) -> None:
         for name in parameters[e].keys():
             if not isparameter(name):
                 warnings.warn(
-                    f"Parameter '{name}' is unknown, will not be used"                )
+                    f"Parameter '{name}' is unknown, will not be used")
     for name in parameters.keys():
         if not isparameter(name):
             warnings.warn(
