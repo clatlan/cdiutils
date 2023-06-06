@@ -119,8 +119,8 @@ def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
                 scan_nb = file_name.split("_")[0]
                 file_name = (
                     f"/candidate_{i+1}-{nb_to_keep}_{scan_nb}_run_{run_nb}"
-                    f"_MeanToMax{mean_to_maxs[f]:4f}_STD{STDs[f]:4f}_"
-                    f"_LLKF{LLKFs[f]:4f}_LLK{LLKs[f]:4f}.cxi"
+                    f"_MeanToMax{mean_to_maxs[f]:5f}_STD{STDs[f]:5f}_"
+                    f"_LLKF{LLKFs[f]:5f}_LLK{LLKs[f]:5f}.cxi"
                 )
                 shutil.copy(f, dir_name + file_name)
 
