@@ -12,12 +12,13 @@ CXI_TO_XU_TRANSITIONS = {
 
 class Geometry:
     """
-    A class to handle the geomtry of the experiment setup.
+    A class to handle the geometry of the experiment setup.
+    The CXI convention is used here.
     """
     def __init__(
             self,
-            sample_circles: list[str],
-            detector_circles: list[str],
+            sample_circles: list,
+            detector_circles: list,
             detector_vertical_orientation: str="y-",
             detector_horizontal_orientation: str="x+",
             beam_direction: list=None
@@ -30,11 +31,14 @@ class Geometry:
             self.beam_direction = [1, 0, 0]
         else:
             self.beam_direction = beam_direction
+        
+        self.is_cxi = True
 
     @classmethod
     def from_name(cls, beamline_name: str) -> None:
         """Create a Geometry instance using a beamline name."""
-
+    
+        # Note that we use CXI convention
         if beamline_name in ("ID01", "ID01SPEC", "ID01BLISS"):
             return cls(
                 sample_circles=["x-", "y-"],
@@ -72,3 +76,4 @@ class Geometry:
         self.detector_horizontal_orientation = CXI_TO_XU_TRANSITIONS[
             self.detector_horizontal_orientation
         ]
+        self.is_cxi = False

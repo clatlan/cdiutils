@@ -287,7 +287,7 @@ class P10Loader:
             mask[1649:1910, 620:628] = 1
 
         elif detector_name in ("Eiger4M", "eiger4m", "e4m"):
-            mask = np.zeros(shape=(2070, 2167))
+            mask = np.zeros(shape=(2167,2070))
             mask[:, 0:1] = 1
             mask[:, -1:] = 1
             mask[0:1, :] = 1
