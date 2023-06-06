@@ -127,10 +127,10 @@ def process(func: Callable) -> Callable:
             sys.exit(1)
     return wrapper
 
-# TODO: better handling of parameter file, updating etc
+
 class BcdiPipeline:
     """
-    A class to handle the bcdi worfklow, from pre-processing to
+    A class to handle the bcdi workflow, from pre-processing to
     post-processing (bcdi package), including phase retrieval
     (pynx package).
 
@@ -172,7 +172,7 @@ class BcdiPipeline:
             self.scan = self.parameters['preprocessing']['scans'][0]
         else:
             raise ValueError(
-                f"[ERROR] Unknwon backend value ({backend}), it must be either"
+                f"[ERROR] Unknown backend value ({backend}), it must be either"
                 " 'cdiutils' or 'bcdi'"
             )
 
