@@ -8,7 +8,7 @@ The package allows for the handling of the three main stages of a BCDI data proc
 
 * the proprocessing (data centering and cropping)
 * the phase retrieval using PyNX.
-* the post processing (orghogonalization, phase manipulation, strain computation etc.)
+* the post processing (orthogonalization, phase manipulation, strain computation etc.)
 
 It is assumed that the phase retrieval is carried out by the PyNX package (see [http://ftp.esrf.fr/pub/scisoft/PyNX/doc/]()). The BcdiPipeline class runs the three stages and can manage connection to different machines if required (GPU  for phase retrieval).
 
@@ -30,9 +30,17 @@ Upgrade your environment with a new version of the package:
 pip install -U --no-deps git+https://github.com/clatlan/cdiutils.git
 ```
 
+## Getting started
+Once the package installed, you can try it right away using the notebook template directly accessible with the command:
+
+```
+prepare_bcdi_notebook.py [path_to_destination]
+```
+This will generate a notebook template at the given destination.
+
 ## Processing BCDI data
 
-Once data are processed, the BcdiPipeline saves the data in .npz, .cxi and .vti files. It also plots summary and debug figures such as:
+Once data are processed, the BcdiPipeline instance saves the data in .npz, .h5 .cxi and .vti files following the CXI file format convention (see [https://www.cxidb.org/cxi.html]()). It also plots summary and debug figures such as:
 
 * **Summary Slice Plot**
   ![summary](https://github.com/clatlan/cdiutils/blob/master/images/cdiutils_S311_summary_slice_plot.png)
