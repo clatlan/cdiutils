@@ -76,7 +76,7 @@ def plot_phasing_result(file_path: str) -> None:
             ax.set_yticks([])
         
         run_number = int(file_path.split("Run")[1][:4])
-        scan_number = file_path.split("/")[-2][1:]
+        scan_number = file_path.split("/")[-3][1:]
         figure.suptitle(
             f"Phasing results, scan {scan_number}, run {run_number}"
         )
@@ -618,7 +618,7 @@ def summary_slice_plot(
     # save the figure
     if save:
         figure.savefig(save, dpi=dpi)
-    
+
     return figure
 
 
