@@ -302,7 +302,7 @@ class BcdiProcessor:
                 final_shape,
                 methods=self.params["det_reference_voxel_method"]
             )
-            # position of the max and com the full detector frame
+            # position of the max and com in the full detector frame
             full_det_max = CroppingHandler.get_position(
                 self.detector_data, "max")
             full_det_com = CroppingHandler.get_position(
@@ -999,8 +999,8 @@ class BcdiProcessor:
                 data=self.structural_properties["local_strain"]
             )
             volumes.create_dataset(
-                "local_strain",
-                data=self.structural_properties["local_strain"]
+                "local_strain_from_dspacing",
+                data=self.structural_properties["local_strain_from_dspacing"]
             )
             volumes.create_dataset(
                 "numpy_local_strain",
