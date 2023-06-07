@@ -31,11 +31,13 @@ pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
 ```
 
 ## Getting started
-Once the package installed, you can try it right away using the notebook template directly accessible with the command:
+
+Once the package is installed, you can try it right away using the notebook template directly accessible with the command:
 
 ```
 prepare_bcdi_notebook.py [path_to_destination]
 ```
+
 This will generate a notebook template at the given destination.
 
 ## Processing BCDI data
