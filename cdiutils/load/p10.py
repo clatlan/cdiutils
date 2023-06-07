@@ -149,6 +149,14 @@ class P10Loader:
         if self.alien_mask is not None:
             data = data * self.alien_mask[roi[1:]]
 
+        # Must apply mask on P10 Eiger data
+        mask = self.get_mask(
+            channel=data.shape[0],
+            detector_name=self.detector_name,
+            roi=roi
+        )
+        data = data * np.where(mask, 0, 1)
+
         return data
 
     def load_motor_positions(
