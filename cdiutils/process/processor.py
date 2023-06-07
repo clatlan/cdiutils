@@ -20,6 +20,7 @@ from cdiutils.utils import (
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
+from cdiutils.load.sixs import SIXS2022Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.phase import (
@@ -53,6 +54,12 @@ def loader_factory(metadata: dict) -> BlissLoader or SpecLoader:
             detector_data_path=metadata["detector_data_path"],
             edf_file_template=metadata["edf_file_template"],
             detector_name=metadata["detector_name"]
+        )
+    elif metadata["beamline_setup"] == "SIXS2022":
+        return SIXS2022Loader(
+            experiment_data_dir_path=metadata["experiment_data_dir_path"],
+            detector_name=metadata["detector_name"],
+            sample_name=metadata["sample_name"],
         )
     else:
         raise NotImplementedError(
