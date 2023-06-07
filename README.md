@@ -27,7 +27,7 @@ pip install git+https://github.com/clatlan/cdiutils.git
 Upgrade your environment with a new version of the package:
 
 ```
-pip install -U --no-deps git+https://github.com/clatlan/cdiutils.git
+pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
 ```
 
 ## Getting started
