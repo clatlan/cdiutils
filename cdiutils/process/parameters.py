@@ -107,7 +107,7 @@ def check_parameters(parameters: dict) -> None:
     """
     for e in ["cdiutils", "pynx"]:
         for name, value in AUTHORIZED_KEYS[e].items():
-            if not name in parameters[e].keys():
+            if not name in parameters[e].keys() or value is None:
                 if value == "REQUIRED":
                     raise ValueError(f"Arguement '{name}' is required")
                 else:
