@@ -1,8 +1,9 @@
-from typing import Optional, Union, Callable
+from typing import Callable
+import dateutil.parser
 import numpy as np
 import os
 import silx.io.h5py_utils
-import dateutil.parser
+
 
 def safe(func: Callable) -> Callable:
     """A wrapper to safely load data in h5 file"""
@@ -135,7 +136,7 @@ class BlissLoader():
     def show_scan_attributes(
             self,
             scan: int,
-            sample_name: Optional[str]=None,
+            sample_name: str=None,
     ) -> None:
         """Print the attributes (keys) of a given scan number"""
         h5file = self.h5file
@@ -149,10 +150,10 @@ class BlissLoader():
     def load_motor_positions(
             self,
             scan: int,
-            sample_name: Optional[str]=None,
+            sample_name: str=None,
             roi: tuple[slice]=None,
-            binning_along_axis0: Optional[int]=None,
-            binning_method: Optional[str]="mean"
+            binning_along_axis0: int=None,
+            binning_method: str="mean"
     ) -> dict:
         """
         Load the motor positions and return it as a dict of:
@@ -280,30 +281,32 @@ class BlissLoader():
             plot_parameter
     ) -> tuple:
         """Load the plotselect parameters of the specified scan."""
-        h5file = self.h5file
-        key_path = "_".join(
-             (sample_name, str(scan))
-             ) + ".1/plotselect"
-        requested_parameter = h5file[key_path + "/" + plot_parameter][()]
+
+        key_path = "_".join((sample_name, str(scan))) + ".1/plotselect"
+        requested_parameter = self.h5file[key_path + "/" + plot_parameter][()]
+    
         return requested_parameter
 
-    """
-    This functions will return the start time of the given scan.
-    the returned object is of type datetime.datetime and can
-    be easily manipulated arithmetically.
-    """ 
+    
     @safe
     def get_start_time(self, scan: int, sample_name: str=None):
-        h5file = self.h5file
+        """
+        This functions will return the start time of the given scan.
+        the returned object is of type datetime.datetime and can
+        be easily manipulated arithmetically.
+        """ 
+
         if sample_name is None:
             sample_name = self.sample_name
+
         key_path = "_".join((sample_name, str(scan))) + ".1/start_time"
-        return dateutil.parser.isoparse(h5file[key_path][()])
+
+        return dateutil.parser.isoparse(self.h5file[key_path][()])
 
 
     @staticmethod
     def get_mask(
-            channel: Optional[int]=None,
+            channel: int=None,
             detector_name: str="Maxipix",
             roi: tuple[slice]=None
     ) -> np.ndarray:
