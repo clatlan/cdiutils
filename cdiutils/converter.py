@@ -763,7 +763,7 @@ class SpaceConverter():
             # delta or nu. Here, we do both and calculate the average. The
             # leading coefficient of the function x_com = f(delta) gives
             # how much the x_com has moved when delta has changed by one degree.
-            com_shift = [
+            slope = [
                 np.polynomial.polynomial.polyfit(a, c, 1)[1]
                 for a, c in zip(
                     (detector_outofplane_angle, detector_inplane_angle),
@@ -773,15 +773,15 @@ class SpaceConverter():
             sdd_estimate = (
                 (1 / 2)
                 * (1 / np.tan(np.pi / 180))
-                * (com_shift[0] * pixel_size_y + com_shift[1] * pixel_size_x)
+                * (slope[0] * pixel_size_y + slope[1] * pixel_size_x)
             )
 
         if verbose:
-            print("[INFO] First estimate of sdd: {}\n".format(sdd_estimate))
-        pretty_print(
-            "[INFO] Processing to detector calibration using "
-            "xrayutilities.analysis.sample_align.area_detector_calib"
-        )
+            print(f"[INFO] First estimate of sdd: {sdd_estimate} m.")
+            print(
+                "[INFO] Processing to detector calibration using "
+                "xrayutilities.analysis.sample_align.area_detector_calib"
+            )
         parameter_list, _ = xu.analysis.sample_align.area_detector_calib(
             detector_inplane_angle,
             detector_outofplane_angle,
@@ -815,13 +815,13 @@ class SpaceConverter():
             fig1, ax1 = plt.subplots(1, 1, figsize=(6, 4))
             fig2, axes2 = plt.subplots(1, 2)
             ax1.imshow(np.log10(detector_calibration_frames.sum(axis=0)))
-            axes2[0].plot(angle1, x_com)
-            axes2[0].set_xlabel("angle1")
-            axes2[0].set_ylabel("COM in x")
+            axes2[0].plot(detector_outofplane_angle, coms[:, 0])
+            axes2[0].set_xlabel("detector outofplane angle")
+            axes2[0].set_ylabel("COM along axis0")
 
-            axes2[1].plot(angle2, y_com)
-            axes2[1].set_xlabel("angle2")
-            axes2[1].set_ylabel("COM in y")
+            axes2[1].plot(detector_inplane_angle, coms[:, 1])
+            axes2[1].set_xlabel("detector inplane angle")
+            axes2[1].set_ylabel("COM along axis1")
             fig1.tight_layout()
             fig2.tight_layout()
 
