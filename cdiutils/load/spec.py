@@ -1,4 +1,3 @@
-from typing import Union, Optional
 
 import fabio
 import numpy as np
@@ -19,8 +18,8 @@ class SpecLoader():
             experiment_file_path: str,
             detector_data_path: str,
             edf_file_template: str,
-            flatfield: Union[str, np.array]=None,
-            alien_mask: Union[np.ndarray, str]=None,
+            flatfield: str or np.array=None,
+            alien_mask: np.ndarray or str=None,
             detector_name: str="mpx4inr"
     ):
         self.experiment_file_path = experiment_file_path
@@ -95,28 +94,6 @@ class SpecLoader():
         # phi azimuth sample angle
         sample_inplane_angle = positioners["phi"][...]
 
-        # if outofplane_sample_angle.shape != ():
-        #     # angular_step = (
-        #     #     (incidence_angle[-1] - incidence_angle[0])
-        #     #     / incidence_angle.shape[0]
-        #     # )
-        #     outofplane_sample_angle = (
-        #         outofplane_sample_angle[-1]
-        #         + outofplane_sample_angle[0]
-        #         ) / 2
-        #     # rocking_angle = "outofplane"
-
-        # elif inplane_sample_angle.shape != ():
-        #     # angular_step = (
-        #     #     (azimuth_angle[-1] - azimuth_angle[0])
-        #     #     / azimuth_angle.shape[0]
-        #     # )
-        #     inplane_sample_angle = (
-        #         inplane_sample_angle[-1]
-        #         + inplane_sample_angle[0]
-        #         )/ 2
-            # rocking_angle = "inplane"
-        
         return {
                 "sample_outofplane_angle": sample_outofplane_angle,
                 "sample_inplane_angle": sample_inplane_angle,
@@ -126,7 +103,7 @@ class SpecLoader():
 
     @staticmethod
     def get_mask(
-            channel: Optional[int],
+            channel: int,
             detector_name: str="Maxipix",
             roi: tuple[slice]=None
             

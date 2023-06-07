@@ -1,7 +1,6 @@
 import hdf5plugin
 import numpy as np
 import silx.io.h5py_utils
-from typing import Optional, Union, Callable
 
 
 class SIXS2022Loader:
@@ -147,10 +146,10 @@ class SIXS2022Loader:
     def load_motor_positions(
             self,
             scan: int,
-            sample_name: Optional[str]=None,
+            sample_name: str=None,
             roi: tuple[slice]=None,
-            binning_along_axis0: Optional[int]=None,
-            binning_method: Optional[str]="mean"
+            binning_along_axis0: int=None,
+            binning_method: str="mean"
     ) -> dict:
         """
         Load the motor positions and return it as a dict of:

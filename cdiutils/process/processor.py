@@ -1,5 +1,4 @@
 import os
-from typing import Union, Optional
 
 # from matplotlib import font_manager
 import h5py
@@ -14,8 +13,8 @@ import vtk
 from vtk.util import numpy_support
 
 from cdiutils.utils import (
-    center, crop_at_center, find_isosurface, zero_to_nan, find_max_pos,
-    shape_for_safe_centered_cropping, make_support, symmetric_pad,
+    center, crop_at_center, find_isosurface, zero_to_nan, make_support,
+    symmetric_pad,
     CroppingHandler
 )
 from cdiutils.load.bliss import BlissLoader
@@ -35,7 +34,7 @@ from cdiutils.process.plot import (
 from cdiutils.plot.formatting import update_plot_params
 
 
-def loader_factory(metadata: dict) -> BlissLoader or SpecLoader:
+def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loader:
     """
     Load the right loader based on the beamline_setup parameter
     in the metadata dictionary
@@ -61,13 +60,9 @@ def loader_factory(metadata: dict) -> BlissLoader or SpecLoader:
             detector_name=metadata["detector_name"],
             sample_name=metadata["sample_name"],
         )
-    else:
-        raise NotImplementedError(
-            "The provided beamline_setup is not known yet"
-        )
+    raise NotImplementedError("The provided beamline_setup is not valid.")
 
 # TODO: Redundancy of attributes and parameters
-# REMOVE : reload_preprocessing_parameters, _dspacing_gnagna
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
@@ -1101,9 +1096,9 @@ class BcdiProcessor:
     @staticmethod
     def save_to_vti(
             output_path: str,
-            voxel_size: Union[tuple, list, np.ndarray],
-            cxi_convention: Optional[bool]=False,
-            origin: Optional[tuple]=(0, 0, 0),
+            voxel_size: tuple or list or np.ndarray,
+            cxi_convention: bool=False,
+            origin: tuple=(0, 0, 0),
             **np_arrays: dict[np.ndarray]
     ) -> None :
         """
