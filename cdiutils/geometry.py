@@ -49,7 +49,7 @@ class Geometry:
             )
         if beamline_name == "P10":
             return cls(
-                sample_circles=["z+", "y-"],
+                sample_circles=["x-", "y-"], # om, phi
                 detector_circles=["y+", "x-"],
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
