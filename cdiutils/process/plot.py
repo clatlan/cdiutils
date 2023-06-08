@@ -18,7 +18,7 @@ from cdiutils.plot.formatting import (
 from cdiutils.plot.slice import plot_contour
 
 
-def plot_phasing_result(file_path: str) -> None:
+def plot_phasing_result(file_path: str, title: str="") -> None:
     """
     Plot the reconstructed object in reciprocal and direct spaces.
     """
@@ -74,12 +74,8 @@ def plot_phasing_result(file_path: str) -> None:
         for ax in axes.ravel():
             ax.set_xticks([])
             ax.set_yticks([])
-        
-        run_number = int(file_path.split("Run")[1][:4])
-        scan_number = file_path.split("/")[-3][1:]
-        figure.suptitle(
-            f"Phasing results, scan {scan_number}, run {run_number}"
-        )
+
+        figure.suptitle(title)
 
 
 def preprocessing_detector_data_plot(

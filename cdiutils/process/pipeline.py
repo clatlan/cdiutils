@@ -473,13 +473,22 @@ class BcdiPipeline:
         given list if provided, otherwise create the list.
         """
         fetched_paths = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
+        
+        
+    
 
         if paths == [] or paths is None:
             if plot:
                 for path in fetched_paths:
                     if os.path.isfile(path):
                         try:
-                            plot_phasing_result(path)
+                            run_number = int(path.split("Run")[1][:4])
+                            scan_number = path.split("/")[-3][1:]
+                            title = (
+                                f"Phasing results, scan {scan_number}, "
+                                f"run {run_number}"
+                            )
+                            plot_phasing_result(path, title)
                         except OSError:
                             pass
             return fetched_paths
@@ -489,7 +498,13 @@ class BcdiPipeline:
                 paths.append(path)
                 if plot and os.path.isfile(path):
                     try:
-                        plot_phasing_result(path)
+                        run_number = int(path.split("Run")[1][:4])
+                        scan_number = path.split("/")[-3][1:]
+                        title = (
+                            f"Phasing results, scan {scan_number}, "
+                            f"run {run_number}"
+                        )
+                        plot_phasing_result(path, title)
                     except OSError:
                         pass
         for path in paths:
