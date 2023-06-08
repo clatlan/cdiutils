@@ -190,7 +190,7 @@ class BcdiProcessor:
         self.mask = self.loader.get_mask(
             channel=self.detector_data.shape[0],
             detector_name=self.params["metadata"]["detector_name"],
-            roi=roi
+            roi=(slice(None), roi[0], roi[1])
         )
 
     def verbose_print(self, text: str, wrap: bool=True, **kwargs) -> None:

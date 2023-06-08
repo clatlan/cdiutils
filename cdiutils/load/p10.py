@@ -153,8 +153,9 @@ class P10Loader:
         mask = self.get_mask(
             channel=data.shape[0],
             detector_name=self.detector_name,
-            roi=roi
+            roi=(slice(None), roi[1], roi[2])
         )
+
         data = data * np.where(mask, 0, 1)
 
         return data
