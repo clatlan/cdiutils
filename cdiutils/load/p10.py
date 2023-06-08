@@ -188,7 +188,6 @@ class P10Loader:
             sample_name = self.sample_name
 
         path = self._get_file_path(scan, sample_name, data_type="motor_positions")
-
         if roi is None or len(roi) == 2:
             roi = slice(None)
         elif len(roi) == 3:
@@ -221,41 +220,41 @@ class P10Loader:
                 if words[0].replace(".", "", 1).isdigit():
                     rocking_angle_values.append(float(words[column_index]))
 
-            angles[rocking_angle] = np.array(rocking_angle_values)
+        angles[rocking_angle] = np.array(rocking_angle_values)
 
-            if binning_along_axis0:
-                original_dim0 = angles[rocking_angle].shape[0]
-                nb_of_bins = original_dim0 // binning_along_axis0
-                first_slices = nb_of_bins * binning_along_axis0
-                last_slices = first_slices + original_dim0 % binning_along_axis0
-                if binning_method == "mean":
-                    if original_dim0 % binning_along_axis0 != 0:
-                        binned_sample_outofplane_angle = [
-                            np.mean(e, axis=0)
-                            for e in np.split(
-                                angles[rocking_angle][:first_slices],
-                                nb_of_bins
-                            )
-                        ]
-                        binned_sample_outofplane_angle.append(
-                            np.mean(
-                                angles[rocking_angle][last_slices-1:],
-                                axis=0
-                            )
+        if binning_along_axis0:
+            original_dim0 = angles[rocking_angle].shape[0]
+            nb_of_bins = original_dim0 // binning_along_axis0
+            first_slices = nb_of_bins * binning_along_axis0
+            last_slices = first_slices + original_dim0 % binning_along_axis0
+            if binning_method == "mean":
+                if original_dim0 % binning_along_axis0 != 0:
+                    binned_sample_outofplane_angle = [
+                        np.mean(e, axis=0)
+                        for e in np.split(
+                            angles[rocking_angle][:first_slices],
+                            nb_of_bins
                         )
-                    else:
-                        binned_sample_outofplane_angle = [
-                            np.mean(e, axis=0)
-                            for e in np.split(
-                                angles[rocking_angle],
-                                nb_of_bins
-                            )
-                        ]
-                    angles[rocking_angle] = np.asarray(
-                        binned_sample_outofplane_angle
+                    ]
+                    binned_sample_outofplane_angle.append(
+                        np.mean(
+                            angles[rocking_angle][last_slices-1:],
+                            axis=0
+                        )
                     )
-            if binning_along_axis0 and roi:
-                angles[rocking_angle] = angles[rocking_angle][roi]
+                else:
+                    binned_sample_outofplane_angle = [
+                        np.mean(e, axis=0)
+                        for e in np.split(
+                            angles[rocking_angle],
+                            nb_of_bins
+                        )
+                    ]
+                angles[rocking_angle] = np.asarray(
+                    binned_sample_outofplane_angle
+                )
+        if roi:
+            angles[rocking_angle] = angles[rocking_angle][roi]
 
         return {
             angle: angles[name]
