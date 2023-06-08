@@ -425,7 +425,7 @@ class SpaceConverter():
             )
             print(
                 "[INFO] Voxel size in the direct lab space due to the "
-                f"orthognolization process is:\n{direct_lab_voxel_size}."
+                f"orthognolization process is:\n{direct_lab_voxel_size} (nm)."
             )
 
             # initialise the interpolator instance
@@ -806,7 +806,7 @@ class SpaceConverter():
         }
 
         if verbose:
-            pretty_print("Computed parameters")
+            print("Computed parameters:\n")
             for key, value in parameters.items():
                 print(
                     f"{key} = {value}"
