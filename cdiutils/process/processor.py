@@ -165,7 +165,7 @@ class BcdiProcessor:
 
     def _init_plot_parameters(self):
         update_plot_params(
-            # usetex=self.params["usetex"],
+            usetex=self.params["usetex"],
             use_siunitx=self.params["usetex"],
             **{
                 "axes.labelsize": 7,
