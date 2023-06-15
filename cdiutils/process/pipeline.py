@@ -326,6 +326,7 @@ class BcdiPipeline:
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
                 os.remove(f)
+            self.phasing_results = []
 
         pynx_input_file_path = (
             self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
