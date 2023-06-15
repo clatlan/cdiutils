@@ -631,7 +631,8 @@ class BcdiProcessor:
         roi = CroppingHandler.get_roi(final_shape, det_ref_voxel)
         self.init_space_converter(roi=roi[2:])
         self.space_converter.load_interpolation_parameters(
-            interpolation_file_path
+            interpolation_file_path,
+            direct_space_voxel_size=self.params['voxel_size']
         )
 
         # might be useless
