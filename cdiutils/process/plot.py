@@ -1044,7 +1044,7 @@ def plot_final_object_fft(
             r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(
-        r"FFT of final object in \textbf{centered q lab frame}")
+        r"FFT of final object in \textbf{q lab frame}")
     axes[1, 1].set_title(
         r"Orthogonalized experimental data in \textbf{q lab frame}")
 
