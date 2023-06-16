@@ -526,7 +526,7 @@ class BcdiPipeline:
                 os.remove(f)
 
         self.phasing_results = self.find_phasing_results(self.phasing_results)
-        if not self.find_phasing_results:
+        if not self.phasing_results:
             raise ValueError(
                 "No PyNX output in the following directory: "
                 f"{self.pynx_phasing_dir}."
@@ -608,9 +608,10 @@ class BcdiPipeline:
             )
 
             if self.bcdi_processor is None:
-                print("BCDI processor is None")
-                if not all(
+                print("BCDI processor is not instantiated yet.")
+                if any(
                         p not in self.parameters["cdiutils"].keys()
+                        or self.parameters["cdiutils"][p] is None
                         for p in (
                             "q_lab_reference", "q_lab_max",
                             "q_lab_com", "det_reference_voxel",
@@ -619,7 +620,7 @@ class BcdiPipeline:
                     file_path = (
                             f"{self.dump_dir}"
                             f"S{self.scan}_parameter_file.yml"
-                        )
+                    )
                     print(f"Loading parameters from: {file_path}")
                     preprocessing_params = self.load_parameters(
                         file_path=file_path)["cdiutils"]
@@ -635,6 +636,7 @@ class BcdiPipeline:
                             "q_lab_com": preprocessing_params["q_lab_com"]
                         }
                     )
+                print(self.parameters["cdiutils"]["det_reference_voxel"])
                 self.bcdi_processor = BcdiProcessor(
                     parameters=self.parameters["cdiutils"]
                 )
