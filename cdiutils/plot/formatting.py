@@ -195,7 +195,7 @@ def get_figure_size(
     :return: dimensions of the figure in inches (tuple)
     """
     if width == 'thesis':
-        width_pt = 426.79135
+        width_pt = 701.32631
     elif width == 'beamer':
         width_pt = 398.3386
     elif width == "nature":
