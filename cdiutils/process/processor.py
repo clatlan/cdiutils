@@ -887,7 +887,14 @@ class BcdiProcessor:
                 np.arange(-shape[0]//2, shape[0]//2, 1) * voxel_size_of_fft_object[0],
                 np.arange(-shape[1]//2, shape[1]//2, 1) * voxel_size_of_fft_object[1],
                 np.arange(-shape[2]//2, shape[2]//2, 1) * voxel_size_of_fft_object[2],
-            )            
+            )
+            final_object_q_lab_grid = tuple(
+                shift + grid
+                for shift, grid in zip(
+                    self.space_converter.q_space_shift,
+                    final_object_q_lab_grid
+                )
+            )
 
             # find the position in the cropped detector frame
             roi = CroppingHandler.get_roi(
@@ -904,6 +911,7 @@ class BcdiProcessor:
                     cropped_det_ref
                 )
             )
+
             self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
                 final_object_fft,
                 orthogonalized_intensity,
