@@ -456,7 +456,11 @@ class SpaceConverter():
             )
         )
 
-    def load_interpolation_parameters(self, file_path: str):
+    def load_interpolation_parameters(
+            self,
+            file_path: str,
+            direct_space_voxel_size: tuple or int=None
+    ):
         """
         Load interpolation parameters from a file and initialize
         interpolators.
@@ -468,6 +472,8 @@ class SpaceConverter():
         Args:
             file_path (str): Path to the file containing the
             interpolation parameters.
+            direct_space_voxel_size (tuple or int): Voxel size if
+            provided, otherwise will take the one in the file.
 
         Returns:
             None
@@ -481,7 +487,8 @@ class SpaceConverter():
             ]
             self._q_space_transitions = npzfile["q_space_transitions"]
             self.q_space_shift = npzfile["q_space_shift"]
-            direct_space_voxel_size = npzfile["direct_space_voxel_size"]
+            if direct_space_voxel_size is None:
+                direct_space_voxel_size = npzfile["direct_space_voxel_size"]
 
         self._full_shape = self._q_space_transitions.shape[1:]
         self._cropped_shape = self._full_shape
