@@ -79,7 +79,7 @@ def set_plot_configs():
 def update_plot_params(
         style: str="nature",
         usetex: bool=True,
-        use_siunitx: bool=True,
+        use_siunitx: bool=False,
         max_open_warning: int=100,
         dpi: int=200,
         lines_marker: str="",
@@ -195,7 +195,7 @@ def get_figure_size(
     :return: dimensions of the figure in inches (tuple)
     """
     if width == 'thesis':
-        width_pt = 701.32631
+        width_pt = 455.30101
     elif width == 'beamer':
         width_pt = 398.3386
     elif width == "nature":
