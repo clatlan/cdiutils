@@ -84,17 +84,23 @@ class BlissLoader():
             "_".join((sample_name, str(scan)))
             + f".1/measurement/{self.detector_name}"
         )
-        print(key_path)
 
         if roi is None:
             roi = tuple(slice(None) for i in range(3))
         elif len(roi) == 2:
             roi = tuple([slice(None), roi[0], roi[1]])
 
-        if binning_along_axis0:
-            data = h5file[key_path][()]
-        else:
-            data = h5file[key_path][roi]
+        try:
+            if binning_along_axis0:
+                data = h5file[key_path][()]
+            else:   
+                data = h5file[key_path][roi]
+        except KeyError:
+            raise KeyError(
+                f"key_path is wrong (key_path={key_path}).\n"
+                "Are sample_name and scan number corrects?"
+            )
+
 
         if binning_along_axis0:
             original_dim0 = data.shape[0]
