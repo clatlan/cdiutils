@@ -636,7 +636,6 @@ class BcdiPipeline:
                             "q_lab_com": preprocessing_params["q_lab_com"]
                         }
                     )
-                print(self.parameters["cdiutils"]["det_reference_voxel"])
                 self.bcdi_processor = BcdiProcessor(
                     parameters=self.parameters["cdiutils"]
                 )
