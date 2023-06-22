@@ -820,18 +820,23 @@ class BcdiProcessor:
             for k in ["amplitude", "phase", "displacement",
                       "local_strain", "lattice_parameter"]
         }
-
-        self.figures["postprocessing"]["figure"] = summary_slice_plot(
-            title=f"Summary figure, S{self.scan}",
-            support=zero_to_nan(self.structural_properties["support"]),
-            dpi=200,
-            voxel_size=self.voxel_size,
-            isosurface=self.params["isosurface"],
-            det_reference_voxel=self.params["det_reference_voxel"],
-            averaged_dspacing=self.averaged_dspacing,
-            averaged_lattice_parameter=self.averaged_lattice_parameter,
-            **final_plots
-        )
+        try:
+            self.figures["postprocessing"]["figure"] = summary_slice_plot(
+                title=f"Summary figure, S{self.scan}",
+                support=zero_to_nan(self.structural_properties["support"]),
+                dpi=200,
+                voxel_size=self.voxel_size,
+                isosurface=self.params["isosurface"],
+                det_reference_voxel=self.params["det_reference_voxel"],
+                averaged_dspacing=self.averaged_dspacing,
+                averaged_lattice_parameter=self.averaged_lattice_parameter,
+                **final_plots
+            )
+        except TypeError as exc:
+            raise TypeError(
+                "Something went wrong during plotting. "
+                "Won't plot summary slice plot"
+            ) from exc
 
         strain_plots = {
             k: self.structural_properties[k]
