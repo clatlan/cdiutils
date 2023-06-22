@@ -337,32 +337,6 @@ class BcdiPipeline:
             for key, value in self.parameters["pynx"].items():
                 file.write(f"{key} = {value}\n")
 
-        if machine == "slurm-nice-devel":
-            # Make the pynx slurm file
-            if pynx_slurm_file_template is None:
-                pynx_slurm_file_template = (
-                    f"{os.path.dirname(__file__)}/pynx-id01cdi_template.slurm"
-                )
-                print("Pynx slurm file template not provided, will take "
-                      f"the default: {pynx_slurm_file_template}")
-
-            with open(pynx_slurm_file_template, "r", encoding="utf8") as file:
-                source = Template(file.read())
-                pynx_slurm_text = source.substitute(
-                    {
-                        "number_of_nodes": number_of_nodes,
-                        "data_path": self.pynx_phasing_dir,
-                        "SLURM_JOBID": "$SLURM_JOBID",
-                        "SLURM_NTASKS": "$SLURM_NTASKS"
-                    }
-                )
-            with open(
-                    self.pynx_phasing_dir+ "/pynx-id01cdi.slurm",
-                    "w",
-                    encoding="utf8"
-            ) as file:
-                file.write(pynx_slurm_text)
-
         if os.uname()[1].startswith("p9"):
             with subprocess.Popen(
                     "source /sware/exp/pynx/activate_pynx.sh;"
@@ -381,88 +355,118 @@ class BcdiPipeline:
                         "[STDERR FROM SUBPROCESS]\n",
                         stderr.decode("utf-8")
                     )
-        # ssh to p9 machine and run phase retrieval
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=machine,
-            username=user,
-            pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
-        )
-
-        print(f"[INFO] Connected to {machine}")
-        if machine == "slurm-nice-devel":
-            _, stdout, _= client.exec_command(
-                f"cd {self.pynx_phasing_dir};"
-                "sbatch pynx-id01cdi.slurm"
-            )
-            job_submitted = False
-            time.sleep(0.5)
-
-            # read the standard output, decode it and print it
-            output = stdout.read().decode("utf-8")
-
-            # get the job id and remove '\n' and space characters
-            while not job_submitted:
-                try:
-                    job_id = output.split(" ")[3].strip()
-                    job_submitted = True
-                    print(output)
-                except IndexError:
-                    print("Job still not submitted...")
-                    time.sleep(3)
-                    output = stdout.read().decode("utf-8")
-                    print(output)
-
-            # while loop to check if job has terminated
-            process_status = "PENDING"
-            while process_status != "COMPLETED":
-                _, stdout, _ = client.exec_command(
-                    f"sacct -j {job_id} -o state | head -n 3 | tail -n 1"
-                )
-
-                # python process needs to sleep here, otherwise it gets in
-                # trouble with standard output management. Anyway, we need
-                # to sleep in the while loop in order to wait for the remote
-                # process to terminate.
-                time.sleep(2)
-                process_status = stdout.read().decode("utf-8").strip()
-                print(f"[INFO] process status: {process_status}")
-
-                if process_status == "RUNNING":
-                    _, stdout, _ = client.exec_command(
-                        f"cd {self.pynx_phasing_dir};"
-                        f"cat pynx-id01cdi.slurm-{job_id}.out "
-                        "| grep 'CDI Run:'"
-                    )
-                    time.sleep(1)
-                    print(stdout.read().decode("utf-8"))
-
-                elif process_status == "CANCELLED+":
-                    raise RuntimeError("[INFO] Job has been cancelled")
-                elif process_status == "FAILED":
-                    raise RuntimeError(
-                        "[ERROR] Job has failed. Check out logs at: \n",
-                        f"{self.pynx_phasing_dir}/"
-                        f"pynx-id01cdi.slurm-{job_id}.out"
-                    )
-
-            if process_status == "COMPLETED":
-                print(f"[INFO] Job {job_id} is completed.")
-
         else:
-            _, stdout, stderr = client.exec_command(
-                "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
-                f"cd {self.pynx_phasing_dir};"
-                "pynx-id01cdi.py pynx-cdi-inputs.txt "
-                f"2>&1 | tee phase_retrieval_{machine}.log"
+            # ssh to the machine and run phase retrieval
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(
+                hostname=machine,
+                username=user,
+                pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
             )
-            if stdout.channel.recv_exit_status():
-                raise RuntimeError(
-                    f"Error pulling the remote runtime {stderr.readline()}")
-            for line in iter(lambda: stdout.readline(1024), ""):
-                print(line, end="")
-        client.close()
+
+            print(f"[INFO] Connected to {machine}")
+            if machine == "slurm-nice-devel":
+
+                # Make the pynx slurm file
+                if pynx_slurm_file_template is None:
+                    pynx_slurm_file_template = (
+                        f"{os.path.dirname(__file__)}/pynx-id01cdi_template.slurm"
+                    )
+                    print("Pynx slurm file template not provided, will take "
+                        f"the default: {pynx_slurm_file_template}")
+
+                with open(pynx_slurm_file_template, "r", encoding="utf8") as file:
+                    source = Template(file.read())
+                    pynx_slurm_text = source.substitute(
+                        {
+                            "number_of_nodes": number_of_nodes,
+                            "data_path": self.pynx_phasing_dir,
+                            "SLURM_JOBID": "$SLURM_JOBID",
+                            "SLURM_NTASKS": "$SLURM_NTASKS"
+                        }
+                    )
+                with open(
+                        self.pynx_phasing_dir+ "/pynx-id01cdi.slurm",
+                        "w",
+                        encoding="utf8"
+                ) as file:
+                    file.write(pynx_slurm_text)
+
+                # submit job using sbatch slurm command
+                _, stdout, _= client.exec_command(
+                    f"cd {self.pynx_phasing_dir};"
+                    "sbatch pynx-id01cdi.slurm"
+                )
+                job_submitted = False
+                time.sleep(0.5)
+
+                # read the standard output, decode it and print it
+                output = stdout.read().decode("utf-8")
+
+                # get the job id and remove '\n' and space characters
+                while not job_submitted:
+                    try:
+                        job_id = output.split(" ")[3].strip()
+                        job_submitted = True
+                        print(output)
+                    except IndexError:
+                        print("Job still not submitted...")
+                        time.sleep(3)
+                        output = stdout.read().decode("utf-8")
+                        print(output)
+
+                # while loop to check if job has terminated
+                process_status = "PENDING"
+                while process_status != "COMPLETED":
+                    _, stdout, _ = client.exec_command(
+                        f"sacct -j {job_id} -o state | head -n 3 | tail -n 1"
+                    )
+
+                    # python process needs to sleep here, otherwise it gets in
+                    # trouble with standard output management. Anyway, we need
+                    # to sleep in the while loop in order to wait for the remote
+                    # process to terminate.
+                    time.sleep(2)
+                    process_status = stdout.read().decode("utf-8").strip()
+                    print(f"[INFO] process status: {process_status}")
+
+                    if process_status == "RUNNING":
+                        _, stdout, _ = client.exec_command(
+                            f"cd {self.pynx_phasing_dir};"
+                            f"cat pynx-id01cdi.slurm-{job_id}.out "
+                            "| grep 'CDI Run:'"
+                        )
+                        time.sleep(1)
+                        print(stdout.read().decode("utf-8"))
+
+                    elif process_status == "CANCELLED+":
+                        raise RuntimeError("[INFO] Job has been cancelled")
+                    elif process_status == "FAILED":
+                        raise RuntimeError(
+                            "[ERROR] Job has failed. Check out logs at: \n",
+                            f"{self.pynx_phasing_dir}/"
+                            f"pynx-id01cdi.slurm-{job_id}.out"
+                        )
+
+                if process_status == "COMPLETED":
+                    print(f"[INFO] Job {job_id} is completed.")
+
+            else:
+                _, stdout, stderr = client.exec_command(
+                    "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
+                    f"cd {self.pynx_phasing_dir};"
+                    "pynx-id01cdi.py pynx-cdi-inputs.txt "
+                    f"2>&1 | tee phase_retrieval_{machine}.log"
+                )
+                if stdout.channel.recv_exit_status():
+                    raise RuntimeError(
+                        f"Error pulling the remote runtime {stderr.readline()}")
+                for line in iter(lambda: stdout.readline(1024), ""):
+                    print(line, end="")
+            client.close()
+
+        # get the phasing result paths
         self.phasing_results = self.find_phasing_results(
             self.phasing_results,
             plot=self.parameters["cdiutils"]["show_phasing_results"]
@@ -538,50 +542,100 @@ class BcdiPipeline:
         )
 
     @process
-    def mode_decomposition(self) -> None:
+    def mode_decomposition(
+            self,
+            pynx_version: str="2023.1",
+            machine: str=None,
+            user: str=None,
+            key_file_path: str=None
+    ) -> None:
         """
-        Run the mode decomposition using PyNX pynx-cdi-analysis.py 
-        script as a subprocess.
+        Run the mode decomposition using PyNX pynx-cdi-analysis.py script as a subprocess.
+
+        Args:
+            pynx_version (str, optional): Version of PyNX to use.
+                Defaults to "2023.1".
+            machine (str, optional): Remote machine to run the mode
+                decomposition on. Defaults to None.
+            user (str, optional): User for the remote machine. Defaults
+                to None.
+            key_file_path (str, optional): Path to the key file for SSH
+                authentication. Defaults to None.
         """
 
-        pretty_print(
-            "[INFO] Running mode decomposition from /sware pynx "
-            "installation "
-            f"(scan {self.scan})"
+        # the bash command to run
+        run_command = (
+            f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
+            f"cd {self.pynx_phasing_dir};"
+            "pynx-cdi-analysis candidate_*.cxi modes=1 "
+            "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
         )
 
-        # run the mode decomposition as a subprocesss
-        with subprocess.Popen(
-                "source /sware/exp/pynx/activate_pynx.sh 2023.1;"
-                f"cd {self.pynx_phasing_dir};"
-                "pynx-cdi-analysis.py candidate_*.cxi modes=1 "
-                "modes_output=mode.h5 2>&1 | tee mode_decomposition.log",
-                shell=True,
-                executable="/usr/bin/bash",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-        ) as proc:
-            stdout, stderr = proc.communicate()
-            print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
-            if proc.returncode:
+        if machine:
+            print(f"[INFO] Remote connection to machine '{machine}'requested.")
+            if user is None:
+                user = os.environ["USER"]
+                print(f"user not provided, will use '{user}'.")
+            if key_file_path is None:
+                key_file_path = os.environ["HOME"] + "/.ssh/id_rsa"
                 print(
-                    "[STDERR FROM SUBPROCESS]\n",
-                    stderr.decode("utf-8")
+                    "key_file_path not provided, will use '{key_file_path}'."
                 )
+            
+            pretty_print(
+                f"[INFO] Running mode decomposition from machine '{machine}'"
+                f"using /sware pynx installation (scan {self.scan})"
+            )
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.connect(
+                hostname=machine,
+                username=user,
+                pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
+            )
 
-        if self.parameter_file_path is not None:
-            pretty_print("Scan parameter file updated.")
-            if self.backend == "bcdi":
-                update_parameter_file(
-                    self.parameter_file_path,
-                    {"reconstruction_files": f"{self.pynx_phasing_dir}mode.h5"}
-                )
-            else:
-                update_parameter_file(
-                    self.parameter_file_path,
-                    {"reconstruction_file": f"{self.pynx_phasing_dir}mode.h5"}
-                )
-            self.parameters = self.load_parameters()
+            _, stdout, stderr = client.exec_command(run_command)
+            # read the standard output, decode it and print it
+            print("[STDOUT FROM SSH PROCESS]\n")
+            print(stdout.read().decode("utf-8"))
+            print("[STDERR FROM SSH PROCESS]\n")
+            print(stderr.read().decode("utf-8"))
+
+            if stdout.channel.recv_exit_status():
+                raise RuntimeError(
+                    f"Error pulling the remote runtime {stderr.readline()}")
+            client.close()
+
+        # if no machine provided, run the mode decomposition as a subprocesss
+        else:
+            with subprocess.Popen(
+                    run_command,
+                    shell=True,
+                    executable="/usr/bin/bash",
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+            ) as proc:
+                stdout, stderr = proc.communicate()
+                print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
+                if proc.returncode:
+                    print(
+                        "[STDERR FROM SUBPROCESS]\n",
+                        stderr.decode("utf-8")
+                    )
+
+            if self.parameter_file_path is not None:
+                pretty_print("Scan parameter file updated.")
+                if self.backend == "bcdi":
+                    update_parameter_file(
+                        self.parameter_file_path,
+                        {"reconstruction_files": f"{self.pynx_phasing_dir}mode.h5"}
+                    )
+                else:
+                    update_parameter_file(
+                        self.parameter_file_path,
+                        {"reconstruction_file": f"{self.pynx_phasing_dir}mode.h5"}
+                    )
+                self.parameters = self.load_parameters()
 
     @process
     def postprocess(self, backend: str=None) -> None:
