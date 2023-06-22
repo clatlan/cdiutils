@@ -95,11 +95,11 @@ class BlissLoader():
                 data = h5file[key_path][()]
             else:   
                 data = h5file[key_path][roi]
-        except KeyError:
+        except KeyError as exc:
             raise KeyError(
-                f"key_path is wrong (key_path={key_path}).\n"
-                "Are sample_name and scan number corrects?"
-            )
+                f"key_path is wrong (key_path={key_path})."
+                "Are sample_name and scan number correct?"
+            ) from exc
 
 
         if binning_along_axis0:
