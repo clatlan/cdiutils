@@ -84,6 +84,7 @@ class BlissLoader():
             "_".join((sample_name, str(scan)))
             + f".1/measurement/{self.detector_name}"
         )
+        print(key_path)
 
         if roi is None:
             roi = tuple(slice(None) for i in range(3))
