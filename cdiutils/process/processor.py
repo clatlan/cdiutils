@@ -193,6 +193,11 @@ class BcdiProcessor:
             detector_name=self.params["metadata"]["detector_name"],
             roi=(slice(None), roi[0], roi[1]) if roi else None
         )
+        if  any(
+                data is None
+                for data in (self.detector_data, self.angles, self.mask)
+        ):
+            raise ValueError("Something went wrong during data loading.")
 
     def verbose_print(self, text: str, wrap: bool=True, **kwargs) -> None:
         if self.params["verbose"]:
