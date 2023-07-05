@@ -97,8 +97,8 @@ class BlissLoader():
                 data = h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
-                f"key_path is wrong (key_path={key_path})."
-                "Are sample_name and scan number correct?"
+                f"key_path is wrong (key_path='{key_path}'). "
+                "Are sample_name, scan number or detector name correct?"
             ) from exc
 
 
