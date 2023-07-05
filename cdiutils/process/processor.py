@@ -1134,9 +1134,6 @@ class BcdiProcessor:
         voxel_size = tuple(voxel_size)
         nb_arrays = len(np_arrays)
 
-        # if cxi_convention:
-        #     voxel_size = (voxel_size[2], voxel_size[1], voxel_size[0])
-
         if not nb_arrays:
             raise ValueError(
                 "np_arrays is empty, please provide a dictionary of "
@@ -1146,6 +1143,9 @@ class BcdiProcessor:
         for i, (key, array) in enumerate(np_arrays.items()):
             if not is_init:
                 shape = array.shape
+                if cxi_convention:
+                    voxel_size = (voxel_size[2], voxel_size[1], voxel_size[0])
+                    shape = (shape[2], shape[1], shape[0])
                 image_data = vtk.vtkImageData()
                 image_data.SetOrigin(origin)
                 image_data.SetSpacing(voxel_size)
@@ -1156,10 +1156,6 @@ class BcdiProcessor:
                 )
                 point_data = image_data.GetPointData()
                 is_init = True
-
-            if cxi_convention:
-                array = np.flip(array, 2).T
-                # array = np.swapaxes(array, axis1=0, axis2=2)
 
             vtk_array = numpy_support.numpy_to_vtk(array.ravel())
             point_data.AddArray(vtk_array)
