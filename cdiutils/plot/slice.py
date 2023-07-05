@@ -204,7 +204,9 @@ def plot_3D_volume_slices(
     fig = plt.figure(figsize=figsize)
 
     if log_scale:
-        data = np.log(data)
+        if norm is not None:
+            print("norm provided, will not use log_scale.")
+            log_scale = False            
     if norm is None:
         if vmin is None:
             vmin = None if do_sum or len(data) > 1 else np.nanmin(data)
@@ -240,6 +242,8 @@ def plot_3D_volume_slices(
     )
 
     for i, plot in enumerate(data):
+        if log_scale:
+            norm = matplotlib.colors.LogNorm(plot.min(), plot.max())
         if nan_supports is not None:
             if isinstance(nan_supports, list):
                 plot = plot * nan_supports[i]
@@ -249,6 +253,7 @@ def plot_3D_volume_slices(
             shape = plot.shape
         else:
             shape = shapes[i]
+
         if data_stacking in ("vertical", "v"):
             ind1 = 3 * i
             ind2 = 3 * i + 1
@@ -278,14 +283,14 @@ def plot_3D_volume_slices(
             alpha=None if alphas is None else alphas[i][:, shape[1]//2, :]
         )
         grid[ind3].matshow(
-            np.sum(plot, axis=2) if do_sum else plot[:, shape[2]//2],
+            np.sum(plot, axis=2) if do_sum else plot[:, :, shape[2]//2],
             cmap=cmap,
             vmin=vmin,
             vmax=vmax,
             origin="lower",
             aspect=aspect_ratios["xy"] if aspect_ratios else "auto",
             norm=norm,
-            alpha=None if alphas is None else alphas[i][:, shape[2]//2]
+            alpha=None if alphas is None else alphas[i][:, :, shape[2]//2]
         )
 
         if data_stacking in ("vertical", "v"):
