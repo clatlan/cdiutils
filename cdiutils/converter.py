@@ -220,14 +220,16 @@ class SpaceConverter():
         )
         return new_ijk
 
-    def dspacing(self, q_lab_coordinates: np.ndarray or list or tuple)-> float:
+    @staticmethod
+    def dspacing(q_lab_coordinates: np.ndarray or list or tuple)-> float:
         """
         Compute the dspacing
         """
         return float(2*np.pi / np.linalg.norm(q_lab_coordinates))
 
+    @classmethod
     def lattice_parameter(
-                self,
+                cls,
                 q_lab_coordinates: Union[np.ndarray, list, tuple],
                 hkl: Union[np.ndarray, list, tuple]
     ) -> float:
@@ -235,7 +237,7 @@ class SpaceConverter():
         Compute the lattice parameter
         """
         return float(
-                self.dspacing(q_lab_coordinates)
+                cls.dspacing(q_lab_coordinates)
                 * np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
         )
 
