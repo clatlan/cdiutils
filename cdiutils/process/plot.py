@@ -79,13 +79,13 @@ def plot_phasing_result(file_path: str, title: str="") -> None:
 
 
 def preprocessing_detector_data_plot(
-        cropped_data: np.array,
-        cropped_max_voxel: np.array or list or tuple,
-        cropped_com_voxel: np.array or list or tuple,
-        detector_data: np.array=None,
-        det_reference_voxel: np.array or list or tuple=None,
-        det_max_voxel: np.array or list or tuple=None,
-        det_com_voxel: np.array or list or tuple=None,
+        cropped_data: np.ndarray,
+        cropped_max_voxel: np.ndarray or list or tuple,
+        cropped_com_voxel: np.ndarray or list or tuple,
+        detector_data: np.ndarray=None,
+        det_reference_voxel: np.ndarray or list or tuple=None,
+        det_max_voxel: np.ndarray or list or tuple=None,
+        det_com_voxel: np.ndarray or list or tuple=None,
         title: str=""
 ) -> matplotlib.figure.Figure:
     """
@@ -443,13 +443,13 @@ def summary_slice_plot(
     # take care of the aspect ratios:
     if voxel_size is not None and respect_aspect:
         aspect_ratios = {
-            "xy": voxel_size[0]/voxel_size[1],
-            "xz": voxel_size[0]/voxel_size[2],
-            "yz":  voxel_size[1]/voxel_size[2]
+            "zy": voxel_size[0]/voxel_size[1],
+            "zx": voxel_size[0]/voxel_size[2],
+            "yx":  voxel_size[1]/voxel_size[2]
 
         }
     else:
-        aspect_ratios = {"xy": "auto", "xz": "auto","yz": "auto"}
+        aspect_ratios = {"zy": "auto", "zx": "auto","yx": "auto"}
 
     subplots = (4, len(kwargs))
     figsize = get_figure_size("nature", fraction=1, subplots=subplots)
@@ -523,7 +523,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["yz"]
+            aspect=aspect_ratios["yx"]
         )
         axes[1, i].matshow(
             array[:, shape[1] // 2, :],
@@ -531,7 +531,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["xz"]
+            aspect=aspect_ratios["zx"]
         )
         mappables[key] = axes[2, i].matshow(
             np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
@@ -539,7 +539,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["xy"]
+            aspect=aspect_ratios["zy"]
         )
 
         if key == "amplitude":
@@ -564,7 +564,7 @@ def summary_slice_plot(
     table = table_ax.table(
         cellText=np.transpose([
             [np.array2string(
-                voxel_size,
+                np.array(voxel_size),
                 formatter={"float_kind":lambda x: "%.2f" % x}
             )],
             [np.array2string(np.array(det_reference_voxel))],
