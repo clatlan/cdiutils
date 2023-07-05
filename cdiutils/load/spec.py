@@ -13,6 +13,14 @@ def safe(func):
 
 # TODO: Impelement roi parameter for detector, motors and mask methods
 class SpecLoader():
+
+    angle_names = {
+        "sample_outofplane_angle": "eta",
+        "sample_inplane_angle": "phi",
+        "detector_outofplane_angle": "del",
+        "detector_inplane_angle": "nu"
+    }
+
     def __init__(
             self,
             experiment_file_path: str,
@@ -62,6 +70,12 @@ class SpecLoader():
             roi: tuple[slice]=None,
             binning_along_axis0=None
     ):
+        if roi is None:
+            roi = tuple(slice(None) for i in range(3))
+        elif len(roi) == 2:
+            roi = tuple([slice(None), roi[0], roi[1]])
+
+
         # TODO: implement flatfield consideration and binning_along_axis0
         frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
         
@@ -73,7 +87,7 @@ class SpecLoader():
             with fabio.open(template % frame_id) as edf_data:
                 detector_data.append(edf_data.data)
         
-        return np.array(detector_data)
+        return np.array(detector_data)[roi]
     
     @safe
     def load_motor_positions(
@@ -83,23 +97,21 @@ class SpecLoader():
             roi: tuple[slice]=None,
             binning_along_axis0=None
     ):
+        
+        if roi is None or len(roi) == 2:
+            roi = slice(None)
+        elif len(roi) == 3:
+            roi = roi[0]
+
         positioners = specfile[f"{scan}.1/instrument/positioners"]
-
-        # delta outofplane detector
-        detector_outofplane_angle = positioners["del"][...]
-        # eta incidence sample
-        sample_outofplane_angle = positioners["eta"][...]
-        # nu inplane detector
-        detector_inplane_angle = positioners["nu"][...]
-        # phi azimuth sample angle
-        sample_inplane_angle = positioners["phi"][...]
-
-        return {
-                "sample_outofplane_angle": sample_outofplane_angle,
-                "sample_inplane_angle": sample_inplane_angle,
-                "detector_outofplane_angle": detector_outofplane_angle,
-                "detector_inplane_angle": detector_inplane_angle
-            }
+    
+        angles = {key: None for key in SpecLoader.angle_names.keys()}
+        for angle, name in SpecLoader.angle_names.items():
+            try:
+                angles[angle] = positioners[name][roi]
+            except ValueError:
+                angles[angle] = angles[angle] = positioners[name][()]
+        return angles
 
     @staticmethod
     def get_mask(
