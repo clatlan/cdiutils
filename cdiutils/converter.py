@@ -390,28 +390,28 @@ class SpaceConverter():
             k_matrix
         )
 
-        if space in (
-                "q", "rcp", "rcp_space",
-                "reciprocal", "reciprocal_space", "both"):
-
+        if space in ("direct", "direct_space", "both"):
             if direct_space_data_shape is None:
                 raise ValueError(
                     "if space is 'direct' direct_space_data_shape must be "
                      "provided."
                 )
-
-            if shape != direct_space_data_shape:
+            if  shape != direct_space_data_shape:
                 raise ValueError(
                     "The cropped_raw_data should have the same shape as the "
                     "reconstructed object."
                 )
+
+        if space in (
+                "q", "rcp", "rcp_space",
+                "reciprocal", "reciprocal_space", "both"):
 
             self.q_lab_interpolator = Interpolator3D(
                 original_shape=shape,
                 original_to_target_matrix=linear_transformation_matrix
             )
 
-        if space in ("direct", "direct_space", "both"):
+        elif space in ("direct", "direct_space", "both"):            
 
             # Compute the linear transformation matrix of the direct space
             direct_lab_transformation_matrix = np.dot(
@@ -558,7 +558,7 @@ class SpaceConverter():
     def get_q_space_transitions(self, arrangement: str="list"):
         """
         Get the q space transitions calculated by xrayutilities and
-        chose the arrangement either a list of three 1d array
+        chose the arrangement either a list of three 1d arrays
         or a cube of q coordinates in the q lab space.
         """
         if self._q_space_transitions is None:
@@ -582,7 +582,7 @@ class SpaceConverter():
     def get_xu_q_lab_regular_grid(self, arrangement: str="list"):
         """
         Get the regular grid used for the xu orthogonalization in the q lab
-        space and chose the arrangement either a list of three 1d array
+        space and chose the arrangement either a list of three 1d arrays
         or a cube of q coordinates in the q lab space.
         """
         if self.xu_gridder is None:
