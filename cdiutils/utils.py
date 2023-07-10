@@ -381,7 +381,7 @@ class CroppingHandler:
         if method == "max":
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
-            com = nan_center_of_mass(data)
+            com = center_of_mass(data)
             return tuple(int(round(e)) for e in com)
         elif (
             isinstance(method, (list, tuple))
