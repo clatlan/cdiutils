@@ -362,6 +362,15 @@ class SpaceConverter():
             space: str="direct",
             shift_voxel: tuple=None
     ):
+        
+        if space not in (
+                "q", "rcp", "rcp_space",
+                "reciprocal", "reciprocal_space",
+                "both", "direct", "direct_space"):
+            raise ValueError(
+                "Invalid space."
+            )
+
         shape = detector_data.shape
         size = detector_data.size
 
@@ -411,7 +420,7 @@ class SpaceConverter():
                 original_to_target_matrix=linear_transformation_matrix
             )
 
-        elif space in ("direct", "direct_space", "both"):            
+        if space in ("direct", "direct_space", "both"):
 
             # Compute the linear transformation matrix of the direct space
             direct_lab_transformation_matrix = np.dot(
@@ -437,10 +446,6 @@ class SpaceConverter():
                 target_voxel_size=direct_space_voxel_size
             )
 
-        else:
-            raise ValueError(
-                "Invalid space."
-            )
 
     def save_interpolation_parameters(self, output_path: str):
         np.savez(
