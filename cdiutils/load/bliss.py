@@ -72,7 +72,9 @@ class BlissLoader():
             sample_name: str=None,
             roi: tuple[slice]=None,
             binning_along_axis0: int=None,
-            binning_method: str="sum"
+            binning_method: str="sum",
+            noise_threshold: int = None,
+            floor: int = None
     ) -> np.ndarray:
         """Load the detector data of a given scan number."""
 
@@ -101,6 +103,17 @@ class BlissLoader():
                 "Are sample_name, scan number or detector name correct?"
             ) from exc
 
+        if noise_threshold:
+            try:
+                print('--------Using Noise Threshold----------')
+                print(f"Setting intensity values under {noise_threshold} to {floor}")
+            
+                super_threshold_indices = data < noise_threshold
+                data[super_threshold_indices] = floor
+            except TypeError:
+                raise KeyError(
+                f"Parameters noise_threshold and floor must both be given"
+                ", if the threshold function is to be used.")
 
         if binning_along_axis0:
             original_dim0 = data.shape[0]

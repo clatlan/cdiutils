@@ -179,7 +179,9 @@ class BcdiProcessor:
         self.detector_data = self.loader.load_detector_data(
             scan=self.scan,
             roi=roi,
-            binning_along_axis0=self.params["binning_along_axis0"]
+            binning_along_axis0=self.params["binning_along_axis0"],
+            noise_threshold = self.params["noise_threshold"],
+            floor = self.params["floor"]
         )
         self.angles.update(
             self.loader.load_motor_positions(

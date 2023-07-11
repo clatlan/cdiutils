@@ -26,7 +26,9 @@ AUTHORIZED_KEYS = {
         "verbose": True,
         "debug": True,
         "show_phasing_results": False,
-        "unwrap_before_orthogonalization": False
+        "unwrap_before_orthogonalization": False,
+        "noise_threshold": None,
+        "floor": None
     },
     "pynx": {
         "data": None,
