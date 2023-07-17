@@ -756,5 +756,5 @@ def find_isosurface(
         fig.tight_layout()
         if show:
             matplotlib.pyplot.show()
-        return isosurface, fig
+        return float(isosurface), fig
     return float(isosurface)
