@@ -707,7 +707,7 @@ class BcdiPipeline:
             )
 
     def save_parameter_file(self) -> None:
-        """
+        """ 
         Save the parameter file used during the analysis.
         """
 
@@ -717,16 +717,23 @@ class BcdiPipeline:
         )
 
         if self.parameter_file_path is not None:
-            shutil.copyfile(
-                self.parameter_file_path,
-                output_file_path
+            try:
+                shutil.copy(
+                    self.parameter_file_path,
+                    output_file_path
+                )
+            except shutil.SameFileError:
+                print(
+                "\nScan parameter file saved at:\n"
+                f"{output_file_path}"
             )
+
         else:
             convert_np_arrays(self.parameters)
             with open(output_file_path, "w", encoding="utf8") as file:
                 yaml.dump(self.parameters, file)
 
-        print(
-            "\nScan parameter file saved at:\n"
-            f"{output_file_path}"
-        )
+            print(
+                "\nScan parameter file saved at:\n"
+                f"{output_file_path}"
+            )
