@@ -228,6 +228,12 @@ class BcdiProcessor:
                 )
 
             det_ref = self.params["det_reference_voxel_method"][-1]
+            if isinstance(det_ref, str):
+                raise ValueError(
+                    "When light loading, det_reference_voxel_method must "
+                    "contain a tuple indicating the position of the voxel you "
+                    "want to crop the data at. Ex: [(100, 200, 200)]"
+                )
             if len(det_ref) == 2 and len(final_shape) == 3:
                 final_shape = final_shape[1:]
             elif len(det_ref) == 3 and len(final_shape) == 2:
