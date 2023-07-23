@@ -45,7 +45,8 @@ def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loade
             experiment_file_path=metadata["experiment_file_path"],
             detector_name=metadata["detector_name"],
             sample_name=metadata["sample_name"],
-            flatfield=metadata["flatfield_path"]
+            flatfield=metadata["flatfield_path"],
+            # alien_mask=metadata["alien_mask"]
 
         )
     if metadata["beamline_setup"] == "ID01SPEC":
@@ -191,7 +192,7 @@ class BcdiProcessor:
         self.mask = self.loader.get_mask(
             channel=self.detector_data.shape[0],
             detector_name=self.params["metadata"]["detector_name"],
-            roi=(slice(None), roi[0], roi[1]) if roi else None
+            roi=(slice(None), roi[1], roi[2]) if roi else None
         )
         if  any(
                 data is None
@@ -337,8 +338,9 @@ class BcdiProcessor:
             )
 
             # center and crop the mask
-            self.mask = center(self.mask, where=det_ref)
-            self.mask = crop_at_center(self.mask, final_shape=final_shape)
+            # self.mask = center(self.mask, where=det_ref)
+            # self.mask = crop_at_center(self.mask, final_shape=final_shape)
+            self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
             self.verbose_print(
                 f"The reference voxel was found at {det_ref} in the "
