@@ -260,7 +260,7 @@ def get_structural_properties(
     # if final_shape is not provided, find one
     if final_shape is None:
         print("[PROCESSING] finding a new array shape")
-        final_shape = find_suitable_array_shape(support)
+        final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
         print(f"[INFO] new array shape is {final_shape}")
 
     print("[PROCESSING] Cropping the data: ", end="")
