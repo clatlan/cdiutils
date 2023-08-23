@@ -9,9 +9,10 @@
 #SBATCH --mem-per-gpu=4G
 #SBATCH --output=%x-%j.out
 
-env | grep CUDA
+module load cuda/11
 scontrol --details show jobs $SLURM_JOBID | grep RES
-  
+
 cd $data_path
 
-mpiexec -n $SLURM_NTASKS /sware/exp/pynx/2023.1/p9/bin/pynx-cdi-id01 pynx-cdi-inputs.txt
+module load pynx
+mpiexec -n $SLURM_NTASKS pynx-cdi-id01 pynx-cdi-inputs.txt
