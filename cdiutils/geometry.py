@@ -64,7 +64,8 @@ class Geometry:
                 beam_direction=[1, 0, 0]
             )
         raise NotImplementedError(
-            f"The beamline_name {beamline_name} is not valid."
+            f"The beamline_name {beamline_name} is not valid. Available:\n"
+            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10' , 'SIXS2022'"
         )
 
     def cxi_to_xu(self) -> None:

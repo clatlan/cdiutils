@@ -18,6 +18,17 @@ from cdiutils.utils import (
 )
 
 
+def support_based_phase_unwrap(phase: np.array, support: np.array) -> np.array:
+    support = nan_to_zero(support)
+    mask = np.where(support == 0, 1, 0)
+    phase = np.ma.masked_array(phase, mask=mask)
+    return unwrap_phase(
+        phase,
+        wrap_around=False,
+        seed=1
+    ).data
+
+
 def remove_phase_ramp(phase: np.array) -> Tuple[np.array, np.array]:
     """
     Remove the phase ramp of a 3D volume phase.                                                                                                                                                              
@@ -272,13 +283,7 @@ def get_structural_properties(
 
     # process the phase
     print("[PROCESSING] Unwrapping the phase: ", end="")
-    mask = np.where(support == 0, 1, 0)
-    phase = np.ma.masked_array(phase, mask=mask)
-    phase = unwrap_phase(
-        phase,
-        wrap_around=False,
-        seed=1
-    ).data
+    phase = support_based_phase_unwrap(phase, support)
     print("done.")
 
     # convert zero to nan

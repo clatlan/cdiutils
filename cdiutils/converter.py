@@ -17,7 +17,6 @@ class SpaceConverter():
     def __init__(
             self,
             geometry: Geometry,
-            roi: np.ndarray or list or tuple,
             energy: float=None
     ):
         self.geometry = geometry
@@ -26,7 +25,6 @@ class SpaceConverter():
             self.geometry.cxi_to_xu()
 
         self.energy = energy
-        self.roi = roi
         self.det_calib_parameters = {}
         self.hxrd = None
 
@@ -43,8 +41,12 @@ class SpaceConverter():
         self.xu_gridder: xu.FuzzyGridder3D=None
     
     @property
-    def q_space_transition(self):
+    def q_space_transitions(self):
         return self._q_space_transitions
+    
+    @q_space_transitions.setter
+    def q_space_transitions(self, transitions: np.array):
+        self._q_space_transitions = transitions
     
     @property
     def reference_voxel(self):
@@ -66,7 +68,15 @@ class SpaceConverter():
     def full_shape(self):
         return self._full_shape
 
-    def init_q_space_area(self, det_calib_parameters: dict=None):
+    @full_shape.setter
+    def full_shape(self, shape: tuple):
+        self._full_shape = shape
+
+    def init_q_space_area(
+            self,
+            roi: np.array or list or tuple,
+            det_calib_parameters: dict=None
+    ):
         """
         Initialize the xrayutilites XHRD instance with the detector
         calibration parameters.
@@ -102,13 +112,14 @@ class SpaceConverter():
                 en=self.energy,
                 qconv=qconversion
             )
+
             self.hxrd.Ang2Q.init_area(
                 detectorDir1=self.geometry.detector_vertical_orientation,
                 detectorDir2=self.geometry.detector_horizontal_orientation,
-                cch1=det_calib_parameters["cch1"] - self.roi[0],
-                cch2=det_calib_parameters["cch2"] - self.roi[2],
-                Nch1=self.roi[1] - self.roi[0],
-                Nch2=self.roi[3] - self.roi[2],
+                cch1=det_calib_parameters["cch1"] - roi[0],
+                cch2=det_calib_parameters["cch2"] - roi[2],
+                Nch1=roi[1] - roi[0],
+                Nch2=roi[3] - roi[2],
                 pwidth1=det_calib_parameters["pwidth1"],
                 pwidth2=det_calib_parameters["pwidth2"],
                 distance=det_calib_parameters["distance"],

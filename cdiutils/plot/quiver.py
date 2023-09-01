@@ -33,8 +33,8 @@ def plot_deviation(
             x,
             y_pos * support,
             c="grey",
-            ls=":",
-            lw=linewidth,
+            ls="--",
+            lw=linewidth/2,
         )
 
     support = np.repeat(support, interpolate)
@@ -162,6 +162,7 @@ def quiver_plot(
         zorder=2.3
     )
     if not no_background:
+        # strain = strain * support
         background = ax.matshow(
             strain[slice_pos, ...],
             origin="lower",
@@ -175,14 +176,14 @@ def quiver_plot(
     else:
         background = None
     
-    sized_up_support = size_up_support(support)
-    ax.matshow(
-        np.where(sized_up_support == 1, np.nan, 0)[slice_pos, ...],
-        origin="lower",
-        cmap=matplotlib.colors.ListedColormap(['white']),
-        alpha=1,
-        zorder=2.2
-    )
+    # sized_up_support = size_up_support(support)
+    # ax.matshow(
+    #     np.where(sized_up_support == 1, np.nan, 0)[slice_pos, ...],
+    #     origin="lower",
+    #     cmap=matplotlib.colors.ListedColormap(['white']),
+    #     alpha=1,
+    #     zorder=2.2
+    # )
     if not no_foreground:
         for z in np.arange(0, disp.shape[1]):
             ax, sm = plot_deviation(

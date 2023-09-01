@@ -109,6 +109,18 @@ def update_plot_params(
             "ytick.labelsize": 6,
             "legend.fontsize": 7,
         }
+    elif style is "thesis":
+         parameters =  {
+            "lines.linewidth": 1,
+            "lines.markersize": 1,
+            "figure.titlesize": 12,
+            "font.size": 8,
+            "axes.titlesize": 12,
+            "axes.labelsize": 10,
+            "xtick.labelsize": 6,
+            "ytick.labelsize": 6,
+            "legend.fontsize": 8,
+        }
 
     matplotlib.pyplot.rcParams.update(
         **parameters
