@@ -253,16 +253,14 @@ class BlissLoader():
             self,
             scan: int,
             sample_name: str,
-            ins_parameter: str
+            instrument_parameter: str
     ) -> tuple:
         """Load the instrument parameters of the specified scan."""
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
-        requested_parameters = self.h5file[
-            key_path + "/" + ins_parameter
-        ][()]
-        return requested_parameters
+
+        return self.h5file[key_path + "/" + instrument_parameter][()]
 
     @safe
     def load_sample_parameters(
