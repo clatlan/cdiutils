@@ -540,6 +540,37 @@ class BcdiPipeline:
                 nb_to_keep=nb_to_keep,
                 criterion=criterion
         )
+    
+    def select_best_candidates(self, best_runs: list):
+         # remove the previous candidates if needed
+        files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
+        if files:
+            for f in files:
+                os.remove(f)
+
+        self.phasing_results = self.find_phasing_results(self.phasing_results)
+        if not self.phasing_results:
+            raise ValueError(
+                "No PyNX output in the following directory: "
+                f"{self.pynx_phasing_dir}."
+            )
+
+        best_candidates = []
+        for path in self.phasing_results:
+            run_number = int(path.split("Run")[1][:4])
+            if run_number in best_runs:
+                best_candidates.append(path)
+        
+        for i, f in enumerate(best_candidates):
+            dir_name, file_name = os.path.split(f)
+            run_nb = file_name.split("Run")[1][2:4]
+            scan_nb = file_name.split("_")[0]
+            file_name = (
+                f"/candidate_{i+1}-{len(best_candidates)}_{scan_nb}_run"
+                f"_{run_nb}.cxi"
+            )
+            shutil.copy(f, dir_name + file_name)
+
 
     @process
     def mode_decomposition(

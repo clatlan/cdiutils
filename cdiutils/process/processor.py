@@ -13,9 +13,13 @@ import vtk
 from vtk.util import numpy_support
 
 from cdiutils.utils import (
-    center, crop_at_center, find_isosurface, zero_to_nan, make_support,
+    center,
+    find_isosurface,
+    zero_to_nan,
+    make_support,
     symmetric_pad,
-    CroppingHandler
+    CroppingHandler,
+    rebin
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
@@ -24,10 +28,14 @@ from cdiutils.load.p10 import P10Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.phase import (
-    get_structural_properties, blackman_apodize, flip_reconstruction
+    get_structural_properties,
+    blackman_apodize,
+    flip_reconstruction,
+    support_based_phase_unwrap
 )
 from cdiutils.process.plot import (
-    preprocessing_detector_data_plot, summary_slice_plot,
+    preprocessing_detector_data_plot,
+    summary_slice_plot,
     plot_direct_lab_orthogonalization_process,
     plot_q_lab_orthogonalization_process,
     plot_final_object_fft
@@ -70,7 +78,6 @@ def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loade
         )
     raise NotImplementedError("The provided beamline_setup is not valid.")
 
-# TODO: Redundancy of attributes and parameters
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis workflow
@@ -142,29 +149,10 @@ class BcdiProcessor:
         for value in self.figures.values():
             value["figure"] = None
 
-        # initialise the loader and the plot parameters
+        # initialise the loader
         self._init_loader()
-        self._init_plot_parameters()
 
-    def _init_loader(self) -> None:
-        self.loader = loader_factory(self.params["metadata"])
-
-    def init_space_converter(self, roi: list) -> None:
-        """
-        Instantiate SpaceConverter which will handle q space
-        computation.
-        """
-        self.space_converter = SpaceConverter(
-            energy=self.params["energy"],
-            roi=roi,
-            geometry=Geometry.from_name(
-                self.params["metadata"]["beamline_setup"])
-        )
-        self.space_converter.init_q_space_area(
-            self.params["det_calib_parameters"]
-        )
-
-    def _init_plot_parameters(self):
+        # update the plot parameters
         update_plot_params(
             usetex=self.params["usetex"],
             use_siunitx=self.params["usetex"],
@@ -176,17 +164,39 @@ class BcdiProcessor:
             }
         )
 
-    def load_data(self, roi: tuple[slice]=None) -> None:
+    def _init_loader(self) -> None:
+        self.loader = loader_factory(self.params["metadata"])
+
+    def init_space_converter(self, roi: list) -> None:
+        """
+        Instantiate SpaceConverter which will handle q space
+        computation.
+        """
+        self.space_converter = SpaceConverter(
+            energy=self.params["energy"],
+            geometry=Geometry.from_name(
+                self.params["metadata"]["beamline_setup"])
+        )
+        self.space_converter.init_q_space_area(
+            roi=roi,
+            det_calib_parameters=self.params["det_calib_parameters"]
+        )
+
+    def load_data(
+            self,
+            roi: tuple[slice]=None,
+            binning_along_axis0: int=None
+    ) -> None:
         self.detector_data = self.loader.load_detector_data(
             scan=self.scan,
             roi=roi,
-            binning_along_axis0=self.params["binning_along_axis0"]
+            binning_along_axis0=binning_along_axis0
         )
         self.angles.update(
             self.loader.load_motor_positions(
                 scan=self.scan,
                 roi=roi,
-                binning_along_axis0=self.params["binning_along_axis0"]
+                binning_along_axis0=binning_along_axis0
             )
         )
         self.mask = self.loader.get_mask(
@@ -250,7 +260,10 @@ class BcdiProcessor:
                 f"{self.params['binning_along_axis0']} during data loading."
             )
 
-            self.load_data(roi=CroppingHandler.roi_list_to_slices(roi))
+            self.load_data(
+                roi=CroppingHandler.roi_list_to_slices(roi),
+                binning_along_axis0=self.params["binning_along_axis0"]
+            )
             self.cropped_detector_data = self.detector_data
 
             # if user only specify position in 2D, extend it in 3D
@@ -290,7 +303,55 @@ class BcdiProcessor:
                 )
 
         else:
-            self.load_data()
+            # Check if binning is required
+            if self.params["binning_factors"] != (1, 1, 1):
+                self.verbose_print(
+                    "[BINNING] Binning requested "
+                    f"(binning_factors = {self.params['binning_factors']})."
+                )
+                pixel_size_1 = (
+                    self.params["det_calib_parameters"]["pwidth1"]
+                    * self.params["binning_factors"][1]
+                )
+                pixel_size_2 = (
+                    self.params["det_calib_parameters"]["pwidth2"]
+                    * self.params["binning_factors"][2]
+                )
+                cch1 = (
+                    self.params["det_calib_parameters"]["cch1"]
+                    / self.params["binning_factors"][1]
+                )
+                cch2 = (
+                    self.params["det_calib_parameters"]["cch2"]
+                    / self.params["binning_factors"][2]
+                )
+                self.params["det_calib_parameters"].update(
+                    {
+                        "cch1": cch1,
+                        "cch2": cch2,
+                        "pwidth1": pixel_size_1,
+                        "pwidth2": pixel_size_2,
+                    }
+                )
+                self.load_data(
+                    binning_along_axis0=self.params["binning_factors"][0]
+                )
+                initial_shape = self.detector_data.shape
+                self.detector_data = rebin(
+                    self.detector_data,
+                    rebin_f=(1,) + self.params["binning_factors"][1:]
+                )
+                self.verbose_print(
+                    "[BINNING] Data shape has been reduced from "
+                    f"{initial_shape} to {self.detector_data.shape}.\n"
+                    "Direct beam position has been updated to "
+                    f"{cch1:.2f} (vertical) {cch2:.2f} (horizontal).\n"
+                    "Pixel size has been updated to "
+                    f"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2.\n"
+                )
+            else:
+                self.load_data()
+            # self.load_data()
 
             # if the final_shape is 2D convert it in 3D
             if len(final_shape) == 2:
@@ -301,17 +362,19 @@ class BcdiProcessor:
 
             if checked_shape != final_shape:
                 self.verbose_print(
-                    f"PyNX needs even input shapes, requested shape "
-                    f"{final_shape} will be cropped to {checked_shape}."
+                    f"[SHAPE & CROPPING] PyNX needs even input dimensions, "
+                    f"requested shape {final_shape} will be cropped to "
+                    f"{checked_shape}."
                 )
                 final_shape = checked_shape
             self.verbose_print(
-                f"The preprocessing output shape is: {final_shape} and will be "
-                "used for ROI dimensions."
+                "[SHAPE & CROPPING] The preprocessing output shape is: "
+                f"{final_shape} and will be used for ROI dimensions."
             )
             self.verbose_print(
-                    "Method(s) employed for the reference voxel determination "
-                    f"are {self.params['det_reference_voxel_method']}"
+                    "[SHAPE & CROPPING] Method(s) employed for the reference "
+                    "voxel determination are "
+                    f"{self.params['det_reference_voxel_method']}."
                 )
 
             (
@@ -343,18 +406,18 @@ class BcdiProcessor:
             self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
             self.verbose_print(
-                f"The reference voxel was found at {det_ref} in the "
-                "full detector frame.\n"
+                f"[SHAPE & CROPPING] The reference voxel was found at {det_ref} "
+                f"in the uncropped data frame\n" 
                 f"The processing_out_put_shape being {final_shape}, the roi "
-                f"used to crop the data is {roi}"
+                f"used to crop the data is {roi}.\n"
             )
-
 
             # set the q space area with the sample and detector angles that
             # correspond to the requested preprocessing_output_shape
             for key, value in self.angles.items():
                 if isinstance(value, (list, np.ndarray)):
                     self.angles[key] = value[np.s_[roi[0]:roi[1]]]
+
 
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(
@@ -367,16 +430,16 @@ class BcdiProcessor:
 
 
         table = [
-            ["voxel", "det. pos.", "cropped det. pos.",
+            ["voxel", "uncroped det. pos.", "cropped det. pos.",
              "dspacing (A)", "lat. par. (A)"]
         ]
 
         # get the position of the reference, max and det voxels in the
         # q lab space
-        self.verbose_print("\nSummary table:")
+        self.verbose_print("Summary table:")
         self.verbose_print(
             "(max and com in the cropped frame are different to max and com in"
-            " the full detector frame.)"
+            " the uncropped detector frame.)"
         )
         for key, det_voxel, cropped_det_voxel in zip(
                 ["q_lab_reference", "q_lab_max", "q_lab_com"],
@@ -405,6 +468,44 @@ class BcdiProcessor:
             tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
             wrap=False
         )
+
+        # Check if binning is required
+        # if self.params["binning_factors"] != (1, 1, 1):
+        #     self.verbose_print(
+        #         "[INFO] Binning requested "
+        #         f"(binning_factors = {self.params['binning_factors']})."
+        #     )
+        #     pixel_size_1 = (
+        #         self.params["det_calib_parameters"]["pwidth1"]
+        #         * self.params["binning_factors"][1]
+        #     )
+        #     pixel_size_2 = (
+        #         self.params["det_calib_parameters"]["pwidth2"]
+        #         * self.params["binning_factors"][2]
+        #     )
+        #     self.params["det_calib_parameters"].update(
+        #         {
+        #             "pwidth1": pixel_size_1,
+        #             "pwidth2": pixel_size_2
+        #         }
+        #     )
+        #     self.verbose_print(
+        #         "Pixel size has been updated to "
+        #         fr"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2."
+        #     )
+        
+
+        #     self.cropped_detector_data = rebin(
+        #         self.detector_data,
+        #         rebin_f=self.params["binning_factors"]
+        #     )
+        #     self.space_converter.q_space_transitions =  rebin(
+        #         self.space_converter.q_space_transitions,
+        #         rebin_f=(1, )+self.params["binning_factors"],
+        #         scale="average"
+        #     )
+        #     self.space_converter.cropped_shape = self.cropped_detector_data.shape
+        #     self.space_converter.full_shape = self.cropped_detector_data.shape
 
 
         # Initialise the interpolator so we won't need to reload raw
@@ -594,52 +695,27 @@ class BcdiProcessor:
         det_ref_voxel = self.params["det_reference_voxel"]
         final_shape = tuple(self.params["preprocessing_output_shape"])
         if support.shape != final_shape:
-            raise ValueError(
+            # raise ValueError(
+            #     f"Shapes before {final_shape} "
+            #     f"and after {support.shape} Phase Retrieval are different.\n"
+            #     "Check out PyNX parameters (ex.: auto_center_resize)."
+            # )
+            print(
                 f"Shapes before {final_shape} "
                 f"and after {support.shape} Phase Retrieval are different.\n"
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
 
+        if self.params["unwrap_before_orthogonalization"]:
+            self.verbose_print(
+                "[INFO] Unwrapping before orthogonalization requested."
+            )
+            reconstructed_phase = support_based_phase_unwrap(
+                reconstructed_phase,
+                support
+            )
 
-        ###############################################################
-        # This block of code aims to unwrap phase before ortho, it might #
-        # be useful in the future #
-        ###############################################################
-        # from skimage.restoration import unwrap_phase
-        # unwrapping_support = make_support(
-        #     reconstructed_amplitude,
-        #     isosurface=0.1
-        # )
-        # unwrapping_support = center(unwrapping_support, where=com)
-        # mask = np.where(unwrapping_support == 0, 1, 0)
-        # reconstructed_phase = np.ma.masked_array(reconstructed_phase, mask=mask)
-        # reconstructed_phase = unwrap_phase(
-        #     reconstructed_phase,
-        #     wrap_around=False,
-        #     seed=1
-        # ).data
-
-        # det_reference_voxel = find_max_pos(self.detector_data)
-
-
-
-        ## TO DELETE ##
-        # find a safe shape that will enable centering and cropping the
-        # q values without rolling them
-        # final_shape = shape_for_safe_centered_cropping(
-        #     self.detector_data.shape,
-        #     self.params["det_reference_voxel"],
-        #     reconstructed_object.shape
-        # )
-        # self.verbose_print(
-        #     "[INFO] The shape of the reconstructed object is: "
-        #     f"{reconstructed_object.shape}\n"
-        #     "The shape for a safe centered cropping is: "
-        #     f"{final_shape}"
-        # )
-
-
-        # initialise the SpaceConverter by loading the interpoaltion
+        # initialise the SpaceConverter by loading the interpolation
         # parameters
         roi = CroppingHandler.get_roi(final_shape, det_ref_voxel)
         self.init_space_converter(roi=roi[2:])
@@ -667,10 +743,11 @@ class BcdiProcessor:
         # (note that the orthogonalization is done in the lab frame
         # with xrayutilities conventions. We switch to cxi convention
         # afterwards).
-        self.verbose_print(
-            "[INFO] Voxel size in the direct lab frame provided by user: "
-            f"{self.params['voxel_size']} nm"
-        )
+        if self.params['voxel_size']:
+            self.verbose_print(
+                "[INFO] Voxel size in the direct lab frame provided by user: "
+                f"{self.params['voxel_size']} nm"
+            )
 
         orthogonalized_amplitude = (
             self.space_converter.orthogonalize_to_direct_lab(

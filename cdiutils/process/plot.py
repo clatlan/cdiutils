@@ -926,7 +926,7 @@ def plot_final_object_fft(
         final_object_q_lab_regular_grid: np.ndarray,
         exp_data_q_lab_regular_grid: np.ndarray,
         where_in_ortho_space: Optional[tuple]=None,
-        title: str=""
+        title: str=None
 ) -> matplotlib.figure.Figure:
 
     subplots = (2+1, 3)

@@ -26,7 +26,8 @@ AUTHORIZED_KEYS = {
         "verbose": True,
         "debug": True,
         "show_phasing_results": False,
-        "unwrap_before_orthogonalization": False
+        "unwrap_before_orthogonalization": False,
+        "binning_factors": (1, 1, 1)
     },
     "pynx": {
         "data": None,
@@ -120,6 +121,16 @@ def check_parameters(parameters: dict) -> None:
             warnings.warn(
                 f"Parameter '{name}' is unknown, will not be used."
             )
+
+    if (
+        parameters["cdiutils"]["det_calib_parameters"]["pwidth1"]
+        !=
+        parameters["pynx"]["pixel_size_detector"]
+    ):
+        raise ValueError(
+            "pixel size in det_calib_parameters and pynx should be identical."
+        )
+    # if (parameters["cdiutils"]["energy"] != parameters["pynx"][])
 
 
 def isparameter(string: str):
