@@ -109,7 +109,7 @@ def update_plot_params(
             "ytick.labelsize": 6,
             "legend.fontsize": 7,
         }
-    elif style is "thesis":
+    elif style == "thesis":
          parameters =  {
             "lines.linewidth": 1,
             "lines.markersize": 1,
@@ -117,8 +117,8 @@ def update_plot_params(
             "font.size": 8,
             "axes.titlesize": 12,
             "axes.labelsize": 10,
-            "xtick.labelsize": 6,
-            "ytick.labelsize": 6,
+            "xtick.labelsize": 8,
+            "ytick.labelsize": 8,
             "legend.fontsize": 8,
         }
 
@@ -129,14 +129,26 @@ def update_plot_params(
         usetex = True
         matplotlib.pyplot.rcParams.update(
             **{
-                'text.latex.preamble':
-                r'\usepackage{siunitx}'
-                r'\sisetup{detect-all}'
-                r'\usepackage{helvet}'
-                r'\usepackage{sansmath}'
-                r'\sansmath'
+                'text.latex.preamble': (
+                    r'\usepackage{siunitx}'
+                    r'\sisetup{detect-all}'
+                    r'\usepackage{helvet}'
+                    + (
+                        r'\usepackage{sansmath} \sansmath'
+                        if style == "nature" else r'\usepackage{amsmath}'
+                    )
+                ) 
             }
-        )
+
+    )
+        #         'text.latex.preamble':
+        #         r'\usepackage{siunitx}'
+        #         r'\sisetup{detect-all}'
+        #         r'\usepackage{helvet}'
+        #         r'\usepackage{sansmath} \sansmath' if style == "nature" else r'\usepackage{amsmath}'
+        #         # r'\sansmath'
+        #     }
+        # )
 
     if usetex:
         matplotlib.pyplot.rcParams.update(
