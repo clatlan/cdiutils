@@ -575,13 +575,18 @@ class BcdiPipeline:
     @process
     def mode_decomposition(
             self,
-            pynx_version: str="2023.1.2",
+            # pynx_version: str="2023.1.2",
+            pynx_analysis_path: str=(
+                "/cvmfs/hpc.esrf.fr/software/packages/"
+                "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
+            ),
             machine: str=None,
             user: str=None,
             key_file_path: str=None
     ) -> None:
         """
-        Run the mode decomposition using PyNX pynx-cdi-analysis.py script as a subprocess.
+        Run the mode decomposition using PyNX pynx-cdi-analysis.py
+        script as a subprocess.
 
         Args:
             pynx_version (str, optional): Version of PyNX to use.
@@ -595,11 +600,16 @@ class BcdiPipeline:
         """
 
         # the bash command to run
+        # run_command = (
+        #     # f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
+        #     f"module load pynx/{pynx_version};"
+        #     f"cd {self.pynx_phasing_dir};"
+        #     "pynx-cdi-analysis candidate_*.cxi modes=1 "
+        #     "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
+        # )
         run_command = (
-            f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
-            # f"module load pynx/{pynx_version};"
             f"cd {self.pynx_phasing_dir};"
-            "pynx-cdi-analysis candidate_*.cxi modes=1 "
+            f"{pynx_analysis_path} candidate_*.cxi modes=1 "
             "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
         )
 
@@ -628,10 +638,12 @@ class BcdiPipeline:
 
             _, stdout, stderr = client.exec_command(run_command)
             # read the standard output, decode it and print it
+            formatted_stdout = stdout.read().decode("utf-8")
+            formatted_stderr = stderr.read().decode("utf-8")
             print("[STDOUT FROM SSH PROCESS]\n")
-            print(stdout.read().decode("utf-8"))
+            print(formatted_stdout)
             print("[STDERR FROM SSH PROCESS]\n")
-            print(stderr.read().decode("utf-8"))
+            print(formatted_stderr)
 
             if stdout.channel.recv_exit_status():
                 raise RuntimeError(
