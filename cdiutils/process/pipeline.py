@@ -575,7 +575,7 @@ class BcdiPipeline:
     @process
     def mode_decomposition(
             self,
-            pynx_version: str="2023.1",
+            pynx_version: str="2023.1.2",
             machine: str=None,
             user: str=None,
             key_file_path: str=None
@@ -596,8 +596,8 @@ class BcdiPipeline:
 
         # the bash command to run
         run_command = (
-            # f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
-            f"module load pynx/{pynx_version};"
+            f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
+            # f"module load pynx/{pynx_version};"
             f"cd {self.pynx_phasing_dir};"
             "pynx-cdi-analysis candidate_*.cxi modes=1 "
             "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
