@@ -10,7 +10,6 @@
 #SBATCH --output=%x-%j.out
 
 module purge
-module load cuda/11
 
 scontrol --details show jobs $SLURM_JOBID | grep RES
 
