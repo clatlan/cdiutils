@@ -16,6 +16,12 @@ AUTHORIZED_KEYS = {
         "q_lab_reference": None,
         "q_lab_max": None,
         "q_lab_com": None,
+        "dspacing_reference": None,
+        "dspacing_max": None,
+        "dspacing_com": None,
+        "lattice_parameter_reference": None,
+        "lattice_parameter_max": None,
+        "lattice_parameter_com": None,
         "det_calib_parameters": "REQUIRED",
         "voxel_size": None,
         "apodize": True,
@@ -26,8 +32,8 @@ AUTHORIZED_KEYS = {
         "verbose": True,
         "debug": True,
         "show_phasing_results": False,
-        "unwrap_before_orthogonalization": False,
-        "binning_factors": (1, 1, 1)
+        "binning_factors": (1, 1, 1),
+        "handle_defects": False
     },
     "pynx": {
         "data": None,
@@ -100,6 +106,7 @@ def convert_np_arrays(dictionary) -> None:
         elif isinstance(value, dict):
             convert_np_arrays(value)
 
+
 def check_parameters(parameters: dict) -> None:
     """
     Check parameters given by user, handle when parameters are
@@ -107,7 +114,7 @@ def check_parameters(parameters: dict) -> None:
     """
     for e in ["cdiutils", "pynx"]:
         for name, value in AUTHORIZED_KEYS[e].items():
-            if not name in parameters[e].keys() or parameters[e][name] is None:
+            if name not in parameters[e].keys() or parameters[e][name] is None:
                 if value == "REQUIRED":
                     raise ValueError(f"Arguement '{name}' is required")
                 else:
@@ -123,9 +130,9 @@ def check_parameters(parameters: dict) -> None:
             )
 
     if (
-        parameters["cdiutils"]["det_calib_parameters"]["pwidth1"]
+        float(parameters["cdiutils"]["det_calib_parameters"]["pwidth1"])
         !=
-        parameters["pynx"]["pixel_size_detector"]
+        float(parameters["pynx"]["pixel_size_detector"])
     ):
         raise ValueError(
             "pixel size in det_calib_parameters and pynx should be identical."
