@@ -166,7 +166,7 @@ def plot_3D_volume_slices(
             r"(xy)$_{cxi}$ slice",
             r"(xz)$_{cxi}$ slice",
             r"(yz)$_{cxi}$ slice"
-        ]
+        ],
 ):
     """
     Plot 2D slices of a 3D volume data in three directions.

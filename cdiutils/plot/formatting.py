@@ -58,17 +58,17 @@ def set_plot_configs():
             "vmax": None
         }
     }
-    PLOT_CONFIGS["local_strain"] = PLOT_CONFIGS["strain"].copy()
-    PLOT_CONFIGS["numpy_local_strain"] = PLOT_CONFIGS["strain"].copy()
-    PLOT_CONFIGS["numpy_local_strain"]["title"] = (
+    PLOT_CONFIGS["het_strain"] = PLOT_CONFIGS["strain"].copy()
+    PLOT_CONFIGS["numpy_het_strain"] = PLOT_CONFIGS["strain"].copy()
+    PLOT_CONFIGS["numpy_het_strain"]["title"] = (
         fr"Numpy strain ({PERCENT_SYMBOL})"
     )
-    PLOT_CONFIGS["local_strain_from_dspacing"] = PLOT_CONFIGS["strain"].copy()
-    PLOT_CONFIGS["local_strain_from_dspacing"]["title"] = (
+    PLOT_CONFIGS["het_strain_from_dspacing"] = PLOT_CONFIGS["strain"].copy()
+    PLOT_CONFIGS["het_strain_from_dspacing"]["title"] = (
         fr"Strain from dspacing ({PERCENT_SYMBOL})"
     )
-    PLOT_CONFIGS["local_strain_with_ramp"] = PLOT_CONFIGS["strain"].copy()
-    PLOT_CONFIGS["local_strain_with_ramp"]["title"] = (
+    PLOT_CONFIGS["het_strain_with_ramp"] = PLOT_CONFIGS["strain"].copy()
+    PLOT_CONFIGS["het_strain_with_ramp"]["title"] = (
         fr"Strain with ramp ({PERCENT_SYMBOL})"
     )
     return ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS
@@ -98,7 +98,7 @@ def update_plot_params(
     """Update the matplotlib plot parameters to plublication style"""
 
     if style in ("nature", "NATURE"):
-        parameters =  {
+        parameters = {
             "lines.linewidth": 1,
             "lines.markersize": 1,
             "figure.titlesize": 8,
@@ -110,7 +110,7 @@ def update_plot_params(
             "legend.fontsize": 7,
         }
     elif style == "thesis":
-         parameters =  {
+        parameters = {
             "lines.linewidth": 1,
             "lines.markersize": 1,
             "figure.titlesize": 12,
@@ -155,58 +155,29 @@ def update_plot_params(
             **{
                 "mathtext.default": "regular",
                 "text.usetex": usetex,
-                "font.family":"sans-serif",
-                "font.sans-serif":["Liberation Sans"]
+                "font.family": "sans-serif",
+                "font.sans-serif": ["Liberation Sans"]
             }
         )
     
     # in any case
     matplotlib.pyplot.rcParams.update(
         {
-        "image.cmap": "turbo",
-        "figure.dpi": 200
+            "image.cmap": "turbo",
+            "figure.dpi": 200
         }
     )
-
-    # matplotlib.pyplot.rcParams.update(
-    #     {
-    #         "figure.max_open_warning": max_open_warning,
-    #         "figure.dpi": dpi,
-    #         "lines.marker": lines_marker,
-    #         "mathtext.default": "regular",
-    #         "text.usetex": usetex,
-    #         # 'text.latex.preamble':
-    #         #     r'\usepackage{siunitx}'
-    #         #     r'\sisetup{detect-all}'
-    #         #     r'\usepackage{helvet}'
-    #         #     r'\usepackage{sansmath}'
-    #         #     r'\sansmath' if usetex else "",
-    #         "font.family":"sans-serif",
-    #         "font.sans-serif":["Liberation Sans"],
-    #         "lines.linewidth": lines_linewidth,
-    #         "lines.linestyle": lines_linestyle,
-    #         "lines.markersize": lines_markersize,
-    #         "figure.titlesize": figure_titlesize,
-    #         "font.size": font_size,
-    #         "axes.titlesize": axes_titlesize,
-    #         "axes.labelsize": axes_labelsize,
-    #         "xtick.labelsize": xtick_labelsize,
-    #         "ytick.labelsize": ytick_labelsize,
-    #         "legend.fontsize": legend_fontsize,
-    #         "image.cmap": "turbo"
-    #     }
-    # )
     matplotlib.pyplot.rcParams.update(kwargs)
 
 
 def get_figure_size(
-        width: int or str,
-        fraction: float=1,
-        subplots: tuple=(1, 1)
+        width: int or str = "default",
+        fraction: float = 1,
+        subplots: tuple = (1, 1)
 ) -> tuple:
     """
     Get the figure dimensions to avoid scaling in LaTex.
-    
+
     This function was copied from
     https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 
@@ -218,7 +189,9 @@ def get_figure_size(
 
     :return: dimensions of the figure in inches (tuple)
     """
-    if width == 'thesis':
+    if width == 'default':
+        width_pt = 450
+    elif width == 'thesis':
         width_pt = 455.30101
     elif width == 'beamer':
         width_pt = 398.3386
@@ -256,8 +229,8 @@ def two_spine_frameless_ax(
     ax.plot(
         left_spine_pos,
         1,
-        "^k", 
-        transform=ax.get_xaxis_transform(), 
+        "^k",
+        transform=ax.get_xaxis_transform(),
         clip_on=False
     )
     ax.plot(
@@ -283,8 +256,8 @@ def plot_background(
 
 def white_interior_ticks_labels(
         ax: matplotlib.axes.Axes,
-        xtick_pad: int=-15,
-        ytick_pad: int=-25
+        xtick_pad: int = -15,
+        ytick_pad: int = -25
 ) -> None:
     """Place the ticks and labels inside the provided axis."""
     ax.tick_params(axis="x", direction="in", pad=xtick_pad, colors="w")
@@ -293,7 +266,7 @@ def white_interior_ticks_labels(
 
     xticks_loc, yticks_loc = ax.get_xticks(), ax.get_yticks()
     xticks_loc[1] = yticks_loc[1] = None
-    
+
     xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
     xlabels[1] = ylabels[1] = ""
     ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
