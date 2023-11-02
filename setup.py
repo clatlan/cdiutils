@@ -48,6 +48,7 @@ setuptools.setup(
             "scipy>=1.8.0",
             "seaborn>=0.12.1",
             "silx>=1.0.0",
+            "tabulate",
             "vtk>=9.0.1",
             "xrayutilities>=1.7.3"
       ]
