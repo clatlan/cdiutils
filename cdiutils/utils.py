@@ -9,7 +9,7 @@ from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
 
-from cdiutils.plot.formatting import plot_background
+from cdiutils.plot.formatting import get_figure_size
 
 
 def pretty_print(text: str, max_char_per_line: int=80) -> None:
@@ -74,7 +74,7 @@ def make_support(
 
 def unit_vector(
         vector: tuple or list or np.ndarray
-)->  np.ndarray:
+    )->  np.ndarray:
     """Return a unit vector."""
     return np.array(vector) / np.linalg.norm(vector)
 
@@ -109,7 +109,7 @@ def v1_to_v2_rotation_matrix(
 
 def normalize(
         data: np.ndarray,
-        zero_centered: bool=False
+        zero_centered: bool = False
 ) -> np.ndarray:
     """Normalize a np.ndarray so the values are between 0 and 1."""
     if zero_centered:
@@ -121,8 +121,10 @@ def normalize(
         vmin = np.min(data)
     return (data - vmin) / ptp
 
+
 def basic_filter(data, maplog_min_value=3.5):
     return np.power(xu.maplog(data, maplog_min_value, 0), 10)
+
 
 def normalize_complex_array(array: np.ndarray) -> np.ndarray:
     """Normalize a array of complex numbers."""
@@ -137,8 +139,8 @@ def find_max_pos(data: np.ndarray) -> tuple:
 
 def shape_for_safe_centered_cropping(
         data_shape: tuple or np.ndarray or list,
-        position: tuple or  np.ndarray or list,
-        final_shape: Optional[tuple]=None
+        position: tuple or np.ndarray or list,
+        final_shape: Optional[tuple] = None
 ) -> tuple:
     """
     Utility function that finds the smallest shape that allows a safe
@@ -246,9 +248,10 @@ def symmetric_pad(
         constant_values=values
     )
 
+
 def crop_at_center(
         data: np.ndarray,
-        final_shape: list or tuple or  np.ndarray
+        final_shape: list or tuple or np.ndarray
 ) -> np.ndarray:
     """
     Crop 3D array data to match the final_shape. Center of the input
@@ -350,6 +353,51 @@ def nan_center_of_mass(
     return tuple(com)
 
 
+def hybrid_gradient(
+        data: np.ndarray,
+        d0: float,
+        d1: float,
+        d2: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute the gradient of a 3D volume in the 3 directions, 2 nd order 
+    in the interior of the non-nan object, 1 st order at the interface between
+    the non-nan object and the surrounding nan values.
+
+    Args:
+        data (np.ndarray): the 3D volume to be derived
+        d0 (float): the spacing in axis 0 direction
+        d1 (float): the spacing in axis 1 direction
+        d2 (float): the spacing in axis 2 direction
+
+    Returns:
+        np.ndarray: a tuple, the three gradients (in each direction) with the
+    same shape as the input data
+    """
+
+    # compute the first order gradient
+    grad_x = (data[1:, ...] - data[:-1, ...]) / d0
+    grad_y = (data[:, 1:, :] - data[:, :-1, :]) / d1
+    grad_z = (data[..., 1:] - data[..., :-1]) / d2
+
+    # some warning is expecting here as mean of empty slices might occur
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+
+        # here is the trick, using the np.nanmean allows keeping the
+        # first order derivative at the interface. The other values
+        # correspond to second order gradient
+        grad_x = np.nanmean([grad_x[1:], grad_x[:-1]], axis=0)
+        grad_y = np.nanmean([grad_y[:, 1:, :], grad_y[:, :-1, :]], axis=0)
+        grad_z = np.nanmean([grad_z[..., 1:], grad_z[..., :-1]], axis=0)
+
+    return (
+        np.pad(grad_x, ((1, 1),  (0, 0), (0, 0)), constant_values=np.nan),
+        np.pad(grad_y, ((0, 0),  (1, 1), (0, 0)), constant_values=np.nan),
+        np.pad(grad_z, ((0, 0),  (0, 0), (1, 1)), constant_values=np.nan)
+    )
+
+
 class CroppingHandler:
     """
     A class to handle data cropping. The class allows
@@ -438,7 +486,7 @@ class CroppingHandler:
             cls,
             output_shape: tuple,
             where: tuple,
-            input_shape: tuple=None
+            input_shape: tuple = None
     ) -> list[int]:
         """
         Calculate the region of interest (ROI) for cropping the data
@@ -469,8 +517,8 @@ class CroppingHandler:
 
         for i, s in enumerate(input_shape):
             # extend the roi to comply with the output_shape
-            add_left = where[i]+crop[i][1]-s if where[i]+crop[i][1]>s else 0
-            add_right = crop[i][0]-where[i] if where[i]-crop[i][0]<0 else 0
+            add_left = where[i]+crop[i][1]-s if where[i]+crop[i][1] > s else 0
+            add_right = crop[i][0]-where[i] if where[i]-crop[i][0] < 0 else 0
 
             roi.append(np.max([where[i]-crop[i][0], 0]) - add_left)
             roi.append(np.min([where[i]+crop[i][1], s]) + add_right)
@@ -499,7 +547,7 @@ class CroppingHandler:
             A tuple containing the cropped and centered data array, the
             position of the reference voxel in the original data frame,
             and the position of the reference voxel in the newly cropped
-            data frame and the roi as 
+            data frame and the roi.
 
         Raises:
             ValueError: If an invalid method is provided.
@@ -516,7 +564,7 @@ class CroppingHandler:
             # get the roi
             roi = cls.get_roi(output_shape, position, data.shape)
 
-            # mask the data in the out of roi 
+            # mask the data in the out of roi
             masked_data = cls.get_masked_data(data, roi=roi)
         if (
                 methods[-1] == "com"
@@ -535,31 +583,40 @@ class CroppingHandler:
         cropped_position = tuple(p - r for p, r in zip(position, roi[::2]))
         return cropped_data, position, cropped_position, roi
 
-
     @classmethod
-    def force_centered_crop(
+    def force_centered_cropping(
             cls,
             data: np.ndarray,
-            output_shape: tuple,
-            where: tuple
+            where: tuple,
+            output_shape: tuple = None,
+            verbose: bool = False
     ) -> np.ndarray:
         """
         Crop the data so the given reference position (where) is at
         the center of the final data frame no matter the output_shape.
         Therefore the real output shape might be different to the
-        output_shape. 
+        output_shape.
         """
+        if output_shape is None:
+            output_shape = data.shape
+
         position = cls.get_position(data, where)
         shape = data.shape
-        safe_shape = shape_for_safe_centered_cropping(
-            shape,
-            position,
-            output_shape
+        safe_shape = np.array(
+            shape_for_safe_centered_cropping(
+                shape,
+                position,
+                output_shape
+            )
         )
-        if safe_shape == output_shape:
-            print("Do not require forced-centered cropping.")
-        else:
-            print(f"Required shape for cropping at the center is {safe_shape}")
+        if verbose:
+            if np.any(safe_shape == output_shape):
+                print("Does not require forced-centered cropping.")
+            else:
+                print(
+                    "Required shape for cropping at the center is"
+                    f"{safe_shape}"
+                )
         plus_one = np.where((safe_shape % 2 == 0), 0, 1)
         crop = [
             [safe_shape[i]//2, safe_shape[i]//2 + plus_one[i]]
@@ -571,7 +628,6 @@ class CroppingHandler:
             roi.append(np.min([where[i]+crop[i][1], s]))
 
         return data[cls.roi_list_to_slices(roi)]
-
 
 
 def compute_corrected_angles(
@@ -634,9 +690,9 @@ def compute_corrected_angles(
 
 
 def find_suitable_array_shape(
-        support: np.array,
-        padding: Optional[list]=None,
-        symmetrical_shape: Optional[bool]=True
+        support: np.ndarray,
+        padding: list = None,
+        symmetrical_shape: bool = True
 ) -> np.array:
     """Find a more suitable shape of an array"""
     if padding is None:
@@ -658,10 +714,10 @@ def find_suitable_array_shape(
 
 def find_isosurface(
         amplitude: np.ndarray,
-        nbins: Optional[int]=100,
-        sigma_criterion: Optional[float]=3,
-        plot: Optional[bool]=False,
-        show: Optional[bool]=False
+        nbins: int = 100,
+        sigma_criterion: float = 3,
+        plot: bool = False,
+        show: bool = False
 ) -> tuple[float, matplotlib.axes.Axes] or float:
     """
     Estimate the isosurface from the amplitude distribution
@@ -669,7 +725,7 @@ def find_isosurface(
     :param amplitude: the 3D amplitude volume (np.array)
     :param nbins: the number of bins to considerate when making the
     histogram (Optional, int)
-    :param sigma_criterion: the factor to compute the isosurface wich is
+    :param sigma_criterion: the factor to compute the isosurface which is
     calculated as: mu - sigma_criterion * sigma. By default set to 3.
     (Optional, float)
     :param show: whether or not to show the the figure
@@ -705,7 +761,7 @@ def find_isosurface(
     # find the closest indexes
     right_HM_index = np.argmin(
         np.abs(right_gaussian_part - fitted_counts.max() / 2)
-    )  
+    )
     left_HM_index = max_index - (right_HM_index - max_index)
 
     fwhm = x[right_HM_index] - x[left_HM_index]
@@ -713,8 +769,8 @@ def find_isosurface(
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
-        fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=(8, 5))
-        ax = plot_background(ax)
+        figsize = get_figure_size()
+        fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=figsize)
         ax.bar(
             bin_centres,
             counts,
@@ -722,7 +778,7 @@ def find_isosurface(
             color="dodgerblue",
             alpha=0.9,
             edgecolor=(0, 0, 0, 0.25),
-            label="amplitude distribution"
+            label=r"amplitude distribution"
         )
         sns.kdeplot(
             filtered_amplitude,
@@ -730,7 +786,7 @@ def find_isosurface(
             alpha=0.3,
             fill=True,
             color="navy",
-            label="density estimate"
+            label=r"density estimate"
         )
         ax.axvspan(
             x[left_HM_index],
@@ -746,13 +802,13 @@ def find_isosurface(
             solid_capstyle="round",
             color="lightcoral",
             lw=5,
-            label=f"isosurface estimated at {isosurface:0.3f}"
+            label=fr"isosurface estimated at {isosurface:0.3f}"
         )
 
-        ax.set_xlabel("normalized amplitude", size=14)
-        ax.set_ylabel("counts",  size=14)
+        ax.set_xlabel(r"normalised amplitude")
+        ax.set_ylabel("counts")
         ax.legend()
-        fig.suptitle("Reconstructed amplitude distribution", size=16)
+        fig.suptitle(r"Reconstructed amplitude distribution")
         fig.tight_layout()
         if show:
             matplotlib.pyplot.show()
