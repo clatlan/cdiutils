@@ -18,7 +18,7 @@ from cdiutils.plot.formatting import (
 from cdiutils.plot.slice import plot_contour
 
 
-def plot_phasing_result(file_path: str, title: str="") -> None:
+def plot_phasing_result(file_path: str, title: str = None) -> None:
     """
     Plot the reconstructed object in reciprocal and direct spaces.
     """
@@ -31,11 +31,8 @@ def plot_phasing_result(file_path: str, title: str="") -> None:
         reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
 
         subplots = (2, 3)
-        figure, axes = plt.subplots(
-            subplots[0],
-            subplots[1],
-            figsize=(6, 4)
-        )
+        figsize = get_figure_size(fraction=0.75, subplots=subplots)
+        figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
 
         com = nan_center_of_mass(support)
         data = center(data, where=com)
@@ -63,7 +60,7 @@ def plot_phasing_result(file_path: str, title: str="") -> None:
                 vmin=-np.pi,
                 vmax=np.pi,
                 alpha=direct_space_amplitude[s],
-                 cmap="cet_CET_C9s"
+                cmap="cet_CET_C9s"
             )
         figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
         figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
@@ -82,11 +79,11 @@ def preprocessing_detector_data_plot(
         cropped_data: np.ndarray,
         cropped_max_voxel: np.ndarray or list or tuple,
         cropped_com_voxel: np.ndarray or list or tuple,
-        detector_data: np.ndarray=None,
-        det_reference_voxel: np.ndarray or list or tuple=None,
-        det_max_voxel: np.ndarray or list or tuple=None,
-        det_com_voxel: np.ndarray or list or tuple=None,
-        title: str=""
+        detector_data: np.ndarray = None,
+        det_reference_voxel: np.ndarray or list or tuple = None,
+        det_max_voxel: np.ndarray or list or tuple = None,
+        det_com_voxel: np.ndarray or list or tuple = None,
+        title: str = None
 ) -> matplotlib.figure.Figure:
     """
     Plot the detector data in the full detector data frame and the
@@ -116,12 +113,12 @@ def preprocessing_detector_data_plot(
     matplotlib.figure.Figure
         The matplotlib figure object.
     """
-    
+
     subplots = (2+1, 3)
-    figsize = get_figure_size("nature", subplots=subplots)
+    figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
-    log_cropped_data = np.log10(cropped_data +1)
+    log_cropped_data = np.log10(cropped_data + 1)
     vmin = 0
     vmax = np.max(log_cropped_data)
     final_shape = cropped_data.shape
@@ -133,7 +130,7 @@ def preprocessing_detector_data_plot(
     )
     if plot_raw_data:
         initial_shape = detector_data.shape
-        log_data = np.log10(detector_data +1)
+        log_data = np.log10(detector_data + 1)
 
         axes[0, 0].matshow(
             log_data[det_reference_voxel[0]],
@@ -379,7 +376,6 @@ def preprocessing_detector_data_plot(
         axes[0, 2].set_ylabel(r"detector axis$_1$")
         axes[0, 1].set_title("raw detector data", y=1.8)
 
-
     axes[1, 0].set_xlabel(r"cropped axis$_2$")
     axes[1, 0].set_ylabel(r"cropped axis$_1$")
 
@@ -415,26 +411,25 @@ def preprocessing_detector_data_plot(
         for i in range(3):
             axes[0, i].remove()
 
-
     figure.suptitle(title, y=0.95)
 
     return figure
 
 
 def summary_slice_plot(
-        save: str=None,
-        title: str="",
-        dpi: int=200,
-        show: bool=False,
-        voxel_size: Union[np.array, list, tuple]=None,
-        isosurface: float=None,
-        averaged_dspacing: float=None,
-        averaged_lattice_parameter: float=None,
-        det_reference_voxel: Union[np.array, list, tuple]=None,
+        save: str = None,
+        title: str = None,
+        dpi: int = 200,
+        show: bool = False,
+        voxel_size: np.ndarray or list or tuple = None,
+        isosurface: float = None,
+        averaged_dspacing: float = None,
+        averaged_lattice_parameter: float = None,
+        det_reference_voxel: np.ndarray or list or tuple = None,
         respect_aspect=False,
-        support: np.array=None,
-        single_vmin: float=None,
-        single_vmax: float=None,
+        support: np.ndarray = None,
+        single_vmin: float = None,
+        single_vmax: float = None,
         **kwargs
 ) -> matplotlib.figure.Figure:
 
@@ -449,12 +444,12 @@ def summary_slice_plot(
 
         }
     else:
-        aspect_ratios = {"zy": "auto", "zx": "auto","yx": "auto"}
+        aspect_ratios = {"zy": "auto", "zx": "auto", "yx": "auto"}
 
-    subplots = (4, len(kwargs))
-    figsize = get_figure_size("nature", fraction=1, subplots=subplots)
+    subplots = (5, len(kwargs))
+    figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(
-        subplots[0]-1, subplots[1], figsize=figsize
+        subplots[0]-2, subplots[1], figsize=figsize
     )
 
     axes[0, 0].annotate(
@@ -551,7 +546,6 @@ def summary_slice_plot(
                 color="k"
             )
 
-
     table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.15])
     table_ax.axis("tight")
     table_ax.axis("off")
@@ -565,7 +559,7 @@ def summary_slice_plot(
         cellText=np.transpose([
             [np.array2string(
                 np.array(voxel_size),
-                formatter={"float_kind":lambda x: "%.2f" % x}
+                formatter={"float_kind": lambda x: "%.2f" % x, }
             )],
             [np.array2string(np.array(det_reference_voxel))],
             [isosurface],
@@ -579,26 +573,30 @@ def summary_slice_plot(
             f"Averaged dspacing ({ANGSTROM_SYMBOL})",
             f"Averaged lattice ({ANGSTROM_SYMBOL})"
         ),
+        colWidths=[.25, .25, .25, .25, .25],
         loc="center",
         cellLoc="center"
     )
     table.scale(1.5, 1.5)
-    table.set_fontsize(8)
+    table.set_fontsize(10)
 
-    figure.subplots_adjust(hspace=0.04, wspace=0.02)
-    
+    figure.subplots_adjust(hspace=0.01, wspace=0.02)
+
     for i, key in enumerate(kwargs.keys()):
         l, _, w, _ = axes[0, i].get_position().bounds
         cax = figure.add_axes([l+0.01, 0.93, w-0.02, .02])
         cax.set_title(PLOT_CONFIGS[key]["title"])
-        figure.colorbar(mappables[key], cax=cax, orientation="horizontal")
-    
+        figure.colorbar(
+            mappables[key], cax=cax, extend="both", orientation="horizontal"
+        )
+        cax.tick_params(axis='x', which='major', pad=1)
+
     figure.canvas.draw()
     for i, ax in enumerate(axes.ravel()):
         ax.set_aspect("equal")
         if (
                 i % len(kwargs) == 0
-                and list(kwargs.keys())[i%len(kwargs.keys())] == "amplitude"
+                and list(kwargs.keys())[i % len(kwargs.keys())] == "amplitude"
         ):
             white_interior_ticks_labels(ax, -10, -12)
 
@@ -606,8 +604,7 @@ def summary_slice_plot(
             ax.axes.xaxis.set_ticks([])
             ax.axes.yaxis.set_ticks([])
 
-    figure.suptitle(title, y=1.035)
-    # figure.subplots_adjust(hspace=0.03, wspace=0.03)
+    figure.suptitle(title, y=1.050)
 
     if show:
         plt.show()
@@ -622,9 +619,9 @@ def plot_q_lab_orthogonalization_process(
         detector_data: np.ndarray,
         orthogonalized_data: np.ndarray,
         q_lab_regular_grid: np.ndarray,
-        where_in_det_space: Optional[tuple]=None,
-        where_in_ortho_space: Optional[tuple]=None,
-        title: str=""
+        where_in_det_space: tuple = None,
+        where_in_ortho_space: tuple = None,
+        title: str = None
 ) -> matplotlib.figure.Figure:
     """
     Plot the intensity in the detector frame, index-of-q lab frame
@@ -638,16 +635,20 @@ def plot_q_lab_orthogonalization_process(
         )
         where_in_det_space = tuple(e // 2 for e in detector_data.shape)
     subplots = (3, 3)
-    figsize = get_figure_size("nature", subplots=subplots)
+    figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(
         subplots[0], subplots[1], figsize=figsize)
 
-    axes[0, 0].matshow(np.log(detector_data[where_in_det_space[0]]+1))
+    # add 1 to avoid log(0)
+    detector_data += 1
+    orthogonalized_data += 1
+
+    axes[0, 0].matshow(np.log(detector_data[where_in_det_space[0]]))
     axes[0, 0].plot(where_in_det_space[2], where_in_det_space[1],
                     color="w", marker="x",  markersize=4)
 
     axes[0, 1].matshow(
-        np.log(detector_data[:, where_in_det_space[1]]+1))
+        np.log(detector_data[:, where_in_det_space[1]]))
     axes[0, 1].plot(where_in_det_space[2], where_in_det_space[0],
                     color="w", marker="x",  markersize=4)
 
@@ -680,10 +681,11 @@ def plot_q_lab_orthogonalization_process(
 
     axes[1, 0].matshow(
         np.log(
-            np.swapaxes(orthogonalized_data[where_in_ortho_space[0]],
-            axis1=0,
-            axis2=1
-            )+1 # add 1 to avoid log(0)
+            np.swapaxes(
+                orthogonalized_data[where_in_ortho_space[0]],
+                axis1=0,
+                axis2=1
+            )
         ),
         origin="lower"
     )
@@ -694,13 +696,13 @@ def plot_q_lab_orthogonalization_process(
                 orthogonalized_data[:, where_in_ortho_space[1]],
                 axis1=0,
                 axis2=1
-            )+1 # add 1 to avoid log(0)
+            )
         ),
         origin="lower"
     )
 
     axes[1, 2].matshow(
-        np.log(orthogonalized_data[:, :, where_in_ortho_space[2]]+1),
+        np.log(orthogonalized_data[:, :, where_in_ortho_space[2]]),
         origin="lower"
     )
 
@@ -716,11 +718,11 @@ def plot_q_lab_orthogonalization_process(
 
     # careful here, in contourf it is not the matrix convention !
     axes[2, 0].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
-                orthogonalized_data[where_in_ortho_space[0]]+1,
+                orthogonalized_data[where_in_ortho_space[0]],
                 axis1=0,
                 axis2=1
             )
@@ -729,11 +731,11 @@ def plot_q_lab_orthogonalization_process(
     )
 
     axes[2, 1].contourf(
-        x_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        x_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
-                orthogonalized_data[:, where_in_ortho_space[1]]+1,
+                orthogonalized_data[:, where_in_ortho_space[1]],
                 axis1=0,
                 axis2=1
             )
@@ -742,12 +744,9 @@ def plot_q_lab_orthogonalization_process(
     )
 
     axes[2, 2].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        x_array, # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            orthogonalized_data[:, :, where_in_ortho_space[2]]
-            +1 # add 1 to avoid log(0)
-        ),
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        x_array,  # must be the matplotlib yaxis array / numpy axis0
+        np.log(orthogonalized_data[:, :, where_in_ortho_space[2]]),
         levels=100,
     )
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
@@ -763,7 +762,7 @@ def plot_q_lab_orthogonalization_process(
     #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     # axes[2, 2].set_ylabel(
     #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    
+
     axes[2, 0].set_xlabel(
         r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 0].set_ylabel(
@@ -776,7 +775,6 @@ def plot_q_lab_orthogonalization_process(
         r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_ylabel(
         r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-
 
     axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
     axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-q lab frame}")
@@ -804,7 +802,7 @@ def plot_direct_lab_orthogonalization_process(
         detector_direct_space_data: np.ndarray,
         direct_lab_data: np.ndarray,
         direct_lab_regular_grid: list[np.ndarray],
-        title: str=""
+        title: str = None
 ) -> matplotlib.figure.Figure:
     """
     Plot the intensity in the detector frame, index-of-direct lab frame
@@ -814,7 +812,7 @@ def plot_direct_lab_orthogonalization_process(
     plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
 
     subplots = (3, 3)
-    figsize = get_figure_size("nature", subplots=subplots)
+    figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(
         subplots[0], subplots[1], figsize=figsize)
 
@@ -838,10 +836,7 @@ def plot_direct_lab_orthogonalization_process(
     plot_at = tuple(e // 2 for e in direct_lab_data.shape)
 
     axes[1, 0].matshow(
-            np.swapaxes(direct_lab_data[plot_at[0]],
-            axis1=0,
-            axis2=1
-        ),
+        np.swapaxes(direct_lab_data[plot_at[0]], axis1=0, axis2=1),
         origin="lower"
     )
 
@@ -892,27 +887,29 @@ def plot_direct_lab_orthogonalization_process(
     for ax in axes.ravel():
         ax.set_aspect("equal")
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
-    axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 2].set_ylabel(r"x$_{lab}/$z$_{cxi}$")
+    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
+    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
 
-    axes[2, 0].set_xlabel(r"y$_{lab}$ (nm)")
-    axes[2, 0].set_ylabel(r"z$_{lab}$ (nm)")
-    axes[2, 1].set_xlabel(r"x$_{lab}$ (nm)")
-    axes[2, 1].set_ylabel(r"z$_{lab}$ (nm)")
-    axes[2, 2].set_xlabel(r"y$_{lab}$ (nm)")
-    axes[2, 2].set_ylabel(r"x$_{lab}$ (nm)")
+    axes[2, 0].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
+    axes[2, 0].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
+    axes[2, 1].set_xlabel(r"$x_{lab}/z_{cxi}$ (nm)")
+    axes[2, 1].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
+    axes[2, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
+    axes[2, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
 
     axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-    axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-direct lab frame}")
+    axes[1, 1].set_title(
+        r"Orthogonalized data in \textbf{index-of-direct lab frame}"
+    )
     axes[2, 1].set_title(r"Orthogonalized data in \textbf{direct lab frame}")
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -20)
+        white_interior_ticks_labels(ax, -10, -18)
 
     figure.suptitle(title)
     figure.tight_layout()
@@ -925,12 +922,12 @@ def plot_final_object_fft(
         experimental_ortho_data: np.ndarray,
         final_object_q_lab_regular_grid: np.ndarray,
         exp_data_q_lab_regular_grid: np.ndarray,
-        where_in_ortho_space: Optional[tuple]=None,
-        title: str=None
+        where_in_ortho_space: tuple = None,
+        title: str = None
 ) -> matplotlib.figure.Figure:
 
     subplots = (2+1, 3)
-    figsize = get_figure_size("nature", fraction=1.5, subplots=subplots)
+    figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
     plot_at = tuple(e // 2 for e in final_object_fft.shape)
@@ -938,10 +935,10 @@ def plot_final_object_fft(
     # load the orthogonalized grid values
     x_array, y_array, z_array = final_object_q_lab_regular_grid
 
-     # careful here, in contourf it is not the matrix convention !
+    # careful here, in contourf it is not the matrix convention !
     axes[0, 0].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
                 final_object_fft[plot_at[0]]+1,
@@ -953,8 +950,8 @@ def plot_final_object_fft(
     )
 
     axes[0, 1].contourf(
-        x_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        x_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
                 final_object_fft[:, plot_at[1]]+1,
@@ -966,11 +963,11 @@ def plot_final_object_fft(
     )
 
     axes[0, 2].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        x_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        x_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             final_object_fft[:, :, plot_at[2]]
-            +1 # add 1 to avoid log(0)
+            + 1  # add 1 to avoid log(0)
         ),
         levels=100,
     )
@@ -980,8 +977,8 @@ def plot_final_object_fft(
 
     # careful here, in contourf it is not the matrix convention !
     axes[1, 0].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
                 experimental_ortho_data[where_in_ortho_space[0]]+1,
@@ -993,8 +990,8 @@ def plot_final_object_fft(
     )
 
     axes[1, 1].contourf(
-        x_array, # must be the matplotlib xaxis array / numpy axis1
-        z_array, # must be the matplotlib yaxis array / numpy axis0
+        x_array,  # must be the matplotlib xaxis array / numpy axis1
+        z_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             np.swapaxes(
                 experimental_ortho_data[:, where_in_ortho_space[1]]+1,
@@ -1006,11 +1003,11 @@ def plot_final_object_fft(
     )
 
     axes[1, 2].contourf(
-        y_array, # must be the matplotlib xaxis array / numpy axis1
-        x_array, # must be the matplotlib yaxis array / numpy axis0
+        y_array,  # must be the matplotlib xaxis array / numpy axis1
+        x_array,  # must be the matplotlib yaxis array / numpy axis0
         np.log(
             experimental_ortho_data[:, :, where_in_ortho_space[2]]
-            +1 # add 1 to avoid log(0)
+            + 1  # add 1 to avoid log(0)
         ),
         levels=100,
     )

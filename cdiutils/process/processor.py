@@ -13,7 +13,6 @@ import vtk
 from vtk.util import numpy_support
 
 from cdiutils.utils import (
-    center,
     find_isosurface,
     zero_to_nan,
     make_support,
@@ -27,11 +26,11 @@ from cdiutils.load.sixs import SIXS2022Loader
 from cdiutils.load.p10 import P10Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
+from cdiutils.process.postprocess import PostProcessor
 from cdiutils.process.phase import (
     get_structural_properties,
     blackman_apodize,
     flip_reconstruction,
-    support_based_phase_unwrap
 )
 from cdiutils.process.plot import (
     preprocessing_detector_data_plot,
@@ -40,7 +39,6 @@ from cdiutils.process.plot import (
     plot_q_lab_orthogonalization_process,
     plot_final_object_fft
 )
-from cdiutils.plot.formatting import update_plot_params
 
 
 def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loader:
@@ -77,6 +75,7 @@ def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loade
             sample_name=metadata["sample_name"],
         )
     raise NotImplementedError("The provided beamline_setup is not valid.")
+
 
 class BcdiProcessor:
     """
@@ -121,7 +120,7 @@ class BcdiProcessor:
                 "name": "centering_cropping_detector_data_plot",
                 "debug": False
             },
-            "postprocessing":{
+            "postprocessing": {
                 "name": "summary_slice_plot",
                 "debug": False
             },
@@ -129,7 +128,7 @@ class BcdiProcessor:
                 "name": "different_strain_methods",
                 "debug": True
             },
-            "amplitude":{
+            "amplitude": {
                 "name": "amplitude_distribution_plot",
                 "debug": False
             },
@@ -149,43 +148,18 @@ class BcdiProcessor:
         for value in self.figures.values():
             value["figure"] = None
 
-        # initialise the loader
-        self._init_loader()
-
-        # update the plot parameters
-        update_plot_params(
-            usetex=self.params["usetex"],
-            use_siunitx=self.params["usetex"],
-            **{
-                "axes.labelsize": 7,
-                "xtick.labelsize": 6,
-                "ytick.labelsize": 6,
-                "figure.titlesize": 8,
-            }
-        )
-
-    def _init_loader(self) -> None:
+        # initialise the loader and Space converter
         self.loader = loader_factory(self.params["metadata"])
-
-    def init_space_converter(self, roi: list) -> None:
-        """
-        Instantiate SpaceConverter which will handle q space
-        computation.
-        """
         self.space_converter = SpaceConverter(
             energy=self.params["energy"],
             geometry=Geometry.from_name(
                 self.params["metadata"]["beamline_setup"])
         )
-        self.space_converter.init_q_space_area(
-            roi=roi,
-            det_calib_parameters=self.params["det_calib_parameters"]
-        )
 
     def load_data(
             self,
-            roi: tuple[slice]=None,
-            binning_along_axis0: int=None
+            roi: tuple[slice] = None,
+            binning_along_axis0: int = None
     ) -> None:
         self.detector_data = self.loader.load_detector_data(
             scan=self.scan,
@@ -204,13 +178,13 @@ class BcdiProcessor:
             detector_name=self.params["metadata"]["detector_name"],
             roi=(slice(None), roi[1], roi[2]) if roi else None
         )
-        if  any(
+        if any(
                 data is None
                 for data in (self.detector_data, self.angles, self.mask)
         ):
             raise ValueError("Something went wrong during data loading.")
 
-    def verbose_print(self, text: str, wrap: bool=True, **kwargs) -> None:
+    def verbose_print(self, text: str, wrap: bool = True, **kwargs) -> None:
         if self.params["verbose"]:
             if wrap:
                 wrapper = textwrap.TextWrapper(
@@ -221,7 +195,6 @@ class BcdiProcessor:
                 text = "\n".join(wrapper.wrap(text))
 
             print(text,  **kwargs)
-
 
     def preprocess_data(self) -> None:
 
@@ -284,10 +257,9 @@ class BcdiProcessor:
                 ]
                 self.verbose_print(f"New ROI is: {roi}.")
 
-
             # find the position in the cropped detector frame
             cropped_det_ref = tuple(
-                    p - r if r else p # if r is None, p-r must be p
+                    p - r if r else p  # if r is None, p-r must be p
                     for p, r in zip(det_ref, roi[::2])
             )
             full_det_max, full_det_com = None, None
@@ -304,7 +276,7 @@ class BcdiProcessor:
 
         else:
             # Check if binning is required
-            if self.params["binning_factors"] != (1, 1, 1):
+            if tuple(self.params["binning_factors"]) != (1, 1, 1):
                 self.verbose_print(
                     "[BINNING] Binning requested "
                     f"(binning_factors = {self.params['binning_factors']})."
@@ -339,7 +311,7 @@ class BcdiProcessor:
                 initial_shape = self.detector_data.shape
                 self.detector_data = rebin(
                     self.detector_data,
-                    rebin_f=(1,) + self.params["binning_factors"][1:]
+                    rebin_f=(1,) + tuple(self.params["binning_factors"][1:])
                 )
                 self.verbose_print(
                     "[BINNING] Data shape has been reduced from "
@@ -358,7 +330,8 @@ class BcdiProcessor:
                 final_shape = (self.detector_data.shape[0], ) + final_shape
 
             # check if shape dimensions are even
-            checked_shape = tuple(s-1 if s%2 == 1 else s for s in final_shape)
+            checked_shape = tuple(
+                s-1 if s % 2 == 1 else s for s in final_shape)
 
             if checked_shape != final_shape:
                 self.verbose_print(
@@ -418,16 +391,18 @@ class BcdiProcessor:
                 if isinstance(value, (list, np.ndarray)):
                     self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
-
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(
             self.cropped_detector_data, "max")
         cropped_det_com =  CroppingHandler.get_position(
             self.cropped_detector_data, "com")
 
-        self.init_space_converter(roi=roi[2:]) # we only need the 2D roi
+        # self.init_space_converter(roi=roi[2:]) # we only need the 2D roi
+        self.space_converter.init_q_space_area(
+            roi=roi[2:],
+            det_calib_parameters=self.params["det_calib_parameters"]
+        )
         self.space_converter.set_q_space_area(**self.angles)
-
 
         table = [
             ["voxel", "uncroped det. pos.", "cropped det. pos.",
@@ -455,7 +430,7 @@ class BcdiProcessor:
             dspacing = self.space_converter.dspacing(
                     self.params[key]
             )
-            lattice =  self.space_converter.lattice_parameter(
+            lattice = self.space_converter.lattice_parameter(
                     self.params[key],
                     self.params["hkl"]
             )
@@ -493,7 +468,6 @@ class BcdiProcessor:
         #         "Pixel size has been updated to "
         #         fr"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2."
         #     )
-        
 
         #     self.cropped_detector_data = rebin(
         #         self.detector_data,
@@ -628,7 +602,7 @@ class BcdiProcessor:
                 exist_ok=True
             )
             if os.path.isdir(debug_dir):
-                self.verbose_print(f"[INFO] Debug directory is: {debug_dir}")
+                self.verbose_print(f"[INFO] Debug directory is:\n{debug_dir}")
             else:
                 raise FileNotFoundError(
                     "Could not create the directory:\n{debug_dir}"
@@ -676,6 +650,8 @@ class BcdiProcessor:
             reconstruction_file_path
         )
         # check if the reconstructed object is correctly centered
+        # we need an isosurface for that, but not that we do not need
+        # a precise value, it's just for the center of mass
         reconstructed_amplitude = np.abs(reconstructed_object)
 
         # Need to hard code the isosurface if it is < 0 or > 1
@@ -687,12 +663,16 @@ class BcdiProcessor:
             isosurface=isosurface
         )
         com = CroppingHandler.get_position(support, "com")
-        reconstructed_amplitude = center(reconstructed_amplitude, where=com)
-        reconstructed_phase = center(np.angle(reconstructed_object), where=com)
-        support = center(support, where=com)
+        reconstructed_object = CroppingHandler.force_centered_cropping(
+            reconstructed_object,
+            where=com,
+        )
+        support = CroppingHandler.force_centered_cropping(
+            support,
+            where=com,
+        )
 
         # check if data were cropped during phase retrieval
-        det_ref_voxel = self.params["det_reference_voxel"]
         final_shape = tuple(self.params["preprocessing_output_shape"])
         if support.shape != final_shape:
             # raise ValueError(
@@ -706,19 +686,6 @@ class BcdiProcessor:
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
 
-        if self.params["unwrap_before_orthogonalization"]:
-            self.verbose_print(
-                "[INFO] Unwrapping before orthogonalization requested."
-            )
-            reconstructed_phase = support_based_phase_unwrap(
-                reconstructed_phase,
-                support
-            )
-
-        # initialise the SpaceConverter by loading the interpolation
-        # parameters
-        roi = CroppingHandler.get_roi(final_shape, det_ref_voxel)
-        self.init_space_converter(roi=roi[2:])
         self.space_converter.load_interpolation_parameters(
             interpolation_file_path,
             direct_space_voxel_size=self.params['voxel_size']
@@ -738,7 +705,6 @@ class BcdiProcessor:
                 )
             )
 
-
         # initialize the interpolator in reciprocal and direct spaces
         # (note that the orthogonalization is done in the lab frame
         # with xrayutilities conventions. We switch to cxi convention
@@ -749,20 +715,14 @@ class BcdiProcessor:
                 f"{self.params['voxel_size']} nm"
             )
 
-        orthogonalized_amplitude = (
+        orthogonalized_object = (
             self.space_converter.orthogonalize_to_direct_lab(
-                reconstructed_amplitude,
-            )
-        )
-        orthogonalized_phase = (
-            self.space_converter.orthogonalize_to_direct_lab(
-                reconstructed_phase,
+                reconstructed_object,
             )
         )
 
         self.orthgonolized_data = self.space_converter.lab_to_cxi_conventions(
-            orthogonalized_amplitude
-            * np.exp(1j * orthogonalized_phase)
+            orthogonalized_object
         )
 
         self.voxel_size = self.space_converter.lab_to_cxi_conventions(
@@ -777,49 +737,20 @@ class BcdiProcessor:
             self.figures["direct_lab_orthogonalization"]["figure"] = (
                 plot_direct_lab_orthogonalization_process(
                     reconstructed_amplitude,
-                    orthogonalized_amplitude,
+                    np.abs(orthogonalized_object),
                     self.space_converter.get_direct_lab_regular_grid(),
                     title=(
-                    r"From \textbf{detector frame} to "
-                    r"\textbf{direct lab frame}, "
-                    f"S{self.scan}"
+                        r"From \textbf{detector frame} to "
+                        r"\textbf{direct lab frame}, "
+                        f"S{self.scan}"
                     )
                 )
             )
-
-            # self.orthogonalized_intensity = (
-            #     self.space_converter.orthogonalize_to_q_lab(
-            #         self.cropped_detector_data
-            #     )
-            # )
-
-            # where_in_det_space = find_max_pos(self.cropped_detector_data)
-            # where_in_ortho_space = (
-            #     self.space_converter.index_cropped_det_to_index_of_q_lab(
-            #         where_in_det_space
-            #     )
-            # )
-            # q_lab_regular_grid = self.space_converter.get_q_lab_regular_grid()
-
-            # self.figures["q_lab_orthogonalization"]["figure"] = (
-            #     plot_q_lab_orthogonalization_process(
-            #         self.cropped_detector_data,
-            #         self.orthogonalized_intensity,
-            #         q_lab_regular_grid,
-            #         where_in_det_space,
-            #         where_in_ortho_space,
-            #         title=(
-            #             r"From \textbf{detector frame} to \textbf{q lab frame}"
-            #             f", S{self.scan}"
-            #         )
-            #     )
-            # )
 
     def _load_reconstruction_file(self, file_path: str) -> np.ndarray:
         with silx.io.h5py_utils.File(file_path) as h5file:
             reconstructed_object = h5file["entry_1/data_1/data"][0]
         return reconstructed_object
-
 
     def load_orthogonolized_data(self, file_path: str) -> None:
         if file_path.endswith(".npz"):
@@ -832,34 +763,32 @@ class BcdiProcessor:
     def postprocess(self) -> None:
 
         if self.params["flip"]:
-            data = flip_reconstruction(self.orthgonolized_data)
+            complex_object = PostProcessor.flip_reconstruction(
+                self.orthgonolized_data
+            )
         else:
-            data = self.orthgonolized_data
+            complex_object = self.orthgonolized_data
 
         if self.params["apodize"]:
             self.verbose_print(
-                "[PROCESSING] Apodizing the complex array: ",
-                end=""
+                "[POST-PROCESSING] Apodizing the complex array."
             )
-            data = blackman_apodize(data, initial_shape=data.shape)
-            self.verbose_print("done.")
+            complex_object = PostProcessor.apodize(complex_object)
 
         # first compute the histogram of the amplitude to get an
         # isosurface estimate
         self.verbose_print(
-            "[PROCESSING] Finding an isosurface estimate based on the "
-            "reconstructed Bragg electron density histogram: ",
-            end=""
+            "[POST-PROCESSING] Finding an isosurface estimate based on the "
+            "reconstructed Bragg electron density histogram:",
+            end=" "
         )
         isosurface, self.figures["amplitude"]["figure"] = find_isosurface(
-            np.abs(data),
+            np.abs(complex_object),
             nbins=100,
             sigma_criterion=3,
-            plot=True # plot in any case
+            plot=True  # plot in any case
         )
-        self.verbose_print("done.")
-        self.verbose_print(
-            f"[INFO] isosurface estimated at {isosurface}.")
+        self.verbose_print(f"isosurface estimated at {isosurface}.")
 
         if self.params["isosurface"] is not None:
             self.verbose_print(
@@ -881,16 +810,34 @@ class BcdiProcessor:
             f"{self.params['hkl']}."
         )
 
-        self.structural_properties = get_structural_properties(
-            data,
-            self.params["isosurface"],
-            q_vector=SpaceConverter.lab_to_cxi_conventions(
-                self.params["q_lab_reference"]
-            ),
-            hkl=self.params["hkl"],
-            voxel_size=self.voxel_size,
-            phase_factor=-1 # it came out of pynx, phase must be -phase
-        )
+        if self.params["handle_defects"]:
+            self.verbose_print(
+                "[POST-PROCESSING] Defect handling requested."
+            )
+            pass
+        else:
+            self.verbose_print(
+                "[POST-PROCESSING] Computing the structural properties:"
+                "\n\t- phase \n\t- displacement"
+                "\n\t- het. (heterogeneous) strain"
+                "\n\t- d-spacing\n\t- lattice parameter."
+                "\nhet. strain maps are computed using various methods, either"
+                " phase ramp removal or d-spacing method.",
+                wrap=False
+            )
+            self.structural_properties = (
+                    PostProcessor.get_structural_properties(
+                        complex_object,
+                        isosurface=isosurface,
+                        g_vector=SpaceConverter.lab_to_cxi_conventions(
+                            self.params["q_lab_reference"]
+                        ),
+                        hkl=self.params["hkl"],
+                        voxel_size=self.voxel_size,
+                        phase_factor=-1,  # it came out pynx
+                        handle_defects=False
+                    )
+            )
 
         self.averaged_dspacing = np.nanmean(
             self.structural_properties["dspacing"]
@@ -903,7 +850,7 @@ class BcdiProcessor:
         final_plots = {
             k: self.structural_properties[k]
             for k in ["amplitude", "phase", "displacement",
-                      "local_strain", "lattice_parameter"]
+                      "het_strain", "lattice_parameter"]
         }
         try:
             self.figures["postprocessing"]["figure"] = summary_slice_plot(
@@ -925,9 +872,9 @@ class BcdiProcessor:
 
         strain_plots = {
             k: self.structural_properties[k]
-            for k in ["local_strain", "local_strain_from_dspacing",
-                      "local_strain_from_dspacing", "numpy_local_strain",
-                      "local_strain_with_ramp"]
+            for k in ["het_strain", "het_strain_from_dspacing",
+                      "het_strain_from_dspacing", "numpy_het_strain",
+                      "het_strain_with_ramp"]
         }
         if self.params["debug"]:
             self.figures["strain"]["figure"] = summary_slice_plot(
@@ -939,8 +886,8 @@ class BcdiProcessor:
                 det_reference_voxel=self.params["det_reference_voxel"],
                 averaged_dspacing=self.averaged_dspacing,
                 averaged_lattice_parameter=self.averaged_lattice_parameter,
-                single_vmin=-self.structural_properties["local_strain"].ptp()/2,
-                single_vmax=self.structural_properties["local_strain"].ptp()/2,
+                single_vmin=-self.structural_properties["het_strain"].ptp()/2,
+                single_vmax=self.structural_properties["het_strain"].ptp()/2,
                 **strain_plots
             )
 
@@ -967,21 +914,25 @@ class BcdiProcessor:
                 ),
                 final_shape=shape
             )
-            final_object_fft = np.abs(
-                np.fft.ifftshift(
-                    np.fft.fftn(
-                        np.fft.fftshift(final_object_fft)
-                    )
+            final_object_fft = np.abs(np.fft.ifftshift(
+                np.fft.fftn(
+                    np.fft.fftshift(final_object_fft)
                 )
-            )
+            ))** 2
 
             extension = np.multiply(self.voxel_size, shape)
             voxel_size_of_fft_object = (2*np.pi / (10 * extension))
 
             final_object_q_lab_grid = (
-                np.arange(-shape[0]//2, shape[0]//2, 1) * voxel_size_of_fft_object[0],
-                np.arange(-shape[1]//2, shape[1]//2, 1) * voxel_size_of_fft_object[1],
-                np.arange(-shape[2]//2, shape[2]//2, 1) * voxel_size_of_fft_object[2],
+                np.arange(
+                    -shape[0]//2, shape[0]//2, 1
+                ) * voxel_size_of_fft_object[0],
+                np.arange(
+                    -shape[1]//2, shape[1]//2, 1
+                ) * voxel_size_of_fft_object[1],
+                np.arange(
+                    -shape[2]//2, shape[2]//2, 1
+                ) * voxel_size_of_fft_object[2],
             )
             final_object_q_lab_grid = tuple(
                 shift + grid
@@ -1062,8 +1013,8 @@ class BcdiProcessor:
         to_save_as_vti = {
             k: self.structural_properties[k]
             for k in ["amplitude", "support", "phase", "displacement",
-                      "local_strain", "local_strain_from_dspacing",
-                      "lattice_parameter", "numpy_local_strain", "dspacing"]
+                      "het_strain", "het_strain_from_dspacing",
+                      "lattice_parameter", "numpy_het_strain", "dspacing"]
         }
 
         # add the dspacing average and lattice constant average around 
@@ -1109,19 +1060,19 @@ class BcdiProcessor:
                 data=self.structural_properties["displacement"]
             )
             volumes.create_dataset(
-                "local_strain",
-                data=self.structural_properties["local_strain"]
+                "het_strain",
+                data=self.structural_properties["het_strain"]
             )
             volumes.create_dataset(
-                "local_strain_from_dspacing",
-                data=self.structural_properties["local_strain_from_dspacing"]
+                "het_strain_from_dspacing",
+                data=self.structural_properties["het_strain_from_dspacing"]
             )
             volumes.create_dataset(
-                "numpy_local_strain",
-                data=self.structural_properties["numpy_local_strain"]
+                "numpy_het_strain",
+                data=self.structural_properties["numpy_het_strain"]
             )
             volumes.create_dataset(
-                "dspacing_from_local_strain",
+                "dspacing_from_het_strain",
                 data=self.structural_properties["dspacing"]
             )
             volumes.create_dataset(

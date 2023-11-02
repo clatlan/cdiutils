@@ -1,7 +1,10 @@
 from typing import Callable, Dict
 from string import Template
 import glob
+import matplotlib.pyplot as plt
+import numpy as np
 import os
+from scipy.stats import gaussian_kde
 import shutil
 import subprocess
 import sys
@@ -12,6 +15,9 @@ import paramiko
 import ruamel.yaml
 import yaml
 
+
+from cdiutils.load.load_data import load_data_from_cxi
+from cdiutils.plot.formatting import update_plot_params, get_figure_size
 from cdiutils.utils import pretty_print
 from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
@@ -19,13 +25,17 @@ from .plot import plot_phasing_result
 from .parameters import check_parameters, convert_np_arrays
 
 try:
-    from bcdi.preprocessing.preprocessing_runner import run as run_preprocessing
-    from bcdi.postprocessing.postprocessing_runner import run as run_postprocessing
+    from bcdi.preprocessing.preprocessing_runner import (
+        run as run_preprocessing
+    )
+    from bcdi.postprocessing.postprocessing_runner import (
+        run as run_postprocessing
+    )
     from bcdi.utils.parser import ConfigParser
     IS_BCDI_AVAILABLE = True
 except ModuleNotFoundError:
     print("The bcdi package is not installed. bcdi backend won't be available")
-    IS_BCDI_AVAILABLE = False # is_bcdi_available
+    IS_BCDI_AVAILABLE = False  # is_bcdi_available
 
 BCDI_ERROR_TEXT = (
     "Cannot use 'bcdi' backend if bcdi package is not"
@@ -39,7 +49,7 @@ def make_scan_parameter_file(
         updated_parameters: dict
 ) -> None:
     """
-    Create a scan parameter file given a template and the parameters 
+    Create a scan parameter file given a template and the parameters
     to update.
     """
 
@@ -92,7 +102,9 @@ if IS_BCDI_AVAILABLE:
             raw_args["preprocessing"].update(raw_args["general"])
             raw_args["postprocessing"].update(raw_args["general"])
             raw_args["pynx"].update(
-                {"detector_distance": raw_args["general"]["detector_distance"]})
+                {"detector_distance":
+                    raw_args["general"]["detector_distance"]}
+            )
 
             self.arguments = {
                 "preprocessing": self._check_args(raw_args["preprocessing"]),
@@ -104,8 +116,11 @@ if IS_BCDI_AVAILABLE:
             except KeyError:
                 print("No cdiutils arguments given")
             return self.arguments
-        
-        def load_bcdi_parameters(self, procedure: str="preprocessing") -> Dict:
+
+        def load_bcdi_parameters(
+                self,
+                procedure: str = "preprocessing"
+        ) -> Dict:
             raw_args = yaml.load(
                 self.raw_config,
                 Loader=yaml.SafeLoader
@@ -139,20 +154,20 @@ class BcdiPipeline:
     """
     def __init__(
             self,
-            parameter_file_path: str=None,
-            parameters: dict=None,
-            backend: str="cdiutils"
-        ):
+            parameter_file_path: str = None,
+            parameters: dict = None,
+            backend: str = "cdiutils"
+    ):
 
         self.parameter_file_path = parameter_file_path
-        self.parameters = parameters
+        self.params = parameters
 
         if parameters is None:
             if parameter_file_path is None:
                 raise ValueError(
                     "parameter_file_path or parameters must be provided"
                 )
-            self.parameters = self.load_parameters(backend)
+            self.params = self.load_parameters(backend)
         else:
             check_parameters(parameters)
 
@@ -160,16 +175,16 @@ class BcdiPipeline:
 
         if backend == "cdiutils":
             self.dump_dir = (
-                self.parameters["cdiutils"]["metadata"]["dump_dir"]
+                self.params["cdiutils"]["metadata"]["dump_dir"]
             )
-            self.scan = self.parameters["cdiutils"]["metadata"]["scan"]
+            self.scan = self.params["cdiutils"]["metadata"]["scan"]
             self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         elif backend == "bcdi":
             if not IS_BCDI_AVAILABLE:
                 raise ModuleNotFoundError(BCDI_ERROR_TEXT)
-            self.dump_dir = self.parameters["preprocessing"][
+            self.dump_dir = self.params["preprocessing"][
                 "save_dir"][0]
-            self.scan = self.parameters['preprocessing']['scans'][0]
+            self.scan = self.params['preprocessing']['scans'][0]
         else:
             raise ValueError(
                 f"[ERROR] Unknown backend value ({backend}), it must be either"
@@ -180,11 +195,25 @@ class BcdiPipeline:
         # is cdiutils
         self.bcdi_processor: BcdiProcessor = None
         self.phasing_results: list = None
+        self.sorted_phasing_results: dict = None
+        self.metrics: dict = None
+
+        # update the plot parameters
+        update_plot_params(
+            usetex=self.params["cdiutils"]["usetex"],
+            use_siunitx=self.params["cdiutils"]["usetex"],
+            **{
+                "axes.labelsize": 7,
+                "xtick.labelsize": 6,
+                "ytick.labelsize": 6,
+                "figure.titlesize": 8,
+            }
+        )
 
     def load_parameters(
             self,
-            backend: str=None,
-            file_path: str=None
+            backend: str = None,
+            file_path: str = None
     ) -> dict:
         """
         Load the parameters from the configuration files.
@@ -194,7 +223,7 @@ class BcdiPipeline:
         if file_path is None:
             file_path = self.parameter_file_path
 
-        if backend  == "bcdi":
+        if backend == "bcdi":
             return BcdiPipelineParser(
                 file_path
             ).load_arguments()
@@ -214,7 +243,7 @@ class BcdiPipeline:
         )
 
     @process
-    def preprocess(self, backend: str=None) -> None:
+    def preprocess(self, backend: str = None) -> None:
 
         if backend is None:
             backend = self.backend
@@ -223,20 +252,20 @@ class BcdiPipeline:
             if not IS_BCDI_AVAILABLE:
                 raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             os.makedirs(
-                self.parameters["preprocessing"]["save_dir"][0],
+                self.params["preprocessing"]["save_dir"][0],
                 exist_ok=True
             )
             pretty_print(
                 "[INFO] Proceeding to bcdi preprocessing using the bcdi "
                 f"backend (scan {self.scan})"
             )
-            run_preprocessing(prm=self.parameters["preprocessing"])
+            run_preprocessing(prm=self.params["preprocessing"])
             pynx_input_template = "S*_pynx_norm_*.npz"
             pynx_mask_template = "S*_maskpynx_norm_*.npz"
             self.save_parameter_file()
 
         elif backend == "cdiutils":
-            dump_dir = self.parameters["cdiutils"]["metadata"]["dump_dir"]
+            dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
             if os.path.isdir(dump_dir):
                 print(
                     "\n[INFO] Dump directory already exists, results will be "
@@ -255,7 +284,7 @@ class BcdiPipeline:
                 f" (scan {self.scan})"
             )
             self.bcdi_processor = BcdiProcessor(
-                parameters=self.parameters["cdiutils"]
+                parameters=self.params["cdiutils"]
             )
             self.bcdi_processor.preprocess_data()
             self.bcdi_processor.save_preprocessed_data()
@@ -293,22 +322,22 @@ class BcdiPipeline:
                 }
             )
 
-        self.parameters["cdiutils"].update(self.bcdi_processor.params)
-        self.parameters["pynx"].update({"data": data_path})
-        self.parameters["pynx"].update({"mask": mask_path})
+        self.params["cdiutils"].update(self.bcdi_processor.params)
+        self.params["pynx"].update({"data": data_path})
+        self.params["pynx"].update({"mask": mask_path})
         self.save_parameter_file()
-        if self.parameters["cdiutils"]["show"] and backend == "cdiutils":
-                self.bcdi_processor.show_figures()
+        if self.params["cdiutils"]["show"] and backend == "cdiutils":
+            self.bcdi_processor.show_figures()
 
     @process
     def phase_retrieval(
             self,
-            machine: str="slurm-nice-devel",
-            user: str=os.environ["USER"],
-            number_of_nodes: int=2,
-            key_file_path: str=os.environ["HOME"] + "/.ssh/id_rsa",
-            pynx_slurm_file_template: str=None,
-            remove_last_results: bool=False
+            machine: str = "slurm-nice-devel",
+            user: str = os.environ["USER"],
+            number_of_nodes: int = 2,
+            key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
+            pynx_slurm_file_template: str = None,
+            remove_last_results: bool = False
     ) -> None:
         """
         Run the phase retrieval using pynx through ssh connection to a
@@ -319,8 +348,10 @@ class BcdiPipeline:
             "[INFO] Proceeding to PyNX phase retrieval "
             f"(scan {self.scan})"
         )
+        # reset the sorted phasing results to None
+        self.sorted_phasing_results = None
 
-        if remove_last_results: 
+        if remove_last_results:
             print("[INFO] Removing former results\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
@@ -334,7 +365,7 @@ class BcdiPipeline:
 
         # Make the pynx input file
         with open(pynx_input_file_path, "w", encoding="utf8") as file:
-            for key, value in self.parameters["pynx"].items():
+            for key, value in self.params["pynx"].items():
                 file.write(f"{key} = {value}\n")
 
         if os.uname()[1].startswith("p9"):
@@ -371,12 +402,16 @@ class BcdiPipeline:
                 # Make the pynx slurm file
                 if pynx_slurm_file_template is None:
                     pynx_slurm_file_template = (
-                        f"{os.path.dirname(__file__)}/pynx-id01cdi_template.slurm"
+                        f"{os.path.dirname(__file__)}/"
+                        "pynx-id01cdi_template.slurm"
                     )
-                    print("Pynx slurm file template not provided, will take "
+                    print(
+                        "Pynx slurm file template not provided, will take "
                         f"the default: {pynx_slurm_file_template}")
 
-                with open(pynx_slurm_file_template, "r", encoding="utf8") as file:
+                with open(
+                        pynx_slurm_file_template, "r", encoding="utf8"
+                ) as file:
                     source = Template(file.read())
                     pynx_slurm_text = source.substitute(
                         {
@@ -387,14 +422,14 @@ class BcdiPipeline:
                         }
                     )
                 with open(
-                        self.pynx_phasing_dir+ "/pynx-id01cdi.slurm",
+                        self.pynx_phasing_dir + "/pynx-id01cdi.slurm",
                         "w",
                         encoding="utf8"
                 ) as file:
                     file.write(pynx_slurm_text)
 
                 # submit job using sbatch slurm command
-                _, stdout, _= client.exec_command(
+                _, stdout, _ = client.exec_command(
                     f"cd {self.pynx_phasing_dir};"
                     "sbatch pynx-id01cdi.slurm"
                 )
@@ -413,8 +448,11 @@ class BcdiPipeline:
                     except IndexError:
                         print("Job still not submitted...")
                         time.sleep(3)
-                        output = stdout.read().decode("utf-8")
                         print(output)
+                    except KeyboardInterrupt as err:
+                        print("User terminated job with KeyboardInterrupt.")
+                        client.close()
+                        raise err
 
                 # while loop to check if job has terminated
                 process_status = "PENDING"
@@ -425,8 +463,8 @@ class BcdiPipeline:
 
                     # python process needs to sleep here, otherwise it gets in
                     # trouble with standard output management. Anyway, we need
-                    # to sleep in the while loop in order to wait for the remote
-                    # process to terminate.
+                    # to sleep in the while loop in order to wait for the
+                    # remote  process to terminate.
                     time.sleep(2)
                     process_status = stdout.read().decode("utf-8").strip()
                     print(f"[INFO] process status: {process_status}")
@@ -461,7 +499,8 @@ class BcdiPipeline:
                 )
                 if stdout.channel.recv_exit_status():
                     raise RuntimeError(
-                        f"Error pulling the remote runtime {stderr.readline()}")
+                        f"Error pulling the remote runtime {stderr.readline()}"
+                    )
                 for line in iter(lambda: stdout.readline(1024), ""):
                     print(line, end="")
             client.close()
@@ -469,10 +508,14 @@ class BcdiPipeline:
         # get the phasing result paths
         self.phasing_results = self.find_phasing_results(
             self.phasing_results,
-            plot=self.parameters["cdiutils"]["show_phasing_results"]
+            plot=self.params["cdiutils"]["show_phasing_results"]
         )
 
-    def find_phasing_results(self, paths: list=None, plot: bool=False) -> list:
+    def find_phasing_results(
+            self,
+            paths: list = None,
+            plot: bool = False
+    ) -> list:
         """
         Find the last phasing results (.cxi files) and add them to the
         given list if provided, otherwise create the list.
@@ -495,7 +538,7 @@ class BcdiPipeline:
             return fetched_paths
 
         for path in fetched_paths:
-            if not path in paths:
+            if path not in paths:
                 paths.append(path)
                 if plot and os.path.isfile(path):
                     try:
@@ -511,12 +554,99 @@ class BcdiPipeline:
             if not os.path.isfile(path):
                 paths.remove(path)
         return paths
+    
+    def analyze_phasing_results(
+            self,
+            criterion: str = "mean_to_max",
+            plot_phasing_results: bool = False,
+            plot_amplitude: bool = False,
+    ):
+        if self.sorted_phasing_results is None:
+            files = self.find_phasing_results()
+
+            # make a dictionary with file names as keys and std as values
+            self.metrics = {
+                "mean_to_max": {f: None for f in files},
+                "std": {f: None for f in files},
+                "llkf": {f: None for f in files},
+                "llk": {f: None for f in files},
+            }
+
+            for i, f in enumerate(files):
+                print("[INFO] Opening file:", os.path.basename(f))
+                data_dic = load_data_from_cxi(
+                    f, "support", "reconstructed_data", "llkf", "llk"
+                )
+
+                support = data_dic["support"]
+                amplitude = np.abs(data_dic["reconstructed_data"])
+                
+                amplitude = amplitude[support > 0]
+                amplitude /= np.max(amplitude)                
+                # fit the amplitude distribution
+                kernel = gaussian_kde(amplitude)
+                x = np.linspace(0, 1, 200)
+                fitted_counts = kernel(x)
+                max_index = np.argmax(fitted_counts)
+
+                self.metrics["llk"][f] = data_dic["llk"]
+                self.metrics["llkf"][f] = data_dic["llkf"]
+                self.metrics["mean_to_max"][f] = 1 - x[max_index]
+                self.metrics["std"][f] = np.std(amplitude)
+
+            # normalize all the values so they can be compared on the same plot
+            for m in self.metrics.keys():
+                self.metrics[m] = (
+                    (self.metrics[m] - self.metrics[m].min())
+                    / np.ptp(self.metrics[m])
+                )
+
+        # now sort the files according to the provided criterion
+        self.sorted_phasing_results = dict(
+                sorted(
+                    self.metrics[criterion].items(),
+                    key=lambda item: item[1],
+                    reverse=False
+                )
+            )
+        runs = [
+            file.split("Run")[1][2:4]
+            for file in self.sorted_phasing_results.keys()
+        ]
+
+        figsize = get_figure_size(fraction=0.75)
+        figure, ax = plt.subplots(1, 1, figsize=figsize)
+        for m in self.metrics.keys():
+            ax.plot(
+                runs,
+                [self.metrics[m][f] for f in self.sorted_phasing_results.keys()],
+                label=m
+            )
+        ax.set_ylabel("normalised metric")
+
+
+        # subplots = (2, 2)
+        # figsize = get_figure_size(subplots=subplots, fraction=0.75, sharey=True)
+        # figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
+        # for ax, m in zip(axes.ravel(), self.metrics.keys()):
+        #     ax.plot(
+        #         runs,
+        #         [self.metrics[m][f] for f in self.sorted_phasing_results.keys()]
+        #     )
+        #     ax.set_ylabel(m)
+        # axes[1, 0].set_xlabel("run number")
+        # axes[1, 1].set_xlabel("run number")
+        ax.set_xlabel("run number")
+        figure.suptitle("Phasing result analysis")
+        figure.tight_layout()
+        plt.show()
+
 
     def find_best_candidates(
             self,
-            nb_to_keep: int=10,
-            criterion: str="mean_to_max"
-        ) -> None:
+            nb_to_keep: int = 10,
+            criterion: str = "mean_to_max"
+    ) -> None:
         """Find the best candidates of the PyNX output"""
 
         pretty_print(
@@ -538,11 +668,12 @@ class BcdiPipeline:
         find_best_candidates(
                 self.phasing_results,
                 nb_to_keep=nb_to_keep,
-                criterion=criterion
+                criterion=criterion,
+                plot=True
         )
     
     def select_best_candidates(self, best_runs: list):
-         # remove the previous candidates if needed
+        # remove the previous candidates if needed
         files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
         if files:
             for f in files:
@@ -571,18 +702,17 @@ class BcdiPipeline:
             )
             shutil.copy(f, dir_name + file_name)
 
-
     @process
     def mode_decomposition(
             self,
             # pynx_version: str="2023.1.2",
-            pynx_analysis_path: str=(
+            pynx_analysis_path: str = (
                 "/cvmfs/hpc.esrf.fr/software/packages/"
                 "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
             ),
-            machine: str=None,
-            user: str=None,
-            key_file_path: str=None
+            machine: str = None,
+            user: str = None,
+            key_file_path: str = None
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
@@ -672,17 +802,19 @@ class BcdiPipeline:
                 if self.backend == "bcdi":
                     update_parameter_file(
                         self.parameter_file_path,
-                        {"reconstruction_files": f"{self.pynx_phasing_dir}mode.h5"}
+                        {"reconstruction_files":
+                            f"{self.pynx_phasing_dir}mode.h5"}
                     )
                 else:
                     update_parameter_file(
                         self.parameter_file_path,
-                        {"reconstruction_file": f"{self.pynx_phasing_dir}mode.h5"}
+                        {"reconstruction_file":
+                            f"{self.pynx_phasing_dir}mode.h5"}
                     )
-                self.parameters = self.load_parameters()
+                self.params = self.load_parameters()
 
     @process
-    def postprocess(self, backend: str=None) -> None:
+    def postprocess(self, backend: str = None) -> None:
 
         if backend is None:
             backend = self.backend
@@ -695,7 +827,7 @@ class BcdiPipeline:
                 f"(scan {self.scan})"
             )
 
-            run_postprocessing(prm=self.parameters["postprocessing"])
+            run_postprocessing(prm=self.params["postprocessing"])
             self.save_parameter_file()
 
         elif backend == "cdiutils":
@@ -708,8 +840,8 @@ class BcdiPipeline:
             if self.bcdi_processor is None:
                 print("BCDI processor is not instantiated yet.")
                 if any(
-                        p not in self.parameters["cdiutils"].keys()
-                        or self.parameters["cdiutils"][p] is None
+                        p not in self.params["cdiutils"].keys()
+                        or self.params["cdiutils"][p] is None
                         for p in (
                             "q_lab_reference", "q_lab_max",
                             "q_lab_com", "det_reference_voxel",
@@ -719,10 +851,10 @@ class BcdiPipeline:
                             f"{self.dump_dir}"
                             f"S{self.scan}_parameter_file.yml"
                     )
-                    print(f"Loading parameters from: {file_path}")
+                    print(f"Loading parameters from:\n{file_path}")
                     preprocessing_params = self.load_parameters(
                         file_path=file_path)["cdiutils"]
-                    self.parameters["cdiutils"].update(
+                    self.params["cdiutils"].update(
                         {
                             "det_reference_voxel": preprocessing_params[
                                 "det_reference_voxel"
@@ -735,23 +867,23 @@ class BcdiPipeline:
                         }
                     )
                 self.bcdi_processor = BcdiProcessor(
-                    parameters=self.parameters["cdiutils"]
+                    parameters=self.params["cdiutils"]
                 )
             self.bcdi_processor.orthogonalize()
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()
             self.save_parameter_file()
-            if self.parameters["cdiutils"]["show"]:
+            if self.params["cdiutils"]["show"]:
                 self.bcdi_processor.show_figures()
 
         else:
             raise ValueError(
-                f"[ERROR] Unknwon backend value ({backend}), it must be either"
+                f"[ERROR] Unknown backend value ({backend}), it must be either"
                 " 'cdiutils' or 'bcdi'"
             )
 
     def save_parameter_file(self) -> None:
-        """ 
+        """
         Save the parameter file used during the analysis.
         """
 
@@ -768,14 +900,14 @@ class BcdiPipeline:
                 )
             except shutil.SameFileError:
                 print(
-                "\nScan parameter file saved at:\n"
-                f"{output_file_path}"
-            )
+                    "\nScan parameter file saved at:\n"
+                    f"{output_file_path}"
+                )
 
         else:
-            convert_np_arrays(self.parameters)
+            convert_np_arrays(self.params)
             with open(output_file_path, "w", encoding="utf8") as file:
-                yaml.dump(self.parameters, file)
+                yaml.dump(self.params, file)
 
             print(
                 "\nScan parameter file saved at:\n"
