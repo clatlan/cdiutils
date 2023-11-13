@@ -178,6 +178,9 @@ class BcdiPipeline:
                 self.params["cdiutils"]["metadata"]["dump_dir"]
             )
             self.scan = self.params["cdiutils"]["metadata"]["scan"]
+            self.sample_name = (
+                self.params["cdiutils"]["metadata"]["sample_name"]
+            )
             self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         elif backend == "bcdi":
             if not IS_BCDI_AVAILABLE:
@@ -195,8 +198,8 @@ class BcdiPipeline:
         # is cdiutils
         self.bcdi_processor: BcdiProcessor = None
         self.phasing_results: list = None
-        self.sorted_phasing_results: dict = None
-        self.metrics: dict = None
+        self._sorted_phasing_results: dict = None
+        self._metrics: dict = None
 
         # update the plot parameters
         update_plot_params(
@@ -257,7 +260,7 @@ class BcdiPipeline:
             )
             pretty_print(
                 "[INFO] Proceeding to bcdi preprocessing using the bcdi "
-                f"backend (scan {self.scan})"
+                f"backend ({self.sample_name}, {self.scan})"
             )
             run_preprocessing(prm=self.params["preprocessing"])
             pynx_input_template = "S*_pynx_norm_*.npz"
@@ -265,6 +268,10 @@ class BcdiPipeline:
             self.save_parameter_file()
 
         elif backend == "cdiutils":
+            pretty_print(
+                "[INFO] Proceeding to preprocessing using the cdiutils backend"
+                f" ({self.sample_name}, {self.scan})"
+            )
             dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
             if os.path.isdir(dump_dir):
                 print(
@@ -279,10 +286,6 @@ class BcdiPipeline:
                     exist_ok=True
                 )
             os.makedirs(self.pynx_phasing_dir, exist_ok=True)
-            pretty_print(
-                "[INFO] Proceeding to preprocessing using the cdiutils backend"
-                f" (scan {self.scan})"
-            )
             self.bcdi_processor = BcdiProcessor(
                 parameters=self.params["cdiutils"]
             )
@@ -349,7 +352,7 @@ class BcdiPipeline:
             f"(scan {self.scan})"
         )
         # reset the sorted phasing results to None
-        self.sorted_phasing_results = None
+        self._sorted_phasing_results = None
 
         if remove_last_results:
             print("[INFO] Removing former results\n")
@@ -505,142 +508,144 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-        # get the phasing result paths
-        self.phasing_results = self.find_phasing_results(
-            self.phasing_results,
-            plot=self.params["cdiutils"]["show_phasing_results"]
-        )
-
-    def find_phasing_results(
-            self,
-            paths: list = None,
-            plot: bool = False
-    ) -> list:
+    def find_phasing_results(self) -> list:
         """
         Find the last phasing results (.cxi files) and add them to the
         given list if provided, otherwise create the list.
         """
+        self.phasing_results = []
         fetched_paths = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
-
-        if paths == [] or paths is None:
-            if plot:
-                for path in fetched_paths:
-                    if os.path.isfile(path):
-                        try:
-                            run_number = int(path.split("Run")[1][:4])
-                            title = (
-                                f"Phasing results, scan {self.scan}, "
-                                f"run {run_number}"
-                            )
-                            plot_phasing_result(path, title)
-                        except OSError:
-                            pass
-            return fetched_paths
-
         for path in fetched_paths:
-            if path not in paths:
-                paths.append(path)
-                if plot and os.path.isfile(path):
-                    try:
-                        run_number = int(path.split("Run")[1][:4])
-                        title = (
-                            f"Phasing results, scan {self.scan}, "
-                            f"run {run_number}"
-                        )
-                        plot_phasing_result(path, title)
-                    except OSError:
-                        pass
-        for path in paths:
-            if not os.path.isfile(path):
-                paths.remove(path)
-        return paths
-    
+            if os.path.isfile(path):
+                self.phasing_results.append(path)
+
     def analyze_phasing_results(
             self,
-            criterion: str = "mean_to_max",
+            sorting_criterion: str = "mean_to_max",
             plot_phasing_results: bool = False,
             plot_amplitude: bool = False,
     ):
-        if self.sorted_phasing_results is None:
-            files = self.find_phasing_results()
+        criteria = ["mean_to_max", "std", "llk", "llkf", "all"]
+        if sorting_criterion not in criteria:
+            raise ValueError(
+                f"Provided criterion ({sorting_criterion}) is unknown. "
+                f"Possible criteria are:\n{criteria}."
+            )
+        pretty_print(
+                "[INFO] Analysing phasing results\n"
+                f"({self.sample_name}, {self.scan})"
+        )
+        if self._sorted_phasing_results is None:
+            print("[INFO] Computing metrics...")
+            self.find_phasing_results()
 
-            # make a dictionary with file names as keys and std as values
-            self.metrics = {
-                "mean_to_max": {f: None for f in files},
-                "std": {f: None for f in files},
-                "llkf": {f: None for f in files},
-                "llk": {f: None for f in files},
+            self._metrics = {
+                m: {f: None for f in self.phasing_results}
+                for m in criteria
             }
 
-            for i, f in enumerate(files):
-                print("[INFO] Opening file:", os.path.basename(f))
+            for p in self.phasing_results:
                 data_dic = load_data_from_cxi(
-                    f, "support", "reconstructed_data", "llkf", "llk"
+                    p, "support", "reconstructed_data", "llkf", "llk"
                 )
 
                 support = data_dic["support"]
                 amplitude = np.abs(data_dic["reconstructed_data"])
-                
+
                 amplitude = amplitude[support > 0]
-                amplitude /= np.max(amplitude)                
+                amplitude /= np.max(amplitude)
                 # fit the amplitude distribution
                 kernel = gaussian_kde(amplitude)
-                x = np.linspace(0, 1, 200)
+                x = np.linspace(0, 1, 100)
                 fitted_counts = kernel(x)
                 max_index = np.argmax(fitted_counts)
 
-                self.metrics["llk"][f] = data_dic["llk"]
-                self.metrics["llkf"][f] = data_dic["llkf"]
-                self.metrics["mean_to_max"][f] = 1 - x[max_index]
-                self.metrics["std"][f] = np.std(amplitude)
+                self._metrics["llk"][p] = data_dic["llk"]
+                self._metrics["llkf"][p] = data_dic["llkf"]
+                self._metrics["mean_to_max"][p] = 1 - x[max_index]
+                self._metrics["std"][p] = np.std(amplitude)
 
-            # normalize all the values so they can be compared on the same plot
-            for m in self.metrics.keys():
-                self.metrics[m] = (
-                    (self.metrics[m] - self.metrics[m].min())
-                    / np.ptp(self.metrics[m])
-                )
+            # normalize all the values so they can be compared in the same plot
+            for m in ["mean_to_max", "std", "llk", "llkf"]:
+                minimum_value = min(list(self._metrics[m].values()))
+                ptp_value = np.ptp(np.array(list(self._metrics[m].values())))
+                for k in self._metrics[m].keys():
+                    self._metrics[m][k] = (
+                        (self._metrics[m][k] - minimum_value) / ptp_value
+                    )
+
+            # compute the average value over all metrics
+            for k in self._metrics["all"].keys():
+                self._metrics["all"][k] = 0
+                for m in ["mean_to_max", "std", "llk", "llkf"]:
+                    self._metrics["all"][k] += self._metrics[m][k]
+                self._metrics["all"][k] /= 4
 
         # now sort the files according to the provided criterion
-        self.sorted_phasing_results = dict(
+        self._sorted_phasing_results = dict(
                 sorted(
-                    self.metrics[criterion].items(),
+                    self._metrics[sorting_criterion].items(),
                     key=lambda item: item[1],
                     reverse=False
                 )
             )
         runs = [
             file.split("Run")[1][2:4]
-            for file in self.sorted_phasing_results.keys()
+            for file in self._sorted_phasing_results.keys()
         ]
 
         figsize = get_figure_size(fraction=0.75)
         figure, ax = plt.subplots(1, 1, figsize=figsize)
-        for m in self.metrics.keys():
+        colors = {
+            m: c for m, c in zip(
+                self._metrics.keys(),
+                ["lightcoral", "mediumslateblue",
+                 "dodgerblue", "plum", "crimson"]
+            )
+        }
+        for m in self._metrics.keys():
             ax.plot(
                 runs,
-                [self.metrics[m][f] for f in self.sorted_phasing_results.keys()],
-                label=m
+                [
+                    self._metrics[m][f]
+                    for f in self._sorted_phasing_results.keys()
+                ],
+                label=m,
+                color=colors[m],
+                marker='o',
+                markersize=4,
+                markerfacecolor=colors[m],
+                markeredgewidth=0.5,
+                markeredgecolor='k'
             )
-        ax.set_ylabel("normalised metric")
-
-
-        # subplots = (2, 2)
-        # figsize = get_figure_size(subplots=subplots, fraction=0.75, sharey=True)
-        # figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
-        # for ax, m in zip(axes.ravel(), self.metrics.keys()):
-        #     ax.plot(
-        #         runs,
-        #         [self.metrics[m][f] for f in self.sorted_phasing_results.keys()]
-        #     )
-        #     ax.set_ylabel(m)
-        # axes[1, 0].set_xlabel("run number")
-        # axes[1, 1].set_xlabel("run number")
-        ax.set_xlabel("run number")
-        figure.suptitle("Phasing result analysis")
+        ax.set_ylabel("Normalised metric")
+        ax.set_xlabel("Run number")
+        figure.legend(
+            frameon=False,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0.915),
+            ncol=len(criteria)
+        )
+        figure.suptitle(
+            "Phasing result analysis (the lower the better)\n"
+            f"{self.sample_name}, {self.scan}"
+        )
         figure.tight_layout()
         plt.show()
+        print(
+            "[INFO] the sorted list of runs using sorting_criterion "
+            f"'{sorting_criterion}' is:\n{runs}"
+        )
 
+        if plot_phasing_results:
+            print("[INFO] Plotting phasing results...")
+            for path in self._sorted_phasing_results.keys():
+                run_number = int(path.split("Run")[1][:4])
+                title = (
+                    f"Phasing results, {self.sample_name}, {self.scan}\n"
+                    f"run {run_number}"
+                )
+                plot_phasing_result(path, title, plot_amplitude)
 
     def find_best_candidates(
             self,
@@ -651,7 +656,7 @@ class BcdiPipeline:
 
         pretty_print(
             "[INFO] Finding the best candidates of the PyNX run with "
-            f"criterion: {criterion}. (scan {self.scan})"
+            f"criterion: {criterion}. ({self.sample_name}, {self.scan})"
         )
         # remove the previous candidates if needed
         files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
@@ -671,27 +676,41 @@ class BcdiPipeline:
                 criterion=criterion,
                 plot=True
         )
-    
-    def select_best_candidates(self, best_runs: list):
-        # remove the previous candidates if needed
+
+    def select_best_candidates(
+            self,
+            nb_of_best_sorted_runs: int = None,
+            best_runs: list = None
+    ):
+        if nb_of_best_sorted_runs is None and best_runs is None:
+            raise ValueError(
+                "Either nb_of_best_sorted_runs or best_runs must be provided"
+            )
+        # remove the previous candidates
         files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
         if files:
             for f in files:
                 os.remove(f)
 
-        self.phasing_results = self.find_phasing_results(self.phasing_results)
-        if not self.phasing_results:
-            raise ValueError(
-                "No PyNX output in the following directory: "
-                f"{self.pynx_phasing_dir}."
-            )
-
         best_candidates = []
-        for path in self.phasing_results:
-            run_number = int(path.split("Run")[1][:4])
-            if run_number in best_runs:
-                best_candidates.append(path)
-        
+
+        if best_runs is not None and best_runs != []:
+            if self.phasing_results is None or self.phasing_results == []:
+                self.find_phasing_results()
+
+            for path in self.phasing_results:
+                run_number = int(path.split("Run")[1][:4])
+                if run_number in best_runs:
+                    best_candidates.append(path)
+        elif nb_of_best_sorted_runs:
+            if not self._sorted_phasing_results:
+                raise ValueError(
+                    "Phasing results have not been analysed yet."
+                )
+            best_candidates = list(self._sorted_phasing_results.keys())
+            best_candidates = best_candidates[:nb_of_best_sorted_runs]
+
+        print(f"[INFO] Best runs selected:\n{best_candidates}")
         for i, f in enumerate(best_candidates):
             dir_name, file_name = os.path.split(f)
             run_nb = file_name.split("Run")[1][2:4]
@@ -753,10 +772,11 @@ class BcdiPipeline:
                 print(
                     "key_file_path not provided, will use '{key_file_path}'."
                 )
-            
+
             pretty_print(
                 f"[INFO] Running mode decomposition from machine '{machine}'"
-                f"using /sware pynx installation (scan {self.scan})"
+                "using /sware pynx installation "
+                f"({self.sample_name}, {self.scan})"
             )
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -824,7 +844,7 @@ class BcdiPipeline:
                 raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             pretty_print(
                 "[INFO] Running post-processing from bcdi_strain.py "
-                f"(scan {self.scan})"
+                f"({self.sample_name}, {self.scan})"
             )
 
             run_postprocessing(prm=self.params["postprocessing"])
@@ -834,7 +854,7 @@ class BcdiPipeline:
 
             pretty_print(
                 "[INFO] Running post-processing using cdiutils backend "
-                f"(scan {self.scan})"
+                f"({self.sample_name}, {self.scan})"
             )
 
             if self.bcdi_processor is None:
