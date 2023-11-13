@@ -12,7 +12,6 @@ from cdiutils.load.load_data import load_data_from_cxi
 
 def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
 
-
     print(f"\n[INFO] Candidates with the lowest {criterion} will be saved.\n")
 
     if criterion == "llkf":
@@ -25,7 +24,7 @@ def find_best_candidates(files, nb_to_keep=5, criterion="llkf", plot=False):
             LLKFs[f] = data_dic["llkf"]
             LLKs[f] = data_dic["llk"]
 
-        print("\n[INFO]Sorting files...")
+        print("\n[INFO] Sorting files...")
 
         # sort the dictionary
         sorted_LLKFs = dict(sorted(LLKFs.items(),

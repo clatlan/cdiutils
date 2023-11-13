@@ -654,6 +654,11 @@ class BcdiPipeline:
     ) -> None:
         """Find the best candidates of the PyNX output"""
 
+        print(
+            "[WARNING] This function is deprecated, and will be removed.\n"
+            "Please use select_best_candidates instead."
+        )
+
         pretty_print(
             "[INFO] Finding the best candidates of the PyNX run with "
             f"criterion: {criterion}. ({self.sample_name}, {self.scan})"
