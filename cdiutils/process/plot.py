@@ -18,7 +18,11 @@ from cdiutils.plot.formatting import (
 from cdiutils.plot.slice import plot_contour
 
 
-def plot_phasing_result(file_path: str, title: str = None) -> None:
+def plot_phasing_result(
+        file_path: str,
+        title: str = None,
+        plot_amplitude: bool = False
+) -> None:
     """
     Plot the reconstructed object in reciprocal and direct spaces.
     """
@@ -30,9 +34,8 @@ def plot_phasing_result(file_path: str, title: str = None) -> None:
         shape = find_suitable_array_shape(support)
         reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
 
-        subplots = (2, 3)
-        figsize = get_figure_size(fraction=0.75, subplots=subplots)
-        figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
+        figsize = get_figure_size(fraction=0.75, subplots=(3, 3))
+        figure, axes = plt.subplots(2, 3, figsize=figsize)
 
         com = nan_center_of_mass(support)
         data = center(data, where=com)
@@ -40,7 +43,7 @@ def plot_phasing_result(file_path: str, title: str = None) -> None:
         shape = data.shape
 
         direct_space_amplitude = np.abs(data)
-        direct_space_amplitude = (
+        normalised_direct_space_amplitude = (
             (direct_space_amplitude - np.min(direct_space_amplitude))
             / np.ptp(direct_space_amplitude)
         )
@@ -55,24 +58,35 @@ def plot_phasing_result(file_path: str, title: str = None) -> None:
                 np.log10(np.sum(reciprocal_space_data, axis=i)),
                 cmap="turbo"
             )
-            direct_space_im = axes[1, i].matshow(
-                direct_space_phase[s],
-                vmin=-np.pi,
-                vmax=np.pi,
-                alpha=direct_space_amplitude[s],
-                cmap="cet_CET_C9s"
-            )
+            if plot_amplitude:
+                direct_space_im = axes[1, i].matshow(
+                    direct_space_amplitude[s],
+                    vmin=0,
+                    vmax=direct_space_amplitude.max(),
+                    cmap="turbo"
+                )
+            else:
+                direct_space_im = axes[1, i].matshow(
+                    direct_space_phase[s],
+                    vmin=-np.pi,
+                    vmax=np.pi,
+                    alpha=normalised_direct_space_amplitude[s],
+                    cmap="cet_CET_C9s"
+                )
         figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
         figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
 
-        axes[0, 1].set_title("Log(Int.) (a.u.)")
-        axes[1, 1].set_title("Phase (rad)")
+        axes[0, 1].set_title("Log. Proj. intensity (a.u.)")
+        axes[1, 1].set_title(
+            "Amplitude (a.u.)" if plot_amplitude else "Phase (rad)"
+        )
 
         for ax in axes.ravel():
             ax.set_xticks([])
             ax.set_yticks([])
 
         figure.suptitle(title)
+        figure.tight_layout()
 
 
 def preprocessing_detector_data_plot(
@@ -118,7 +132,7 @@ def preprocessing_detector_data_plot(
     figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
-    log_cropped_data = np.log10(cropped_data + 1)
+    log_cropped_data = np.log10(cropped_data)
     vmin = 0
     vmax = np.max(log_cropped_data)
     final_shape = cropped_data.shape
@@ -164,19 +178,21 @@ def preprocessing_detector_data_plot(
             np.repeat(det_reference_voxel[2], 2),
             det_reference_voxel[0] + np.array(
                 [-0.1*initial_shape[0], 0.1*initial_shape[0]]),
-            color="w", 
+            color="w",
             lw=0.5
         )
         axes[0, 1].plot(
             det_reference_voxel[2] + np.array(
                 [-0.1*initial_shape[2], 0.1*initial_shape[2]]),
             np.repeat(det_reference_voxel[0], 2),
-            color="w", 
+            color="w",
             lw=0.5
         )
 
         mappable = axes[0, 2].matshow(
-            np.swapaxes(log_data[..., det_reference_voxel[2]], axis1=0, axis2=1),
+            np.swapaxes(
+                log_data[..., det_reference_voxel[2]], axis1=0, axis2=1
+            ),
             vmin=vmin,
             vmax=vmax,
             cmap="turbo",
