@@ -655,7 +655,7 @@ class BcdiPipeline:
         """Find the best candidates of the PyNX output"""
 
         print(
-            "[WARNING] This function is deprecated, and will be removed.\n"
+            "[WARNING] This function is deprecated and will be removed.\n"
             "Please use select_best_candidates instead."
         )
 
