@@ -291,7 +291,7 @@ class PostProcessor:
             voxel_size: np.ndarray or tuple or list,
             phase_factor: int = -1,
             handle_defects: bool = False,
-    ) -> np.ndarray:
+    ) -> dict:
         """
         Main method used in the post-processing workflow. The method
         computes all the structural properties of interest in BCDI
@@ -303,7 +303,7 @@ class PostProcessor:
             (rho e^(i phi))
             g_vector (np.ndarray or tuple or list): the reciprocal space
             node on which the displacement gradient must be projected.
-            hkl (tuple or list): _description_
+            hkl (tuple or list): the probed Bragg reflection.
             voxel_size (np.ndarray or tuple or list): the voxel size of
             the 3D array.
             phase_factor (int, optional): the factor the phase should
@@ -315,7 +315,13 @@ class PostProcessor:
             strain computation is different. Defaults to False.
 
         Returns:
-            np.ndarray: _description_
+            dict: the structural properties of the object in the form of
+            a dictionary. Each key corresponds to one quantity of'
+            interest, including: amplitude, support, phase,
+            displacement, displacement_gradient (in all three
+            directions), het. (heterogeneous) strain using various
+            methods, d-spacing, lattice parameter 3D maps. hkl, g_vector
+            and voxel size are also returned.
         """
         complex_object, support = cls.prepare_volume(
             complex_object, isosurface=isosurface)
