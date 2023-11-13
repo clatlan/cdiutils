@@ -27,11 +27,6 @@ from cdiutils.load.p10 import P10Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.postprocess import PostProcessor
-from cdiutils.process.phase import (
-    get_structural_properties,
-    blackman_apodize,
-    flip_reconstruction,
-)
 from cdiutils.process.plot import (
     preprocessing_detector_data_plot,
     summary_slice_plot,
@@ -113,6 +108,7 @@ class BcdiProcessor:
 
         self.dump_dir = self.params["metadata"]["dump_dir"]
         self.scan = self.params["metadata"]["scan"]
+        self.sample_name = self.params["metadata"]["sample_name"]
 
         # initialize figures
         self.figures = {
@@ -379,8 +375,8 @@ class BcdiProcessor:
             self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
             self.verbose_print(
-                f"[SHAPE & CROPPING] The reference voxel was found at {det_ref} "
-                f"in the uncropped data frame\n" 
+                "[SHAPE & CROPPING] The reference voxel was found at "
+                f"{det_ref} in the uncropped data frame\n"
                 f"The processing_out_put_shape being {final_shape}, the roi "
                 f"used to crop the data is {roi}.\n"
             )
@@ -394,7 +390,7 @@ class BcdiProcessor:
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(
             self.cropped_detector_data, "max")
-        cropped_det_com =  CroppingHandler.get_position(
+        cropped_det_com = CroppingHandler.get_position(
             self.cropped_detector_data, "com")
 
         # self.init_space_converter(roi=roi[2:]) # we only need the 2D roi
@@ -481,7 +477,6 @@ class BcdiProcessor:
         #     self.space_converter.cropped_shape = self.cropped_detector_data.shape
         #     self.space_converter.full_shape = self.cropped_detector_data.shape
 
-
         # Initialise the interpolator so we won't need to reload raw
         # data during the post processing. The converter will be saved.
         self.space_converter.init_interpolator(
@@ -517,11 +512,10 @@ class BcdiProcessor:
                 where_in_ortho_space,
                 title=(
                     r"From \textbf{detector frame} to \textbf{q lab frame}"
-                    f", S{self.scan}"
+                    f", {self.sample_name}, {self.scan}"
                 )
             )
         )
-
 
         # Update the preprocessing_output_shape and the det_reference_voxel
         self.params["preprocessing_output_shape"] = final_shape
@@ -531,8 +525,8 @@ class BcdiProcessor:
         # final frame
         self.figures["preprocessing"]["figure"] = (
             preprocessing_detector_data_plot(
-                detector_data=self.detector_data,
                 cropped_data=self.cropped_detector_data,
+                detector_data=self.detector_data,
                 det_reference_voxel=det_ref,
                 det_max_voxel=full_det_max,
                 det_com_voxel=full_det_com,
@@ -540,16 +534,15 @@ class BcdiProcessor:
                 cropped_com_voxel=cropped_det_com,
                 title=(
                     "Detector data preprocessing, "
-                    f"S{self.scan}"
+                    f"{self.sample_name}, {self.scan}"
                 )
             )
         )
 
     def save_preprocessed_data(self):
 
-
         pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
-        
+
         np.savez(
             f"{pynx_phasing_dir}S{self.scan}_pynx_input_data.npz",
             data=self.cropped_detector_data
@@ -559,7 +552,7 @@ class BcdiProcessor:
             mask=self.mask
         )
 
-        template_path= (
+        template_path = (
             f"{self.dump_dir}/cdiutils_S"
             f"{self.scan}"
         )
@@ -854,7 +847,7 @@ class BcdiProcessor:
         }
         try:
             self.figures["postprocessing"]["figure"] = summary_slice_plot(
-                title=f"Summary figure, S{self.scan}",
+                title=f"Summary figure, {self.sample_name}, {self.scan}",
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
                 voxel_size=self.voxel_size,
@@ -867,7 +860,7 @@ class BcdiProcessor:
         except TypeError as exc:
             raise TypeError(
                 "Something went wrong during plotting. "
-                "Won't plot summary slice plot"
+                "Won't plot summary slice plot."
             ) from exc
 
         strain_plots = {
@@ -878,7 +871,7 @@ class BcdiProcessor:
         }
         if self.params["debug"]:
             self.figures["strain"]["figure"] = summary_slice_plot(
-                title=f"Strain check figure, S{self.scan}",
+                title=f"Strain check figure, {self.sample_name}, {self.scan}",
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
                 voxel_size=self.voxel_size,
@@ -966,7 +959,7 @@ class BcdiProcessor:
                 where_in_ortho_space=where_in_ortho_space,
                 title=(
                     r"FFT of final object \textit{vs.} experimental data"
-                    f", S{self.scan}"
+                    f", {self.sample_name}, {self.scan}"
                 )
             )
 
