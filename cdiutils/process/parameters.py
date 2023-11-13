@@ -31,7 +31,6 @@ AUTHORIZED_KEYS = {
         "show": False,
         "verbose": True,
         "debug": True,
-        "show_phasing_results": False,
         "binning_factors": (1, 1, 1),
         "handle_defects": False
     },
