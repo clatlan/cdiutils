@@ -12,19 +12,22 @@ import xrayutilities as xu
 from cdiutils.plot.formatting import get_figure_size
 
 
-def pretty_print(text: str, max_char_per_line: int=80) -> None:
+def pretty_print(text: str, max_char_per_line: int = 79) -> None:
     """Print text with a frame of stars."""
 
-    stars = "*" * max_char_per_line
-    print("\n" + stars)
-    print("*", end="")
-    for i in range((max_char_per_line-len(text))//2 - 1):
-        print(" ", end="")
-    print(textwrap.fill(text, max_char_per_line), end="")
-    for i in range((max_char_per_line-len(text))//2 - 1 + len(text)%2):
-        print(" ", end="")
-    print("*")
-    print(stars + "\n")
+    pretty_text = "\n".join(
+        [
+            "",
+            "*" * (max_char_per_line+4),
+            *[
+                f"* {w[::-1].center(max_char_per_line)[::-1]} *"
+                for w in textwrap.wrap(text, width=max_char_per_line)
+            ],
+            "*" * (max_char_per_line+4),
+            "",
+        ]
+    )
+    print(pretty_text)
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
@@ -32,12 +35,13 @@ def size_up_support(support: np.ndarray) -> np.ndarray:
     convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
     return np.where(convolved_support > 3, 1, 0)
 
+
 def find_hull(
         volume: np.ndarray,
-        threshold: float=18,
-        kernel_size: int=3,
-        boolean_values: bool=False,
-        nan_value: bool=False
+        threshold: float = 18,
+        kernel_size: int = 3,
+        boolean_values: bool = False,
+        nan_value: bool = False
 ) -> np.ndarray:
     """
     Find the convex hull of a 3D volume object.
@@ -581,7 +585,7 @@ class CroppingHandler:
         )
         cropped_data = masked_data.data[cls.roi_list_to_slices(roi)]
         cropped_position = tuple(p - r for p, r in zip(position, roi[::2]))
-        return cropped_data, position, cropped_position, roi
+        return cropped_data.copy(), position, cropped_position, roi
 
     @classmethod
     def force_centered_cropping(
@@ -636,7 +640,7 @@ def compute_corrected_angles(
         detector_coordinates: tuple,
         detector_distance: float,
         direct_beam_position: tuple,
-        pixel_size: float=55e-6,
+        pixel_size: float = 55e-6,
         verbose=False
 ) -> tuple[float, float]:
     """
