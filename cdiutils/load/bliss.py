@@ -1,8 +1,11 @@
 from typing import Callable
 import dateutil.parser
 import numpy as np
+import hdf5plugin
 import os
 import silx.io.h5py_utils
+
+from cdiutils.utils import CroppingHandler
 
 
 def safe(func: Callable) -> Callable:
@@ -13,6 +16,8 @@ def safe(func: Callable) -> Callable:
     return wrap
 
 # TODO: get_mask function should be detector beamline setup independent
+
+
 class BlissLoader():
     """
     A class to handle loading/reading .h5 files that were created using
@@ -30,9 +35,9 @@ class BlissLoader():
             self,
             experiment_file_path: str,
             detector_name: str,
-            sample_name: str=None,
-            flatfield: np.ndarray or  str=None,
-            alien_mask: np.ndarray or str=None
+            sample_name: str = None,
+            flatfield: np.ndarray or str = None,
+            alien_mask: np.ndarray or str = None
     ):
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
@@ -44,7 +49,7 @@ class BlissLoader():
         if isinstance(flatfield, str) and flatfield.endswith(".npz"):
             self.flatfield = np.load(flatfield)["arr_0"]
         elif isinstance(flatfield, np.ndarray):
-            self.flatfield=flatfield
+            self.flatfield = flatfield
         elif flatfield is None:
             self.flatfield = None
         else:
@@ -52,7 +57,7 @@ class BlissLoader():
                 "[ERROR] wrong value for flatfield parameter, provide a path, "
                 "np.ndarray or leave it to None"
             )
-        
+
         if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
             self.alien_mask = np.load(alien_mask)["arr_0"]
         elif isinstance(alien_mask, np.ndarray):
@@ -69,10 +74,10 @@ class BlissLoader():
     def load_detector_data(
             self,
             scan: int,
-            sample_name: str=None,
-            roi: tuple[slice]=None,
-            binning_along_axis0: int=None,
-            binning_method: str="sum"
+            sample_name: str = None,
+            roi: tuple[slice] = None,
+            binning_along_axis0: int = None,
+            binning_method: str = "sum"
     ) -> np.ndarray:
         """Load the detector data of a given scan number."""
 
@@ -89,11 +94,13 @@ class BlissLoader():
             roi = tuple(slice(None) for i in range(3))
         elif len(roi) == 2:
             roi = tuple([slice(None), roi[0], roi[1]])
+        elif all(isinstance(e, int) for e in roi):
+            roi = CroppingHandler.roi_list_to_slices(roi)
 
         try:
             if binning_along_axis0:
                 data = h5file[key_path][()]
-            else:   
+            else:
                 data = h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
