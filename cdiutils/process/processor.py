@@ -1,11 +1,9 @@
 import os
 
-# from matplotlib import font_manager
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-from scipy.ndimage import center_of_mass
 import silx.io.h5py_utils
 from tabulate import tabulate
 import textwrap
@@ -34,6 +32,7 @@ from cdiutils.process.plot import (
     plot_q_lab_orthogonalization_process,
     plot_final_object_fft
 )
+from cdiutils.plot.colormap import RED_TO_TEAL
 
 
 def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loader:
@@ -122,6 +121,10 @@ class BcdiProcessor:
             },
             "strain": {
                 "name": "different_strain_methods",
+                "debug": True
+            },
+            "displacement_gradient": {
+                "name": "displacement_gradient",
                 "debug": True
             },
             "amplitude": {
@@ -240,7 +243,8 @@ class BcdiProcessor:
                 det_ref = (self.detector_data.shape[0] // 2, ) + tuple(det_ref)
 
             # check if shape dimensions are even
-            checked_shape = tuple(s-1 if s%2 == 1 else s for s in final_shape)
+            checked_shape = tuple(
+                s-1 if s % 2 == 1 else s for s in final_shape)
             if checked_shape != final_shape:
                 self.verbose_print(
                     f"PyNX needs even input shapes, requested shape "
@@ -474,7 +478,7 @@ class BcdiProcessor:
         #         rebin_f=(1, )+self.params["binning_factors"],
         #         scale="average"
         #     )
-        #     self.space_converter.cropped_shape = self.cropped_detector_data.shape
+        #     self.space_converter.cropped_shape = (self.cropped_detector_data.shape
         #     self.space_converter.full_shape = self.cropped_detector_data.shape
 
         # Initialise the interpolator so we won't need to reload raw
@@ -610,9 +614,8 @@ class BcdiProcessor:
                 fig["figure"].savefig(
                     fig_path,
                     dpi=200,
-                    bbox_inches="tight"
+                    # bbox_inches="tight"
                 )
-
 
     def orthogonalize(self):
         """
@@ -807,30 +810,28 @@ class BcdiProcessor:
             self.verbose_print(
                 "[POST-PROCESSING] Defect handling requested."
             )
-            pass
-        else:
-            self.verbose_print(
-                "[POST-PROCESSING] Computing the structural properties:"
-                "\n\t- phase \n\t- displacement"
-                "\n\t- het. (heterogeneous) strain"
-                "\n\t- d-spacing\n\t- lattice parameter."
-                "\nhet. strain maps are computed using various methods, either"
-                " phase ramp removal or d-spacing method.",
-                wrap=False
-            )
-            self.structural_properties = (
-                    PostProcessor.get_structural_properties(
-                        complex_object,
-                        isosurface=isosurface,
-                        g_vector=SpaceConverter.lab_to_cxi_conventions(
-                            self.params["q_lab_reference"]
-                        ),
-                        hkl=self.params["hkl"],
-                        voxel_size=self.voxel_size,
-                        phase_factor=-1,  # it came out pynx
-                        handle_defects=False
-                    )
-            )
+        self.verbose_print(
+            "[POST-PROCESSING] Computing the structural properties:"
+            "\n\t- phase \n\t- displacement"
+            "\n\t- het. (heterogeneous) strain"
+            "\n\t- d-spacing\n\t- lattice parameter."
+            "\nhet. strain maps are computed using various methods, either"
+            " phase ramp removal or d-spacing method.",
+            wrap=False
+        )
+        self.structural_properties = (
+                PostProcessor.get_structural_properties(
+                    complex_object,
+                    isosurface=self.params["isosurface"],
+                    g_vector=SpaceConverter.lab_to_cxi_conventions(
+                        self.params["q_lab_reference"]
+                    ),
+                    hkl=self.params["hkl"],
+                    voxel_size=self.voxel_size,
+                    phase_factor=-1,  # it came out pynx
+                    handle_defects=self.params["handle_defects"]
+                )
+        )
 
         self.averaged_dspacing = np.nanmean(
             self.structural_properties["dspacing"]
@@ -863,13 +864,15 @@ class BcdiProcessor:
                 "Won't plot summary slice plot."
             ) from exc
 
-        strain_plots = {
-            k: self.structural_properties[k]
-            for k in ["het_strain", "het_strain_from_dspacing",
-                      "het_strain_from_dspacing", "numpy_het_strain",
-                      "het_strain_with_ramp"]
-        }
         if self.params["debug"]:
+            strain_plots = {
+                k: self.structural_properties[k]
+                for k in [
+                    "het_strain", "het_strain_from_dspacing",
+                    "het_strain_from_dspacing", "numpy_het_strain",
+                    "het_strain_with_ramp"
+                ]
+            }
             self.figures["strain"]["figure"] = summary_slice_plot(
                 title=f"Strain check figure, {self.sample_name}, {self.scan}",
                 support=zero_to_nan(self.structural_properties["support"]),
@@ -882,6 +885,68 @@ class BcdiProcessor:
                 single_vmin=-self.structural_properties["het_strain"].ptp()/2,
                 single_vmax=self.structural_properties["het_strain"].ptp()/2,
                 **strain_plots
+            )
+
+            # take care of the axis names for the displacement gradient
+            # plots
+            axis_names = [
+                r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"
+            ]
+            if self.params["usetex"]:
+                axis_title_template = (
+                    r"$\frac{\partial u_" + "{"
+                    + f"{''.join([str(e) for e in self.params['hkl']])}"
+                    + "}}"
+                )
+                titles = [
+                    axis_title_template + r"{\partial " + axis_names[i] + "}$"
+                    for i in range(3)
+                ]
+            else:
+                axis_title_template = (
+                    "du_" + "{"
+                    + f"{''.join([str(e) for e in self.params['hkl']])}" + "}"
+                )
+                titles = [
+                    fr"${axis_title_template}/d{axis_names[i]}$"
+                    for i in range(3)
+                ]
+
+            displacement_gradient_plots = {
+                titles[i]: (
+                    self.structural_properties["displacement_gradient"][i]
+                )
+                for i in range(3)
+            }
+            ptp_value = (
+                np.nanmax(
+                    self.structural_properties["displacement_gradient"][0])
+                - np.nanmin(
+                    self.structural_properties["displacement_gradient"][0])
+            )
+            print(ptp_value, self.structural_properties["het_strain"].ptp())
+            self.figures["displacement_gradient"]["figure"] = (
+                    summary_slice_plot(
+                        title=(
+                            "Displacement gradient, "
+                            f"{self.sample_name}, {self.scan}"
+                        ),
+                        support=zero_to_nan(
+                            self.structural_properties["support"]
+                        ),
+                        dpi=200,
+                        voxel_size=self.voxel_size,
+                        isosurface=self.params["isosurface"],
+                        det_reference_voxel=self.params["det_reference_voxel"],
+                        averaged_dspacing=self.averaged_dspacing,
+                        averaged_lattice_parameter=(
+                            self.averaged_lattice_parameter
+                        ),
+                        single_vmin=-ptp_value/2,
+                        single_vmax=ptp_value/2,
+                        cmap=RED_TO_TEAL,
+                        **displacement_gradient_plots
+                    )
             )
 
         if self.params["debug"]:
@@ -900,10 +965,12 @@ class BcdiProcessor:
                 ]
             shape = orthogonalized_intensity.shape
             # convert to lab conventions and pad the data
+            # We must multiply by -1 the phase to compare with the
+            # measured intensity.
             final_object_fft = symmetric_pad(
                 self.space_converter.cxi_to_lab_conventions(
                     self.structural_properties["amplitude"]
-                    * np.exp(1j*self.structural_properties["phase"])
+                    * np.exp(-1j*self.structural_properties["phase"])
                 ),
                 final_shape=shape
             )
@@ -911,7 +978,7 @@ class BcdiProcessor:
                 np.fft.fftn(
                     np.fft.fftshift(final_object_fft)
                 )
-            ))** 2
+            )) ** 2
 
             extension = np.multiply(self.voxel_size, shape)
             voxel_size_of_fft_object = (2*np.pi / (10 * extension))
@@ -941,7 +1008,7 @@ class BcdiProcessor:
                 self.params["det_reference_voxel"]
                 )
             cropped_det_ref = tuple(
-                    p - r if r else p # if r is None, p-r must be p
+                    p - r if r else p  # if r is None, p-r must be p
                     for p, r in zip(
                         self.params["det_reference_voxel"], roi[::2])
             )
@@ -1153,10 +1220,10 @@ class BcdiProcessor:
     def save_to_vti(
             output_path: str,
             voxel_size: tuple or list or np.ndarray,
-            cxi_convention: bool=False,
-            origin: tuple=(0, 0, 0),
+            cxi_convention: bool = False,
+            origin: tuple = (0, 0, 0),
             **np_arrays: dict[np.ndarray]
-    ) -> None :
+    ) -> None:
         """
         Save numpy arrays to .vti file.
         """
