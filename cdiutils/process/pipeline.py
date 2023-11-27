@@ -508,7 +508,7 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-    def find_phasing_results(self) -> list:
+    def find_phasing_results(self) -> None:
         """
         Find the last phasing results (.cxi files) and add them to the
         given list if provided, otherwise create the list.
@@ -669,7 +669,7 @@ class BcdiPipeline:
             for f in files:
                 os.remove(f)
 
-        self.phasing_results = self.find_phasing_results(self.phasing_results)
+        self.find_phasing_results()
         if not self.phasing_results:
             raise ValueError(
                 "No PyNX output in the following directory: "
@@ -714,8 +714,10 @@ class BcdiPipeline:
                 )
             best_candidates = list(self._sorted_phasing_results.keys())
             best_candidates = best_candidates[:nb_of_best_sorted_runs]
-
-        print(f"[INFO] Best runs selected:\n{best_candidates}")
+        print(
+            "[INFO] Best runs selected:\n"
+            f"{[file.split('Run')[1][2:4] for file in best_candidates]}"
+        )
         for i, f in enumerate(best_candidates):
             dir_name, file_name = os.path.split(f)
             run_nb = file_name.split("Run")[1][2:4]
