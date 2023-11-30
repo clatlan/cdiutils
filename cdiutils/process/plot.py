@@ -34,7 +34,7 @@ def plot_phasing_result(
         shape = find_suitable_array_shape(support)
         reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
 
-        figsize = get_figure_size(fraction=0.75, subplots=(3, 3))
+        figsize = get_figure_size(scale=0.75, subplots=(3, 3))
         figure, axes = plt.subplots(2, 3, figsize=figsize)
 
         com = nan_center_of_mass(support)
@@ -446,6 +446,7 @@ def summary_slice_plot(
         support: np.ndarray = None,
         single_vmin: float = None,
         single_vmax: float = None,
+        cmap: str = None,
         **kwargs
 ) -> matplotlib.figure.Figure:
 
@@ -462,10 +463,9 @@ def summary_slice_plot(
     else:
         aspect_ratios = {"zy": "auto", "zx": "auto", "yx": "auto"}
 
-    subplots = (5, len(kwargs))
-    figsize = get_figure_size(subplots=subplots)
+    figsize = get_figure_size()
     figure, axes = plt.subplots(
-        subplots[0]-2, subplots[1], figsize=figsize
+        3, len(kwargs), figsize=figsize
     )
 
     axes[0, 0].annotate(
@@ -525,6 +525,10 @@ def summary_slice_plot(
             else:
                 vmin = single_vmin
                 vmax = single_vmax
+        else:
+            vmin = single_vmin
+            vmax = single_vmax
+            cmap = cmap if cmap else "turbo"
 
         shape = array.shape
 
@@ -601,7 +605,10 @@ def summary_slice_plot(
     for i, key in enumerate(kwargs.keys()):
         l, _, w, _ = axes[0, i].get_position().bounds
         cax = figure.add_axes([l+0.01, 0.93, w-0.02, .02])
-        cax.set_title(PLOT_CONFIGS[key]["title"])
+        try:
+            cax.set_title(PLOT_CONFIGS[key]["title"])
+        except KeyError:
+            cax.set_title(key)
         figure.colorbar(
             mappables[key], cax=cax, extend="both", orientation="horizontal"
         )
@@ -627,7 +634,6 @@ def summary_slice_plot(
     # save the figure
     if save:
         figure.savefig(save, dpi=dpi)
-
     return figure
 
 

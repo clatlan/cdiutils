@@ -594,7 +594,7 @@ class BcdiPipeline:
             for file in self._sorted_phasing_results.keys()
         ]
 
-        figsize = get_figure_size(fraction=0.75)
+        figsize = get_figure_size(scale=0.75)
         figure, ax = plt.subplots(1, 1, figsize=figsize)
         colors = {
             m: c for m, c in zip(
