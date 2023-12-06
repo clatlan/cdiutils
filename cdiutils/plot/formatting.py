@@ -11,8 +11,7 @@ def set_plot_configs():
     ANGSTROM_SYMBOL = None
     PERCENT_SYMBOL = None
     PLOT_CONFIGS = None
-    
-    
+
     if matplotlib.rcParams["text.usetex"]:
         ANGSTROM_SYMBOL = r"$\si{\angstrom}$"
         PERCENT_SYMBOL = r"\%"
@@ -21,7 +20,7 @@ def set_plot_configs():
         PERCENT_SYMBOL = "%"
 
     PLOT_CONFIGS = {
-        "amplitude":{
+        "amplitude": {
             "title": "Amplitude (a.u.)",
             "cmap": "turbo",
             "vmin": 0,
@@ -44,6 +43,12 @@ def set_plot_configs():
             "cmap": "cet_CET_D13",
             "vmin": -0.05,
             "vmax": 0.05,
+        },
+        "displacement_gradient": {
+            "title": r"Displacement gradient",
+            "cmap": "Spectral_r",
+            "vmin": -5 * 1e-4,
+            "vmax": 5 * 1e-4
         },
         "dspacing": {
             "title": fr"dspacing ({ANGSTROM_SYMBOL})",
@@ -172,7 +177,7 @@ def update_plot_params(
 
 def get_figure_size(
         width: int or str = "default",
-        fraction: float = 1,
+        scale: float = 1,
         subplots: tuple = (1, 1)
 ) -> tuple:
     """
@@ -190,7 +195,7 @@ def get_figure_size(
     :return: dimensions of the figure in inches (tuple)
     """
     if width == 'default':
-        width_pt = 450
+        width_pt = 390
     elif width == 'thesis':
         width_pt = 455.30101
     elif width == 'beamer':
@@ -201,13 +206,14 @@ def get_figure_size(
         width_pt = width
 
     # Width of figure (in pts)
-    fig_width_pt = width_pt * fraction
-    # Convert from pt to inches
-    inches_per_pt = 1 / 72.27
+    fig_width_pt = width_pt * scale
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
     golden_ratio = (5**.5 - 1) / 2
+
+    # Convert from pt to inches
+    inches_per_pt = 1 / 72.27
 
     # Figure width in inches
     fig_width_in = fig_width_pt * inches_per_pt
