@@ -108,7 +108,6 @@ class BlissLoader():
                 "Are sample_name, scan number or detector name correct?"
             ) from exc
 
-
         if binning_along_axis0:
             original_dim0 = data.shape[0]
             nb_of_bins = original_dim0 // binning_along_axis0
@@ -135,7 +134,7 @@ class BlissLoader():
         return data
 
     @safe
-    def get_array_shape(self, scan: int, sample_name: str=None) -> tuple:
+    def get_array_shape(self, scan: int, sample_name: str = None) -> tuple:
         h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
@@ -150,7 +149,7 @@ class BlissLoader():
     def show_scan_attributes(
             self,
             scan: int,
-            sample_name: str=None,
+            sample_name: str = None,
     ) -> None:
         """Print the attributes (keys) of a given scan number"""
         h5file = self.h5file
