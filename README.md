@@ -2,19 +2,20 @@
 
 [![DOI](https://zenodo.org/badge/360442527.svg)](https://zenodo.org/badge/latestdoi/360442527)
 
-My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflow. I developped the package during my PhD.
+My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developped the package during my PhD.
 
-The package allows for the handling of the three main stages of a BCDI data processing workflow:
+The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
-* the proprocessing (data centering and cropping)
-* the phase retrieval using PyNX.
-* the post processing (orthogonalization, phase manipulation, strain computation etc.)
+* **Proprocessing** (data centering and cropping)
+* **Phase retrieval**: utilises  PyNX for accurate phasing (refer to PyNX documentation).
+* **Post processing** (orthogonalisation, phase manipulation, strain computation etc.)
 
-It is assumed that the phase retrieval is carried out by the PyNX package (see [http://ftp.esrf.fr/pub/scisoft/PyNX/doc/]()). The BcdiPipeline class runs the three stages and can manage connection to different machines if required (GPU  for phase retrieval).
+It is assumed that the phase retrieval is condcuted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval.
 
-Pre- and post-processing do not require GPUs and can be run using the present package (cdiutils backend) or the `bcdi` package (see [https://github.com/carnisj/bcdi]()) (bcdi backend).
+Some features of this package include:
 
-The package also provide utility fonctions to analyze processed data and plot them for potential publications.
+* **Flexibility in Hardware:** While the phase retrieval stage may leverage GPUs, pre- and post-processing can be executed without GPU support. Users have the option to choose the present package (using the `cdiutils` backend) or the [bcdi package](https://github.com/carnisj/bcdi) (with the `bcdi` backend).
+* **Utility Functions:** The package provides utility functions to analyze processed data and generate plots suitable for potential publications.
 
 ## Installation
 
