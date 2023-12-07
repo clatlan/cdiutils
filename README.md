@@ -7,7 +7,7 @@ My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practi
 The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
 * **Proprocessing** (data centering and cropping)
-* **Phase retrieval**: utilises  PyNX for accurate phasing (refer to PyNX documentation).
+* **Phase retrieval**: utilises  PyNX for accurate phasing (refer to [PyNX documentation](http://ftp.esrf.fr/pub/scisoft/PyNX/doc/)).
 * **Post processing** (orthogonalisation, phase manipulation, strain computation etc.)
 
 It is assumed that the phase retrieval is condcuted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval.
