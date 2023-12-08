@@ -509,8 +509,8 @@ class BcdiProcessor:
 
         self.figures["q_lab_orthogonalization"]["figure"] = (
             plot_q_lab_orthogonalization_process(
-                self.cropped_detector_data,
-                self.orthogonalized_intensity,
+                self.cropped_detector_data.copy(),
+                self.orthogonalized_intensity.copy(),
                 q_lab_regular_grid,
                 cropped_det_ref,
                 where_in_ortho_space,
