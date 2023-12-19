@@ -530,7 +530,9 @@ class BcdiProcessor:
         self.figures["preprocessing"]["figure"] = (
             preprocessing_detector_data_plot(
                 cropped_data=self.cropped_detector_data.copy(),
-                detector_data=self.detector_data.copy(),
+                detector_data=(
+                    self.detector_data.copy() if self.detector_data else None
+                ),
                 det_reference_voxel=det_ref,
                 det_max_voxel=full_det_max,
                 det_com_voxel=full_det_com,
