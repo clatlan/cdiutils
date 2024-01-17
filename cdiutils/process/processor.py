@@ -531,7 +531,8 @@ class BcdiProcessor:
             preprocessing_detector_data_plot(
                 cropped_data=self.cropped_detector_data.copy(),
                 detector_data=(
-                    self.detector_data.copy() if self.detector_data else None
+                    None if self.detector_data is None
+                    else self.detector_data.copy()
                 ),
                 det_reference_voxel=det_ref,
                 det_max_voxel=full_det_max,
