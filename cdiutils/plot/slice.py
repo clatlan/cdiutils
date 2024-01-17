@@ -575,7 +575,7 @@ def plot_diffraction_patterns(
 
 def plot_contour(ax, support_2D, linewidth=1, color="k"):
     shape = support_2D.shape
-    X, Y = np.meshgrid(np.arange(0, shape[0]), np.arange(0, shape[1]))
+    X, Y = np.meshgrid(np.arange(0, shape[1]), np.arange(0, shape[0]))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
         ax.contour(
