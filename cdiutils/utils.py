@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 import matplotlib
 import seaborn as sns
-from scipy.ndimage import convolve, center_of_mass  
+from scipy.ndimage import convolve, center_of_mass
 from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
@@ -180,9 +180,9 @@ def _center_at_com(data: np.ndarray):
 
 def center(
         data: np.ndarray,
-        where: str or tuple or  list or  np.ndarray="com",
-        return_former_center: bool=False
-) -> np.ndarray or tuple[np.ndarray, tuple]:
+        where: str | tuple | list | np.ndarray = "com",
+        return_former_center: bool = False
+) -> np.ndarray | tuple[np.ndarray, tuple]:
     """
     Center 3D volume data such that the center of mass or max  of data
     is at the very center of the 3D matrix.
@@ -230,8 +230,8 @@ def center(
 
 def symmetric_pad(
         data: np.ndarray,
-        final_shape: tuple or list or np.ndarray,
-        values: float=0
+        final_shape: tuple | list | np.ndarray,
+        values: float = 0
 ) -> np.ndarray:
     """Return padded data so it matches the provided final_shape"""
 
@@ -255,7 +255,7 @@ def symmetric_pad(
 
 def crop_at_center(
         data: np.ndarray,
-        final_shape: list or tuple or np.ndarray
+        final_shape: list | tuple | np.ndarray
 ) -> np.ndarray:
     """
     Crop 3D array data to match the final_shape. Center of the input
@@ -293,7 +293,7 @@ def crop_at_center(
 
 def compute_distance_from_com(
         data: np.ndarray,
-        com: tuple or list or np.ndarray=None
+        com: tuple or list or np.ndarray = None
 ) -> np.ndarray:
     """
     Return a np.ndarray of the same shape of the provided data.
@@ -317,7 +317,7 @@ def compute_distance_from_com(
 
 def zero_to_nan(
         data: np.ndarray,
-        boolean_values: bool=False
+        boolean_values: bool = False
 ) -> np.ndarray:
     """Convert zero values to np.nan."""
     return np.where(data == 0, np.nan, 1 if boolean_values else data)
@@ -325,20 +325,20 @@ def zero_to_nan(
 
 def nan_to_zero(
         data: np.ndarray,
-        boolean_values: bool=False
+        boolean_values: bool = False
 ) -> np.ndarray:
     """Convert np.nan values to 0."""
     return np.where(np.isnan(data), 0, 1 if boolean_values else data)
 
 
-def to_bool(data: np.ndarray, nan_value: bool=False) -> np.ndarray:
+def to_bool(data: np.ndarray, nan_value: bool = False) -> np.ndarray:
     """Convert values to 1 (True) if not nan otherwise to 0 (False)"""
     return np.where(np.isnan(data), np.nan if nan_value else 0, 1)
 
 
 def nan_center_of_mass(
         data: np.ndarray,
-        return_int: bool=False
+        return_int: bool = False
 ) -> np.ndarray:
     """
     Compute the center of mass of a np.ndarray that may contain
@@ -411,7 +411,7 @@ class CroppingHandler:
 
     @staticmethod
     def get_position(
-            data: np.ndarray, method: str or tuple[int, ...]
+            data: np.ndarray, method: str | tuple[int, ...]
     ) -> tuple[int, ...]:
         """
         Get the position of the reference voxel based on the centering
@@ -532,7 +532,7 @@ class CroppingHandler:
     def chain_centering(
             cls,
             data: np.ndarray, output_shape: tuple[int, ...],
-            methods: list[str or tuple[int, ...]]
+            methods: list[str | tuple[int, ...]]
     ) -> tuple[np.ndarray, tuple[int, ...]]:
         """
         Apply sequential centering methods to the input data and return
@@ -722,7 +722,7 @@ def find_isosurface(
         sigma_criterion: float = 3,
         plot: bool = False,
         show: bool = False
-) -> tuple[float, matplotlib.axes.Axes] or float:
+) -> tuple[float, matplotlib.axes.Axes] | float:
     """
     Estimate the isosurface from the amplitude distribution
 
@@ -901,3 +901,60 @@ def rebin(a, rebin_f, scale="sum", mask=None):
             return a.sum(axis=(1, 3, 5, 7))
     else:
         raise Exception("Only accept arrays of dimensions 3 or 4")
+
+
+def oversampling_ratio(
+    support: np.ndarray = None,
+    direct_space_object: np.ndarray = None,
+    isosurface: float = .3,
+    plot: bool = False
+) -> np.ndarray:
+    """
+    Compute the oversampling ratio of a reconstruction.
+    Function proposed by Ewen Bellec (ewen.bellec@esrf.fr)
+
+    Args:
+        support (np.ndarray, optional): the support of the
+        reconstruction. Defaults to None.
+        direct_space_object (np.ndarray, optional): the reconstructed
+        object. Defaults to None.
+        isosurface (float, optional): the isosurface to determine the
+        support. Defaults to .3.
+        plot (bool, optional):  whether to plot or not. Defaults to False.
+
+    Raises:
+        ValueError: If support is not provided, requires
+        direct_space_object and isosurface (default to 0.3) value.
+
+    Returns:
+        np.ndarray: the oversampling ratio.
+    """
+    if support is None:
+        if direct_space_object is None:
+            raise ValueError(
+                "If support is not provided, provide direct_space_object and "
+                "isosurface (default to 0.3) value"
+            )
+        support = make_support(np.abs(direct_space_object), isosurface)
+
+    support_indices = np.where(support == 1)
+    size_per_dim = (
+        np.max(support_indices, axis=1)
+        - np.min(support_indices, axis=1)
+    )
+    oversampling = np.divide(np.array(support.shape), size_per_dim)
+
+    if plot:
+        _, ax = matplotlib.pyplot.subplots(
+            1,
+            support.ndim,
+            figsize=(5 * support.ndim, 4)
+        )
+        for n in range(support.ndim):
+            axes = tuple(np.delete(np.arange(3), n))
+            proj = np.max(support, axis=axes)
+            ax[n].plot(proj)
+            title = f'oversampling along axis {n}\n{round(oversampling[n],2)}'
+            ax[n].set_title(title, fontsize=15)
+
+    return oversampling

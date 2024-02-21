@@ -750,10 +750,12 @@ class BcdiProcessor:
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
 
-        # check the oversampling ratio if debug is True
+        # Print the oversampling ratio
+        ratio = oversampling_ratio(support)
         self.verbose_print(
-            "[INFO] The oversampling ratio according to the given data shape "
-            f"is {oversampling_ratio(support)}"
+            "[INFO] The oversampling ratios in each direction are "
+            f"axis0: {ratio[0]:.1f}, axis1: {ratio[1]:.1f}, "
+            f"axis2: {ratio[2]:.1f}"
         )
 
         self.space_converter.load_interpolation_parameters(
@@ -1031,7 +1033,6 @@ class BcdiProcessor:
                 - np.nanmin(
                     self.structural_properties["displacement_gradient"][0])
             )
-            print(ptp_value, self.structural_properties["het_strain"].ptp())
             self.figures["displacement_gradient"]["figure"] = (
                 summary_slice_plot(
                     title=(
