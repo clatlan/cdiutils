@@ -463,8 +463,13 @@ class SpaceConverter():
                 target_voxel_size=direct_space_voxel_size
             )
 
-
     def save_interpolation_parameters(self, output_path: str):
+        """
+        Save the interpolation parameters
+
+        Args:
+            output_path (str): where to save the parameters.
+        """
         if self.q_lab_interpolator is None:
             print("[INFO] No interpolation parameters to save.")
         else:
@@ -481,12 +486,12 @@ class SpaceConverter():
                 direct_space_voxel_size=(
                     self.direct_lab_interpolator.target_voxel_size
                 )
-        )
+            )
 
     def load_interpolation_parameters(
             self,
             file_path: str,
-            direct_space_voxel_size: tuple or int=None
+            direct_space_voxel_size: tuple | int = None
     ):
         """
         Load interpolation parameters from a file and initialize

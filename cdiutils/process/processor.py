@@ -749,15 +749,15 @@ class BcdiProcessor:
             self.orthogonalized_object = reconstructed_object
             if self.params['voxel_size']:
                 self.verbose_print(
-                    "[INFO] Orthogonalization was run before phasing, provided "
-                    "voxel won't be used."
-            )
+                    "[INFO] Orthogonalization was run before phasing, provided"
+                    " voxel won't be used."
+                )
         else:
             self.orthogonalized_object = (
-            self.space_converter.orthogonalize_to_direct_lab(
-                reconstructed_object,
+                self.space_converter.orthogonalize_to_direct_lab(
+                    reconstructed_object,
+                )
             )
-        )
 
         if self.params["debug"]:
             self.figures["direct_lab_orthogonalization"]["figure"] = (
@@ -772,8 +772,10 @@ class BcdiProcessor:
                     )
                 )
             )
-        self.orthogonalized_object = self.space_converter.lab_to_cxi_conventions(
-            self.orthogonalized_object
+        self.orthogonalized_object = (
+                self.space_converter.lab_to_cxi_conventions(
+                    self.orthogonalized_object
+                )
         )
 
         self.voxel_size = self.space_converter.lab_to_cxi_conventions(
