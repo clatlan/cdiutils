@@ -1,4 +1,3 @@
-# bcdi @ git+https://github.com/carnisj/bcdi.git@6a2d2515d9b7e3a5fc7b6e7ecc13da712e071486
 colorcet>=3.0.0
 h5py>=3.6.0
 hdf5plugin>=3.2.0

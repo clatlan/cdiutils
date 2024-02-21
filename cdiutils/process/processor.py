@@ -16,7 +16,8 @@ from cdiutils.utils import (
     make_support,
     symmetric_pad,
     CroppingHandler,
-    rebin
+    rebin,
+    oversampling_ratio
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
@@ -505,8 +506,12 @@ class BcdiProcessor:
         #         rebin_f=(1, )+self.params["binning_factors"],
         #         scale="average"
         #     )
-        #     self.space_converter.cropped_shape = (self.cropped_detector_data.shape
-        #     self.space_converter.full_shape = self.cropped_detector_data.shape
+        #     self.space_converter.cropped_shape = (
+        #         self.cropped_detector_data.shape
+        # )
+        #     self.space_converter.full_shape = (
+        #         self.cropped_detector_data.shape
+        # )
 
         if self.params["orthogonalize_before_phasing"]:
             self.verbose_print(
@@ -744,6 +749,14 @@ class BcdiProcessor:
                 f"and after {support.shape} Phase Retrieval are different.\n"
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
+
+        # Print the oversampling ratio
+        ratio = oversampling_ratio(support)
+        self.verbose_print(
+            "[INFO] The oversampling ratios in each direction are "
+            f"axis0: {ratio[0]:.1f}, axis1: {ratio[1]:.1f}, "
+            f"axis2: {ratio[2]:.1f}"
+        )
 
         self.space_converter.load_interpolation_parameters(
             interpolation_file_path,
@@ -1020,29 +1033,26 @@ class BcdiProcessor:
                 - np.nanmin(
                     self.structural_properties["displacement_gradient"][0])
             )
-            print(ptp_value, self.structural_properties["het_strain"].ptp())
             self.figures["displacement_gradient"]["figure"] = (
-                    summary_slice_plot(
-                        title=(
-                            "Displacement gradient, "
-                            f"{self.sample_name}, {self.scan}"
-                        ),
-                        support=zero_to_nan(
-                            self.structural_properties["support"]
-                        ),
-                        dpi=200,
-                        voxel_size=self.voxel_size,
-                        isosurface=self.params["isosurface"],
-                        det_reference_voxel=self.params["det_reference_voxel"],
-                        averaged_dspacing=self.averaged_dspacing,
-                        averaged_lattice_parameter=(
-                            self.averaged_lattice_parameter
-                        ),
-                        single_vmin=-ptp_value/2,
-                        single_vmax=ptp_value/2,
-                        cmap=RED_TO_TEAL,
-                        **displacement_gradient_plots
-                    )
+                summary_slice_plot(
+                    title=(
+                        "Displacement gradient, "
+                        f"{self.sample_name}, {self.scan}"
+                    ),
+                    support=zero_to_nan(self.structural_properties["support"]),
+                    dpi=200,
+                    voxel_size=self.voxel_size,
+                    isosurface=self.params["isosurface"],
+                    det_reference_voxel=self.params["det_reference_voxel"],
+                    averaged_dspacing=self.averaged_dspacing,
+                    averaged_lattice_parameter=(
+                        self.averaged_lattice_parameter
+                    ),
+                    single_vmin=-ptp_value/2,
+                    single_vmax=ptp_value/2,
+                    cmap=RED_TO_TEAL,
+                    **displacement_gradient_plots
+                )
             )
 
         if self.params["debug"]:
@@ -1102,7 +1112,7 @@ class BcdiProcessor:
             roi = CroppingHandler.get_roi(
                 self.params["preprocessing_output_shape"],
                 self.params["det_reference_voxel"]
-                )
+            )
             cropped_det_ref = tuple(
                     p - r if r else p  # if r is None, p-r must be p
                     for p, r in zip(

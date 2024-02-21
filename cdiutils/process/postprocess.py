@@ -145,11 +145,7 @@ class PostProcessor:
         support = nan_to_zero(support)
         mask = np.where(support == 0, 1, 0)
         phase = np.ma.masked_array(phase, mask=mask)
-        return unwrap_phase(
-            phase,
-            wrap_around=False,
-            seed=1
-        ).data
+        return unwrap_phase(phase, wrap_around=False).data
 
     @staticmethod
     def remove_phase_ramp(phase: np.ndarray) -> np.ndarray:

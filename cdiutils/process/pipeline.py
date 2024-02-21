@@ -872,6 +872,7 @@ class BcdiPipeline:
                         for p in (
                             "q_lab_reference", "q_lab_max",
                             "q_lab_com", "det_reference_voxel",
+                            "preprocessing_output_shape"
                         )
                 ):
                     file_path = (
@@ -883,6 +884,9 @@ class BcdiPipeline:
                         file_path=file_path)["cdiutils"]
                     self.params["cdiutils"].update(
                         {
+                            "preprocessing_output_shape": preprocessing_params[
+                                "preprocessing_output_shape"
+                            ],
                             "det_reference_voxel": preprocessing_params[
                                 "det_reference_voxel"
                             ],
