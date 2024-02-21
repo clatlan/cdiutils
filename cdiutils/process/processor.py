@@ -16,7 +16,8 @@ from cdiutils.utils import (
     make_support,
     symmetric_pad,
     CroppingHandler,
-    rebin
+    rebin,
+    oversampling_ratio
 )
 from cdiutils.load.bliss import BlissLoader
 from cdiutils.load.spec import SpecLoader
@@ -505,8 +506,12 @@ class BcdiProcessor:
         #         rebin_f=(1, )+self.params["binning_factors"],
         #         scale="average"
         #     )
-        #     self.space_converter.cropped_shape = (self.cropped_detector_data.shape
-        #     self.space_converter.full_shape = self.cropped_detector_data.shape
+        #     self.space_converter.cropped_shape = (
+        #         self.cropped_detector_data.shape
+        # )
+        #     self.space_converter.full_shape = (
+        #         self.cropped_detector_data.shape
+        # )
 
         if self.params["orthogonalize_before_phasing"]:
             self.verbose_print(
@@ -744,6 +749,12 @@ class BcdiProcessor:
                 f"and after {support.shape} Phase Retrieval are different.\n"
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
+
+        # check the oversampling ratio if debug is True
+        self.verbose_print(
+            "[INFO] The oversampling ratio according to the given data shape "
+            f"is {oversampling_ratio(support)}"
+        )
 
         self.space_converter.load_interpolation_parameters(
             interpolation_file_path,
@@ -1100,7 +1111,7 @@ class BcdiProcessor:
             roi = CroppingHandler.get_roi(
                 self.params["preprocessing_output_shape"],
                 self.params["det_reference_voxel"]
-                )
+            )
             cropped_det_ref = tuple(
                     p - r if r else p  # if r is None, p-r must be p
                     for p, r in zip(
