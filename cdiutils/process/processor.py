@@ -1024,7 +1024,7 @@ class BcdiProcessor:
             )) ** 2
 
             extension = np.multiply(self.voxel_size, shape)
-            voxel_size_of_fft_object = (2*np.pi / (10 * extension))
+            voxel_size_of_fft_object = 2 * np.pi / (10 * extension)
 
             final_object_q_lab_grid = (
                 np.arange(
