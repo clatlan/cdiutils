@@ -6,7 +6,7 @@ import setuptools
 
 setuptools.setup(
       name='cdiutils',
-      version='0.1.3',
+      version='0.1.4',
       author="Clement Atlan",
       description=(
             "A python package to help Coherent Diffraction Imaging (CDI) "
@@ -30,7 +30,7 @@ setuptools.setup(
       ],
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
-      python_requires=">=3.8, <3.10",
+      python_requires=">=3.8, <=3.10",
       install_requires=[
             "colorcet>=3.0.0",
             "h5py>=3.6.0",
