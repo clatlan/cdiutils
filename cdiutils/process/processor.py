@@ -787,11 +787,31 @@ class BcdiProcessor:
         )
 
     def _load_reconstruction_file(self, file_path: str) -> np.ndarray:
+        """
+        Load a h5 reconstruction file and return only the
+        entry_1/data_1/data entry.
+
+        Args:
+            file_path (str): the path to the file.
+
+        Returns:
+            np.ndarray: the data stored in entry_1/data_1/data.
+        """
         with silx.io.h5py_utils.File(file_path) as h5file:
             reconstructed_object = h5file["entry_1/data_1/data"][0]
         return reconstructed_object
 
     def load_orthogonalized_object(self, file_path: str) -> None:
+        """
+        Load a reconstruction that has already been orthogonolized.
+        This is used when bcdi backend is used, which is deprecated.
+
+        Args:
+            file_path (str): the path to the file.
+
+        Raises:
+            NotImplementedError: if the file is not a .npz file.
+        """
         if file_path.endswith(".npz"):
             with np.load(file_path) as file:
                 self.orthogonalized_object = file["data"]
@@ -800,6 +820,12 @@ class BcdiProcessor:
             raise NotImplementedError("Please provide a .npz file")
 
     def postprocess(self) -> None:
+        """
+        Run the postprocessing.
+
+        Raises:
+            TypeError: handle error during plotting.
+        """
 
         if self.params["flip"]:
             self.orthogonalized_object = PostProcessor.flip_reconstruction(
