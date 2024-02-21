@@ -195,6 +195,9 @@ class BcdiProcessor:
 
             print(text,  **kwargs)
 
+    # TODO: cyclomatic complexity of 28, this method should
+    # be broken down into multiples functions, or a class
+    # see: https://github.com/clatlan/cdiutils/issues/32
     def preprocess_data(self) -> None:
         """
         Run the preprocessing.
