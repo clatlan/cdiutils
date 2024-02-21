@@ -807,7 +807,7 @@ class BcdiPipeline:
                     f"Error pulling the remote runtime {stderr.readline()}")
             client.close()
 
-        # if no machine provided, run the mode decomposition as a subprocesss
+        # if no machine provided, run the mode decomposition as a subprocess
         else:
             with subprocess.Popen(
                     run_command,
@@ -896,6 +896,7 @@ class BcdiPipeline:
                 self.bcdi_processor = BcdiProcessor(
                     parameters=self.params["cdiutils"]
                 )
+
             self.bcdi_processor.orthogonalize()
             self.bcdi_processor.postprocess()
             self.bcdi_processor.save_postprocessed_data()

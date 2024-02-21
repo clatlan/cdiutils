@@ -90,7 +90,7 @@ class PostProcessor:
             scale: float = 1
     ) -> np.ndarray:
         """
-        Apodization on the direct space data using Blackman window.
+        Apodization in the direct space data using Blackman window.
 
         Args:
             direct_space_data (np.ndarray): the 3D volume data to
@@ -99,7 +99,7 @@ class PostProcessor:
             Blackman window. Defaults to None.
 
         Returns:
-            np.ndarray: _description_
+            np.ndarray: Apodized 3D array.
         """
 
         # first make the Blackman window
@@ -141,7 +141,7 @@ class PostProcessor:
                 phase,
                 wrap_around=False,
                 seed=1
-            ).data
+            )
         support = nan_to_zero(support)
         mask = np.where(support == 0, 1, 0)
         phase = np.ma.masked_array(phase, mask=mask)
@@ -325,33 +325,52 @@ class PostProcessor:
         """
         complex_object, support = cls.prepare_volume(
             complex_object, isosurface=isosurface)
+        # extract phase and amplitude
+        amplitude = np.abs(complex_object)
+        phase = np.angle(complex_object) * phase_factor
+
+        support = zero_to_nan(support)  # 0 values must be nan now
+        phase = cls.unwrap_phase(phase, support)
+        phase = phase * support
+        phase_with_ramp = phase.copy()  # save the 'ramped' phase for later
+        phase = cls.remove_phase_ramp(phase)
+        phase = cls.phase_offset_to_zero(phase)
+
+        # compute the displacement
+        displacement = cls.get_displacement(phase, g_vector)
+        displacement_with_ramp = cls.get_displacement(
+            phase_with_ramp, g_vector
+        )
+
+        # compute the displacement gradient
+        displacement_gradient = cls.get_displacement_gradient(
+            displacement,
+            voxel_size,
+            gradient_method="hybrid"
+        )
+
         if handle_defects:
-            pass
+            het_strain_with_ramp = np.zeros(amplitude.shape)
+            phases = [
+                np.mod(phase_with_ramp * support + i * (np.pi / 2), 2 * np.pi)
+                for i in range(3)
+            ]
+            strains = [
+                cls.get_het_normal_strain(
+                    cls.get_displacement(phases[i], g_vector) * 1e-1,
+                    g_vector,
+                    voxel_size,
+                    gradient_method="hybrid"
+                )
+                for i in range(3)
+            ]
+            for i in range(3):
+                mask = np.isclose(strains[i % 3], strains[(i + 1) % 3])
+                het_strain_with_ramp[mask == 1] = strains[i][mask == 1]
+            numpy_het_strain = np.array([np.nan])
+            het_strain = np.array([np.nan])
+
         else:
-            # extract phase and amplitude
-            amplitude = np.abs(complex_object)
-            phase = np.angle(complex_object) * phase_factor
-
-            phase = cls.unwrap_phase(phase, support)
-            support = zero_to_nan(support)  # 0 values must be nan now
-            phase = phase * support
-            phase_with_ramp = phase.copy()  # save the 'ramped' phase for later
-            phase = cls.remove_phase_ramp(phase)
-            phase = cls.phase_offset_to_zero(phase)
-
-            # compute the displacement
-            displacement = cls.get_displacement(phase, g_vector)
-            displacement_with_ramp = cls.get_displacement(
-                phase_with_ramp, g_vector
-            )
-
-            # compute the displacement gradient
-            displacement_gradient = cls.get_displacement_gradient(
-                displacement,
-                voxel_size,
-                gradient_method="hybrid"
-            )
-
             # compute the various strain quantities
             numpy_het_strain = cls.get_het_normal_strain(
                 displacement * 1e-1,  # displacement values converted in nm.
@@ -372,34 +391,34 @@ class PostProcessor:
                 gradient_method="hybrid"
             )
 
-            # compute the dspacing and lattice_parameter
-            dspacing = (
-                2 * np.pi
-                / np.linalg.norm(g_vector)
-                * (1 + het_strain_with_ramp)
-            )
-            lattice_parameter = (
-                np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-                * dspacing
-            )
-            dspacing_mean = np.nanmean(dspacing)
-            het_strain_from_dspacing = (dspacing - dspacing_mean)/dspacing_mean
+        # compute the dspacing and lattice_parameter
+        dspacing = (
+            2 * np.pi
+            / np.linalg.norm(g_vector)
+            * (1 + het_strain_with_ramp)
+        )
+        lattice_parameter = (
+            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
+            * dspacing
+        )
+        dspacing_mean = np.nanmean(dspacing)
+        het_strain_from_dspacing = (dspacing - dspacing_mean)/dspacing_mean
 
-            # all strains are saved in percent
-            return {
-                "amplitude": normalize(amplitude),
-                "support": nan_to_zero(support),
-                "phase": nan_to_zero(phase),
-                "displacement": displacement,
-                "displacement_gradient": displacement_gradient,
-                "het_strain": nan_to_zero(het_strain)*100,
-                "het_strain_with_ramp": nan_to_zero(het_strain_with_ramp)*100,
-                "het_strain_from_dspacing": nan_to_zero(
-                    het_strain_from_dspacing)*100,
-                "numpy_het_strain": numpy_het_strain*100,
-                "dspacing": dspacing,
-                "lattice_parameter": lattice_parameter,
-                "hkl": hkl,
-                "g_vector": g_vector,
-                "voxel_size": voxel_size
-            }
+        # all strains are saved in percent
+        return {
+            "amplitude": normalize(amplitude),
+            "support": nan_to_zero(support),
+            "phase": nan_to_zero(phase),
+            "displacement": displacement,
+            "displacement_gradient": displacement_gradient,
+            "het_strain": nan_to_zero(het_strain) * 100,
+            "het_strain_with_ramp": nan_to_zero(het_strain_with_ramp) * 100,
+            "het_strain_from_dspacing": nan_to_zero(
+                het_strain_from_dspacing) * 100,
+            "numpy_het_strain": numpy_het_strain * 100,
+            "dspacing": dspacing,
+            "lattice_parameter": lattice_parameter,
+            "hkl": hkl,
+            "g_vector": g_vector,
+            "voxel_size": voxel_size
+        }
