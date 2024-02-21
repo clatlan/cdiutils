@@ -832,7 +832,7 @@ def plot_direct_lab_orthogonalization_process(
     subplots = (3 if direct_lab_data is not None else 2, 3)
     figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
-    
+
     if detector_direct_space_data is None:
         ax_row_index = 0
 
@@ -855,7 +855,7 @@ def plot_direct_lab_orthogonalization_process(
         axes[0, 2].set_xlabel(r"detector axis$_0$")
         axes[0, 2].set_ylabel(r"detector axis$_1$")
         axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-        
+
     axes[ax_row_index, 1].set_title(
         r"Orthogonalized data in \textbf{index-of-direct lab frame}"
     )
@@ -933,7 +933,7 @@ def plot_direct_lab_orthogonalization_process(
     #     ax.minorticks_on()
     for ax in axes.ravel():
         ax.set_aspect("equal")
-   
+
     figure.canvas.draw()
     for ax in axes.ravel():
         white_interior_ticks_labels(ax, -10, -18)
