@@ -142,5 +142,5 @@ if __name__ == '__main__':
         print(
             f"usage: {sys.argv[0]}, cmap_name, output_path"
         )
-        exit(1)
+        sys.exit()
     save_json_cmap(sys.argv[1], sys.argv[2])
