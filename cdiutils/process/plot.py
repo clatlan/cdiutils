@@ -1,5 +1,3 @@
-from typing import Union, Optional
-
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -132,7 +130,7 @@ def preprocessing_detector_data_plot(
     figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
 
-    log_cropped_data = np.log10(cropped_data)
+    log_cropped_data = np.log10(cropped_data+1)
     vmin = 0
     vmax = np.max(log_cropped_data)
     final_shape = cropped_data.shape
@@ -821,9 +819,9 @@ def plot_q_lab_orthogonalization_process(
 
 
 def plot_direct_lab_orthogonalization_process(
-        detector_direct_space_data: np.ndarray,
         direct_lab_data: np.ndarray,
         direct_lab_regular_grid: list[np.ndarray],
+        detector_direct_space_data: np.ndarray = None,
         title: str = None
 ) -> matplotlib.figure.Figure:
     """
@@ -831,38 +829,45 @@ def plot_direct_lab_orthogonalization_process(
     and direct lab frame.
     """
 
-    plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
-
-    subplots = (3, 3)
+    subplots = (3 if direct_lab_data is not None else 2, 3)
     figsize = get_figure_size(subplots=subplots)
-    figure, axes = plt.subplots(
-        subplots[0], subplots[1], figsize=figsize)
+    figure, axes = plt.subplots(subplots[0], subplots[1], figsize=figsize)
 
-    axes[0, 0].matshow(detector_direct_space_data[plot_at[0]])
-    axes[0, 1].matshow(detector_direct_space_data[:, plot_at[1]])
-    axes[0, 2].matshow(
-        np.swapaxes(
-            detector_direct_space_data[:, :, plot_at[2]],
-            axis1=0,
-            axis2=1
+    if detector_direct_space_data is None:
+        ax_row_index = 0
+
+    else:
+        ax_row_index = 1
+        plot_at = tuple(e // 2 for e in detector_direct_space_data.shape)
+        axes[0, 0].matshow(detector_direct_space_data[plot_at[0]])
+        axes[0, 1].matshow(detector_direct_space_data[:, plot_at[1]])
+        axes[0, 2].matshow(
+            np.swapaxes(
+                detector_direct_space_data[:, :, plot_at[2]],
+                axis1=0,
+                axis2=1
+            )
         )
-    )
+        axes[0, 0].set_xlabel(r"detector axis$_2$")
+        axes[0, 0].set_ylabel(r"detector axis$_1$")
+        axes[0, 1].set_xlabel(r"detector axis$_2$")
+        axes[0, 1].set_ylabel(r"detector axis$_0$")
+        axes[0, 2].set_xlabel(r"detector axis$_0$")
+        axes[0, 2].set_ylabel(r"detector axis$_1$")
+        axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
 
-    axes[0, 0].set_xlabel(r"detector axis$_2$")
-    axes[0, 0].set_ylabel(r"detector axis$_1$")
-    axes[0, 1].set_xlabel(r"detector axis$_2$")
-    axes[0, 1].set_ylabel(r"detector axis$_0$")
-    axes[0, 2].set_xlabel(r"detector axis$_0$")
-    axes[0, 2].set_ylabel(r"detector axis$_1$")
+    axes[ax_row_index, 1].set_title(
+        r"Orthogonalized data in \textbf{index-of-direct lab frame}"
+    )
 
     plot_at = tuple(e // 2 for e in direct_lab_data.shape)
 
-    axes[1, 0].matshow(
+    axes[ax_row_index, 0].matshow(
         np.swapaxes(direct_lab_data[plot_at[0]], axis1=0, axis2=1),
         origin="lower"
     )
 
-    axes[1, 1].matshow(
+    axes[ax_row_index, 1].matshow(
         np.swapaxes(
             direct_lab_data[:, plot_at[1]],
             axis1=0,
@@ -871,13 +876,22 @@ def plot_direct_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 2].matshow(
+    axes[ax_row_index, 2].matshow(
         direct_lab_data[:, :, plot_at[2]],
         origin="lower"
     )
 
+    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
+    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
+    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
+    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+
+    ax_row_index += 1
+
     x_array, y_array, z_array = direct_lab_regular_grid
-    axes[2, 0].contourf(
+    axes[ax_row_index, 0].contourf(
         y_array,
         z_array,
         np.swapaxes(
@@ -887,7 +901,7 @@ def plot_direct_lab_orthogonalization_process(
         ),
         levels=100
     )
-    axes[2, 1].contourf(
+    axes[ax_row_index, 1].contourf(
         x_array,
         z_array,
         np.swapaxes(
@@ -898,36 +912,27 @@ def plot_direct_lab_orthogonalization_process(
         levels=100,
     )
 
-    axes[2, 2].contourf(
+    axes[ax_row_index, 2].contourf(
         y_array,
         x_array,
         direct_lab_data[:, :, plot_at[2]],
         levels=100
     )
+
+    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
+    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
+    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$ (nm)")
+    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
+    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
+    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
+    axes[ax_row_index, 1].set_title(
+        r"Orthogonalized data in \textbf{direct lab frame}"
+    )
+
     # for ax in axes[2, :].ravel():
     #     ax.minorticks_on()
     for ax in axes.ravel():
         ax.set_aspect("equal")
-
-    axes[1, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-    axes[1, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[1, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[1, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
-
-    axes[2, 0].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[2, 0].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[2, 1].set_xlabel(r"$x_{lab}/z_{cxi}$ (nm)")
-    axes[2, 1].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[2, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[2, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
-
-    axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-    axes[1, 1].set_title(
-        r"Orthogonalized data in \textbf{index-of-direct lab frame}"
-    )
-    axes[2, 1].set_title(r"Orthogonalized data in \textbf{direct lab frame}")
 
     figure.canvas.draw()
     for ax in axes.ravel():

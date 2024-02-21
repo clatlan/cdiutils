@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 def plot_3D_object(
         data,
         support=None,
-        cmap="jet",
+        cmap="turbo",
         title="",
         vmin=None,
         vmax=None,

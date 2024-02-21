@@ -163,10 +163,10 @@ class BlissLoader():
     def load_motor_positions(
             self,
             scan: int,
-            sample_name: str=None,
-            roi: tuple[slice]=None,
-            binning_along_axis0: int=None,
-            binning_method: str="mean"
+            sample_name: str = None,
+            roi: tuple[slice] = None,
+            binning_along_axis0: int = None,
+            binning_method: str = "mean"
     ) -> dict:
         """
         Load the motor positions and return it as a dict of:
@@ -192,7 +192,7 @@ class BlissLoader():
 
         for angle, name in BlissLoader.angle_names.items():
             if binning_along_axis0:
-                    angles[angle] = self.h5file[key_path + name][()]
+                angles[angle] = self.h5file[key_path + name][()]
             else:
                 try:
                     angles[angle] = self.h5file[key_path + name][roi]

@@ -140,11 +140,11 @@ def update_plot_params(
                     r'\usepackage{helvet}'
                     + (
                         r'\usepackage{sansmath} \sansmath'
+                        r'\usepackage{textgreek}'
                         if style == "nature" else r'\usepackage{amsmath}'
                     )
                 ) 
             }
-
     )
         #         'text.latex.preamble':
         #         r'\usepackage{siunitx}'

@@ -564,7 +564,7 @@ def plot_diffraction_patterns(
         if aspect_ratio:
             for ax in axes.ravel():
                 ax.set_aspect(aspect_ratio)
-    
+
     fig.tight_layout()
     if show:
         plt.show()
