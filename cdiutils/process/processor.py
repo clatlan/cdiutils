@@ -196,7 +196,16 @@ class BcdiProcessor:
             print(text,  **kwargs)
 
     def preprocess_data(self) -> None:
+        """
+        Run the preprocessing.
 
+        Raises:
+            ValueError: when light loading, user must specify either
+            the exact final shape, with three integers, or provide a
+            value for binning_along_axis0.
+            ValueError: when light loading, user must specify the voxel
+            where to crop the data at.
+        """
         final_shape = tuple(self.params["preprocessing_output_shape"])
 
         if self.params["light_loading"]:
@@ -661,7 +670,6 @@ class BcdiProcessor:
         """
         Orthogonalize detector data to the lab frame.
         """
-
         reconstruction_file_path = (
             self.params["metadata"]["reconstruction_file"]
         )
@@ -826,7 +834,6 @@ class BcdiProcessor:
         Raises:
             TypeError: handle error during plotting.
         """
-
         if self.params["flip"]:
             self.orthogonalized_object = PostProcessor.flip_reconstruction(
                 self.orthogonalized_object
