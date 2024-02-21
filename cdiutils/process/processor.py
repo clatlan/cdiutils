@@ -485,7 +485,7 @@ class BcdiProcessor:
             self.verbose_print(
                 "[INFO] orthogonalization required before phasing.\n"
                 "Will use xrayutilities Fuzzy Gridding without linear "
-                "approximation." 
+                "approximation."
             )
             self.orthogonalized_intensity = (
                 self.space_converter.orthogonalize_to_q_lab(
