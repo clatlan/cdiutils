@@ -35,7 +35,7 @@ from cdiutils.process.plot import (
 from cdiutils.plot.colormap import RED_TO_TEAL
 
 
-def loader_factory(metadata: dict) -> BlissLoader or SpecLoader or SIXS2022Loader:
+def loader_factory(metadata: dict) -> BlissLoader | SpecLoader | SIXS2022Loader:
     """
     Load the right loader based on the beamline_setup parameter
     in the metadata dictionary
