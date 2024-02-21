@@ -1022,27 +1022,25 @@ class BcdiProcessor:
             )
             print(ptp_value, self.structural_properties["het_strain"].ptp())
             self.figures["displacement_gradient"]["figure"] = (
-                    summary_slice_plot(
-                        title=(
-                            "Displacement gradient, "
-                            f"{self.sample_name}, {self.scan}"
-                        ),
-                        support=zero_to_nan(
-                            self.structural_properties["support"]
-                        ),
-                        dpi=200,
-                        voxel_size=self.voxel_size,
-                        isosurface=self.params["isosurface"],
-                        det_reference_voxel=self.params["det_reference_voxel"],
-                        averaged_dspacing=self.averaged_dspacing,
-                        averaged_lattice_parameter=(
-                            self.averaged_lattice_parameter
-                        ),
-                        single_vmin=-ptp_value/2,
-                        single_vmax=ptp_value/2,
-                        cmap=RED_TO_TEAL,
-                        **displacement_gradient_plots
-                    )
+                summary_slice_plot(
+                    title=(
+                        "Displacement gradient, "
+                        f"{self.sample_name}, {self.scan}"
+                    ),
+                    support=zero_to_nan(self.structural_properties["support"]),
+                    dpi=200,
+                    voxel_size=self.voxel_size,
+                    isosurface=self.params["isosurface"],
+                    det_reference_voxel=self.params["det_reference_voxel"],
+                    averaged_dspacing=self.averaged_dspacing,
+                    averaged_lattice_parameter=(
+                        self.averaged_lattice_parameter
+                    ),
+                    single_vmin=-ptp_value/2,
+                    single_vmax=ptp_value/2,
+                    cmap=RED_TO_TEAL,
+                    **displacement_gradient_plots
+                )
             )
 
         if self.params["debug"]:
