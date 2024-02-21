@@ -73,7 +73,8 @@ def loader_factory(metadata: dict) -> BlissLoader | SpecLoader | SIXS2022Loader:
 
 class BcdiProcessor:
     """
-    A class to handle pre and post processing in a bcdi data analysis workflow
+    A class to handle pre and post processing in a bcdi data analysis
+    workflow.
     """
     def __init__(
             self,
@@ -87,7 +88,7 @@ class BcdiProcessor:
         self.detector_data = None
 
         # initialize the diffractometer angles (corresponding to eta,
-        # phi, delta, nu at ID01) 
+        # phi, delta, nu at ID01)
         self.angles = {
             "sample_outofplane_angle": None,
             "sample_inplane_angle": None,
@@ -160,6 +161,20 @@ class BcdiProcessor:
             roi: tuple[slice] = None,
             binning_along_axis0: int = None
     ) -> None:
+        """
+        Load the raw detector data and motor positions.
+
+        Args:
+            roi (tuple[slice], optional): the region of interest on the
+            detector frame. Defaults to None.
+            binning_along_axis0 (int, optional): whether or not to bin
+            the data along the axis0, ie the rocking curve direction.
+            Defaults to None.
+
+        Raises:
+            ValueError: check whether detector data, motor positions and
+            mask have been correctly loaded.
+        """
         self.detector_data = self.loader.load_detector_data(
             scan=self.scan,
             roi=roi,
@@ -519,10 +534,12 @@ class BcdiProcessor:
                     interpolation_method="xrayutilities"
                 )
             )
-            q_lab_regular_grid = self.space_converter.get_xu_q_lab_regular_grid()
+            q_lab_regular_grid = (
+                self.space_converter.get_xu_q_lab_regular_grid()
+            )
         else:
             self.verbose_print(
-                "[INFO] Will linearize the transformation between detector and "
+                "[INFO] Will linearize the transformation between detector and"
                 " lab space."
             )
             # Initialise the interpolator so we won't need to reload raw
@@ -1110,7 +1127,10 @@ class BcdiProcessor:
             )
 
     def save_postprocessed_data(self) -> None:
-
+        """
+        Save the postprocessed data, which correspond to the structural
+        properties of the reconstructed crystal.
+        """
         # save the results in a npz file
         template_path = (
             f"{self.dump_dir}/"
@@ -1298,7 +1318,7 @@ class BcdiProcessor:
     @staticmethod
     def save_to_vti(
             output_path: str,
-            voxel_size: tuple or list or np.ndarray,
+            voxel_size: tuple | list | np.ndarray,
             cxi_convention: bool = False,
             origin: tuple = (0, 0, 0),
             **np_arrays: dict[np.ndarray]
