@@ -32,7 +32,8 @@ AUTHORIZED_KEYS = {
         "verbose": True,
         "debug": True,
         "binning_factors": (1, 1, 1),
-        "handle_defects": False
+        "handle_defects": False,
+        "orthogonalize_before_phasing": False
     },
     "pynx": {
         "data": None,
@@ -164,4 +165,5 @@ def get_parameters_from_notebook_variables(
             parameters["cdiutils"][e] = globals_dict[e]
         elif e in AUTHORIZED_KEYS["pynx"]:
             parameters["pynx"][e] = globals_dict[e]
+
     return parameters

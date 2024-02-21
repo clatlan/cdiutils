@@ -195,12 +195,18 @@ class SpaceConverter():
         """
         return self.index_det_to_q_lab(self.index_cropped_det_to_det(ijk))
 
-    def index_det_to_index_of_q_lab(self, ijk:  tuple) -> tuple:
+    def index_det_to_index_of_q_lab(
+            self, ijk:  tuple,
+            interpolation_method: str = "cdiutils"
+    ) -> tuple:
         """
         Transition an index from the full detector frame to the 
         index-of-q lab frame
         """
-        cubinates = self.get_q_lab_regular_grid(arrangement="cubinates")
+        if interpolation_method in ("xu", "xrayutilities"):
+            cubinates = self.get_xu_q_lab_regular_grid(arrangement="cubinates")
+        else:
+            cubinates = self.get_q_lab_regular_grid(arrangement="cubinates")
         q_pos = self.index_det_to_q_lab(ijk) # q value
         new_ijk = np.unravel_index(
             np.argmin(
@@ -459,19 +465,22 @@ class SpaceConverter():
 
 
     def save_interpolation_parameters(self, output_path: str):
-        np.savez(
-            output_path,
-            q_space_linear_transformation_matrix=(
-                self.q_lab_interpolator.original_to_target_matrix
-            ),
-            direct_lab_linear_transformation_matrix=(
-                self.direct_lab_interpolator.original_to_target_matrix
-            ),
-            q_space_transitions=self._q_space_transitions,
-            q_space_shift=self.q_space_shift,
-            direct_space_voxel_size=(
-                self.direct_lab_interpolator.target_voxel_size
-            )
+        if self.q_lab_interpolator is None:
+            print("[INFO] No interpolation parameters to save.")
+        else:
+            np.savez(
+                output_path,
+                q_space_linear_transformation_matrix=(
+                    self.q_lab_interpolator.original_to_target_matrix
+                ),
+                direct_lab_linear_transformation_matrix=(
+                    self.direct_lab_interpolator.original_to_target_matrix
+                ),
+                q_space_transitions=self._q_space_transitions,
+                q_space_shift=self.q_space_shift,
+                direct_space_voxel_size=(
+                    self.direct_lab_interpolator.target_voxel_size
+                )
         )
 
     def load_interpolation_parameters(
@@ -631,6 +640,7 @@ class SpaceConverter():
         space and chose the arrangement either a list of three 1d array
         or a cube of q coordinates in the q lab space.
         """
+
         if self.q_lab_interpolator is None:
             raise ValueError(
                 "No q lab space interpolator initialized, cannot provide a "

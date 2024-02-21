@@ -98,7 +98,7 @@ class BcdiProcessor:
         self.cropped_detector_data = None
         self.mask = None
 
-        self.orthgonolized_data = None
+        self.orthogonalized_object = None
         self.orthogonalized_intensity = None
         self.voxel_size = None
         self.structural_properties = {}
@@ -481,32 +481,65 @@ class BcdiProcessor:
         #     self.space_converter.cropped_shape = (self.cropped_detector_data.shape
         #     self.space_converter.full_shape = self.cropped_detector_data.shape
 
-        # Initialise the interpolator so we won't need to reload raw
-        # data during the post processing. The converter will be saved.
-        self.space_converter.init_interpolator(
-            self.cropped_detector_data,
-            final_shape,
-            space="both",
-            direct_space_voxel_size=self.params["voxel_size"]
-        )
-
-        # Run the interpolation in the reciprocal space so we don't
-        # do it later
-        self.orthogonalized_intensity = (
-            self.space_converter.orthogonalize_to_q_lab(
-                self.cropped_detector_data
+        if self.params["orthogonalize_before_phasing"]:
+            self.verbose_print(
+                "[INFO] orthogonalization required before phasing.\n"
+                "Will use xrayutilities Fuzzy Gridding without linear "
+                "approximation." 
             )
-        )
-
-        # Plot data in the detector and lab space (reciprocal space)
-        where_in_ortho_space = (
-            self.space_converter.index_det_to_index_of_q_lab(
-                cropped_det_ref
+            self.orthogonalized_intensity = (
+                self.space_converter.orthogonalize_to_q_lab(
+                     self.cropped_detector_data,
+                     method="xrayutilities"
+                )
             )
-        )
+            # we must orthogonalize the mask and orthogonalized_intensity must
+            # be saved as the pynx input
+            self.mask = self.space_converter.orthogonalize_to_q_lab(
+                self.mask,
+                method="xrayutilities"
+            )
+            self.cropped_detector_data = self.orthogonalized_intensity
+            # Find where to plot slices in the reciprocal space
+            where_in_ortho_space = (
+                self.space_converter.index_det_to_index_of_q_lab(
+                    cropped_det_ref,
+                    interpolation_method="xrayutilities"
+                )
+            )
+            q_lab_regular_grid = self.space_converter.get_xu_q_lab_regular_grid()
+        else:
+            self.verbose_print(
+                "[INFO] Will linearize the transformation between detector and "
+                " lab space."
+            )
+            # Initialise the interpolator so we won't need to reload raw
+            # data during the post processing. The converter will be saved.
+            self.space_converter.init_interpolator(
+                self.cropped_detector_data,
+                final_shape,
+                space="both",
+                direct_space_voxel_size=self.params["voxel_size"]
+            )
 
-        q_lab_regular_grid = self.space_converter.get_q_lab_regular_grid()
+            # Run the interpolation in the reciprocal space so we don't
+            # do it later
+            self.orthogonalized_intensity = (
+                self.space_converter.orthogonalize_to_q_lab(
+                    self.cropped_detector_data,
+                    method="cdiutils"
+                )
+            )
 
+            # Find where to plot slices in the reciprocal space
+            where_in_ortho_space = (
+                self.space_converter.index_det_to_index_of_q_lab(
+                    cropped_det_ref
+                )
+            )
+            q_lab_regular_grid = self.space_converter.get_q_lab_regular_grid()
+
+        # Plot the reciprocal space data in the detector and lab frames
         self.figures["q_lab_orthogonalization"]["figure"] = (
             plot_q_lab_orthogonalization_process(
                 self.cropped_detector_data.copy(),
@@ -569,15 +602,19 @@ class BcdiProcessor:
             dpi=200
         )
 
-        self.space_converter.save_interpolation_parameters(
-            f"{template_path}_interpolation_parameters.npz"
-        )
+        if self.params["orthogonalize_before_phasing"]:
+            regulard_grid_func = self.space_converter.get_xu_q_lab_regular_grid
+        else:
+            regulard_grid_func = self.space_converter.get_q_lab_regular_grid
+            self.space_converter.save_interpolation_parameters(
+                f"{template_path}_interpolation_parameters.npz"
+            )
 
         np.savez(
             f"{template_path}_orthogonalized_intensity.npz",
-            q_xlab=self.space_converter.get_q_lab_regular_grid()[0],
-            q_ylab=self.space_converter.get_q_lab_regular_grid()[1],
-            q_zlab=self.space_converter.get_q_lab_regular_grid()[2],
+            q_xlab=regulard_grid_func()[0],
+            q_ylab=regulard_grid_func()[1],
+            q_zlab=regulard_grid_func()[2],
             orthogonalized_intensity=self.orthogonalized_intensity
         )
 
@@ -643,13 +680,13 @@ class BcdiProcessor:
         )
         if not os.path.isfile(interpolation_file_path):
             raise FileNotFoundError(
-                f"File was not found at: {reconstruction_file_path}"
+                f"File was not found at: {interpolation_file_path}"
             )
         reconstructed_object = self._load_reconstruction_file(
             reconstruction_file_path
         )
         # check if the reconstructed object is correctly centered
-        # we need an isosurface for that, but not that we do not need
+        # we need an isosurface for that, but we do not need
         # a precise value, it's just for the center of mass
         reconstructed_amplitude = np.abs(reconstructed_object)
 
@@ -674,11 +711,6 @@ class BcdiProcessor:
         # check if data were cropped during phase retrieval
         final_shape = tuple(self.params["preprocessing_output_shape"])
         if support.shape != final_shape:
-            # raise ValueError(
-            #     f"Shapes before {final_shape} "
-            #     f"and after {support.shape} Phase Retrieval are different.\n"
-            #     "Check out PyNX parameters (ex.: auto_center_resize)."
-            # )
             print(
                 f"Shapes before {final_shape} "
                 f"and after {support.shape} Phase Retrieval are different.\n"
@@ -713,15 +745,35 @@ class BcdiProcessor:
                 "[INFO] Voxel size in the direct lab frame provided by user: "
                 f"{self.params['voxel_size']} nm"
             )
-
-        orthogonalized_object = (
+        if self.params["orthogonalize_before_phasing"]:
+            self.orthogonalized_object = reconstructed_object
+            if self.params['voxel_size']:
+                self.verbose_print(
+                    "[INFO] Orthogonalization was run before phasing, provided "
+                    "voxel won't be used."
+            )
+        else:
+            self.orthogonalized_object = (
             self.space_converter.orthogonalize_to_direct_lab(
                 reconstructed_object,
             )
         )
 
-        self.orthgonolized_data = self.space_converter.lab_to_cxi_conventions(
-            orthogonalized_object
+        if self.params["debug"]:
+            self.figures["direct_lab_orthogonalization"]["figure"] = (
+                plot_direct_lab_orthogonalization_process(
+                    np.abs(self.orthogonalized_object),
+                    self.space_converter.get_direct_lab_regular_grid(),
+                    detector_direct_space_data=reconstructed_amplitude,
+                    title=(
+                        r"From \textbf{detector frame} to "
+                        r"\textbf{direct lab frame}, "
+                        f"S{self.scan}"
+                    )
+                )
+            )
+        self.orthogonalized_object = self.space_converter.lab_to_cxi_conventions(
+            self.orthogonalized_object
         )
 
         self.voxel_size = self.space_converter.lab_to_cxi_conventions(
@@ -732,29 +784,15 @@ class BcdiProcessor:
             "in the CXI convention"
         )
 
-        if self.params["debug"]:
-            self.figures["direct_lab_orthogonalization"]["figure"] = (
-                plot_direct_lab_orthogonalization_process(
-                    reconstructed_amplitude,
-                    np.abs(orthogonalized_object),
-                    self.space_converter.get_direct_lab_regular_grid(),
-                    title=(
-                        r"From \textbf{detector frame} to "
-                        r"\textbf{direct lab frame}, "
-                        f"S{self.scan}"
-                    )
-                )
-            )
-
     def _load_reconstruction_file(self, file_path: str) -> np.ndarray:
         with silx.io.h5py_utils.File(file_path) as h5file:
             reconstructed_object = h5file["entry_1/data_1/data"][0]
         return reconstructed_object
 
-    def load_orthogonolized_data(self, file_path: str) -> None:
+    def load_orthogonalized_object(self, file_path: str) -> None:
         if file_path.endswith(".npz"):
             with np.load(file_path) as file:
-                self.orthgonolized_data = file["data"]
+                self.orthogonalized_object = file["data"]
                 self.voxel_size = file["voxel_sizes"]
         else:
             raise NotImplementedError("Please provide a .npz file")
@@ -762,17 +800,17 @@ class BcdiProcessor:
     def postprocess(self) -> None:
 
         if self.params["flip"]:
-            complex_object = PostProcessor.flip_reconstruction(
-                self.orthgonolized_data
+            self.orthogonalized_object = PostProcessor.flip_reconstruction(
+                self.orthogonalized_object
             )
-        else:
-            complex_object = self.orthgonolized_data
 
         if self.params["apodize"]:
             self.verbose_print(
                 "[POST-PROCESSING] Apodizing the complex array."
             )
-            complex_object = PostProcessor.apodize(complex_object)
+            self.orthogonalized_object = PostProcessor.apodize(
+                self.orthogonalized_object
+            )
 
         # first compute the histogram of the amplitude to get an
         # isosurface estimate
@@ -782,7 +820,7 @@ class BcdiProcessor:
             end=" "
         )
         isosurface, self.figures["amplitude"]["figure"] = find_isosurface(
-            np.abs(complex_object),
+            np.abs(self.orthogonalized_object),
             nbins=100,
             sigma_criterion=3,
             plot=True  # plot in any case
@@ -824,7 +862,7 @@ class BcdiProcessor:
         )
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
-                    complex_object,
+                    self.orthogonalized_object,
                     isosurface=self.params["isosurface"],
                     g_vector=SpaceConverter.lab_to_cxi_conventions(
                         self.params["q_lab_reference"]
