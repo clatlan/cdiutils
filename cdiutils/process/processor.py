@@ -688,7 +688,7 @@ class BcdiProcessor:
                 fig["figure"].savefig(
                     fig_path,
                     dpi=200,
-                    # bbox_inches="tight"
+                    bbox_inches="tight"
                 )
 
     def orthogonalize(self):
