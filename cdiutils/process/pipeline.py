@@ -349,7 +349,7 @@ class BcdiPipeline:
 
         pretty_print(
             "[INFO] Proceeding to PyNX phase retrieval "
-            f"(scan {self.scan})"
+            f"({self.sample_name}, {self.scan})"
         )
         # reset the sorted phasing results to None
         self._sorted_phasing_results = None
