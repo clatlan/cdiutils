@@ -962,7 +962,7 @@ class BcdiProcessor:
         }
         try:
             self.figures["postprocessing"]["figure"] = summary_slice_plot(
-                title=f"Summary figure, {self.sample_name}, {self.scan}",
+                title=f"Summary figure, {self.sample_name}, S{self.scan}",
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
                 voxel_size=self.voxel_size,
@@ -985,7 +985,7 @@ class BcdiProcessor:
             vmin=-np.nanmax(np.abs(self.structural_properties["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_properties["het_strain"])),
             cbar_title="Strain (\%)",
-            title="3D view in the CXI frame"
+            title=f"3D views of the strain, {self.sample_name}, S{self.scan}"
         )
 
         strain_plots = {
@@ -997,7 +997,7 @@ class BcdiProcessor:
             ]
         }
         self.figures["strain"]["figure"] = summary_slice_plot(
-            title=f"Strain check figure, {self.sample_name}, {self.scan}",
+            title=f"Strain check figure, {self.sample_name}, S{self.scan}",
             support=zero_to_nan(self.structural_properties["support"]),
             dpi=200,
             voxel_size=self.voxel_size,
@@ -1051,7 +1051,7 @@ class BcdiProcessor:
             summary_slice_plot(
                 title=(
                     "Displacement gradient, "
-                    f"{self.sample_name}, {self.scan}"
+                    f"{self.sample_name}, S{self.scan}"
                 ),
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
@@ -1145,7 +1145,7 @@ class BcdiProcessor:
             where_in_ortho_space=where_in_ortho_space,
             title=(
                 r"FFT of final object \textit{vs.} experimental data"
-                f", {self.sample_name}, {self.scan}"
+                f", {self.sample_name}, S{self.scan}"
             )
         )
 
