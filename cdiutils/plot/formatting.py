@@ -82,27 +82,14 @@ def set_plot_configs():
 
 
 def update_plot_params(
-        style: str="nature",
-        usetex: bool=True,
-        use_siunitx: bool=False,
-        max_open_warning: int=100,
-        dpi: int=200,
-        lines_marker: str="",
-        lines_linewidth: str=2.5,
-        lines_linestyle: str="-",
-        lines_markersize: int=7,
-        figure_titlesize: int=22,
-        font_size: int=16,
-        axes_titlesize: int=16,
-        axes_labelsize: int=16,
-        xtick_labelsize: int=12,
-        ytick_labelsize: int=12,
-        legend_fontsize: int=10,
+        style: str = "default",
+        usetex: bool = True,
+        use_siunitx: bool = False,
         **kwargs
 ) -> None:
     """Update the matplotlib plot parameters to plublication style"""
 
-    if style in ("nature", "NATURE"):
+    if style in ("default", "nature", "NATURE"):
         parameters = {
             "lines.linewidth": 1,
             "lines.markersize": 1,
@@ -143,17 +130,9 @@ def update_plot_params(
                         r'\usepackage{textgreek}'
                         if style == "nature" else r'\usepackage{amsmath}'
                     )
-                ) 
+                )
             }
-    )
-        #         'text.latex.preamble':
-        #         r'\usepackage{siunitx}'
-        #         r'\sisetup{detect-all}'
-        #         r'\usepackage{helvet}'
-        #         r'\usepackage{sansmath} \sansmath' if style == "nature" else r'\usepackage{amsmath}'
-        #         # r'\sansmath'
-        #     }
-        # )
+        )
 
     if usetex:
         matplotlib.pyplot.rcParams.update(
@@ -164,7 +143,7 @@ def update_plot_params(
                 "font.sans-serif": ["Liberation Sans"]
             }
         )
-    
+
     # in any case
     matplotlib.pyplot.rcParams.update(
         {
@@ -172,11 +151,11 @@ def update_plot_params(
             "figure.dpi": 200
         }
     )
-    matplotlib.pyplot.rcParams.update(kwargs)
+    matplotlib.pyplot.rcParams.update(**kwargs)
 
 
 def get_figure_size(
-        width: int or str = "default",
+        width: int | str = "default",
         scale: float = 1,
         subplots: tuple = (1, 1)
 ) -> tuple:
