@@ -1,9 +1,52 @@
-from typing import Union
-
-import colorcet
 import matplotlib
 import matplotlib.ticker as mticker
 import numpy as np
+import colorcet
+
+
+CXI_VIEW_PARAMETERS = {
+   "z+": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": True},
+   "z-": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": False},
+   "y+": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": False},
+   "y-": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": True},
+   "x+": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": False},
+   "x-": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": True},
+}
+
+
+def get_extents(
+        shape: tuple,
+        voxel_size: tuple | list | np.ndarray,
+        plane: list,
+        zero_centered: bool = True,
+) -> tuple:
+    """Find the extents for matshow/imshow plotting, for a given plane.
+
+    Args:
+        shape (tuple): the shape of the data to plot.
+            voxel_size (tuple | list | np.ndarray): the voxel size of
+            the data to plot.
+        voxel_size (tuple | list | np.ndarray): the voxel size of
+            the data to plot.
+        plane (list): what plane to get the extents from. Should be a
+            list of 2 axis integers.
+        zero_centered (bool, optional): whether the plot must be
+            centered at zero. Defaults to True.
+
+    Returns:
+        tuple: first two values correspond to x-axis extent, last two
+            to the y-axis extent in the matshow/imshow plot.
+    """
+    absolute_extents = [
+        voxel_size[i] * shape[i] // (2 if zero_centered else 1)
+        for i in range(3)
+    ]
+    return (
+        -absolute_extents[plane[0]] if zero_centered else 0,
+        absolute_extents[plane[0]],
+        -absolute_extents[plane[1]] if zero_centered else 0,
+        absolute_extents[plane[1]],
+    )
 
 
 def set_plot_configs():
@@ -84,12 +127,12 @@ def set_plot_configs():
 def update_plot_params(
         style: str = "default",
         usetex: bool = True,
-        use_siunitx: bool = False,
+        use_siunitx: bool = True,
         **kwargs
 ) -> None:
     """Update the matplotlib plot parameters to plublication style"""
 
-    if style in ("default", "nature", "NATURE"):
+    if style in ("default", "nature"):
         parameters = {
             "lines.linewidth": 1,
             "lines.markersize": 1,
@@ -118,7 +161,7 @@ def update_plot_params(
         **parameters
     )
     if use_siunitx:
-        usetex = True
+        # bypass usetex value, usetex will be set to True
         matplotlib.pyplot.rcParams.update(
             **{
                 'text.latex.preamble': (
@@ -128,17 +171,19 @@ def update_plot_params(
                     + (
                         r'\usepackage{sansmath} \sansmath'
                         r'\usepackage{textgreek}'
-                        if style == "nature" else r'\usepackage{amsmath}'
+                        if style in ("default", "nature")
+                        else r'\usepackage{amsmath}'
                     )
-                )
+                ),
+                "text.usetex": True
             }
         )
 
-    if usetex:
+    if usetex and not use_siunitx:
         matplotlib.pyplot.rcParams.update(
             **{
                 "mathtext.default": "regular",
-                "text.usetex": usetex,
+                "text.usetex": True,
                 "font.family": "sans-serif",
                 "font.sans-serif": ["Liberation Sans"]
             }
@@ -162,7 +207,7 @@ def get_figure_size(
     """
     Get the figure dimensions to avoid scaling in LaTex.
 
-    This function was copied from
+    This function was taken from
     https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 
     :param width: Document width in points, or string of predefined
@@ -174,7 +219,7 @@ def get_figure_size(
     :return: dimensions of the figure in inches (tuple)
     """
     if width == 'default':
-        width_pt = 390
+        width_pt = 420
     elif width == 'thesis':
         width_pt = 455.30101
     elif width == 'beamer':
