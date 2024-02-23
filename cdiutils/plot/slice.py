@@ -139,13 +139,13 @@ def plot_slices(
     return figure
 
 
-def plot_3D_volume_slices(
+def plot_3d_volume_slices(
         *data: list[np.ndarray],
         slice_labels: list[str]=None,
         shapes: list[tuple]=None,
         nan_supports: list[np.ndarray]=None,
         figsize: tuple[float]=None,
-        cmap: str="turbo",
+        cmap: str | matplotlib.colors.Colormap = "turbo",
         vmin: float=None,
         vmax: float=None,
         alphas: list[np.ndarray]=None,
