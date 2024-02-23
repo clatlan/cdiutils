@@ -1,10 +1,228 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
+import warnings
+
+from cdiutils.plot.formatting import (
+    get_figure_size,
+    get_extents,
+    CXI_VIEW_PARAMETERS
+)
+from cdiutils.utils import (
+    find_suitable_array_shape,
+    CroppingHandler,
+    nan_to_zero
+)
 
 
-def plot_3D_object(
+def hemisphere_projection(
+        data: np.ndarray,
+        support: np.ndarray,
+        axis: int,
+        looking_from_dowstream: bool = True
+) -> np.ndarray:
+    """Compute the hemisphere projection of a volume along one axis.
+
+    Args:
+        data (np.ndarray): the volume data to project.
+        support (np.ndarray): the support of the reconstructed data.
+        axis (int): the axis along which to project.
+        looking_from_dowstream (bool, optional): The direction along
+            axis, positive-going (True) or negative-going (False).
+            Defaults to True.
+
+    Returns:
+        np.ndarray: the 2D array corresponding to the projection.
+    """
+    # Make sure we have 0 values instead of nan
+    support = nan_to_zero(support)
+
+    # Find the support surface
+    if looking_from_dowstream:
+        support_surface = np.cumsum(support, axis=axis)
+    else:
+        slices = tuple(
+            [np.s_[:]] * axis + [np.s_[::-1]] + [np.s_[:]] * (2 - axis)
+        )
+        support_surface = np.cumsum(support[slices], axis=axis)[slices]
+
+    support_surface = np.where(support_surface > 1, 0, support_surface)
+    half_shell_strain = np.where(support_surface == 0, np.nan, data)
+
+    # Some warning is expecting here as mean of empty slices may occur
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        # project the half shell strain along the direction provided
+        # by axis
+        return np.nanmean(half_shell_strain, axis=axis)
+
+
+def plot_3d_surface_projections(
+        data: np.ndarray,
+        support: np.ndarray,
+        voxel_size: tuple | list | np.ndarray,
+        view_parameters: dict = None,
+        figsize: tuple = None,
+        title: str = None,
+        cbar_title: str = None,
+        **figure_parameters
+) -> mpl.figure.Figure:
+    """Plot 3D projected views from a 3D object.
+
+    Args:
+        data (np.ndarray): the data to plot.
+        support (np.ndarray): the support of the reconstructed object.
+        voxel_size (tuple | list | np.ndarray): the voxel size of
+            the data to plot.
+        view_parameters (dict, optional): some parameters required for
+            setting the plot views. Defaults to CXI_VIEW_PARAMETERS.
+        figsize (tuple, optional): the size of the figure. Defaults to
+            None.
+        title (str, optional): the title of the figure. Defaults to
+            None.
+        cbar_title (str, optional): the title of the colour bar.
+            Defaults to None.
+
+    Returns:
+        matplotlib.figure.Figure: the figure.
+    """
+    if view_parameters is None:
+        view_parameters = CXI_VIEW_PARAMETERS
+
+    if figsize is None:
+        figsize = get_figure_size(subplots=(3, 3))
+
+    cbar_size, cbar_pad = 0.07, 0.4
+    figure, axes = plt.subplots(
+        2, 3,
+        figsize=figsize,
+        gridspec_kw={'height_ratios': [1/(1-(cbar_pad+cbar_size)), 1]}
+    )
+    shape = find_suitable_array_shape(support, symmetrical_shape=False)
+    cropped_support,  _, _, roi = CroppingHandler.chain_centering(
+        support,
+        output_shape=shape,
+        methods=["com"]
+    )
+
+    cropped_data = data[CroppingHandler.roi_list_to_slices(roi)]
+
+    for v in view_parameters.keys():
+        looking_from_dowstream = False
+        row = 0
+        if v.endswith("+"):
+            looking_from_dowstream = True
+            row = 1
+
+        ax = axes[row, view_parameters[v]["axis"]]
+
+        projection = hemisphere_projection(
+            cropped_data,
+            cropped_support,
+            axis=view_parameters[v]["axis"],
+            looking_from_dowstream=looking_from_dowstream
+        )
+
+        # Swap axes for matshow if the first plane axis is less than the
+        # second, ensuring correct orientation where the first plane
+        # corresponds to the y-axis and the seconde plane to the x-axis.
+        # If first plane axis > second plane axis, the default orientation is
+        # correct, and no swapping is needed.
+        if view_parameters[v]["plane_axes"] == sorted(
+                view_parameters[v]["plane_axes"]
+        ):
+            projection = np.swapaxes(projection, axis1=0, axis2=1)
+
+        # to handle extent and origin please refer to 
+        # https://matplotlib.org/stable/users/explain/artists/imshow_extent.html#imshow-extent
+        extent = get_extents(
+            shape,
+            voxel_size,
+            view_parameters[v]["plane_axes"]
+        )
+
+        if view_parameters[v]["yaxis_points_left"]:
+            # flip the horizontal extent, and the image horizontally
+            extent = (extent[1], extent[0], *extent[2:])
+            projection = projection[np.s_[:, ::-1]]
+
+        image = ax.matshow(
+            projection,
+            extent=extent,
+            origin="lower",
+            interpolation="antialiased",
+            **figure_parameters
+        )
+        ax.set_title(v, y=0.95)
+
+        # Set a new boolean for whether y-axis should be right or left
+        yaxis_left = view_parameters[v]["yaxis_points_left"]
+
+        # Remove the useless spines
+        ax.spines[
+            ["top", "left" if yaxis_left else "right"]].set_visible(False)
+
+        # Set the position of the spines
+        ax.spines["right" if yaxis_left else "left"].set_position(
+                ("axes", yaxis_left)
+        )
+
+        # Customize ticks and tick labels
+        ax.xaxis.set_ticks_position("bottom")
+        ax.yaxis.set_ticks_position("right" if yaxis_left else "left")
+        ax.yaxis.set_label_position("right" if yaxis_left else "left")
+
+        # Plot the shaft of the axis
+        ax.plot(
+            yaxis_left,
+            1,
+            "^k",
+            transform=ax.transAxes,
+            clip_on=False
+        )
+        ax.plot(
+            1-yaxis_left, 0,
+            "<k" if yaxis_left else ">k",
+            transform=ax.transAxes,
+            clip_on=False
+        )
+        xlabel = (
+            r"$z$\textsubscript{CXI}"
+            if view_parameters[v]["plane_axes"][0] == 0
+            else r"$y$\textsubscript{CXI}"
+            if view_parameters[v]["plane_axes"][0] == 1
+            else r"$x$\textsubscript{CXI}"
+        )
+        ylabel = (
+            r"$z$\textsubscript{CXI}"
+            if view_parameters[v]["plane_axes"][1] == 0
+            else r"$y$\textsubscript{CXI}"
+            if view_parameters[v]["plane_axes"][1] == 1
+            else r"$x$\textsubscript{CXI}"
+        )
+        ax.set_xlabel(xlabel + "(nm)", labelpad=1)
+        ax.set_ylabel(ylabel + "(nm)", labelpad=1)
+        ax.tick_params(axis='both', which='major', pad=1.5)
+
+        ax.locator_params(nbins=5)
+
+    divider = make_axes_locatable(axes[0, 1])
+    cax = divider.append_axes("top", size=cbar_size, pad=cbar_pad)
+    figure.colorbar(
+        image,
+        cax=cax,
+        extend="both",
+        orientation="horizontal",
+    )
+    cax.set_title(cbar_title)
+
+    figure.suptitle(title)
+    figure.tight_layout()
+    return figure
+
+
+def plot_3d_object(
         data,
         support=None,
         cmap="turbo",
@@ -14,7 +232,7 @@ def plot_3D_object(
         show=True,
         marker="H",
         alpha=1
-    ):
+):
 
     """
     Plot a 3D object.
@@ -72,7 +290,7 @@ def plot_3D_object(
     return fig
 
 
-def plot_3D_vector_field(
+def plot_3d_vector_field(
         data,
         support,
         arrow=True,

@@ -34,6 +34,7 @@ from cdiutils.process.plot import (
     plot_final_object_fft
 )
 from cdiutils.plot.colormap import RED_TO_TEAL
+from cdiutils.plot.volume import plot_3d_surface_projections
 
 
 def loader_factory(metadata: dict) -> BlissLoader | SpecLoader | SIXS2022Loader:
@@ -123,11 +124,11 @@ class BcdiProcessor:
             },
             "strain": {
                 "name": "different_strain_methods",
-                "debug": True
+                "debug": False
             },
             "displacement_gradient": {
                 "name": "displacement_gradient",
-                "debug": True
+                "debug": False
             },
             "amplitude": {
                 "name": "amplitude_distribution_plot",
@@ -139,11 +140,15 @@ class BcdiProcessor:
             },
             "q_lab_orthogonalization": {
                 "name": "q_lab_orthogonalization_plot",
-                "debug": True
+                "debug": False
             },
             "final_object_fft": {
                 "name": "final_object_fft",
-                "debug": True
+                "debug": False
+            },
+            "3d_strain": {
+                "name": "3d_strain",
+                "debug": False
             }
         }
         for value in self.figures.values():
@@ -957,7 +962,7 @@ class BcdiProcessor:
         }
         try:
             self.figures["postprocessing"]["figure"] = summary_slice_plot(
-                title=f"Summary figure, {self.sample_name}, {self.scan}",
+                title=f"Summary figure, {self.sample_name}, S{self.scan}",
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
                 voxel_size=self.voxel_size,
@@ -972,169 +977,177 @@ class BcdiProcessor:
                 "Something went wrong during plotting. "
                 "Won't plot summary slice plot."
             ) from exc
+        self.figures["3d_strain"]["figure"] = plot_3d_surface_projections(
+            data=self.structural_properties["het_strain"],
+            support=self.structural_properties["support"],
+            voxel_size=self.voxel_size,
+            cmap="cet_CET_D13",
+            vmin=-np.nanmax(np.abs(self.structural_properties["het_strain"])),
+            vmax=np.nanmax(np.abs(self.structural_properties["het_strain"])),
+            cbar_title="Strain (\%)",
+            title=f"3D views of the strain, {self.sample_name}, S{self.scan}"
+        )
 
-        if self.params["debug"]:
-            strain_plots = {
-                k: self.structural_properties[k]
-                for k in [
-                    "het_strain", "het_strain_from_dspacing",
-                    "het_strain_from_dspacing", "numpy_het_strain",
-                    "het_strain_with_ramp"
-                ]
-            }
-            self.figures["strain"]["figure"] = summary_slice_plot(
-                title=f"Strain check figure, {self.sample_name}, {self.scan}",
+        strain_plots = {
+            k: self.structural_properties[k]
+            for k in [
+                "het_strain", "het_strain_from_dspacing",
+                "het_strain_from_dspacing", "numpy_het_strain",
+                "het_strain_with_ramp"
+            ]
+        }
+        self.figures["strain"]["figure"] = summary_slice_plot(
+            title=f"Strain check figure, {self.sample_name}, S{self.scan}",
+            support=zero_to_nan(self.structural_properties["support"]),
+            dpi=200,
+            voxel_size=self.voxel_size,
+            isosurface=self.params["isosurface"],
+            det_reference_voxel=self.params["det_reference_voxel"],
+            averaged_dspacing=self.averaged_dspacing,
+            averaged_lattice_parameter=self.averaged_lattice_parameter,
+            single_vmin=-self.structural_properties["het_strain"].ptp()/2,
+            single_vmax=self.structural_properties["het_strain"].ptp()/2,
+            **strain_plots
+        )
+
+        # take care of the axis names for the displacement gradient
+        # plots
+        axis_names = [
+            r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"
+        ]
+        if self.params["usetex"]:
+            axis_title_template = (
+                r"$\frac{\partial u_" + "{"
+                + f"{''.join([str(e) for e in self.params['hkl']])}"
+                + "}}"
+            )
+            titles = [
+                axis_title_template + r"{\partial " + axis_names[i] + "}$"
+                for i in range(3)
+            ]
+        else:
+            axis_title_template = (
+                "du_" + "{"
+                + f"{''.join([str(e) for e in self.params['hkl']])}" + "}"
+            )
+            titles = [
+                fr"${axis_title_template}/d{axis_names[i]}$"
+                for i in range(3)
+            ]
+
+        displacement_gradient_plots = {
+            titles[i]: (
+                self.structural_properties["displacement_gradient"][i]
+            )
+            for i in range(3)
+        }
+        ptp_value = (
+            np.nanmax(
+                self.structural_properties["displacement_gradient"][0])
+            - np.nanmin(
+                self.structural_properties["displacement_gradient"][0])
+        )
+        self.figures["displacement_gradient"]["figure"] = (
+            summary_slice_plot(
+                title=(
+                    "Displacement gradient, "
+                    f"{self.sample_name}, S{self.scan}"
+                ),
                 support=zero_to_nan(self.structural_properties["support"]),
                 dpi=200,
                 voxel_size=self.voxel_size,
                 isosurface=self.params["isosurface"],
                 det_reference_voxel=self.params["det_reference_voxel"],
                 averaged_dspacing=self.averaged_dspacing,
-                averaged_lattice_parameter=self.averaged_lattice_parameter,
-                single_vmin=-self.structural_properties["het_strain"].ptp()/2,
-                single_vmax=self.structural_properties["het_strain"].ptp()/2,
-                **strain_plots
-            )
-
-            # take care of the axis names for the displacement gradient
-            # plots
-            axis_names = [
-                r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"
-            ]
-            if self.params["usetex"]:
-                axis_title_template = (
-                    r"$\frac{\partial u_" + "{"
-                    + f"{''.join([str(e) for e in self.params['hkl']])}"
-                    + "}}"
-                )
-                titles = [
-                    axis_title_template + r"{\partial " + axis_names[i] + "}$"
-                    for i in range(3)
-                ]
-            else:
-                axis_title_template = (
-                    "du_" + "{"
-                    + f"{''.join([str(e) for e in self.params['hkl']])}" + "}"
-                )
-                titles = [
-                    fr"${axis_title_template}/d{axis_names[i]}$"
-                    for i in range(3)
-                ]
-
-            displacement_gradient_plots = {
-                titles[i]: (
-                    self.structural_properties["displacement_gradient"][i]
-                )
-                for i in range(3)
-            }
-            ptp_value = (
-                np.nanmax(
-                    self.structural_properties["displacement_gradient"][0])
-                - np.nanmin(
-                    self.structural_properties["displacement_gradient"][0])
-            )
-            self.figures["displacement_gradient"]["figure"] = (
-                summary_slice_plot(
-                    title=(
-                        "Displacement gradient, "
-                        f"{self.sample_name}, {self.scan}"
-                    ),
-                    support=zero_to_nan(self.structural_properties["support"]),
-                    dpi=200,
-                    voxel_size=self.voxel_size,
-                    isosurface=self.params["isosurface"],
-                    det_reference_voxel=self.params["det_reference_voxel"],
-                    averaged_dspacing=self.averaged_dspacing,
-                    averaged_lattice_parameter=(
-                        self.averaged_lattice_parameter
-                    ),
-                    single_vmin=-ptp_value/2,
-                    single_vmax=ptp_value/2,
-                    cmap=RED_TO_TEAL,
-                    **displacement_gradient_plots
-                )
-            )
-
-        if self.params["debug"]:
-            # load the orthogonalized intensity computed during
-            # preprocessing
-            file_path = (
-                f"{self.dump_dir}cdiutils_S{self.scan}"
-                "_orthogonalized_intensity.npz"
-            )
-            with np.load(file_path) as npzfile:
-                orthogonalized_intensity = npzfile["orthogonalized_intensity"]
-                exp_data_q_lab_grid = [
-                    npzfile["q_xlab"],
-                    npzfile["q_ylab"],
-                    npzfile["q_zlab"]
-                ]
-            shape = orthogonalized_intensity.shape
-            # convert to lab conventions and pad the data
-            # We must multiply by -1 the phase to compare with the
-            # measured intensity.
-            final_object_fft = symmetric_pad(
-                self.space_converter.cxi_to_lab_conventions(
-                    self.structural_properties["amplitude"]
-                    * np.exp(-1j*self.structural_properties["phase"])
+                averaged_lattice_parameter=(
+                    self.averaged_lattice_parameter
                 ),
-                final_shape=shape
+                single_vmin=-ptp_value/2,
+                single_vmax=ptp_value/2,
+                cmap=RED_TO_TEAL,
+                **displacement_gradient_plots
             )
-            final_object_fft = np.abs(np.fft.ifftshift(
-                np.fft.fftn(
-                    np.fft.fftshift(final_object_fft)
-                )
-            )) ** 2
+        )
 
-            extension = np.multiply(self.voxel_size, shape)
-            voxel_size_of_fft_object = 2 * np.pi / (10 * extension)
+        # load the orthogonalized intensity computed during
+        # preprocessing
+        file_path = (
+            f"{self.dump_dir}cdiutils_S{self.scan}"
+            "_orthogonalized_intensity.npz"
+        )
+        with np.load(file_path) as npzfile:
+            orthogonalized_intensity = npzfile["orthogonalized_intensity"]
+            exp_data_q_lab_grid = [
+                npzfile["q_xlab"],
+                npzfile["q_ylab"],
+                npzfile["q_zlab"]
+            ]
+        shape = orthogonalized_intensity.shape
+        # convert to lab conventions and pad the data
+        # We must multiply by -1 the phase to compare with the
+        # measured intensity.
+        final_object_fft = symmetric_pad(
+            self.space_converter.cxi_to_lab_conventions(
+                self.structural_properties["amplitude"]
+                * np.exp(-1j*self.structural_properties["phase"])
+            ),
+            final_shape=shape
+        )
+        final_object_fft = np.abs(np.fft.ifftshift(
+            np.fft.fftn(
+                np.fft.fftshift(final_object_fft)
+            )
+        )) ** 2
 
-            final_object_q_lab_grid = (
-                np.arange(
-                    -shape[0]//2, shape[0]//2, 1
-                ) * voxel_size_of_fft_object[0],
-                np.arange(
-                    -shape[1]//2, shape[1]//2, 1
-                ) * voxel_size_of_fft_object[1],
-                np.arange(
-                    -shape[2]//2, shape[2]//2, 1
-                ) * voxel_size_of_fft_object[2],
-            )
-            final_object_q_lab_grid = tuple(
-                shift + grid
-                for shift, grid in zip(
-                    self.space_converter.q_space_shift,
-                    final_object_q_lab_grid
-                )
-            )
+        extension = np.multiply(self.voxel_size, shape)
+        voxel_size_of_fft_object = 2 * np.pi / (10 * extension)
 
-            # find the position in the cropped detector frame
-            roi = CroppingHandler.get_roi(
-                self.params["preprocessing_output_shape"],
-                self.params["det_reference_voxel"]
+        final_object_q_lab_grid = (
+            np.arange(
+                -shape[0]//2, shape[0]//2, 1
+            ) * voxel_size_of_fft_object[0],
+            np.arange(
+                -shape[1]//2, shape[1]//2, 1
+            ) * voxel_size_of_fft_object[1],
+            np.arange(
+                -shape[2]//2, shape[2]//2, 1
+            ) * voxel_size_of_fft_object[2],
+        )
+        final_object_q_lab_grid = tuple(
+            shift + grid
+            for shift, grid in zip(
+                self.space_converter.q_space_shift,
+                final_object_q_lab_grid
             )
-            cropped_det_ref = tuple(
-                    p - r if r else p  # if r is None, p-r must be p
-                    for p, r in zip(
-                        self.params["det_reference_voxel"], roi[::2])
-            )
-            where_in_ortho_space = (
-                self.space_converter.index_det_to_index_of_q_lab(
-                    cropped_det_ref
-                )
-            )
+        )
 
-            self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
-                final_object_fft,
-                orthogonalized_intensity,
-                final_object_q_lab_grid,
-                exp_data_q_lab_grid,
-                where_in_ortho_space=where_in_ortho_space,
-                title=(
-                    r"FFT of final object \textit{vs.} experimental data"
-                    f", {self.sample_name}, {self.scan}"
-                )
+        # find the position in the cropped detector frame
+        roi = CroppingHandler.get_roi(
+            self.params["preprocessing_output_shape"],
+            self.params["det_reference_voxel"]
+        )
+        cropped_det_ref = tuple(
+                p - r if r else p  # if r is None, p-r must be p
+                for p, r in zip(
+                    self.params["det_reference_voxel"], roi[::2])
+        )
+        where_in_ortho_space = (
+            self.space_converter.index_det_to_index_of_q_lab(
+                cropped_det_ref
             )
+        )
+
+        self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
+            final_object_fft,
+            orthogonalized_intensity,
+            final_object_q_lab_grid,
+            exp_data_q_lab_grid,
+            where_in_ortho_space=where_in_ortho_space,
+            title=(
+                r"FFT of final object \textit{vs.} experimental data"
+                f", {self.sample_name}, S{self.scan}"
+            )
+        )
 
     def save_postprocessed_data(self) -> None:
         """
