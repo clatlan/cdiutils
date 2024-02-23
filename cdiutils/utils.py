@@ -531,8 +531,10 @@ class CroppingHandler:
     @classmethod
     def chain_centering(
             cls,
-            data: np.ndarray, output_shape: tuple[int, ...],
-            methods: list[str | tuple[int, ...]]
+            data: np.ndarray,
+            output_shape: tuple[int, ...],
+            methods: list[str | tuple[int, ...]],
+            verbose: bool = False
     ) -> tuple[np.ndarray, tuple[int, ...]]:
         """
         Apply sequential centering methods to the input data and return
@@ -546,6 +548,7 @@ class CroppingHandler:
                 can be "max" for maximum intensity, "com" for center of
                 mass, or a tuple of coordinates representing the voxel
                 position.
+            verbose: (bool, optional) whether to print out messages.
 
         Returns:
             A tuple containing the cropped and centered data array, the
@@ -559,11 +562,13 @@ class CroppingHandler:
         # For the first method the data are not masked
         masked_data = data
         position = None
-        print("Chain centering:")
+        if verbose:
+            print("Chain centering:")
         for method in methods:
             # position is found in the masked data
             position = cls.get_position(masked_data, method)
-            print(f"\t- {method}: {position}, value: {data[position]}")
+            if verbose:
+                print(f"\t- {method}: {position}, value: {data[position]}")
 
             # get the roi
             roi = cls.get_roi(output_shape, position, data.shape)
@@ -591,18 +596,21 @@ class CroppingHandler:
     def force_centered_cropping(
             cls,
             data: np.ndarray,
-            where: tuple,
+            where: str | tuple = "center",
             output_shape: tuple = None,
             verbose: bool = False
     ) -> np.ndarray:
         """
         Crop the data so the given reference position (where) is at
         the center of the final data frame no matter the output_shape.
-        Therefore the real output shape might be different to the
+        Therefore the real output shape might be different to
         output_shape.
         """
         if output_shape is None:
             output_shape = data.shape
+
+        if where == "center":
+            where = tuple(e // 2 for e in data.shape)
 
         position = cls.get_position(data, where)
         shape = data.shape
