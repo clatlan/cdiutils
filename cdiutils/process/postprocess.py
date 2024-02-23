@@ -30,7 +30,7 @@ class PostProcessor:
     def prepare_volume(
             complex_object: np.ndarray,
             isosurface,
-            final_shape: np.ndarray or tuple or list = None,
+            final_shape: np.ndarray | tuple | list = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Prepare the volume by finding a smaller array shape, centering
