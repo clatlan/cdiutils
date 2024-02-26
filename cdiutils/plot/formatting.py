@@ -71,7 +71,7 @@ def set_plot_configs():
         },
         "phase": {
             "title": "Phase (rad)",
-            "cmap": "cet_CET_C9s",
+            "cmap": "cet_CET_C9s_r",
             "vmin": -np.pi / 8,
             "vmax": np.pi / 8,
         },
