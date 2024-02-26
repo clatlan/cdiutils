@@ -188,7 +188,9 @@ class PostProcessor:
         """
         Set the phase offset to the mean phase value.
         """
-        return phase - np.nanmean(phase * support if support else 1)
+        if support is None:
+            return phase - np.nanmean(phase)
+        return phase - np.nanmean(phase * support)
 
     @staticmethod
     def get_displacement(
