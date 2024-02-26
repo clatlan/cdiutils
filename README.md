@@ -19,10 +19,16 @@ Some features of this package include:
 
 ## Installation
 
-You can install the package with the following command:
+You can install the package using the following command:
 
 ```
 pip install git+https://github.com/clatlan/cdiutils.git
+```
+
+To update your environment with the latest commits:
+
+```
+pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
 ```
 
 Upgrade your environment with a new version of the package:
