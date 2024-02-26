@@ -448,7 +448,8 @@ class CroppingHandler:
 
     @classmethod
     def get_masked_data(
-        cls, data: np.ndarray, roi: list[int]
+        cls, data: np.ndarray,
+        roi: list[int]
     ) -> np.ma.MaskedArray:
         """
         Get the masked data array based on the region of interest (ROI).
@@ -573,13 +574,15 @@ class CroppingHandler:
             # get the roi
             roi = cls.get_roi(output_shape, position, data.shape)
 
-            # mask the data in the out of roi
+            # mask the data values which are outside roi
             masked_data = cls.get_masked_data(data, roi=roi)
+
         if (
                 methods[-1] == "com"
                 and (position != cls.get_position(masked_data, "com"))
         ):
             warnings.warn(
+                "\n"
                 "The center of the final box does not correspond to the com.\n"
                 "You might want to keep looking for it."
             )
