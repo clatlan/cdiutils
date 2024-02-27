@@ -7,6 +7,7 @@ import xrayutilities as xu
 import warnings
 
 from cdiutils.utils import nan_to_zero
+from cdiutils.plot.formatting import get_figure_size
 
 
 def plot_slices(
@@ -52,6 +53,9 @@ def plot_slices(
             "slice_labels won't be displayed."
         )
         slice_labels = ["" for i in range(len(data))]
+
+    if figsize is None:
+        figsize = get_figure_size()
 
     figure = plt.figure(figsize=figsize)
     grid = AxesGrid(
