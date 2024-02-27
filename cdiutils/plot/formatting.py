@@ -156,14 +156,12 @@ def update_plot_params(
             "ytick.labelsize": 8,
             "legend.fontsize": 8,
         }
+    matplotlib.pyplot.rcParams.update(parameters)
 
-    matplotlib.pyplot.rcParams.update(
-        **parameters
-    )
     if use_siunitx:
-        # bypass usetex value, usetex will be set to True
+        # override usetex value, text.usetex will be set to True
         matplotlib.pyplot.rcParams.update(
-            **{
+            {
                 'text.latex.preamble': (
                     r'\usepackage{siunitx}'
                     r'\sisetup{detect-all}'
@@ -178,12 +176,12 @@ def update_plot_params(
                 "text.usetex": True
             }
         )
-
-    if usetex and not use_siunitx:
+    else:
         matplotlib.pyplot.rcParams.update(
-            **{
+            {
+                "text.usetex": usetex,
+                "text.latex.preamble": "",
                 "mathtext.default": "regular",
-                "text.usetex": True,
                 "font.family": "sans-serif",
                 "font.sans-serif": ["Liberation Sans"]
             }
