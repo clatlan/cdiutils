@@ -48,7 +48,7 @@ AUTHORIZED_KEYS = {
         "support_update_period": 20,
         "support_smooth_width_begin": 2,
         "support_smooth_width_end": 1,
-        "support_post_expand": "1,-2,1",
+        "support_post_expand": None,
         "psf": "pseudo-voigt,0.5,0.1,10",
         "nb_raar": 1000,
         "nb_hio": 150,
@@ -117,8 +117,8 @@ def check_parameters(parameters: dict) -> None:
             if name not in parameters[e].keys() or parameters[e][name] is None:
                 if value == "REQUIRED":
                     raise ValueError(f"Arguement '{name}' is required")
-                else:
-                    parameters[e].update({name: value})
+                print(name, value)
+                parameters[e].update({name: value})
         for name in parameters[e].keys():
             if not isparameter(name):
                 warnings.warn(
