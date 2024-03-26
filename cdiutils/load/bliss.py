@@ -38,7 +38,8 @@ class BlissLoader(Loader):
             detector_name: str,
             sample_name: str = None,
             flatfield: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None
+            alien_mask: np.ndarray | str = None,
+            **kwargs
     ) -> None:
         super(BlissLoader, self).__init__(
             experiment_file_path,
@@ -187,7 +188,9 @@ class BlissLoader(Loader):
                     binned_sample_outofplane_angle = [
                         np.mean(e, axis=0)
                         for e in np.split(
-                                angles["sample_outofplane_angle"][:first_slices],
+                                angles["sample_outofplane_angle"][
+                                    :first_slices
+                                ],
                                 nb_of_bins
                             )
                     ]
@@ -212,7 +215,8 @@ class BlissLoader(Loader):
             for name, value in angles.items():
                 try:
                     angles[name] = value[roi]
-                except IndexError: # note that it is not the same error as above
+                except IndexError:
+                    # note that it is not the same error as above
                     continue
         return angles
 
