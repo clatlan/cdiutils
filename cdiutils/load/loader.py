@@ -21,12 +21,37 @@ class Loader:
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None
     ) -> None:
+        """
+        The gerenic parent class for all loaders.
+
+        Args:
+            flat_field (np.ndarray | str, optional): flat field to
+                account for the non homogeneous counting of the
+                detector. Defaults to None.
+            alien_mask (np.ndarray | str, optional): array to mask the
+                aliens. Defaults to None.
+        """
 
         self.flat_field = self._check_load(flat_field)
         self.alien_mask = self._check_load(alien_mask)
 
     @classmethod
     def from_setup(cls, beamline_setup: str, metadata: dict) -> "Loader":
+        """
+        Instantiate a child loader class given a the setup name,
+        following the Factory Pattern.
+
+        Args:
+            beamline_setup (str): the name of the beamline setup.
+            metadata (dict): the parameters defining the experimental
+                setup.
+
+        Raises:
+            ValueError: If the beamline setup is invalid.
+
+        Returns:
+            Loader: the subloader according to the provided name.
+        """
         if beamline_setup == "ID01BLISS":
             from . import BlissLoader
             return BlissLoader(**metadata)
@@ -39,7 +64,7 @@ class Loader:
         if beamline_setup == "P10":
             from . import P10Loader
             return P10Loader(**metadata)
-        raise ValueError(f"Invalid beam line setup: {beamline_setup}")
+        raise ValueError(f"Invalid beamline setup: {beamline_setup}")
 
     def _check_load(self, data_or_path: np.ndarray | str) -> np.ndarray:
         """
@@ -134,5 +159,5 @@ class Loader:
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
         if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
+            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
         return mask[roi]
