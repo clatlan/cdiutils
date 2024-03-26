@@ -1,10 +1,9 @@
-    """
-    A generic class for loaders
-    """
+"""
+A generic class for loaders
+"""
 
 import numpy as np
 from typing import Callable
-
 import silx.io.h5py_utils
 
 
@@ -15,64 +14,36 @@ def safe(func: Callable) -> Callable:
             return func(self, *args, **kwargs)
     return wrap
 
+
 class Loader:
     def __init__(
             self,
-            experiment_file_path: str,
-            detector_name: str,
-            sample_name: str = None,
-            flatfield: np.ndarray | str = None,
+            flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None
     ) -> None:
 
-        self.experiment_file_path = experiment_file_path
-        self.detector_name = detector_name
-        self.sample_name = sample_name
+        self.flat_field = self._check_load(flat_field)
+        self.alien_mask = self._check_load(alien_mask)
 
-        self.flatfield = _check_load(flatfield)
-        self.alien_mask = _check_load(alien_mask)
-
-        # TODO check whether this is needed
-        import os
-        self.experiment_root_directory = os.path.dirname(experiment_file_path)
-    
     @classmethod
-    def from_name(cls, beamline_setup: str) -> None:
+    def from_setup(cls, beamline_setup: str, metadata: dict) -> "Loader":
         if beamline_setup == "ID01BLISS":
-            return BlissLoader(
-                experiment_file_path=metadata["experiment_file_path"],
-                detector_name=metadata["detector_name"],
-                sample_name=metadata["sample_name"],
-                flatfield=metadata["flatfield_path"],
-                # alien_mask=metadata["alien_mask"]
-
-            )
+            from . import BlissLoader
+            return BlissLoader(**metadata)
         if beamline_setup == "ID01SPEC":
-            return SpecLoader(
-                experiment_file_path=metadata["experiment_file_path"],
-                detector_data_path=metadata["detector_data_path"],
-                edf_file_template=metadata["edf_file_template"],
-                detector_name=metadata["detector_name"]
-            )
+            from . import SpecLoader
+            return SpecLoader(**metadata)
         if beamline_setup == "SIXS2022":
-            return SIXS2022Loader(
-                experiment_data_dir_path=metadata["experiment_data_dir_path"],
-                detector_name=metadata["detector_name"],
-                sample_name=metadata["sample_name"],
-            )
+            from . import SIXS2022Loader
+            return SIXS2022Loader(**metadata)
         if beamline_setup == "P10":
-            return P10Loader(
-                experiment_data_dir_path=metadata["experiment_data_dir_path"],
-                detector_name=metadata["detector_name"],
-                sample_name=metadata["sample_name"],
-            )
-        raise NotImplementedError("The provided beamline_setup is not valid.")
+            from . import P10Loader
+            return P10Loader(**metadata)
+        raise ValueError(f"Invalid beam line setup: {beamline_setup}")
 
-
-
-    def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
+    def _check_load(self, data_or_path: np.ndarray | str) -> np.ndarray:
         """
-        Private method to load mask or alien np.ndarray. 
+        Private method to load mask or alien np.ndarray.
 
         Args:
             data_or_path (np.ndarray | str): the data or the path of the
@@ -90,18 +61,19 @@ class Loader:
             elif data_or_path.endswith(".npz"):
                 with np.load(data_or_path, "r") as file:
                     return file["arr_0"]
-        elif isinstance(data_or_path, (np.ndarray, None)):
+        elif data_or_path is None or isinstance(data_or_path, np.ndarray):
             return data_or_path
         else:
             raise ValueError(
-                "[ERROR] wrong value for flatfield parameter, provide a path, "
-                "np.ndarray or leave it to None"
+                "[ERROR] wrong value for flat_field and/or alien_mask "
+                "parameter provide a path, np.ndarray or leave it to None"
             )
 
     @staticmethod
     def get_mask(
             channel: int = None,
-            detector_name: str = "Maxipix"
+            detector_name: str = "Maxipix",
+            roi: tuple[slice] = None
     ) -> np.ndarray:
         """
         Load the mask of the given detector_name.
@@ -111,6 +83,8 @@ class Loader:
                 dimension. Defaults to None (2D in that case).
             detector_name (str, optional): The name of the detector.
                 Defaults to "Maxipix".
+            roi (tuple, optional): the region of interest associated to
+                the data. Defaults to None.
 
         Raises:
             ValueError: If detector name is unknown or not implemented
@@ -119,6 +93,8 @@ class Loader:
         Returns:
             np.ndarray: the 2D or 3D mask.
         """
+        if roi is None:
+            roi = tuple(slice(None) for i in range(3 if channel else 2))
 
         if detector_name in (
             "maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"
@@ -143,11 +119,20 @@ class Loader:
             mask[1248:1290, 478] = 1
             mask[1214:1298, 481] = 1
             mask[1649:1910, 620:628] = 1
-        elif detector_name in ("Eiger4M", "eiger4m", "eiger4M", "Eiger4m"):
-            pass
-        
+
+        elif detector_name in ("Eiger4M", "eiger4m", "e4m"):
+            mask = np.zeros(shape=(2167, 2070))
+            mask[:, 0:1] = 1
+            mask[:, -1:] = 1
+            mask[0:1, :] = 1
+            mask[-1:, :] = 1
+            mask[:, 1029:1041] = 1
+            mask[513:552, :] = 1
+            mask[1064:1103, :] = 1
+            mask[1615:1654, :] = 1
+
         else:
-            raise ValueError("Unknown detector_name")
+            raise ValueError(f"Invalid detector name: {detector_name}")
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
-        return mask
+        return mask[roi]
