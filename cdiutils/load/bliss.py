@@ -40,6 +40,22 @@ class BlissLoader(Loader):
             alien_mask: np.ndarray | str = None,
             **kwargs
     ) -> None:
+        """
+        Initialize BlissLoader with experiment data file path and
+        detector information.
+
+        Args:
+            experiment_file_path (str): path to the bliss master file
+                used for the experiment.
+            detector_name (str): name of the detector.
+            sample_name (str, optional): name of the sample. Defaults
+                to None.
+            flat_field (np.ndarray | str, optional): flat field to
+                account for the non homogeneous counting of the
+                detector. Defaults to None.
+            alien_mask (np.ndarray | str, optional): array to mask the
+                aliens. Defaults to None.
+        """
         super(BlissLoader, self).__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
         self.detector_name = detector_name
