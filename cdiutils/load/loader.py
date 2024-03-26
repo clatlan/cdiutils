@@ -38,7 +38,7 @@ class Loader:
     
     @classmethod
     def from_name(cls, beamline_setup: str) -> None:
-         if beamline_setup == "ID01BLISS":
+        if beamline_setup == "ID01BLISS":
             return BlissLoader(
                 experiment_file_path=metadata["experiment_file_path"],
                 detector_name=metadata["detector_name"],
@@ -47,26 +47,26 @@ class Loader:
                 # alien_mask=metadata["alien_mask"]
 
             )
-    if metadata["beamline_setup"] == "ID01SPEC":
-        return SpecLoader(
-            experiment_file_path=metadata["experiment_file_path"],
-            detector_data_path=metadata["detector_data_path"],
-            edf_file_template=metadata["edf_file_template"],
-            detector_name=metadata["detector_name"]
-        )
-    if metadata["beamline_setup"] == "SIXS2022":
-        return SIXS2022Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    if metadata["beamline_setup"] == "P10":
-        return P10Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    raise NotImplementedError("The provided beamline_setup is not valid.")
+        if beamline_setup == "ID01SPEC":
+            return SpecLoader(
+                experiment_file_path=metadata["experiment_file_path"],
+                detector_data_path=metadata["detector_data_path"],
+                edf_file_template=metadata["edf_file_template"],
+                detector_name=metadata["detector_name"]
+            )
+        if beamline_setup == "SIXS2022":
+            return SIXS2022Loader(
+                experiment_data_dir_path=metadata["experiment_data_dir_path"],
+                detector_name=metadata["detector_name"],
+                sample_name=metadata["sample_name"],
+            )
+        if beamline_setup == "P10":
+            return P10Loader(
+                experiment_data_dir_path=metadata["experiment_data_dir_path"],
+                detector_name=metadata["detector_name"],
+                sample_name=metadata["sample_name"],
+            )
+        raise NotImplementedError("The provided beamline_setup is not valid.")
 
 
 
