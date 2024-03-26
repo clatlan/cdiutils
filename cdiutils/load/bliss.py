@@ -2,7 +2,6 @@ from typing import Callable
 import dateutil.parser
 import numpy as np
 import hdf5plugin
-import os
 import silx.io.h5py_utils
 
 from cdiutils.utils import CroppingHandler
