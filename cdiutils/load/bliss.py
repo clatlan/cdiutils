@@ -6,6 +6,7 @@ import os
 import silx.io.h5py_utils
 
 from cdiutils.utils import CroppingHandler
+from cdiutils.load.loader import Loader
 
 
 def safe(func: Callable) -> Callable:
@@ -18,7 +19,7 @@ def safe(func: Callable) -> Callable:
 # TODO: get_mask function should be detector beamline setup independent
 
 
-class BlissLoader():
+class BlissLoader(Loader):
     """
     A class to handle loading/reading .h5 files that were created using
     Bliss on the ID01 beamline.
@@ -29,46 +30,23 @@ class BlissLoader():
             "sample_inplane_angle": "phi",
             "detector_outofplane_angle": "delta",
             "detector_inplane_angle": "nu"
-        }
+    }
 
     def __init__(
             self,
             experiment_file_path: str,
             detector_name: str,
             sample_name: str = None,
-            flatfield: np.ndarray or str = None,
-            alien_mask: np.ndarray or str = None
-    ):
-        self.experiment_file_path = experiment_file_path
-        self.detector_name = detector_name
-        self.sample_name = sample_name
-        self.h5file = None
-
-        self.experiment_root_directory = os.path.dirname(experiment_file_path)
-
-        if isinstance(flatfield, str) and flatfield.endswith(".npz"):
-            self.flatfield = np.load(flatfield)["arr_0"]
-        elif isinstance(flatfield, np.ndarray):
-            self.flatfield = flatfield
-        elif flatfield is None:
-            self.flatfield = None
-        else:
-            raise ValueError(
-                "[ERROR] wrong value for flatfield parameter, provide a path, "
-                "np.ndarray or leave it to None"
-            )
-
-        if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
-            self.alien_mask = np.load(alien_mask)["arr_0"]
-        elif isinstance(alien_mask, np.ndarray):
-            self.alien_mask = alien_mask
-        elif alien_mask is None:
-            self.alien_mask = None
-        else:
-            raise ValueError(
-                "[ERROR] wrong value for alien_mask parameter, provide a path, "
-                "np.ndarray or leave it to None"
-            )
+            flatfield: np.ndarray | str = None,
+            alien_mask: np.ndarray | str = None
+    ) -> None:
+        super(BlissLoader, self).__init__(
+            experiment_file_path,
+            detector_name,
+            sample_name,
+            flatfield,
+            alien_mask
+        )
 
     @safe
     def load_detector_data(
@@ -313,41 +291,3 @@ class BlissLoader():
         key_path = "_".join((sample_name, str(scan))) + ".1/start_time"
 
         return dateutil.parser.isoparse(self.h5file[key_path][()])
-
-
-    @staticmethod
-    def get_mask(
-            channel: int=None,
-            detector_name: str="Maxipix",
-            roi: tuple[slice]=None
-    ) -> np.ndarray:
-        """Load the mask of the given detector_name."""
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3 if channel else 2))
-
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
-            mask = np.zeros(shape=(516, 516))
-            mask[:, 255:261] = 1
-            mask[255:261, :] = 1
-
-        elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
-            mask = np.zeros(shape=(2164, 1030))
-            mask[:, 255:259] = 1
-            mask[:, 513:517] = 1
-            mask[:, 771:775] = 1
-            mask[0:257, 72:80] = 1
-            mask[255:259, :] = 1
-            mask[511:552, :] = 1
-            mask[804:809, :] = 1
-            mask[1061:1102, :] = 1
-            mask[1355:1359, :] = 1
-            mask[1611:1652, :] = 1
-            mask[1905:1909, :] = 1
-            mask[1248:1290, 478] = 1
-            mask[1214:1298, 481] = 1
-            mask[1649:1910, 620:628] = 1
-        else:
-            raise ValueError("Unknown detector_name")
-        if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
-        return mask[roi]

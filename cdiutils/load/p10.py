@@ -20,8 +20,8 @@ class P10Loader:
             experiment_data_dir_path: str,
             detector_name: str,
             sample_name: str = None,
-            flatfield: np.ndarray or str = None,
-            alien_mask: np.ndarray or str = None
+            flatfield: np.ndarray | str = None,
+            alien_mask: np.ndarray | str = None
     ) -> None:
         """
         Initialize P10Loader with experiment data directory path and

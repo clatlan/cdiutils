@@ -26,8 +26,8 @@ class SpecLoader():
             experiment_file_path: str,
             detector_data_path: str,
             edf_file_template: str,
-            flatfield: str or np.array=None,
-            alien_mask: np.ndarray or str=None,
+            flatfield: str or np.array = None,
+            alien_mask: np.ndarray or str = None,
             detector_name: str="mpx4inr"
     ):
         self.experiment_file_path = experiment_file_path

@@ -19,10 +19,13 @@ from cdiutils.utils import (
     rebin,
     oversampling_ratio
 )
-from cdiutils.load.bliss import BlissLoader
-from cdiutils.load.spec import SpecLoader
-from cdiutils.load.sixs import SIXS2022Loader
-from cdiutils.load.p10 import P10Loader
+from cdiutils.load import (
+    Loader,
+    BlissLoader,
+    SpecLoader,
+    SIXS2022Loader,
+    P10Loader
+)
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.postprocess import PostProcessor
@@ -37,7 +40,7 @@ from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 
 
-def loader_factory(metadata: dict) -> BlissLoader | SpecLoader | SIXS2022Loader:
+def loader_factory(metadata: dict) -> Loader:
     """
     Load the right loader based on the beamline_setup parameter
     in the metadata dictionary
