@@ -158,7 +158,10 @@ class BcdiProcessor:
             value["figure"] = None
 
         # initialise the loader and Space converter
-        self.loader = loader_factory(self.params["metadata"])
+        self.loader = Loader.from_setup(
+            self.params["metadata"]["beamline_setup"],
+            self.params["metadata"]
+        )
         self.space_converter = SpaceConverter(
             energy=self.params["energy"],
             geometry=Geometry.from_name(
