@@ -36,17 +36,14 @@ class BlissLoader(Loader):
             experiment_file_path: str,
             detector_name: str,
             sample_name: str = None,
-            flatfield: np.ndarray | str = None,
+            flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
             **kwargs
     ) -> None:
-        super(BlissLoader, self).__init__(
-            experiment_file_path,
-            detector_name,
-            sample_name,
-            flatfield,
-            alien_mask
-        )
+        super(BlissLoader, self).__init__(flat_field, alien_mask)
+        self.experiment_file_path = experiment_file_path
+        self.detector_name = detector_name
+        self.sample_name = sample_name
 
     @safe
     def load_detector_data(
@@ -103,8 +100,8 @@ class BlissLoader(Loader):
         if binning_along_axis0 and roi:
             data = data[roi]
 
-        if self.flatfield is not None:
-            data = data * self.flatfield[roi[1:]]
+        if self.flat_field is not None:
+            data = data * self.flat_field[roi[1:]]
 
         if self.alien_mask is not None:
             data = data * self.alien_mask[roi[1:]]
