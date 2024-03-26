@@ -3,7 +3,6 @@ import os
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-
 import silx.io.h5py_utils
 from tabulate import tabulate
 import textwrap
@@ -19,13 +18,7 @@ from cdiutils.utils import (
     rebin,
     oversampling_ratio
 )
-from cdiutils.load import (
-    Loader,
-    BlissLoader,
-    SpecLoader,
-    SIXS2022Loader,
-    P10Loader
-)
+from cdiutils.load import Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.postprocess import PostProcessor
@@ -40,57 +33,14 @@ from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 
 
-def loader_factory(metadata: dict) -> Loader:
-    """
-    Load the right loader based on the beamline_setup parameter
-    in the metadata dictionary
-    """
-    if metadata["beamline_setup"] == "ID01BLISS":
-        return BlissLoader(
-            experiment_file_path=metadata["experiment_file_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-            flatfield=metadata["flatfield_path"],
-            # alien_mask=metadata["alien_mask"]
-
-        )
-    if metadata["beamline_setup"] == "ID01SPEC":
-        return SpecLoader(
-            experiment_file_path=metadata["experiment_file_path"],
-            detector_data_path=metadata["detector_data_path"],
-            edf_file_template=metadata["edf_file_template"],
-            detector_name=metadata["detector_name"]
-        )
-    if metadata["beamline_setup"] == "SIXS2022":
-        return SIXS2022Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    if metadata["beamline_setup"] == "P10":
-        return P10Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    raise NotImplementedError("The provided beamline_setup is not valid.")
-
-
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis
     workflow.
     """
-    def __init__(
-            self,
-            parameters: dict
-    ) -> None:
-        self.params = parameters
-
-        self.loader = None
-        self.space_converter = None
-
-        self.detector_data = None
+    def __init__(self, parameters: dict) -> None:
+        self.params: dict = parameters
+        self.detector_data: np.ndarray = None
 
         # initialize the diffractometer angles (corresponding to eta,
         # phi, delta, nu at ID01)
@@ -101,15 +51,15 @@ class BcdiProcessor:
             "detector_inplane_angle": None
         }
 
-        self.cropped_detector_data = None
-        self.mask = None
+        self.cropped_detector_data: np.ndarray = None
+        self.mask: np.ndarray = None
 
-        self.orthogonalized_object = None
-        self.orthogonalized_intensity = None
-        self.voxel_size = None
+        self.orthogonalized_object: np.ndarray = None
+        self.orthogonalized_intensity: np.ndarray = None
+        self.voxel_size: tuple | list | np.ndarray = None
         self.structural_properties = {}
-        self.averaged_dspacing = None
-        self.averaged_lattice_parameter = None
+        self.averaged_dspacing: float = None
+        self.averaged_lattice_parameter: float = None
 
         self.dump_dir = self.params["metadata"]["dump_dir"]
         self.scan = self.params["metadata"]["scan"]
