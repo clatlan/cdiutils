@@ -15,8 +15,6 @@ def safe(func: Callable) -> Callable:
             return func(self, *args, **kwargs)
     return wrap
 
-# TODO: get_mask function should be detector beamline setup independent
-
 
 class BlissLoader(Loader):
     """
@@ -289,17 +287,16 @@ class BlissLoader(Loader):
 
         key_path = "_".join((sample_name, str(scan))) + ".1/plotselect"
         requested_parameter = self.h5file[key_path + "/" + plot_parameter][()]
-    
+
         return requested_parameter
 
-    
     @safe
-    def get_start_time(self, scan: int, sample_name: str=None):
+    def get_start_time(self, scan: int, sample_name: str = None) -> str:
         """
         This functions will return the start time of the given scan.
         the returned object is of type datetime.datetime and can
         be easily manipulated arithmetically.
-        """ 
+        """
 
         if sample_name is None:
             sample_name = self.sample_name
