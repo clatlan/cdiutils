@@ -41,7 +41,7 @@ class BlissLoader(Loader):
             **kwargs
     ) -> None:
         """
-        Initialize BlissLoader with experiment data file path and
+        Initialise BlissLoader with experiment data file path and
         detector information.
 
         Args:
