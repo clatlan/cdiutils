@@ -114,7 +114,7 @@ class BcdiProcessor:
         )
         self.space_converter = SpaceConverter(
             energy=self.params["energy"],
-            geometry=Geometry.from_name(
+            geometry=Geometry.from_setup(
                 self.params["metadata"]["beamline_setup"])
         )
 
