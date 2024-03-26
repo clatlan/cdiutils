@@ -50,7 +50,7 @@ class Loader:
             ValueError: If the beamline setup is invalid.
 
         Returns:
-            Loader: the subloader according to the provided name.
+            Loader: the subclass loader according to the provided name.
         """
         if beamline_setup == "ID01BLISS":
             from . import BlissLoader
