@@ -31,9 +31,9 @@ class P10Loader(Loader):
         detector information.
 
         Args:
-            experiment_data_dir_path (str): Path to the experiment data
+            experiment_data_dir_path (str): path to the experiment data
                 directory.
-            detector_name (str): Name of the detector.
+            detector_name (str): name of the detector.
             sample_name (str, optional): name of the sample. Defaults
                 to None.
             flat_field (np.ndarray | str, optional): flat field to
