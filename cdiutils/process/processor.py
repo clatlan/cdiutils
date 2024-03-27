@@ -3,7 +3,6 @@ import os
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-
 import silx.io.h5py_utils
 from tabulate import tabulate
 import textwrap
@@ -19,10 +18,7 @@ from cdiutils.utils import (
     rebin,
     oversampling_ratio
 )
-from cdiutils.load.bliss import BlissLoader
-from cdiutils.load.spec import SpecLoader
-from cdiutils.load.sixs import SIXS2022Loader
-from cdiutils.load.p10 import P10Loader
+from cdiutils.load import Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.postprocess import PostProcessor
@@ -37,60 +33,16 @@ from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 
 
-def loader_factory(metadata: dict) -> BlissLoader | SpecLoader | SIXS2022Loader:
-    """
-    Load the right loader based on the beamline_setup parameter
-    in the metadata dictionary
-    """
-    if metadata["beamline_setup"] == "ID01BLISS":
-        return BlissLoader(
-            experiment_file_path=metadata["experiment_file_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-            flatfield=metadata["flatfield_path"],
-            # alien_mask=metadata["alien_mask"]
-
-        )
-    if metadata["beamline_setup"] == "ID01SPEC":
-        return SpecLoader(
-            experiment_file_path=metadata["experiment_file_path"],
-            detector_data_path=metadata["detector_data_path"],
-            edf_file_template=metadata["edf_file_template"],
-            detector_name=metadata["detector_name"]
-        )
-    if metadata["beamline_setup"] == "SIXS2022":
-        return SIXS2022Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    if metadata["beamline_setup"] == "P10":
-        return P10Loader(
-            experiment_data_dir_path=metadata["experiment_data_dir_path"],
-            detector_name=metadata["detector_name"],
-            sample_name=metadata["sample_name"],
-        )
-    raise NotImplementedError("The provided beamline_setup is not valid.")
-
-
 class BcdiProcessor:
     """
     A class to handle pre and post processing in a bcdi data analysis
     workflow.
     """
-    def __init__(
-            self,
-            parameters: dict
-    ) -> None:
-        self.params = parameters
+    def __init__(self, parameters: dict) -> None:
+        self.params: dict = parameters
+        self.detector_data: np.ndarray = None
 
-        self.loader = None
-        self.space_converter = None
-
-        self.detector_data = None
-
-        # initialize the diffractometer angles (corresponding to eta,
-        # phi, delta, nu at ID01)
+        # Initialise the diffractometer angle dictionary
         self.angles = {
             "sample_outofplane_angle": None,
             "sample_inplane_angle": None,
@@ -98,21 +50,22 @@ class BcdiProcessor:
             "detector_inplane_angle": None
         }
 
-        self.cropped_detector_data = None
-        self.mask = None
+        self.cropped_detector_data: np.ndarray = None
+        self.mask: np.ndarray = None
 
-        self.orthogonalized_object = None
-        self.orthogonalized_intensity = None
-        self.voxel_size = None
+        self.orthogonalized_object: np.ndarray = None
+        self.orthogonalized_intensity: np.ndarray = None
+        self.voxel_size: tuple | list | np.ndarray = None
         self.structural_properties = {}
-        self.averaged_dspacing = None
-        self.averaged_lattice_parameter = None
+        self.averaged_dspacing: float = None
+        self.averaged_lattice_parameter: float = None
 
+        # Store these values locally for convenience
         self.dump_dir = self.params["metadata"]["dump_dir"]
         self.scan = self.params["metadata"]["scan"]
         self.sample_name = self.params["metadata"]["sample_name"]
 
-        # initialize figures
+        # Initialise figures
         self.figures = {
             "preprocessing": {
                 "name": "centering_cropping_detector_data_plot",
@@ -154,11 +107,14 @@ class BcdiProcessor:
         for value in self.figures.values():
             value["figure"] = None
 
-        # initialise the loader and Space converter
-        self.loader = loader_factory(self.params["metadata"])
+        # Initialise the loader and space converter
+        self.loader = Loader.from_setup(
+            self.params["metadata"]["beamline_setup"],
+            self.params["metadata"]
+        )
         self.space_converter = SpaceConverter(
             energy=self.params["energy"],
-            geometry=Geometry.from_name(
+            geometry=Geometry.from_setup(
                 self.params["metadata"]["beamline_setup"])
         )
 
@@ -984,7 +940,7 @@ class BcdiProcessor:
             cmap="cet_CET_D13",
             vmin=-np.nanmax(np.abs(self.structural_properties["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_properties["het_strain"])),
-            cbar_title="Strain (\%)",
+            cbar_title=r"Strain (\%)",
             title=f"3D views of the strain, {self.sample_name}, S{self.scan}"
         )
 
@@ -1199,7 +1155,7 @@ class BcdiProcessor:
                       "lattice_parameter", "numpy_het_strain", "dspacing"]
         }
 
-        # add the dspacing average and lattice constant average around 
+        # add the dspacing average and lattice constant average around
         # the NP to avoid nan values that are annoying for 3D
         # visualisation
         to_save_as_vti["dspacing"] = np.where(
@@ -1384,5 +1340,3 @@ class BcdiProcessor:
         writer.SetFileName(output_path)
         writer.SetInputData(image_data)
         writer.Write()
-
-

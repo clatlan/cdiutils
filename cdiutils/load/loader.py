@@ -2,6 +2,18 @@
 
 import numpy as np
 from typing import Callable
+<<<<<<< HEAD
+=======
+import silx.io.h5py_utils
+
+
+def safe(func: Callable) -> Callable:
+    """A wrapper to safely load data in h5 file"""
+    def wrap(self, *args, **kwargs):
+        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
+            return func(self, *args, **kwargs)
+    return wrap
+>>>>>>> 550ef39f68e4a988a94f2969bdd06b51b7c79f14
 
 
 class Loader:

@@ -2,8 +2,10 @@ import hdf5plugin
 import numpy as np
 import silx.io.h5py_utils
 
+from cdiutils.load import Loader
 
-class SIXS2022Loader:
+
+class SIXS2022Loader(Loader):
     """
     A class for loading data from SIXS beamline experiments.
     """
@@ -20,31 +22,30 @@ class SIXS2022Loader:
             experiment_data_dir_path: str,
             detector_name: str,
             sample_name: str = None,
-            flatfield: np.ndarray or str = None,
-            alien_mask: np.ndarray or str = None
+            flat_field: np.ndarray | str = None,
+            alien_mask: np.ndarray | str = None,
+            **kwargs
     ) -> None:
         """
-        Initialize SIXSLoader with experiment data directory path and
+        Initialise SIXSLoader with experiment data directory path and
         detector information.
 
         Args:
-            experiment_data_dir_path (str): Path to the experiment data
-                                            directory.
-            detector_name (str): Name of the detector.
-            sample_name (str, optional): Name of the sample. Defaults to
-                                         None.
-            flatfield (numpy.ndarray or str, optional): Flatfield data.
-                                                        Defaults to None.
-            alien_mask (numpy.ndarray or str, optional): Alien mask data.
-                                                         Defaults to None.
+            experiment_data_dir_path (str): path to the experiment data
+                directory.
+            detector_name (str): name of the detector.
+            sample_name (str, optional): name of the sample. Defaults to
+                None.
+            flat_field (np.ndarray | str, optional): flat field to
+                account for the non homogeneous counting of the
+                detector. Defaults to None.
+            alien_mask (np.ndarray | str, optional): array to mask the
+                aliens. Defaults to None.
         """
+        super(SIXS2022Loader, self).__init__(flat_field, alien_mask)
         self.experiment_data_dir_path = experiment_data_dir_path
         self.detector_name = detector_name
         self.sample_name = sample_name
-        self.h5file = None
-
-        self.flatfield = flatfield
-        self.alien_mask = alien_mask
 
     def _get_file_path(
             self,
@@ -135,8 +136,8 @@ class SIXS2022Loader:
         if binning_along_axis0 and roi:
             data = data[roi]
 
-        if self.flatfield is not None:
-            data = data * self.flatfield[roi[1:]]
+        if self.flat_field is not None:
+            data = data * self.flat_field[roi[1:]]
 
         if self.alien_mask is not None:
             data = data * self.alien_mask[roi[1:]]
@@ -146,10 +147,10 @@ class SIXS2022Loader:
     def load_motor_positions(
             self,
             scan: int,
-            sample_name: str=None,
-            roi: tuple[slice]=None,
-            binning_along_axis0: int=None,
-            binning_method: str="mean"
+            sample_name: str = None,
+            roi: tuple[slice] = None,
+            binning_along_axis0: int = None,
+            binning_method: str = "mean"
     ) -> dict:
         """
         Load the motor positions and return it as a dict of:
@@ -196,7 +197,9 @@ class SIXS2022Loader:
                     binned_sample_outofplane_angle = [
                         np.mean(e, axis=0)
                         for e in np.split(
-                                angles["sample_outofplane_angle"][:first_slices],
+                                angles["sample_outofplane_angle"][
+                                    :first_slices
+                                ],
                                 nb_of_bins
                             )
                     ]
@@ -221,32 +224,7 @@ class SIXS2022Loader:
             for name, value in angles.items():
                 try:
                     angles[name] = value[roi]
-                except IndexError: # note that it is not the same error as above
+                except IndexError:
+                    # note that it is not the same error as above
                     continue
         return angles
-
-    @staticmethod
-    def get_mask(
-            channel: int=None,
-            detector_name: str="Maxipix",
-            roi: tuple[slice]=None
-    ) -> np.ndarray:
-        """Load the mask of the given detector_name."""
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3 if channel else 2))
-
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
-            mask = np.zeros(shape=(516, 516))
-            mask[:, 255:261] = 1
-            mask[255:261, :] = 1
-
-        elif detector_name in ("merlin"):
-            mask = np.zeros(shape=(512, 512))
-            mask[:, 255:261] = 1
-            mask[255:261, :] = 1
-
-        else:
-            raise ValueError("Unknown detector_name")
-        if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
-        return mask[roi]
