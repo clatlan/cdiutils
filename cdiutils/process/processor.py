@@ -42,8 +42,7 @@ class BcdiProcessor:
         self.params: dict = parameters
         self.detector_data: np.ndarray = None
 
-        # initialize the diffractometer angles (corresponding to eta,
-        # phi, delta, nu at ID01)
+        # Initialise the diffractometer angle dictionary
         self.angles = {
             "sample_outofplane_angle": None,
             "sample_inplane_angle": None,
@@ -61,11 +60,12 @@ class BcdiProcessor:
         self.averaged_dspacing: float = None
         self.averaged_lattice_parameter: float = None
 
+        # Store these values locally for convenience
         self.dump_dir = self.params["metadata"]["dump_dir"]
         self.scan = self.params["metadata"]["scan"]
         self.sample_name = self.params["metadata"]["sample_name"]
 
-        # initialize figures
+        # Initialise figures
         self.figures = {
             "preprocessing": {
                 "name": "centering_cropping_detector_data_plot",
@@ -107,7 +107,7 @@ class BcdiProcessor:
         for value in self.figures.values():
             value["figure"] = None
 
-        # initialise the loader and Space converter
+        # Initialise the loader and space converter
         self.loader = Loader.from_setup(
             self.params["metadata"]["beamline_setup"],
             self.params["metadata"]
@@ -940,7 +940,7 @@ class BcdiProcessor:
             cmap="cet_CET_D13",
             vmin=-np.nanmax(np.abs(self.structural_properties["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_properties["het_strain"])),
-            cbar_title="Strain (\%)",
+            cbar_title=r"Strain (\%)",
             title=f"3D views of the strain, {self.sample_name}, S{self.scan}"
         )
 
@@ -1155,7 +1155,7 @@ class BcdiProcessor:
                       "lattice_parameter", "numpy_het_strain", "dspacing"]
         }
 
-        # add the dspacing average and lattice constant average around 
+        # add the dspacing average and lattice constant average around
         # the NP to avoid nan values that are annoying for 3D
         # visualisation
         to_save_as_vti["dspacing"] = np.where(
@@ -1340,5 +1340,4 @@ class BcdiProcessor:
         writer.SetFileName(output_path)
         writer.SetInputData(image_data)
         writer.Write()
-
 
