@@ -1,6 +1,4 @@
-"""
-A generic class for loaders
-"""
+"""A generic class for loaders."""
 
 import numpy as np
 from typing import Callable
@@ -84,7 +82,7 @@ class Loader:
         if isinstance(data_or_path, str):
             if data_or_path.endswith(".npy"):
                 return np.load(data_or_path)
-            elif data_or_path.endswith(".npz"):
+            if data_or_path.endswith(".npz"):
                 with np.load(data_or_path, "r") as file:
                     return file["arr_0"]
         elif data_or_path is None or isinstance(data_or_path, np.ndarray):
