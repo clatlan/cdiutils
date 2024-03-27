@@ -10,6 +10,7 @@ doi: 10.5281/zenodo.7656853
 repository-code: https://github.com/clatlan/cdiutils
 url: https://github.com/clatlan/cdiutils
 version: v.0.1.4-beta
+date-released: 2023-07
 
 abstract:
 My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
