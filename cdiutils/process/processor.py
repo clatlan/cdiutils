@@ -1340,4 +1340,3 @@ class BcdiProcessor:
         writer.SetFileName(output_path)
         writer.SetInputData(image_data)
         writer.Write()
-
