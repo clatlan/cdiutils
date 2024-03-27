@@ -134,7 +134,7 @@ def plot_3d_surface_projections(
         ):
             projection = np.swapaxes(projection, axis1=0, axis2=1)
 
-        # to handle extent and origin please refer to 
+        # to handle extent and origin please refer to
         # https://matplotlib.org/stable/users/explain/artists/imshow_extent.html#imshow-extent
         extent = get_extents(
             shape,
@@ -188,18 +188,18 @@ def plot_3d_surface_projections(
             clip_on=False
         )
         xlabel = (
-            r"$z$\textsubscript{CXI}"
+            r"$z_{CXI}$"
             if view_parameters[v]["plane_axes"][0] == 0
-            else r"$y$\textsubscript{CXI}"
+            else r"$y_{CXI}$"
             if view_parameters[v]["plane_axes"][0] == 1
-            else r"$x$\textsubscript{CXI}"
+            else r"$x_{CXI}$"
         )
         ylabel = (
-            r"$z$\textsubscript{CXI}"
+            r"$z_{CXI}$"
             if view_parameters[v]["plane_axes"][1] == 0
-            else r"$y$\textsubscript{CXI}"
+            else r"$y_{CXI}$"
             if view_parameters[v]["plane_axes"][1] == 1
-            else r"$x$\textsubscript{CXI}"
+            else r"$x_{CXI}$"
         )
         ax.set_xlabel(xlabel + "(nm)", labelpad=1)
         ax.set_ylabel(ylabel + "(nm)", labelpad=1)

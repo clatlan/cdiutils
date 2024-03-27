@@ -69,7 +69,7 @@ def plot_phasing_result(
                     vmin=-np.pi,
                     vmax=np.pi,
                     alpha=normalised_direct_space_amplitude[s],
-                    cmap="cet_CET_C9s"
+                    cmap="cet_CET_C9s_r"
                 )
         figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
         figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
@@ -240,7 +240,7 @@ def preprocessing_detector_data_plot(
             )
         if det_max_voxel:
             axes[0, 0].plot(
-                det_max_voxel[2], 
+                det_max_voxel[2],
                 det_max_voxel[1],
                 marker="x",
                 markersize=markersize,

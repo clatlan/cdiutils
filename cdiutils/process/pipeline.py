@@ -260,7 +260,7 @@ class BcdiPipeline:
             )
             pretty_print(
                 "[INFO] Proceeding to bcdi preprocessing using the bcdi "
-                f"backend ({self.sample_name}, {self.scan})"
+                f"backend ({self.sample_name}, S{self.scan})"
             )
             run_preprocessing(prm=self.params["preprocessing"])
             pynx_input_template = "S*_pynx_norm_*.npz"
@@ -269,8 +269,8 @@ class BcdiPipeline:
 
         elif backend == "cdiutils":
             pretty_print(
-                "[INFO] Proceeding to preprocessing using the cdiutils backend"
-                f" ({self.sample_name}, {self.scan})"
+                "[INFO] Proceeding to preprocessing"
+                f" ({self.sample_name}, S{self.scan})"
             )
             dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
             if os.path.isdir(dump_dir):
@@ -349,7 +349,7 @@ class BcdiPipeline:
 
         pretty_print(
             "[INFO] Proceeding to PyNX phase retrieval "
-            f"({self.sample_name}, {self.scan})"
+            f"({self.sample_name}, S{self.scan})"
         )
         # reset the sorted phasing results to None
         self._sorted_phasing_results = None
@@ -533,7 +533,7 @@ class BcdiPipeline:
             )
         pretty_print(
                 "[INFO] Analysing phasing results\n"
-                f"({self.sample_name}, {self.scan})"
+                f"({self.sample_name}, S{self.scan})"
         )
         if self._sorted_phasing_results is None:
             print("[INFO] Computing metrics...")
@@ -661,7 +661,7 @@ class BcdiPipeline:
 
         pretty_print(
             "[INFO] Finding the best candidates of the PyNX run with "
-            f"criterion: {criterion}. ({self.sample_name}, {self.scan})"
+            f"criterion: {criterion}. ({self.sample_name}, S{self.scan})"
         )
         # remove the previous candidates if needed
         files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
@@ -783,7 +783,7 @@ class BcdiPipeline:
             pretty_print(
                 f"[INFO] Running mode decomposition from machine '{machine}'"
                 "using /sware pynx installation "
-                f"({self.sample_name}, {self.scan})"
+                f"({self.sample_name}, S{self.scan})"
             )
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -851,7 +851,7 @@ class BcdiPipeline:
                 raise ModuleNotFoundError(BCDI_ERROR_TEXT)
             pretty_print(
                 "[INFO] Running post-processing from bcdi_strain.py "
-                f"({self.sample_name}, {self.scan})"
+                f"({self.sample_name}, S{self.scan})"
             )
 
             run_postprocessing(prm=self.params["postprocessing"])
@@ -860,8 +860,8 @@ class BcdiPipeline:
         elif backend == "cdiutils":
 
             pretty_print(
-                "[INFO] Running post-processing using cdiutils backend "
-                f"({self.sample_name}, {self.scan})"
+                "[INFO] Running post-processing"
+                f"({self.sample_name}, S{self.scan})"
             )
 
             if self.bcdi_processor is None:

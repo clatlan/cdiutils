@@ -1,8 +1,6 @@
 import numpy as np
-import sys
 from vtk.util.numpy_support import vtk_to_numpy
 
-sys.path.append('/data/id01/inhouse/clatlan/pythonies/cdiutils')
 from cdiutils.facetanalysis.facet_utils import get_miller_indices
 
 
