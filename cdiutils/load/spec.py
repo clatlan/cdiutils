@@ -4,6 +4,8 @@ import numpy as np
 import silx.io
 import silx.io.specfile
 
+from cdiutils.load import Loader
+
 
 def safe(func):
     def wrap(self, *args, **kwargs):
@@ -11,8 +13,9 @@ def safe(func):
             return func(self, specfile, *args, **kwargs)
     return wrap
 
+
 # TODO: Impelement roi parameter for detector, motors and mask methods
-class SpecLoader():
+class SpecLoader(Loader):
 
     angle_names = {
         "sample_outofplane_angle": "eta",
@@ -26,48 +29,41 @@ class SpecLoader():
             experiment_file_path: str,
             detector_data_path: str,
             edf_file_template: str,
-            flatfield: str or np.array=None,
-            alien_mask: np.ndarray or str=None,
-            detector_name: str="mpx4inr"
-    ):
+            detector_name: str,
+            flat_field: str | np.ndarray = None,
+            alien_mask: np.ndarray | str = None,
+            **kwargs
+    ) -> None:
+        """
+        Initialise SpecLoader with experiment data and detector
+        information.
+
+        Args:
+            experiment_file_path (str): path to the spec master file
+                used for the experiment.
+            detector_data_path (str): the path to the directory
+                containing the detector data.
+            edf_file_template (str): the file name template of the
+                detector data frame.
+            detector_name (str): name of the detector.
+            flat_field (str | np.ndarray, optional): flat field to
+                account for the non homogeneous counting of the
+                detector. Defaults to None.
+            alien_mask (np.ndarray | str, optional): array to mask the
+                aliens. Defaults to None.
+        """
+        super(SpecLoader, self).__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
-        if not detector_data_path.endswith("/"):
-            detector_data_path += "/"
         self.detector_data_path = detector_data_path
         self.edf_file_template = edf_file_template
         self.detector_name = detector_name
-
-        # load the flatfield
-        if type(flatfield) == str and flatfield.endswith(".npz"):
-            self.flatfield = np.load(flatfield)["arr_0"]
-        elif type(flatfield) == np.ndarray:
-            self.flatfield=flatfield
-        elif flatfield is None:
-            self.flatfield = None
-        else:
-            raise ValueError(
-                "[ERROR] wrong value for flatfield parameter, provide a path, "
-                "np.array or leave it to None"
-            )
-        
-        if isinstance(alien_mask, str) and alien_mask.endswith(".npz"):
-            self.alien_mask = np.load(alien_mask)["arr_0"]
-        elif isinstance(alien_mask, np.ndarray):
-            self.alien_mask=alien_mask
-        elif alien_mask is None:
-            self.alien_mask = None
-        else:
-            raise ValueError(
-                "[ERROR] wrong value for alien_mask parameter, provide a path, "
-                "np.ndarray or leave it to None"
-            )
 
     @safe
     def load_detector_data(
             self,
             specfile: silx.io.specfile.SpecFile,
             scan: int,
-            roi: tuple[slice]=None,
+            roi: tuple[slice] = None,
             binning_along_axis0=None
     ):
         if roi is None:
@@ -75,10 +71,9 @@ class SpecLoader():
         elif len(roi) == 2:
             roi = tuple([slice(None), roi[0], roi[1]])
 
-
-        # TODO: implement flatfield consideration and binning_along_axis0
+        # TODO: implement flat_field consideration and binning_along_axis0
         frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
-        
+
         detector_data = []
 
         template = self.detector_data_path + self.edf_file_template
@@ -86,25 +81,25 @@ class SpecLoader():
         for frame_id in frame_ids:
             with fabio.open(template % frame_id) as edf_data:
                 detector_data.append(edf_data.data)
-        
+
         return np.array(detector_data)[roi]
-    
+
     @safe
     def load_motor_positions(
-            self, 
+            self,
             specfile: silx.io.specfile.SpecFile,
             scan: int,
-            roi: tuple[slice]=None,
+            roi: tuple[slice] = None,
             binning_along_axis0=None
     ):
-        
+
         if roi is None or len(roi) == 2:
             roi = slice(None)
         elif len(roi) == 3:
             roi = roi[0]
 
         positioners = specfile[f"{scan}.1/instrument/positioners"]
-    
+
         angles = {key: None for key in SpecLoader.angle_names.keys()}
         for angle, name in SpecLoader.angle_names.items():
             try:
@@ -112,42 +107,6 @@ class SpecLoader():
             except ValueError:
                 angles[angle] = angles[angle] = positioners[name][()]
         return angles
-
-    @staticmethod
-    def get_mask(
-            channel: int,
-            detector_name: str="Maxipix",
-            roi: tuple[slice]=None
-            
-    ) -> np.ndarray:
-        """Load the mask of the given detector_name."""
-
-        if detector_name in ("maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"):
-            mask = np.zeros(shape=(516, 516))
-            mask[:, 255:261] = 1
-            mask[255:261, :] = 1
-
-        elif detector_name in ("Eiger2M", "eiger2m", "eiger2M", "Eiger2m"):
-            mask = np.zeros(shape=(2164, 1030))
-            mask[:, 255:259] = 1
-            mask[:, 513:517] = 1
-            mask[:, 771:775] = 1
-            mask[0:257, 72:80] = 1
-            mask[255:259, :] = 1
-            mask[511:552, :] = 1
-            mask[804:809, :] = 1
-            mask[1061:1102, :] = 1
-            mask[1355:1359, :] = 1
-            mask[1611:1652, :] = 1
-            mask[1905:1909, :] = 1
-            mask[1248:1290, 478] = 1
-            mask[1214:1298, 481] = 1
-            mask[1649:1910, 620:628] = 1
-        else:
-            raise ValueError("Unknown detector_name")
-        if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
-        return mask
 
 
 def get_positions(specfile_path, scan, beamline="ID01"):
@@ -245,8 +204,10 @@ def get_positions(specfile_path, scan, beamline="ID01"):
                     if scanning_angle == "om":
                         rocking_angle = "outofplane"
                         angular_step = (
-                            (float(scan_command.split(" ")[3])
-                            - float(scan_command.split(" ")[2]))
+                            (
+                                float(scan_command.split(" ")[3])
+                                - float(scan_command.split(" ")[2])
+                            )
                             / float(scan_command.split(" ")[4])
                         )
 
@@ -263,31 +224,11 @@ def get_positions(specfile_path, scan, beamline="ID01"):
                 elif line.startswith("phi"):
                     azimuth_angle = float(line.split(" = ")[1])
 
-    return (float(azimuth_angle),
-            float(outofplane_angle),
-            float(incidence_angle),
-            float(inplane_angle),
-            rocking_angle,
-            float(angular_step))
-
-
-if __name__ == '__main__':
-    import argparse
-
-    # construct the argument parser and parse the arguments
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--specfile-path", required=True, type=str,
-                    help="The absolute path to "
-                         "the specfile of the measurement")
-    ap.add_argument("--scan", required=True, type=int,
-                    help="The scan to look at.")
-    ap.add_argument("--beamline", default="ID01", type=str,
-                    help="The beamline where the measurement was performed")
-
-    args = vars(ap.parse_args())
-
-    for res in get_positions(
-            args["specfile_path"],
-            args["scan"],
-            args["beamline"]):
-        print(res)
+    return (
+        float(azimuth_angle),
+        float(outofplane_angle),
+        float(incidence_angle),
+        float(inplane_angle),
+        rocking_angle,
+        float(angular_step)
+    )
