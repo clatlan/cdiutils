@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/360442527.svg)](https://zenodo.org/badge/latestdoi/360442527)
 
-My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developped the package during my PhD.
+My python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
 
 The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
@@ -10,12 +10,16 @@ The package is designed to handle the three primary stages of a BCDI data proces
 * **Phase retrieval**: utilises  PyNX for accurate phasing (refer to [PyNX documentation](http://ftp.esrf.fr/pub/scisoft/PyNX/doc/)).
 * **Post processing** (orthogonalisation, phase manipulation, strain computation etc.)
 
-It is assumed that the phase retrieval is condcuted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval.
+It is assumed that the phase retrieval is conducted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval.
 
 Some features of this package include:
 
 * **Flexibility in Hardware:** While the phase retrieval stage may leverage GPUs, pre- and post-processing can be executed without GPU support. Users have the option to choose the present package (using the `cdiutils` backend) or the [bcdi package](https://github.com/carnisj/bcdi) (with the `bcdi` backend).
 * **Utility Functions:** The package provides utility functions to analyze processed data and generate plots suitable for potential publications.
+
+For visual wrap-up, see the associated poster presented at [XTOP24](https://xtop2024.sciencesconf.org/):
+![summary](https://github.com/clatlan/cdiutils/tree/master/images/XTOP_24_cdiutils_poster_200_dpi.png)
+
 
 ## Installation
 
