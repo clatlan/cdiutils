@@ -66,6 +66,7 @@ class Loader:
             return P10Loader(**metadata)
         raise ValueError(f"Invalid beamline setup: {beamline_setup}")
 
+    @staticmethod
     def _check_load(self, data_or_path: np.ndarray | str) -> np.ndarray:
         """
         Private method to load mask or alien np.ndarray.
