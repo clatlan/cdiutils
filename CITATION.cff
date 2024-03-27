@@ -1,19 +1,17 @@
 cff-version: 1.2.0
-title: Cdiutils: A python package for X-ray Bragg Coherent Diffraction Imaging processing, analysis and visualisation workflows
-message: If you use this package for scientific work, please consider including a citation as below.
+message: "If you use this package for scientific work, please consider including a citation as below."
 type: software
 authors:
-  - given-names: Clement
-    family-names: Atlan
+  - family-names: Atlan
+    family-names: Clement
     orcid: https://orcid.org/0000-0001-8531-7864
+
 doi: 10.5281/zenodo.7656853
-repository-code: https://github.com/clatlan/cdiutils
-url: https://github.com/clatlan/cdiutils
 version: v.0.1.4-beta
 date-released: 2023-07
+title: "Cdiutils: A python package for X-ray Bragg Coherent Diffraction Imaging processing, analysis and visualisation workflows"
 
-abstract:
-My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
+abstract: "My python package to help Bragg Coherent X-ray Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
 
 The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
@@ -21,6 +19,7 @@ The package is designed to handle the three primary stages of a BCDI data proces
 * **Phase retrieval**: utilises  PyNX for accurate phasing (refer to [PyNX documentation](http://ftp.esrf.fr/pub/scisoft/PyNX/doc/)).
 * **Post processing** (orthogonalisation, phase manipulation, strain computation etc.)
 
-It is assumed that the phase retrieval is conducted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval.
-
+It is assumed that the phase retrieval is conducted using the PyNX package. The `BcdiPipeline` class runs all three stages and can manage connections to different machines, especially for GPU-based phase retrieval."
+repository-code: https://github.com/clatlan/cdiutils
+url: https://github.com/clatlan/cdiutils
 license: MIT
