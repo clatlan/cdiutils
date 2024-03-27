@@ -89,11 +89,10 @@ class Loader:
                     return file["arr_0"]
         elif data_or_path is None or isinstance(data_or_path, np.ndarray):
             return data_or_path
-        else:
-            raise ValueError(
-                "[ERROR] wrong value for flat_field and/or alien_mask "
-                "parameter provide a path, np.ndarray or leave it to None"
-            )
+        raise ValueError(
+            "[ERROR] wrong value for flat_field and/or alien_mask "
+            "parameter provide a path, np.ndarray or leave it to None"
+        )
 
     @staticmethod
     def get_mask(
