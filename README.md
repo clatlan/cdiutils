@@ -18,7 +18,7 @@ Some features of this package include:
 * **Utility Functions:** The package provides utility functions to analyze processed data and generate plots suitable for potential publications.
 
 For visual wrap-up, see the associated poster presented at [XTOP24](https://xtop2024.sciencesconf.org/):
-![summary](https://github.com/clatlan/cdiutils/tree/master/images/XTOP_24_cdiutils_poster_200_dpi.png)
+![xtop_poster](https://github.com/clatlan/cdiutils/blob/master/images/XTOP_24_cdiutils_poster_200_dpi.png)
 
 
 ## Installation
