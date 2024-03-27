@@ -64,7 +64,7 @@ class SpecLoader(Loader):
             specfile: silx.io.specfile.SpecFile,
             scan: int,
             roi: tuple[slice] = None,
-            binning_along_axis0 = None
+            binning_along_axis0=None
     ):
         if roi is None:
             roi = tuple(slice(None) for i in range(3))
