@@ -27,7 +27,7 @@ class SIXS2022Loader(Loader):
             **kwargs
     ) -> None:
         """
-        Initialize SIXSLoader with experiment data directory path and
+        Initialise SIXSLoader with experiment data directory path and
         detector information.
 
         Args:
@@ -36,7 +36,7 @@ class SIXS2022Loader(Loader):
             detector_name (str): name of the detector.
             sample_name (str, optional): name of the sample. Defaults to
                 None.
-            flat_field (numpy.ndarray or str, optional): flat field to
+            flat_field (np.ndarray | str, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
             alien_mask (np.ndarray | str, optional): array to mask the

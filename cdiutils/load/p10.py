@@ -34,8 +34,8 @@ class P10Loader(Loader):
             experiment_data_dir_path (str): path to the experiment data
                 directory.
             detector_name (str): name of the detector.
-            sample_name (str, optional): name of the sample. Defaults
-                to None.
+            sample_name (str, optional): name of the sample. Defaults to
+                None.
             flat_field (np.ndarray | str, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
