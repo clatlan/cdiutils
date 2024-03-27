@@ -14,6 +14,7 @@ def safe(func: Callable) -> Callable:
 
 
 class Loader:
+    """A generic class for loaders."""
     def __init__(
             self,
             flat_field: np.ndarray | str = None,
@@ -29,7 +30,6 @@ class Loader:
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-
         self.flat_field = self._check_load(flat_field)
         self.alien_mask = self._check_load(alien_mask)
 
