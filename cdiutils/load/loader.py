@@ -15,6 +15,7 @@ def safe(func: Callable) -> Callable:
 
 class Loader:
     """A generic class for loaders."""
+
     def __init__(
             self,
             flat_field: np.ndarray | str = None,
@@ -65,7 +66,7 @@ class Loader:
         raise ValueError(f"Invalid beamline setup: {beamline_setup}")
 
     @staticmethod
-    def _check_load(self, data_or_path: np.ndarray | str) -> np.ndarray:
+    def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
         """
         Private method to load mask or alien np.ndarray.
 
