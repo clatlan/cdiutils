@@ -5,7 +5,7 @@ import hdf5plugin
 import silx.io.h5py_utils
 
 from cdiutils.utils import CroppingHandler
-from cdiutils.load.loader import Loader
+from cdiutils.load import Loader
 
 
 def safe(func: Callable) -> Callable:

@@ -2,7 +2,7 @@ import hdf5plugin
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.load.loader import Loader
+from cdiutils.load import Loader
 
 
 class P10Loader(Loader):
