@@ -3,7 +3,7 @@ message: "If you use this package for scientific work, please consider including
 type: software
 authors:
   - family-names: Atlan
-    family-names: Clement
+    given-names: Clement
     orcid: https://orcid.org/0000-0001-8531-7864
 
 doi: 10.5281/zenodo.7656853
