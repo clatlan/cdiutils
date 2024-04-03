@@ -117,7 +117,6 @@ def check_parameters(parameters: dict) -> None:
             if name not in parameters[e].keys() or parameters[e][name] is None:
                 if value == "REQUIRED":
                     raise ValueError(f"Arguement '{name}' is required")
-                print(name, value)
                 parameters[e].update({name: value})
         for name in parameters[e].keys():
             if not isparameter(name):
