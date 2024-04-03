@@ -347,7 +347,8 @@ class BcdiProcessor:
             ) = CroppingHandler.chain_centering(
                 self.detector_data,
                 final_shape,
-                methods=self.params["det_reference_voxel_method"]
+                methods=self.params["det_reference_voxel_method"],
+                verbose=True
             )
             # position of the max and com in the full detector frame
             full_det_max = CroppingHandler.get_position(
