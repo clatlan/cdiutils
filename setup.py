@@ -30,7 +30,7 @@ setuptools.setup(
       ],
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
-      python_requires=">=3.10, <3.11",
+      python_requires=">=3.10",
       install_requires=[
             "colorcet>=3.0.0",
             "h5py>=3.6.0",
