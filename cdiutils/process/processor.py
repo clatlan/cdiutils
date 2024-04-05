@@ -693,15 +693,6 @@ class BcdiProcessor:
             reconstructed_amplitude,
             isosurface=isosurface
         )
-        com = CroppingHandler.get_position(support, "com")
-        reconstructed_object = CroppingHandler.force_centered_cropping(
-            reconstructed_object,
-            where=com,
-        )
-        support = CroppingHandler.force_centered_cropping(
-            support,
-            where=com,
-        )
 
         # check if data were cropped during phase retrieval
         final_shape = tuple(self.params["preprocessing_output_shape"])
@@ -711,6 +702,16 @@ class BcdiProcessor:
                 f"and after {support.shape} Phase Retrieval are different.\n"
                 "Check out PyNX parameters (ex.: auto_center_resize)."
             )
+
+        com = CroppingHandler.get_position(support, "com")
+        reconstructed_object = CroppingHandler.force_centered_cropping(
+            reconstructed_object,
+            where=com,
+        )
+        support = CroppingHandler.force_centered_cropping(
+            support,
+            where=com,
+        )
 
         # Print the oversampling ratio
         ratio = oversampling_ratio(support)
