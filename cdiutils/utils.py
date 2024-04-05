@@ -969,3 +969,31 @@ def oversampling_ratio(
             ax[n].set_title(title, fontsize=15)
 
     return oversampling
+
+
+def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
+    """
+    Compute the slices that enable selecting the centre of the axis. It
+    returns a list of len(shape) tuples made of len(shape) slices.
+    Ex:
+        * if shape = (25, 48), will return
+    [(12, slice(None, None, None)), (slice(None, None, None), 24)]
+
+        * if shape = (25, 48, 50), will return
+        [(12, slice(None, None, None), slice(None, None, None)),
+        (slice(None, None, None), 24, slice(None, None, None)),
+        (slice(None, None, None), slice(None, None, None), 25)]
+
+    Args:
+        shape (tuple | list | np.ndarray): the shape of the np.ndarray
+            you want to select the centre of.
+
+    Returns:
+        list: the list of tuples made of slices.
+    """
+    slices = []
+    for i in range(len(shape)):
+        s = [slice(None) for k in range(len(shape))]
+        s[i] = shape[i] // 2
+        slices.append(tuple(s))
+    return slices
