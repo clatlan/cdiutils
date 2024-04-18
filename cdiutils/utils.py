@@ -1,3 +1,4 @@
+import inspect
 from typing import Optional
 import warnings
 
@@ -527,6 +528,14 @@ class CroppingHandler:
 
             roi.append(np.max([where[i]-crop[i][0], 0]) - add_left)
             roi.append(np.min([where[i]+crop[i][1], s]) + add_right)
+        for i in range(0, len(roi), 2):
+            if roi[i] < 0:
+                warnings.warn(
+                    f"The calculated roi contains a negative value ({roi[i]}),"
+                    " will set it to 0, this might give inconsistent results."
+                )
+                roi[i+1] -= roi[i]
+                roi[i] = 0
         return roi
 
     @classmethod
@@ -576,7 +585,6 @@ class CroppingHandler:
 
             # mask the data values which are outside roi
             masked_data = cls.get_masked_data(data, roi=roi)
-
         if (
                 methods[-1] == "com"
                 and (position != cls.get_position(masked_data, "com"))
@@ -997,3 +1005,13 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
         s[i] = shape[i] // 2
         slices.append(tuple(s))
     return slices
+
+
+def valid_args_only(
+        params: dict,
+        function: callable
+) -> dict:
+    return {
+        k: v for k, v in params.items()
+        if k in inspect.getfullargspec(function).args
+    }
