@@ -1,4 +1,3 @@
-from typing import Any, Dict
 import warnings
 
 import numpy as np
@@ -33,7 +32,8 @@ AUTHORIZED_KEYS = {
         "debug": True,
         "binning_factors": (1, 1, 1),
         "handle_defects": False,
-        "orthogonalize_before_phasing": False
+        "orthogonalize_before_phasing": False,
+        "orientation_convention": "cxi"
     },
     "pynx": {
         "data": None,
