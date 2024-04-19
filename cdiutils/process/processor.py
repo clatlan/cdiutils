@@ -231,9 +231,15 @@ class BcdiProcessor:
             if len(det_ref) == 2:
                 det_ref = (self.detector_data.shape[0] // 2, ) + tuple(det_ref)
 
-            # check if shape dimensions are even
-            checked_shape = tuple(
-                s-1 if s % 2 == 1 else s for s in final_shape)
+            # check if shape dimensions are even or if 2D
+            if final_shape[0] in (0, 1):
+                self.verbose_print(f"2D requested ")
+                checked_shape = tuple(
+                    s-1 if s % 2 == 1 else s for s in final_shape[1:]
+                )
+            else:
+                checked_shape = tuple(
+                    s-1 if s % 2 == 1 else s for s in final_shape)
             if checked_shape != final_shape:
                 self.verbose_print(
                     f"PyNX needs even input shapes, requested shape "
@@ -318,9 +324,15 @@ class BcdiProcessor:
             if len(final_shape) == 2:
                 final_shape = (self.detector_data.shape[0], ) + final_shape
 
-            # check if shape dimensions are even
-            checked_shape = tuple(
-                s-1 if s % 2 == 1 else s for s in final_shape)
+            # check if shape dimensions are even or if 2D
+            if final_shape[0] in (0, 1):
+                self.verbose_print("2D requested.")
+                checked_shape = (1, ) + tuple(
+                    s-1 if s % 2 == 1 else s for s in final_shape[1:]
+                )
+            else:
+                checked_shape = tuple(
+                    s-1 if s % 2 == 1 else s for s in final_shape)
 
             if checked_shape != final_shape:
                 self.verbose_print(
@@ -368,6 +380,13 @@ class BcdiProcessor:
             # self.mask = crop_at_center(self.mask, final_shape=final_shape)
             self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
+            # Handle the data dimension. If 2D requested, remove axis0
+            if final_shape[0] in (0, 1):
+                self.cropped_detector_data = self.cropped_detector_data[0]
+                cropped_det_ref = cropped_det_ref[1:]
+                self.mask = self.mask[0]
+                final_shape = final_shape[1: ]
+
             self.verbose_print(
                 "[SHAPE & CROPPING] The reference voxel was found at "
                 f"{det_ref} in the uncropped data frame\n"
@@ -411,9 +430,9 @@ class BcdiProcessor:
                 [det_ref, full_det_max, full_det_com],
                 [cropped_det_ref, cropped_det_max, cropped_det_com]
         ):
-            (
-                self.params[key]
-            ) = self.space_converter.index_det_to_q_lab(cropped_det_voxel)
+            self.params[key] = self.space_converter.index_det_to_q_lab(
+                cropped_det_voxel
+            )
 
             # compute the corresponding dpsacing and lattice parameter
             # for printing
@@ -714,11 +733,12 @@ class BcdiProcessor:
         )
 
         # Print the oversampling ratio
-        ratio = oversampling_ratio(support)
+        ratios = oversampling_ratio(support)
         self.verbose_print(
             "[INFO] The oversampling ratios in each direction are "
-            f"axis0: {ratio[0]:.1f}, axis1: {ratio[1]:.1f}, "
-            f"axis2: {ratio[2]:.1f}"
+            + ", ".join(
+                [f"axis{i}: {ratios[0]:.1f}" for i in range(len(ratios))]
+            )
         )
 
         self.space_converter.load_interpolation_parameters(
@@ -776,18 +796,20 @@ class BcdiProcessor:
                     )
                 )
             )
-        self.orthogonalized_object = (
-                self.space_converter.lab_to_cxi_conventions(
-                    self.orthogonalized_object
-                )
-        )
+        if self.params["orientation_convention"].lower() == "cxi":
+            self.orthogonalized_object = (
+                    self.space_converter.lab_to_cxi_conventions(
+                        self.orthogonalized_object
+                    )
+            )
 
-        self.voxel_size = self.space_converter.lab_to_cxi_conventions(
-            self.space_converter.direct_lab_interpolator.target_voxel_size
-        )
+            self.voxel_size = self.space_converter.lab_to_cxi_conventions(
+                self.space_converter.direct_lab_interpolator.target_voxel_size
+            )
         self.verbose_print(
             f"[INFO] Voxel size finally used is: {self.voxel_size} nm "
-            "in the CXI convention"
+            f"in the {self.params['orientation_convention'].upper()} "
+            "convention"
         )
 
     def _load_reconstruction_file(self, file_path: str) -> np.ndarray:
@@ -891,13 +913,17 @@ class BcdiProcessor:
             " phase ramp removal or d-spacing method.",
             wrap=False
         )
+        if self.params["orientation_convention"].lower() == "cxi":
+            g_vector = SpaceConverter.lab_to_cxi_conventions(
+                        self.params["q_lab_reference"]
+            )
+        else:
+            g_vector = self.params["q_lab_reference"]
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
                     isosurface=self.params["isosurface"],
-                    g_vector=SpaceConverter.lab_to_cxi_conventions(
-                        self.params["q_lab_reference"]
-                    ),
+                    g_vector=g_vector,
                     hkl=self.params["hkl"],
                     voxel_size=self.voxel_size,
                     phase_factor=-1,  # it came out pynx
@@ -1080,27 +1106,28 @@ class BcdiProcessor:
         )
 
         # find the position in the cropped detector frame
-        roi = CroppingHandler.get_roi(
-            self.params["preprocessing_output_shape"],
-            self.params["det_reference_voxel"]
-        )
-        cropped_det_ref = tuple(
-                p - r if r else p  # if r is None, p-r must be p
-                for p, r in zip(
-                    self.params["det_reference_voxel"], roi[::2])
-        )
-        where_in_ortho_space = (
-            self.space_converter.index_det_to_index_of_q_lab(
-                cropped_det_ref
-            )
-        )
+        # roi = CroppingHandler.get_roi(
+        #     self.params["preprocessing_output_shape"],
+        #     self.params["det_reference_voxel"]
+        # )
+        # cropped_det_ref = tuple(
+        #         p - r if r else p  # if r is None, p-r must be p
+        #         for p, r in zip(
+        #             self.params["det_reference_voxel"], roi[::2])
+        # )
+        # where_in_ortho_space = (
+        #     self.space_converter.index_det_to_index_of_q_lab(
+        #         cropped_det_ref
+        #     )
+        # )
 
         self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
             final_object_fft,
             orthogonalized_intensity,
             final_object_q_lab_grid,
             exp_data_q_lab_grid,
-            where_in_ortho_space=where_in_ortho_space,
+            # where_in_ortho_space=where_in_ortho_space,
+            where_in_ortho_space=None,
             title=(
                 r"FFT of final object \textit{vs.} experimental data"
                 f", {self.sample_name}, S{self.scan}"
@@ -1122,33 +1149,25 @@ class BcdiProcessor:
             f"{template_path}_structural_properties.npz"
         )
 
-        np.savez(
-            f"{template_path}_structural_properties.npz",
-            q_lab_reference=self.params["q_lab_reference"],
-            q_lab_max=self.params["q_lab_max"],
-            q_lab_com=self.params["q_lab_com"],
-            q_cxi_reference=SpaceConverter.lab_to_cxi_conventions(
-                self.params["q_lab_reference"]
-            ),
-            q_cxi_max=SpaceConverter.lab_to_cxi_conventions(
-                self.params["q_lab_max"]
-            ),
-            q_cxi_com=SpaceConverter.lab_to_cxi_conventions(
-                self.params["q_lab_com"]
-            ),
-            dspacing_reference=self.params["dspacing_reference"],
-            dspacing_max=self.params["dspacing_max"],
-            dspacing_com=self.params["dspacing_com"],
-            lattice_parameter_reference=(
-                self.params["lattice_parameter_reference"]
-            ),
-            lattice_parameter_max=self.params["lattice_parameter_max"],
-            lattice_parameter_com=self.params["lattice_parameter_com"],
-            averaged_dspacing=self.averaged_dspacing,
-            averaged_lattice_parameter=self.averaged_lattice_parameter,
-            processing_isosurface=self.params["isosurface"],
-            **self.structural_properties,
-        )
+        to_save = {
+            k: self.params[k]
+            for k in [
+                "q_lab_reference", "q_lab_max", "q_lab_com",
+                "dspacing_reference", "dspacing_max", "dspacing_com",
+                "lattice_parameter_reference", "lattice_parameter_max",
+                "lattice_parameter_com", "isosurface"
+            ]
+        }
+        to_save.update(self.structural_properties)
+        if self.params["orientation_convention"].lower() == "cxi":
+            to_save.update(
+                {
+                    f"q_cxi_{pos}": SpaceConverter.lab_to_cxi_conventions(
+                        self.params[f"q_lab_{pos}"]
+                    ) for pos in ["reference", "max", "com"]
+                }
+            )
+        np.savez(f"{template_path}_structural_properties.npz", **to_save)
 
         to_save_as_vti = {
             k: self.structural_properties[k]
@@ -1182,117 +1201,37 @@ class BcdiProcessor:
         with h5py.File(f"{template_path}_structural_properties.h5", "w") as hf:
             volumes = hf.create_group("volumes")
             scalars = hf.create_group("scalars")
-
-            volumes.create_dataset(
-                "amplitude",
-                data=self.structural_properties["amplitude"]
-            )
-            volumes.create_dataset(
-                "support",
-                data=self.structural_properties["support"]
-            )
-            volumes.create_dataset(
-                "phase",
-                data=self.structural_properties["phase"]
-            )
-            volumes.create_dataset(
-                "displacement",
-                data=self.structural_properties["displacement"]
-            )
-            volumes.create_dataset(
-                "het_strain",
-                data=self.structural_properties["het_strain"]
-            )
-            volumes.create_dataset(
-                "het_strain_from_dspacing",
-                data=self.structural_properties["het_strain_from_dspacing"]
-            )
-            volumes.create_dataset(
-                "numpy_het_strain",
-                data=self.structural_properties["numpy_het_strain"]
-            )
-            volumes.create_dataset(
-                "dspacing_from_het_strain",
-                data=self.structural_properties["dspacing"]
-            )
-            volumes.create_dataset(
-                "lattice_parameter",
-                data=self.structural_properties["lattice_parameter"]
-            )
-            scalars.create_dataset(
-                "q_lab_reference",
-                data=self.params["q_lab_reference"]
-            )
-            scalars.create_dataset(
-                "q_lab_max",
-                data=self.params["q_lab_max"]
-            )
-            scalars.create_dataset(
-                "q_lab_com",
-                data=self.params["q_lab_com"]
-            )
-            scalars.create_dataset(
-                "q_cxi_reference",
-                data=SpaceConverter.lab_to_cxi_conventions(
-                    self.params["q_lab_reference"]
+            for volume in [
+                    "amplitude", "support", "phase", "displacement",
+                    "het_strain", "het_strain_from_dspacing",
+                    "numpy_het_strain", "dspacing", "lattice_parameter"
+            ]:
+                volumes.create_dataset(
+                    volume,
+                    data=self.structural_properties[volume]
                 )
-            )
+            for scalar in [
+                    "q_lab_reference", "q_lab_max", "q_lab_com",
+                    "dspacing_reference", "dspacing_max", "dspacing_com",
+                    "lattice_parameter_reference", "lattice_parameter_max",
+                    "lattice_parameter_com", "hkl", "isosurface"
+            ]:
+                scalars.create_dataset(scalar, data=self.params[scalar])
+            scalars.create_dataset("voxel_size", data=self.voxel_size)
             scalars.create_dataset(
-                "q_cxi_max",
-                data=SpaceConverter.lab_to_cxi_conventions(
-                    self.params["q_lab_max"]
-                )
-            )
-            scalars.create_dataset(
-                "q_cxi_com",
-                data=SpaceConverter.lab_to_cxi_conventions(
-                    self.params["q_lab_com"]
-                )
-            )
-            scalars.create_dataset(
-                "dspacing_reference",
-                data=self.params["dspacing_reference"]
-            )
-            scalars.create_dataset(
-                "dspacing_max",
-                data=self.params["dspacing_max"]
-            )
-            scalars.create_dataset(
-                "dspacing_com",
-                data=self.params["dspacing_com"]
-            )
-            scalars.create_dataset(
-                "lattice_parameter_reference",
-                data=self.params["lattice_parameter_reference"]
-            )
-            scalars.create_dataset(
-                "lattice_parameter_max",
-                data=self.params["lattice_parameter_max"]
-            )
-            scalars.create_dataset(
-                "lattice_parameter_com",
-                data=self.params["lattice_parameter_com"]
-            )
-            scalars.create_dataset(
-                "averaged_dspacing",
-                data=self.averaged_dspacing
-            )
+                "averaged_dspacing", data=self.averaged_dspacing)
             scalars.create_dataset(
                 "averaged_lattice_parameter",
                 data=self.averaged_lattice_parameter
             )
-            scalars.create_dataset(
-                "voxel_size",
-                data=self.voxel_size
-            )
-            scalars.create_dataset(
-                "hkl",
-                data=self.params["hkl"]
-            )
-            scalars.create_dataset(
-                "processing_isosurface",
-                data=self.params["isosurface"]
-            )
+            if self.params["orientation_convention"].lower() == "cxi":
+                for pos in ["reference", "max", "com"]:
+                    scalars.create_dataset(
+                        f"q_cxi_{pos}",
+                        data=SpaceConverter.lab_to_cxi_conventions(
+                           self.params[f"q_lab_{pos}"]
+                        )
+                    )
 
         self.save_figures()
 
