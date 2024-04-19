@@ -45,8 +45,8 @@ def find_hull(
         nan_value: bool = False
 ) -> np.ndarray:
     """
-    Find the convex hull of a 3D volume object.
-    :param volume: 3D np.array. The volume to get the hull from.
+    Find the convex hull of a 2D or 3D object.
+    :param volume: 2 or 3D np.ndarray. The volume to get the hull from.
     :param threshold: threshold that selects what belongs to the
     hull or not (int). If threshold >= 27, the returned hull will be
     similar to volume.
@@ -58,7 +58,7 @@ def find_hull(
     threshold (np.array).
     """
 
-    kernel = np.ones(shape=(kernel_size, kernel_size, kernel_size))
+    kernel = np.ones(shape=tuple(np.repeat(kernel_size, volume.ndim)))
     convolved_support = convolve(volume, kernel, mode='constant', cval=0.0)
     hull = np.where(
         ((0 < convolved_support) & (convolved_support <= threshold)),
@@ -528,14 +528,14 @@ class CroppingHandler:
 
             roi.append(np.max([where[i]-crop[i][0], 0]) - add_left)
             roi.append(np.min([where[i]+crop[i][1], s]) + add_right)
-        for i in range(0, len(roi), 2):
-            if roi[i] < 0:
-                warnings.warn(
-                    f"The calculated roi contains a negative value ({roi[i]}),"
-                    " will set it to 0, this might give inconsistent results."
-                )
-                roi[i+1] -= roi[i]
-                roi[i] = 0
+        # for i in range(0, len(roi), 2):
+        #     if roi[i] < 0:
+        #         warnings.warn(
+        #             f"The calculated roi contains a negative value ({roi[i]}),"
+        #             " will set it to 0, this might give inconsistent results."
+        #         )
+        #         roi[i+1] -= roi[i]
+        #         roi[i] = 0
         return roi
 
     @classmethod
@@ -585,15 +585,15 @@ class CroppingHandler:
 
             # mask the data values which are outside roi
             masked_data = cls.get_masked_data(data, roi=roi)
-        if (
-                methods[-1] == "com"
-                and (position != cls.get_position(masked_data, "com"))
-        ):
-            warnings.warn(
-                "\n"
-                "The center of the final box does not correspond to the com.\n"
-                "You might want to keep looking for it."
-            )
+        # if (
+        #         methods[-1] == "com"
+        #         and (position != cls.get_position(masked_data, "com"))
+        # ):
+        #     warnings.warn(
+        #         "\n"
+        #         "The center of the final box does not correspond to the com.\n"
+        #         "You might want to keep looking for it."
+        #     )
         # actual position along which the data are centered using roi
         position = tuple(
             (start + stop) // 2
@@ -719,20 +719,16 @@ def find_suitable_array_shape(
 ) -> np.array:
     """Find a more suitable shape of an array"""
     if padding is None:
-        padding = [4, 4, 4]
+        padding = np.repeat(4, support.ndim)
     hull = find_hull(support, boolean_values=True)
     coordinates = np.where(hull == 1)
-    axis_0_range = np.ptp(coordinates[0]) + padding[0]
-    axis_1_range = np.ptp(coordinates[1]) + padding[1]
-    axis_2_range = np.ptp(coordinates[2]) + padding[2]
 
+    shape = []
+    for i in range(support.ndim):
+        shape.append(np.ptp(coordinates[i]) + padding[i])
     if symmetrical_shape:
-        return np.repeat(
-            np.max(np.array([axis_0_range, axis_1_range, axis_2_range])),
-            3
-        )
-
-    return np.array([axis_0_range, axis_1_range, axis_2_range])
+        return tuple(np.repeat(np.max(shape), support.ndim))
+    return shape
 
 
 def find_isosurface(
