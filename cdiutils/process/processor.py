@@ -233,7 +233,7 @@ class BcdiProcessor:
 
             # check if shape dimensions are even or if 2D
             if final_shape[0] in (0, 1):
-                self.verbose_print(f"2D requested ")
+                self.verbose_print("2D requested.")
                 checked_shape = tuple(
                     s-1 if s % 2 == 1 else s for s in final_shape[1:]
                 )
@@ -741,9 +741,10 @@ class BcdiProcessor:
             )
         )
 
-        self.space_converter.load_interpolation_parameters(
+        self.voxel_size = self.space_converter.load_interpolation_parameters(
             interpolation_file_path,
-            direct_space_voxel_size=self.params['voxel_size']
+            direct_space_voxel_size=self.params['voxel_size'],
+            light_loading=self.params["orthogonalize_before_phasing"]
         )
 
         # might be useless
@@ -763,7 +764,7 @@ class BcdiProcessor:
         # initialize the interpolator in reciprocal and direct spaces
         # (note that the orthogonalization is done in the lab frame
         # with xrayutilities conventions. We switch to cxi convention
-        # afterwards).
+        # afterwards (default behaviour)).
         if self.params['voxel_size']:
             self.verbose_print(
                 "[INFO] Voxel size in the direct lab frame provided by user: "
@@ -771,11 +772,12 @@ class BcdiProcessor:
             )
         if self.params["orthogonalize_before_phasing"]:
             self.orthogonalized_object = reconstructed_object
-            if self.params['voxel_size']:
-                self.verbose_print(
-                    "[INFO] Orthogonalization was run before phasing, provided"
-                    " voxel won't be used."
-                )
+            self.verbose_print(
+                "[INFO] Orthogonalisation was run before phasing, no "
+                "orthogonalisation nor interpolation will be run."
+            )
+            if self.params["voxel_size"]:
+                self.verbose_print("Provided voxel_size won't be used.")
         else:
             self.orthogonalized_object = (
                 self.space_converter.orthogonalize_to_direct_lab(
@@ -796,6 +798,13 @@ class BcdiProcessor:
                     )
                 )
             )
+
+        if isinstance(self.voxel_size, (float, int)):
+            self.voxel_size = np.repeat(
+                self.voxel_size,
+                self.orthogonalized_object.ndim
+            )
+
         if self.params["orientation_convention"].lower() == "cxi":
             self.orthogonalized_object = (
                     self.space_converter.lab_to_cxi_conventions(
@@ -804,8 +813,9 @@ class BcdiProcessor:
             )
 
             self.voxel_size = self.space_converter.lab_to_cxi_conventions(
-                self.space_converter.direct_lab_interpolator.target_voxel_size
+                self.voxel_size
             )
+
         self.verbose_print(
             f"[INFO] Voxel size finally used is: {self.voxel_size} nm "
             f"in the {self.params['orientation_convention'].upper()} "
@@ -1075,7 +1085,7 @@ class BcdiProcessor:
                 self.structural_properties["amplitude"]
                 * np.exp(-1j*self.structural_properties["phase"])
             ),
-            final_shape=shape
+            output_shape=shape
         )
         final_object_fft = np.abs(np.fft.ifftshift(
             np.fft.fftn(

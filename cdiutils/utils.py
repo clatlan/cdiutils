@@ -231,23 +231,26 @@ def center(
 
 def symmetric_pad(
         data: np.ndarray,
-        final_shape: tuple | list | np.ndarray,
+        output_shape: tuple | list | np.ndarray,
         values: float = 0
 ) -> np.ndarray:
     """Return padded data so it matches the provided final_shape"""
 
-    shape = data.shape
-
-    axis0_pad_width = (final_shape[0] - shape[0]) // 2
-    axis1_pad_width = (final_shape[1] - shape[1]) // 2
-    axis2_pad_width = (final_shape[2] - shape[2]) // 2
-
+    if data.ndim != len(output_shape):
+        raise ValueError(
+            f"output_shape length ({len(output_shape)}) should match of input "
+            f"data dimension ({data.ndim})."
+        )
+    widths = []
+    for current_s, output_s in zip(data.shape, output_shape):
+        widths.append((output_s - current_s) // 2)
     return np.pad(
         data,
-        (
-            (axis0_pad_width, axis0_pad_width + (final_shape[0] - shape[0]) % 2),
-            (axis1_pad_width, axis1_pad_width + (final_shape[1] - shape[1]) % 2),
-            (axis2_pad_width, axis2_pad_width + (final_shape[2] - shape[2]) % 2)
+        pad_width=tuple(
+            (
+                widths[i],
+                widths[i] + (output_shape[i] - data.shape[i]) % 2
+            ) for i in range(data.ndim)
         ),
         mode="constant",
         constant_values=values
