@@ -17,6 +17,7 @@ def load_specfile(path: str):
         data = specfile
     return data
 
+
 def get_cmap_dict_from_json(file_path):
     """Make a matplotlib cmap from json file."""
 
