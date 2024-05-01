@@ -20,7 +20,7 @@ def hemisphere_projection(
         data: np.ndarray,
         support: np.ndarray,
         axis: int,
-        looking_from_dowstream: bool = True
+        looking_from_downstream: bool = True
 ) -> np.ndarray:
     """Compute the hemisphere projection of a volume along one axis.
 
@@ -28,7 +28,7 @@ def hemisphere_projection(
         data (np.ndarray): the volume data to project.
         support (np.ndarray): the support of the reconstructed data.
         axis (int): the axis along which to project.
-        looking_from_dowstream (bool, optional): The direction along
+        looking_from_downstream (bool, optional): The direction along
             axis, positive-going (True) or negative-going (False).
             Defaults to True.
 
@@ -39,7 +39,7 @@ def hemisphere_projection(
     support = nan_to_zero(support)
 
     # Find the support surface
-    if looking_from_dowstream:
+    if looking_from_downstream:
         support_surface = np.cumsum(support, axis=axis)
     else:
         slices = tuple(
@@ -66,7 +66,7 @@ def plot_3d_surface_projections(
         figsize: tuple = None,
         title: str = None,
         cbar_title: str = None,
-        **figure_parameters
+        **plot_params
 ) -> mpl.figure.Figure:
     """Plot 3D projected views from a 3D object.
 
@@ -88,7 +88,7 @@ def plot_3d_surface_projections(
         matplotlib.figure.Figure: the figure.
     """
     if view_parameters is None:
-        view_parameters = CXI_VIEW_PARAMETERS
+        view_parameters = CXI_VIEW_PARAMETERS.copy()
 
     if figsize is None:
         figsize = get_figure_size(subplots=(3, 3))
@@ -100,19 +100,20 @@ def plot_3d_surface_projections(
         gridspec_kw={'height_ratios': [1/(1-(cbar_pad+cbar_size)), 1]}
     )
     shape = find_suitable_array_shape(support, symmetrical_shape=False)
+
     cropped_support,  _, _, roi = CroppingHandler.chain_centering(
         support,
         output_shape=shape,
-        methods=["com"]
+        methods=["com"],
     )
 
     cropped_data = data[CroppingHandler.roi_list_to_slices(roi)]
 
     for v in view_parameters.keys():
-        looking_from_dowstream = False
+        looking_from_downstream = False
         row = 0
         if v.endswith("+"):
-            looking_from_dowstream = True
+            looking_from_downstream = True
             row = 1
 
         ax = axes[row, view_parameters[v]["axis"]]
@@ -121,7 +122,7 @@ def plot_3d_surface_projections(
             cropped_data,
             cropped_support,
             axis=view_parameters[v]["axis"],
-            looking_from_dowstream=looking_from_dowstream
+            looking_from_downstream=looking_from_downstream
         )
 
         # Swap axes for matshow if the first plane axis is less than the
@@ -147,12 +148,11 @@ def plot_3d_surface_projections(
             extent = (extent[1], extent[0], *extent[2:])
             projection = projection[np.s_[:, ::-1]]
 
-        image = ax.matshow(
+        image = ax.imshow(
             projection,
             extent=extent,
             origin="lower",
-            interpolation="antialiased",
-            **figure_parameters
+            **plot_params
         )
         ax.set_title(v, y=0.95)
 

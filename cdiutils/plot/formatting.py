@@ -49,6 +49,28 @@ def get_extents(
     )
 
 
+def get_plot_configs(key: str) -> dict:
+    """
+    Get the plotting configurations according to the provided key. If
+    the key matches the generic PLOT_CONFIGS, the configurations are
+    returned, otherwise error is raised.
+
+    Args:
+        key (str): the key word used for accessing the configurations.
+
+    Raises:
+        ValueError: if the key does not match any generic keys.
+
+    Returns:
+        dict: the plotting configurations.
+    """
+    _, _, PLOT_CONFIGS = set_plot_configs()
+    for k in PLOT_CONFIGS.keys():
+        if k in key:
+            return PLOT_CONFIGS[k].copy()
+    raise ValueError(f"Invalid key ({key}).")
+
+
 def set_plot_configs():
 
     ANGSTROM_SYMBOL = None
@@ -67,13 +89,25 @@ def set_plot_configs():
             "title": "Amplitude (a.u.)",
             "cmap": "turbo",
             "vmin": 0,
+            "vmax": None
+        },
+        "support": {
+            "title": "Support (a.u.)",
+            "cmap": "turbo",
+            "vmin": 0,
             "vmax": 1
+        },
+        "intensity": {
+            "title": "Intensity (a.u.)",
+            "cmap": "turbo",
+            "vmin": 0,
+            "vmax": None
         },
         "phase": {
             "title": "Phase (rad)",
             "cmap": "cet_CET_C9s_r",
-            "vmin": -np.pi / 8,
-            "vmax": np.pi / 8,
+            "vmin": -np.pi,
+            "vmax": np.pi,
         },
         "displacement": {
             "title": fr"Displacement ({ANGSTROM_SYMBOL})",
@@ -158,8 +192,7 @@ def update_plot_params(
         }
     matplotlib.pyplot.rcParams.update(parameters)
 
-    if use_siunitx:
-        # override usetex value, text.usetex will be set to True
+    if use_siunitx and usetex:
         matplotlib.pyplot.rcParams.update(
             {
                 'text.latex.preamble': (
@@ -191,7 +224,8 @@ def update_plot_params(
     matplotlib.pyplot.rcParams.update(
         {
             "image.cmap": "turbo",
-            "figure.dpi": 200
+            "figure.dpi": 200,
+            "figure.figsize": get_figure_size(width=style)
         }
     )
     matplotlib.pyplot.rcParams.update(**kwargs)

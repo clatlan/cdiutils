@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib
+from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 import xrayutilities as xu
@@ -12,24 +13,25 @@ from cdiutils.plot.formatting import get_figure_size
 
 def plot_slices(
         *data: list[np.ndarray],
-        slice_labels: list=None,
-        figsize: tuple[float]=None,
-        data_stacking="vertical",
-        nan_supports: list=None,
-        vmin: float=None,
-        vmax: float=None,
-        alphas: list=None,
-        origin: str="lower",
-        cmap: str="turbo",
-        show_cbar: bool=True,
-        cbar_title: str="",
-        cbar_location: str="top",
-        cbar_extend: str="both",
-        norm: matplotlib.colors.Normalize=None,
-        cbar_ticks: list=None,
-        slice_name: str=None,
-        suptitle: str="",
-        show: bool=True,
+        slice_labels: list = None,
+        figsize: tuple[float] = None,
+        data_stacking: str = "vertical",
+        nan_supports: list = None,
+        vmin: float = None,
+        vmax: float = None,
+        log_scale: bool = False,
+        alphas: list = None,
+        origin: str = "lower",
+        cmap: str = "turbo",
+        show_cbar: bool = True,
+        cbar_title: str = None,
+        cbar_location: str = "top",
+        cbar_extend: str = "both",
+        norm: matplotlib.colors.Normalize = None,
+        cbar_ticks: list = None,
+        slice_name: str = None,
+        suptitle: str = None,
+        show: bool = True,
 ) -> matplotlib.figure.Figure:
     """Plot 2D slices of the provided data."""
 
@@ -75,7 +77,9 @@ def plot_slices(
                 to_plot = to_plot * nan_supports[i]
             else:
                 to_plot = to_plot * nan_supports
-
+        # params = {
+        #     "vmin": vmin, "vmax": vmax, "cmap": cmap, "origin": origin, "norm": 
+        # }
         im = grid[i].matshow(
             to_plot,
             vmin=vmin,
@@ -131,7 +135,14 @@ def plot_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        cbar = grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
+        ticklocation = (
+            "bottom" if cbar_location in ("top", "bottom") else "auto"
+        )
+        cbar = grid.cbar_axes[0].colorbar(
+            im,
+            extend=cbar_extend,
+            ticklocation=ticklocation
+        )
         grid.cbar_axes[0].set_title(cbar_title)
         if cbar_ticks:
             cbar.set_ticks(cbar_ticks)
@@ -145,32 +156,33 @@ def plot_slices(
 
 def plot_3d_volume_slices(
         *data: list[np.ndarray],
-        slice_labels: list[str]=None,
-        shapes: list[tuple]=None,
-        nan_supports: list[np.ndarray]=None,
-        figsize: tuple[float]=None,
+        slice_labels: list[str] = None,
+        shapes: list[tuple] = None,
+        nan_supports: list[np.ndarray] = None,
+        figsize: tuple[float] = None,
         cmap: str | matplotlib.colors.Colormap = "turbo",
-        vmin: float=None,
-        vmax: float=None,
-        alphas: list[np.ndarray]=None,
-        log_scale: bool=False,
-        do_sum: bool=False,
-        suptitle: str=None,
-        show: bool=True,
-        return_fig: bool=False,
-        show_cbar: bool=True,
-        cbar_title: str="",
-        cbar_location: str="top",
-        cbar_extend: str="both",
-        cbar_ticks: list=None,
-        aspect_ratios: dict=None,
-        norm: matplotlib.colors.Normalize=None,
+        vmin: float = None,
+        vmax: float = None,
+        alphas: list[np.ndarray] = None,
+        log_scale: bool = False,
+        do_sum: bool = False,
+        suptitle: str = None,
+        show: bool = True,
+        return_fig: bool = False,
+        show_cbar: bool = True,
+        cbar_title: str = None,
+        cbar_location: str = "top",
+        cbar_extend: str = "both",
+        cbar_ticks: list = None,
+        aspect_ratios: dict = None,
+        norm: matplotlib.colors.Normalize = None,
         data_stacking="vertical",
         slice_names=[
             r"(xy)$_{cxi}$ slice",
             r"(xz)$_{cxi}$ slice",
             r"(yz)$_{cxi}$ slice"
         ],
+        **plot_params
 ):
     """
     Plot 2D slices of a 3D volume data in three directions.
@@ -274,7 +286,8 @@ def plot_3d_volume_slices(
             origin="lower",
             aspect=aspect_ratios["yz"] if aspect_ratios else "auto",
             norm=norm,
-            alpha=None if alphas is None else alphas[i][shape[0]//2,]
+            alpha=None if alphas is None else alphas[i][shape[0]//2,],
+            **plot_params
         )
         grid[ind2].matshow(
             np.sum(plot, axis=1) if do_sum else plot[:, shape[1]//2, :],
@@ -284,7 +297,8 @@ def plot_3d_volume_slices(
             origin="lower",
             aspect=aspect_ratios["xz"] if aspect_ratios else "auto",
             norm=norm,
-            alpha=None if alphas is None else alphas[i][:, shape[1]//2, :]
+            alpha=None if alphas is None else alphas[i][:, shape[1]//2, :],
+            **plot_params
         )
         grid[ind3].matshow(
             np.sum(plot, axis=2) if do_sum else plot[:, :, shape[2]//2],
@@ -294,7 +308,8 @@ def plot_3d_volume_slices(
             origin="lower",
             aspect=aspect_ratios["xy"] if aspect_ratios else "auto",
             norm=norm,
-            alpha=None if alphas is None else alphas[i][:, :, shape[2]//2]
+            alpha=None if alphas is None else alphas[i][:, :, shape[2]//2],
+            **plot_params
         )
 
         if data_stacking in ("vertical", "v"):
@@ -347,7 +362,14 @@ def plot_3d_volume_slices(
         ax.axes.xaxis.set_ticks([])
         ax.axes.yaxis.set_ticks([])
     if show_cbar:
-        cbar = grid.cbar_axes[0].colorbar(im, extend=cbar_extend)
+        ticklocation = (
+            "bottom" if cbar_location in ("top", "bottom") else "auto"
+        )
+        cbar = grid.cbar_axes[0].colorbar(
+            im,
+            extend=cbar_extend,
+            ticklocation=ticklocation
+        )
         grid.cbar_axes[0].set_title(cbar_title)
         if cbar_ticks:
             cbar.set_ticks(cbar_ticks)
