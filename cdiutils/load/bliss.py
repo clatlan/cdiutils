@@ -233,11 +233,13 @@ class BlissLoader(Loader):
     @safe
     def load_measurement_parameters(
             self,
-            sample_name: str,
             scan: int,
-            parameter_name: str
+            parameter_name: str,
+            sample_name: str = None
     ) -> tuple:
         """Load the measurement parameters of the specified scan."""
+        if sample_name is None:
+            sample_name = self.sample_name
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/measurement"
@@ -250,10 +252,12 @@ class BlissLoader(Loader):
     def load_instrument_parameters(
             self,
             scan: int,
-            sample_name: str,
-            instrument_parameter: str
+            instrument_parameter: str,
+            sample_name: str = None
     ) -> tuple:
         """Load the instrument parameters of the specified scan."""
+        if sample_name is None:
+            sample_name = self.sample_name
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
