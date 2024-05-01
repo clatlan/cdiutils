@@ -41,7 +41,7 @@ class PostProcessor:
             (rho e^{i phi})
             isosurface (bool): the isosurface that determines the
             support
-            final_shape (np.ndarray or tuple or list, optional): the
+            final_shape (np.ndarray | tuple | list, optional): the
             final shape of the array requested. Defaults to None.
 
         Returns:
@@ -55,7 +55,10 @@ class PostProcessor:
             nan_values=False
         )
         if final_shape is None:
-            final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
+            final_shape = find_suitable_array_shape(
+                support,
+                padding=np.repeat(6, support.ndim)
+            )
             print(f"[INFO] new array shape is {final_shape}")
         # center the arrays at the center of mass of the support
         com = CroppingHandler.get_position(support, "com")
@@ -150,33 +153,30 @@ class PostProcessor:
     @staticmethod
     def remove_phase_ramp(phase: np.ndarray) -> np.ndarray:
         """
-        Remove the phase ramp of a 3D volume phase.
+        Remove the phase ramp of a 2 | 3D phase object.
 
         Args:
-            phase (np.ndarray): the 3D volume phase
+            phase (np.ndarray): the 2 | 3D phase object
 
         Returns:
             np.ndarray: the phase without the computed ramp.
         """
-        i, j, k = np.indices(phase.shape)
         non_nan_coordinates = np.where(np.logical_not(np.isnan(phase)))
-
         non_nan_phase = phase[non_nan_coordinates]
-        i = i[non_nan_coordinates]
-        j = j[non_nan_coordinates]
-        k = k[non_nan_coordinates]
 
-        indices = np.swapaxes(np.array([i, j, k]), 0, 1)
+        indices = np.indices(phase.shape)
+        filtered_indices = []
+        for i in range(len(indices)):
+            filtered_indices.append(indices[i][non_nan_coordinates])
+
+        indices = np.swapaxes(filtered_indices, 0, 1)
         reg = LinearRegression().fit(indices, non_nan_phase)
 
-        i, j, k = np.indices(phase.shape)
-
-        ramp = (
-            reg.coef_[0] * i
-            + reg.coef_[1] * j
-            + reg.coef_[2] * k
-            + reg.intercept_
-        )
+        indices = np.indices(phase.shape)
+        ramp = 0
+        for i in range(len(indices)):
+            ramp += reg.coef_[i] * indices[i]
+        ramp += reg.intercept_
 
         return phase - ramp
 
@@ -195,7 +195,7 @@ class PostProcessor:
     @staticmethod
     def get_displacement(
             phase: np.ndarray,
-            g_vector: np.ndarray or tuple or list,
+            g_vector: np.ndarray | tuple | list,
     ) -> np.ndarray:
         """
         Calculate the displacement from phase and g_vector.
@@ -205,7 +205,7 @@ class PostProcessor:
     @staticmethod
     def get_displacement_gradient(
             displacement: np.ndarray,
-            voxel_size: np.ndarray or tuple or list,
+            voxel_size: np.ndarray | tuple | list,
             gradient_method: str = "hybrid"
     ) -> np.ndarray:
         """
@@ -213,7 +213,7 @@ class PostProcessor:
 
         Args:
             displacement (np.ndarray): displacement array.
-            voxel_size (np.ndarray or tuple or list): the voxel size of
+            voxel_size (np.ndarray | tuple | list): the voxel size of
             the array.
             gradient_method (str, optional): the method employed to
             compute the gradient. "numpy" is the traditional gradient.
@@ -240,8 +240,8 @@ class PostProcessor:
     def get_het_normal_strain(
             cls,
             displacement: np.ndarray,
-            g_vector: np.ndarray or tuple or list,
-            voxel_size: np.ndarray or tuple or list,
+            g_vector: np.ndarray | tuple | list,
+            voxel_size: np.ndarray | tuple | list,
             gradient_method: str = "hybrid",
     ) -> np.ndarray:
         """
@@ -251,9 +251,9 @@ class PostProcessor:
 
         Args:
             displacement (np.ndarray): the displacement array
-            g_vector (np.ndarray or tuple or list): the position of the
-            measured Bragg peak (com or max of the intensity).
-            voxel_size (np.ndarray or tuple or list): voxel size of the
+            g_vector (np.ndarray | tuple | list): the position of the
+            measured Bragg peak (com | max of the intensity).
+            voxel_size (np.ndarray | tuple | list): voxel size of the
             array
             gradient_method (str, optional): the method employed to
             compute the gradient. "numpy" is the traditional gradient.
@@ -284,9 +284,9 @@ class PostProcessor:
             cls,
             complex_object: np.ndarray,
             isosurface: np.ndarray,
-            g_vector: np.ndarray or tuple or list,
-            hkl: tuple or list,
-            voxel_size: np.ndarray or tuple or list,
+            g_vector: np.ndarray | tuple | list,
+            hkl: tuple | list,
+            voxel_size: np.ndarray | tuple | list,
             phase_factor: int = -1,
             handle_defects: bool = False,
     ) -> dict:
@@ -299,10 +299,10 @@ class PostProcessor:
         Args:
             complex_object (np.ndarray): the reconstructed object
             (rho e^(i phi))
-            g_vector (np.ndarray or tuple or list): the reciprocal space
+            g_vector (np.ndarray | tuple | list): the reciprocal space
             node on which the displacement gradient must be projected.
-            hkl (tuple or list): the probed Bragg reflection.
-            voxel_size (np.ndarray or tuple or list): the voxel size of
+            hkl (tuple | list): the probed Bragg reflection.
+            voxel_size (np.ndarray | tuple | list): the voxel size of
             the 3D array.
             phase_factor (int, optional): the factor the phase should
             should be multiplied by, depending on the FFT convention
