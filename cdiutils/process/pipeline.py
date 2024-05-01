@@ -7,7 +7,6 @@ import os
 from scipy.stats import gaussian_kde
 import shutil
 import subprocess
-import sys
 import time
 import traceback
 
@@ -133,13 +132,13 @@ def process(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         try:
             func(*args, **kwargs)
-        except Exception:
+        except Exception as exc:
             print(
                 "\n[ERROR] An error occured in the "
                 f"'{func.__name__}' method... here is the traceback:\n"
             )
-            traceback.print_exc()
-            sys.exit(1)
+            traceback.print_exception(exc)
+            raise
     return wrapper
 
 
