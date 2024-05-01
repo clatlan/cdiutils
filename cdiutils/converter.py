@@ -148,7 +148,7 @@ class SpaceConverter():
                 sample_inplane_angle,
                 detector_inplane_angle,
                 detector_outofplane_angle
-            )
+        )
         qx = np.array(qx)
         qy = np.array(qy)
         qz = np.array(qz)
@@ -193,11 +193,12 @@ class SpaceConverter():
         return self.index_det_to_q_lab(self.index_cropped_det_to_det(ijk))
 
     def index_det_to_index_of_q_lab(
-            self, ijk:  tuple,
+            self,
+            ijk: tuple,
             interpolation_method: str = "cdiutils"
     ) -> tuple:
         """
-        Transition an index from the full detector frame to the 
+        Transition an index from the full detector frame to the
         index-of-q lab frame
         """
         if interpolation_method in ("xu", "xrayutilities"):
@@ -261,14 +262,11 @@ class SpaceConverter():
             transition_matrix: np.ndarray
     ) -> tuple:
         """
-        Transform a (i, j, k) tuple into the corresponding qx, qy, qz) 
+        Transform a (i, j, k) tuple into the corresponding (qx, qy, qz)
         values based the transition matrix
         """
-        new_x = transition_matrix[0][ijk[0], ijk[1], ijk[2]]
-        new_y = transition_matrix[1][ijk[0], ijk[1], ijk[2]]
-        new_z = transition_matrix[2][ijk[0], ijk[1], ijk[2]]
-
-        return float(new_x), float(new_y), float(new_z)
+        ijk = tuple(ijk)
+        return tuple(float(transition_matrix[i][ijk]) for i in range(3))
 
     def crop_q_space_transitions(self) -> np.ndarray:
         """
@@ -330,8 +328,6 @@ class SpaceConverter():
 
         self._check_shape(data.shape)
         if self._q_space_transitions[0].shape != data.shape:
-
-            # self.crop_q_space_transitions()
             q_space_transitions = self.crop_q_space_transitions()
         else:
             q_space_transitions = self._q_space_transitions
@@ -371,11 +367,11 @@ class SpaceConverter():
             self,
             detector_data: np.ndarray,
             direct_space_data_shape: tuple = None,
-            direct_space_voxel_size: tuple | np.ndarray | list or float = None,
+            direct_space_voxel_size: tuple | np.ndarray | list | float = None,
             space: str = "direct",
             shift_voxel: tuple = None
     ):
-        
+
         if space not in (
                 "q", "rcp", "rcp_space",
                 "reciprocal", "reciprocal_space",
@@ -416,7 +412,7 @@ class SpaceConverter():
             if direct_space_data_shape is None:
                 raise ValueError(
                     "if space is 'direct' direct_space_data_shape must be "
-                     "provided."
+                    "provided."
                 )
             if shape != direct_space_data_shape:
                 raise ValueError(
@@ -487,8 +483,9 @@ class SpaceConverter():
     def load_interpolation_parameters(
             self,
             file_path: str,
-            direct_space_voxel_size: tuple | int = None
-    ):
+            direct_space_voxel_size: tuple | int = None,
+            light_loading: bool = False,
+    ) -> tuple:
         """
         Load interpolation parameters from a file and initialize
         interpolators.
@@ -499,14 +496,19 @@ class SpaceConverter():
 
         Args:
             file_path (str): Path to the file containing the
-            interpolation parameters.
+                interpolation parameters.
             direct_space_voxel_size (tuple or int): Voxel size if
-            provided, otherwise will take the one in the file.
+                provided, otherwise will take the one in the file.
+            light_loading (bool): whether the to initialise the
+                interpolator. Usually, if orthogonalisation was already
+                done before, only the voxel size is relevant.
 
         Returns:
-            None
+            the voxel size in any case.
         """
         with np.load(file_path) as npzfile:
+            if light_loading:
+                return npzfile["direct_space_voxel_size"]
             q_space_linear_transformation_matrix = npzfile[
                 "q_space_linear_transformation_matrix"
             ]
@@ -532,6 +534,7 @@ class SpaceConverter():
             original_to_target_matrix=direct_lab_linear_transformation_matrix,
             target_voxel_size=direct_space_voxel_size
         )
+        return direct_space_voxel_size
 
     def orthogonalize_to_direct_lab(
             self,
@@ -580,7 +583,7 @@ class SpaceConverter():
             )
         )
 
-    def get_q_space_transitions(self, arrangement: str="list"):
+    def get_q_space_transitions(self, arrangement: str = "list"):
         """
         Get the q space transitions calculated by xrayutilities and
         chose the arrangement either a list of three 1d arrays
@@ -706,11 +709,6 @@ class SpaceConverter():
             if data.shape == (3, ):
                 return np.array([data[0], data[2], data[1]])
             return np.swapaxes(data, axis1=1, axis2=2)
-
-        raise TypeError(
-            "data should be a 3D np.ndarray, a list of 3 values, a tuple "
-            "of 3 values or a np.ndarray of 3 values."
-            )
 
     @staticmethod
     def cxi_to_lab_conventions(
@@ -872,10 +870,10 @@ class Interpolator3D:
     """
     def __init__(
             self,
-            original_shape: tuple or np.ndarray or list,
+            original_shape: tuple | np.ndarray | list,
             original_to_target_matrix: np.ndarray,
-            target_voxel_size: tuple or np.ndarray or list or float=None,
-            verbose: bool=False
+            target_voxel_size: tuple | np.ndarray | list | float = None,
+            verbose: bool = False
     ):
 
         self.original_shape = original_shape
@@ -885,8 +883,17 @@ class Interpolator3D:
                 original_to_target_matrix, axis=1
             )
         elif isinstance(target_voxel_size, (float, int)):
-            self.target_voxel_size = np.repeat(target_voxel_size, 3)
+            self.target_voxel_size = np.repeat(
+                target_voxel_size,
+                len(original_shape)
+            )
         else:
+            if len(target_voxel_size) != len(original_shape):
+                raise ValueError(
+                    f"Lengths of target_voxel_size ({len(target_voxel_size)}) "
+                    f"and original_shape ({len(original_shape)}) should be "
+                    "equal"
+                )
             self.target_voxel_size = target_voxel_size
 
         self.original_to_target_matrix = original_to_target_matrix
@@ -906,9 +913,9 @@ class Interpolator3D:
             *self.target_grid
         )
 
-    def _init_target_grid(self, verbose: bool=False) -> None:
+    def _init_target_grid(self, verbose: bool = False) -> None:
         """
-        Initialize the target space grid by finding the extent of the 
+        Initialize the target space grid by finding the extent of the
         original space grid in the target space.
         """
 
@@ -924,9 +931,9 @@ class Interpolator3D:
         self._find_extents(grid_axis0, grid_axis1, grid_axis2)
         if verbose:
             print(
-                "[INFO] the extent in the target space of a regular grid defined "
-                f"in the original space with a shape of {self.original_shape} is "
-                f"{self.extents}"
+                "[INFO] the extent in the target space of a regular grid "
+                f"defined in the original space with a shape of "
+                f"{self.original_shape} is {self.extents}"
             )
 
         # define a regular grid in the target space with the computed extent
