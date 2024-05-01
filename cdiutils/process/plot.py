@@ -998,6 +998,14 @@ def plot_final_object_fft(
         ),
         levels=100,
     )
+    
+    if where_in_ortho_space is None:
+        print(
+            "where_in_ortho_space parameter not provided, will plot the "
+            "data at the center"
+        )
+        where_in_ortho_space = tuple(
+            e // 2 for e in experimental_ortho_data.shape)
 
     # load the orthogonalized grid values
     x_array, y_array, z_array = exp_data_q_lab_regular_grid
