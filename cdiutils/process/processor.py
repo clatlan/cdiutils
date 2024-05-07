@@ -1212,9 +1212,10 @@ class BcdiProcessor:
             volumes = hf.create_group("volumes")
             scalars = hf.create_group("scalars")
             for volume in [
-                    "amplitude", "support", "phase", "displacement",
-                    "het_strain", "het_strain_from_dspacing",
-                    "numpy_het_strain", "dspacing", "lattice_parameter"
+                    "amplitude", "support", "surface",
+                    "phase", "displacement", "het_strain", 
+                    "het_strain_from_dspacing", "numpy_het_strain", 
+                    "dspacing", "lattice_parameter"
             ]:
                 volumes.create_dataset(
                     volume,
