@@ -31,6 +31,7 @@ class PostProcessor:
     @staticmethod
     def prepare_volume(
             complex_object: np.ndarray,
+            parameters: dict,
             isosurface,
             final_shape: np.ndarray | tuple | list = None,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -299,6 +300,7 @@ class PostProcessor:
     def get_structural_properties(
             cls,
             complex_object: np.ndarray,
+            parameters: dict,
             isosurface: np.ndarray,
             g_vector: np.ndarray | tuple | list,
             hkl: tuple | list,
@@ -338,8 +340,9 @@ class PostProcessor:
             and voxel size are also returned.
         """
         complex_object, support, surface = cls.prepare_volume(
-            complex_object, isosurface=isosurface, 
-            final_shape = None, parameters=parameters
+            complex_object, parameters=parameters,
+            isosurface=isosurface, 
+            final_shape = None
         )
         # extract phase and amplitude
         amplitude = np.abs(complex_object)

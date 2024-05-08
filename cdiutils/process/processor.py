@@ -932,6 +932,7 @@ class BcdiProcessor:
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
+                    parameters=self.params,
                     isosurface=self.params["isosurface"],
                     g_vector=g_vector,
                     hkl=self.params["hkl"],
