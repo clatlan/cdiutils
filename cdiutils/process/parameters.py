@@ -33,21 +33,7 @@ AUTHORIZED_KEYS = {
         "binning_factors": (1, 1, 1),
         "handle_defects": False,
         "orthogonalize_before_phasing": False,
-        "orientation_convention": "cxi",
-        "method_det_support" : None,
-        "raw_process": True,
-        "support_path" : None,
-        "remove_edges" : True,
-        "nb_facets" : None,
-        "order_of_derivative" : None,
-        "derivative_threshold" : None,
-        "amplitude_threshold" : None,
-        "top_facet_reference_index" : [1, 1, 1],
-        "authorized_index" : 1,
-        "nb_nghbs_min" : 0,
-        "index_to_display" : None,
-        "display_f_e_c" : 'facet',
-        "size" : 10
+        "orientation_convention": "cxi"
     },
     "pynx": {
         "data": None,

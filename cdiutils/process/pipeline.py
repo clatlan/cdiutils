@@ -23,8 +23,6 @@ from .processor import BcdiProcessor
 from .plot import plot_phasing_result
 from .parameters import check_parameters, convert_np_arrays
 
-from cdiutils.process.facet_analysis import FacetAnalysisProcessor
-
 try:
     from bcdi.preprocessing.preprocessing_runner import (
         run as run_preprocessing
@@ -946,8 +944,3 @@ class BcdiPipeline:
                 "\nScan parameter file saved at:\n"
                 f"{output_file_path}"
             )
-            
-    def facet_analysis(self) -> None:
-        facet_anlysis_processor = FacetAnalysisProcessor(parameters=self.params)
-        facet_anlysis_processor.facet_analysis()
-    

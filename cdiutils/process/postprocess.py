@@ -9,7 +9,6 @@ import numpy as np
 from numpy.fft import fftn, fftshift, ifftn, ifftshift
 from skimage.restoration import unwrap_phase
 from sklearn.linear_model import LinearRegression
-import copy
 
 from cdiutils.utils import (
     CroppingHandler,
@@ -21,7 +20,6 @@ from cdiutils.utils import (
     hybrid_gradient
 )
 
-from cdiutils.process.support_processor import SupportProcessor
 
 class PostProcessor:
     """
@@ -31,7 +29,6 @@ class PostProcessor:
     @staticmethod
     def prepare_volume(
             complex_object: np.ndarray,
-            parameters: dict,
             isosurface,
             final_shape: np.ndarray | tuple | list = None,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -52,29 +49,21 @@ class PostProcessor:
             and the associated support.
         """
 
-        support_pre_crop = make_support(
+        support = make_support(
             normalize(np.abs(complex_object)),
-            isosurface=0.2
+            isosurface=isosurface,
+            nan_values=False
         )
-        final_shape_pre_crop = copy.copy(final_shape)
-        if final_shape_pre_crop is None:
-            final_shape_pre_crop = find_suitable_array_shape(support_pre_crop, padding=[6, 6, 6])
-        com_pre_crop = CroppingHandler.get_position(support_pre_crop, "com")
-        complex_object_pre_crop = CroppingHandler.force_centered_cropping(
-            complex_object,
-            where=com_pre_crop,
-            output_shape=final_shape_pre_crop
-        )
-        support_processor = SupportProcessor(parameters=parameters, data=normalize(np.abs(complex_object_pre_crop)), isosurface=isosurface, nan_values=False)
-        support, surface = support_processor.support_calculation()           
-            
         if final_shape is None:
-            final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
+            final_shape = find_suitable_array_shape(
+                support,
+                padding=np.repeat(6, support.ndim)
+            )
             print(f"[INFO] new array shape is {final_shape}")
         # center the arrays at the center of mass of the support
         com = CroppingHandler.get_position(support, "com")
         complex_object = CroppingHandler.force_centered_cropping(
-            complex_object_pre_crop,
+            complex_object,
             where=com,
             output_shape=final_shape
         )
@@ -83,13 +72,7 @@ class PostProcessor:
             where=com,
             output_shape=final_shape
         )
-        surface = CroppingHandler.force_centered_cropping(
-            surface,
-            where=com,
-            output_shape=final_shape
-        )
-        
-        return complex_object, support, surface
+        return complex_object, support
 
     @staticmethod
     def flip_reconstruction(data: np.ndarray) -> np.ndarray:
@@ -300,7 +283,6 @@ class PostProcessor:
     def get_structural_properties(
             cls,
             complex_object: np.ndarray,
-            parameters: dict,
             isosurface: np.ndarray,
             g_vector: np.ndarray | tuple | list,
             hkl: tuple | list,
@@ -339,11 +321,8 @@ class PostProcessor:
             methods, d-spacing, lattice parameter 3D maps. hkl, g_vector
             and voxel size are also returned.
         """
-        complex_object, support, surface = cls.prepare_volume(
-            complex_object, parameters=parameters,
-            isosurface=isosurface, 
-            final_shape = None
-        )
+        complex_object, support = cls.prepare_volume(
+            complex_object, isosurface=isosurface)
         # extract phase and amplitude
         amplitude = np.abs(complex_object)
         phase = np.angle(complex_object) * phase_factor
@@ -427,7 +406,6 @@ class PostProcessor:
         return {
             "amplitude": normalize(amplitude),
             "support": nan_to_zero(support),
-            "surface": nan_to_zero(surface),
             "phase": nan_to_zero(phase),
             "displacement": displacement,
             "displacement_gradient": displacement_gradient,

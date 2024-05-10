@@ -932,7 +932,6 @@ class BcdiProcessor:
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
-                    parameters=self.params,
                     isosurface=self.params["isosurface"],
                     g_vector=g_vector,
                     hkl=self.params["hkl"],
@@ -1213,10 +1212,9 @@ class BcdiProcessor:
             volumes = hf.create_group("volumes")
             scalars = hf.create_group("scalars")
             for volume in [
-                    "amplitude", "support", "surface",
-                    "phase", "displacement", "het_strain", 
-                    "het_strain_from_dspacing", "numpy_het_strain", 
-                    "dspacing", "lattice_parameter"
+                    "amplitude", "support", "phase", "displacement",
+                    "het_strain", "het_strain_from_dspacing",
+                    "numpy_het_strain", "dspacing", "lattice_parameter"
             ]:
                 volumes.create_dataset(
                     volume,
