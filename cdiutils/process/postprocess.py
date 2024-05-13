@@ -8,6 +8,7 @@ Author:
 import numpy as np
 from numpy.fft import fftn, fftshift, ifftn, ifftshift
 from skimage.restoration import unwrap_phase
+from skimage.filters import window
 from sklearn.linear_model import LinearRegression
 import copy
 
@@ -66,7 +67,7 @@ class PostProcessor:
             output_shape=final_shape_pre_crop
         )
         support_processor = SupportProcessor(parameters=parameters, data=normalize(np.abs(complex_object_pre_crop)), isosurface=isosurface, nan_values=False)
-        support, surface = support_processor.support_calculation()           
+        support, surface = support_processor.support_calculation()
             
         if final_shape is None:
             final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
@@ -107,6 +108,7 @@ class PostProcessor:
     @staticmethod
     def apodize(
             direct_space_data: np.ndarray,
+            window_type: str = "blackman",
             scale: float = 1
     ) -> np.ndarray:
         """
@@ -121,20 +123,8 @@ class PostProcessor:
         Returns:
             np.ndarray: Apodized 3D array.
         """
-
-        # first make the Blackman window
-        ni, nj, nk = direct_space_data.shape
-        blackman_i = np.blackman(ni)
-        blackman_j = np.blackman(nj)
-        blackman_k = np.blackman(nk)
-        blackman_slice = np.ones((ni, nj))
-        blackman_cube = np.ones((ni, nj, nk))
-
-        for i in range(ni):
-            blackman_slice[i, :] = blackman_i[i] * blackman_j
-            for j in range(nj):
-                blackman_cube[i, j] = blackman_slice[i, j] * blackman_k
-        blackman_window = blackman_cube / blackman_cube.max() * scale
+        blackman_window = window(window_type, direct_space_data.shape)
+        blackman_window = blackman_window / blackman_window.max() * scale
 
         q_space_data = ifftshift(fftn(fftshift(direct_space_data)))
         q_space_data = q_space_data * blackman_window

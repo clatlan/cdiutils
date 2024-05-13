@@ -23,7 +23,7 @@ AUTHORIZED_KEYS = {
         "lattice_parameter_com": None,
         "det_calib_parameters": "REQUIRED",
         "voxel_size": None,
-        "apodize": True,
+        "apodize": "blackman",
         "flip": False,
         "isosurface": None,
         "usetex": False,

@@ -869,10 +869,12 @@ class BcdiProcessor:
 
         if self.params["apodize"]:
             self.verbose_print(
-                "[POST-PROCESSING] Apodizing the complex array."
+                "[POST-PROCESSING] Apodizing the complex array using "
+                f"{self.params['apodize']} filter."
             )
             self.orthogonalized_object = PostProcessor.apodize(
-                self.orthogonalized_object
+                self.orthogonalized_object,
+                window_type=self.params["apodize"]
             )
 
         # first compute the histogram of the amplitude to get an
