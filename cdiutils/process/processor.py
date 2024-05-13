@@ -1142,7 +1142,7 @@ class BcdiProcessor:
             # where_in_ortho_space=where_in_ortho_space,
             where_in_ortho_space=None,
             title=(
-                r"FFT of final object \textit{vs.} experimental data"
+                r"FFT of final object vs. experimental data"
                 f", {self.sample_name}, S{self.scan}"
             )
         )
