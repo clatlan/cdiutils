@@ -363,47 +363,61 @@ def nan_center_of_mass(
 
 def hybrid_gradient(
         data: np.ndarray,
-        d0: float,
-        d1: float,
-        d2: float
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        *d: list,
+) -> list[np.ndarray] | np.ndarray:
     """
-    Compute the gradient of a 3D volume in the 3 directions, 2 nd order 
-    in the interior of the non-nan object, 1 st order at the interface between
+    Compute the gradient of a n-dim volume in each axis direction, 2nd order
+    in the interior of the non-nan object, 1st order at the interface between
     the non-nan object and the surrounding nan values.
 
     Args:
-        data (np.ndarray): the 3D volume to be derived
-        d0 (float): the spacing in axis 0 direction
-        d1 (float): the spacing in axis 1 direction
-        d2 (float): the spacing in axis 2 direction
+        data (np.ndarray): the n-dim volume i to be derived
+        d (list): the spacing in each
+            direction
 
     Returns:
-        np.ndarray: a tuple, the three gradients (in each direction) with the
-    same shape as the input data
+        list[np.ndarray] | np.ndarray: the gradients (in each direction) with
+        the same shape as the input data
     """
 
-    # compute the first order gradient
-    grad_x = (data[1:, ...] - data[:-1, ...]) / d0
-    grad_y = (data[:, 1:, :] - data[:, :-1, :]) / d1
-    grad_z = (data[..., 1:] - data[..., :-1]) / d2
+    if isinstance(d, (int, float)):
+        d = [d]
+    if data.ndim != len(d):
+        raise ValueError(
+            f"Invalid shape for d ({d}), must match data.ndim"
+        )
+    gradient = []
+    for i in range(data.ndim):
+        upper_slice = [slice(None)] * data.ndim
+        upper_slice[i] = np.s_[1:]
+        upper_slice = tuple(upper_slice)
+        lower_slice = [slice(None)] * data.ndim
+        lower_slice[i] = np.s_[:-1]
+        lower_slice = tuple(lower_slice)
 
-    # some warning is expecting here as mean of empty slices might occur
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=RuntimeWarning)
+        # compute the first order gradient
+        gradient.append((data[upper_slice] - data[lower_slice]) / d[i])
 
-        # here is the trick, using the np.nanmean allows keeping the
-        # first order derivative at the interface. The other values
-        # correspond to second order gradient
-        grad_x = np.nanmean([grad_x[1:], grad_x[:-1]], axis=0)
-        grad_y = np.nanmean([grad_y[:, 1:, :], grad_y[:, :-1, :]], axis=0)
-        grad_z = np.nanmean([grad_z[..., 1:], grad_z[..., :-1]], axis=0)
+        # some warning is expecting here as mean of empty slices might occur
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
 
-    return (
-        np.pad(grad_x, ((1, 1),  (0, 0), (0, 0)), constant_values=np.nan),
-        np.pad(grad_y, ((0, 0),  (1, 1), (0, 0)), constant_values=np.nan),
-        np.pad(grad_z, ((0, 0),  (0, 0), (1, 1)), constant_values=np.nan)
-    )
+            # here is the trick, using the np.nanmean allows keeping the
+            # first order derivative at the interface. The other values
+            # correspond to second order gradient
+            gradient[i] = np.nanmean(
+                [
+                    gradient[i][upper_slice],
+                    gradient[i][lower_slice],
+                ],
+                axis=0
+            )
+            pad = [(0, 0) for _ in range(data.ndim)]
+            pad[i] = (1, 1)
+            gradient[i] = np.pad(gradient[i], pad, constant_values=np.nan)
+    if len(gradient) == 1:
+        return gradient[0]
+    return gradient
 
 
 class CroppingHandler:
