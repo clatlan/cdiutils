@@ -34,7 +34,7 @@ AUTHORIZED_KEYS = {
         "handle_defects": False,
         "orthogonalize_before_phasing": False,
         "orientation_convention": "cxi",
-        "method_det_support": "Isosurface",
+        "method_det_support": None,
         "raw_process": True,
         "support_path": None,
         "remove_edges": True,

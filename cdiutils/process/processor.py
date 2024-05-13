@@ -934,7 +934,7 @@ class BcdiProcessor:
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
-                    parameters=self.params,
+                    support_parameters=None if self.params["method_det_support"] == None else self.params,
                     isosurface=self.params["isosurface"],
                     g_vector=g_vector,
                     hkl=self.params["hkl"],

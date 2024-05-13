@@ -24,6 +24,7 @@ from cdiutils.utils import (
 
 from cdiutils.process.support_processor import SupportProcessor
 
+
 class PostProcessor:
     """
     A class to bundle all functions needed to post-process BCDI data.
@@ -32,8 +33,8 @@ class PostProcessor:
     @staticmethod
     def prepare_volume(
             complex_object: np.ndarray,
-            parameters: dict,
             isosurface,
+            support_parameters: dict = None,
             final_shape: np.ndarray | tuple | list = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -52,6 +53,31 @@ class PostProcessor:
             tuple[np.ndarray, np.ndarray]: the cropped complex_object
             and the associated support.
         """
+        if support_parameters is None:
+            support = make_support(
+                normalize(np.abs(complex_object)),
+                isosurface=isosurface,
+                nan_values=False
+            )
+            if final_shape is None:
+                final_shape = find_suitable_array_shape(
+                    support,
+                    padding=np.repeat(6, support.ndim)
+                )
+                print(f"[INFO] new array shape is {final_shape}")
+            # center the arrays at the center of mass of the support
+            com = CroppingHandler.get_position(support, "com")
+            complex_object = CroppingHandler.force_centered_cropping(
+                complex_object,
+                where=com,
+                output_shape=final_shape
+            )
+            support = CroppingHandler.force_centered_cropping(
+                support,
+                where=com,
+                output_shape=final_shape
+            )
+            return complex_object, support, None
 
         support_pre_crop = make_support(
             normalize(np.abs(complex_object)),
@@ -59,16 +85,25 @@ class PostProcessor:
         )
         final_shape_pre_crop = copy.copy(final_shape)
         if final_shape_pre_crop is None:
-            final_shape_pre_crop = find_suitable_array_shape(support_pre_crop, padding=[6, 6, 6])
+            final_shape_pre_crop = find_suitable_array_shape(
+                support_pre_crop,
+                padding=[6, 6, 6]
+            )
         com_pre_crop = CroppingHandler.get_position(support_pre_crop, "com")
         complex_object_pre_crop = CroppingHandler.force_centered_cropping(
             complex_object,
             where=com_pre_crop,
             output_shape=final_shape_pre_crop
         )
-        support_processor = SupportProcessor(parameters=parameters, data=normalize(np.abs(complex_object_pre_crop)), isosurface=isosurface, nan_values=False)
+
+        support_processor = SupportProcessor(
+            parameters=support_parameters,
+            data=normalize(np.abs(complex_object_pre_crop)),
+            isosurface=isosurface,
+            nan_values=False
+        )
         support, surface = support_processor.support_calculation()
-            
+
         if final_shape is None:
             final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
             print(f"[INFO] new array shape is {final_shape}")
@@ -89,7 +124,7 @@ class PostProcessor:
             where=com,
             output_shape=final_shape
         )
-        
+
         return complex_object, support, surface
 
     @staticmethod
@@ -279,7 +314,7 @@ class PostProcessor:
         displacement_gradient = np.moveaxis(
             np.asarray(displacement_gradient),
             source=0,
-            destination=3
+            destination=displacement.ndim
         )
         return np.dot(
             displacement_gradient,
@@ -290,13 +325,13 @@ class PostProcessor:
     def get_structural_properties(
             cls,
             complex_object: np.ndarray,
-            parameters: dict,
             isosurface: np.ndarray,
             g_vector: np.ndarray | tuple | list,
             hkl: tuple | list,
             voxel_size: np.ndarray | tuple | list,
             phase_factor: int = -1,
             handle_defects: bool = False,
+            support_parameters: dict = None
     ) -> dict:
         """
         Main method used in the post-processing workflow. The method
@@ -330,9 +365,10 @@ class PostProcessor:
             and voxel size are also returned.
         """
         complex_object, support, surface = cls.prepare_volume(
-            complex_object, parameters=parameters,
-            isosurface=isosurface, 
-            final_shape = None
+            complex_object,
+            support_parameters=support_parameters,
+            isosurface=isosurface,
+            final_shape=None
         )
         # extract phase and amplitude
         amplitude = np.abs(complex_object)
@@ -417,7 +453,7 @@ class PostProcessor:
         return {
             "amplitude": normalize(amplitude),
             "support": nan_to_zero(support),
-            "surface": nan_to_zero(surface),
+            "surface": nan_to_zero(surface) if surface is not None else nan_to_zero(support),
             "phase": nan_to_zero(phase),
             "displacement": displacement,
             "displacement_gradient": displacement_gradient,
