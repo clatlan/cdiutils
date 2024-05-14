@@ -1014,7 +1014,7 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
     """
     slices = []
     for i in range(len(shape)):
-        s = [slice(None) for k in range(len(shape))]
+        s = [slice(None)] * len(shape)
         s[i] = shape[i] // 2
         slices.append(tuple(s))
     return slices
