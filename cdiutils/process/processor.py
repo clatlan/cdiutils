@@ -272,6 +272,11 @@ class BcdiProcessor:
         else:
             # Check if binning is required
             if tuple(self.params["binning_factors"]) != (1, 1, 1):
+                raise ValueError(
+                    "Parameter binning_factors is deprecated "
+                    f"(binning_factors = {self.params['binning_factors']})"
+                    "Please use parameter 'rebin' in PyNX parameter instead."
+                )
                 self.verbose_print(
                     "[BINNING] Binning requested "
                     f"(binning_factors = {self.params['binning_factors']})."
