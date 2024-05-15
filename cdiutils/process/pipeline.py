@@ -520,7 +520,7 @@ class BcdiPipeline:
             if os.path.isfile(path):
                 self.phasing_results.append(path)
 
-    def analyze_phasing_results(
+    def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
             plot_phasing_results: bool = False,
