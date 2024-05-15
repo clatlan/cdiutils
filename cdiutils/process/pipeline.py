@@ -520,12 +520,30 @@ class BcdiPipeline:
             if os.path.isfile(path):
                 self.phasing_results.append(path)
 
+    def analyze_phasing_results(
+            self,
+            sorting_criterion: str = "mean_to_max",
+            plot_phasing_results: bool = False,
+            plot_amplitude: bool = False,
+    ) -> None:
+        import warnings
+        warnings.warn(
+            "analyze_phasing_results is deprecated; use "
+            "analyse_phasing_results instead",
+            DeprecationWarning
+        )
+        return self.analyse_phasing_results(
+            sorting_criterion,
+            plot_phasing_results,
+            plot_amplitude
+        )
+
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
             plot_phasing_results: bool = False,
             plot_amplitude: bool = False,
-    ):
+    ) -> None:
         criteria = ["mean_to_max", "std", "llk", "llkf", "all"]
         if sorting_criterion not in criteria:
             raise ValueError(
