@@ -1,1 +1,6 @@
-from .postprocess import PostProcessor
+from .postprocessor import PostProcessor
+
+
+__all__ = [
+    "PostProcessor",
+]
