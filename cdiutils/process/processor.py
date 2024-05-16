@@ -458,47 +458,6 @@ class BcdiProcessor:
             wrap=False
         )
 
-        # Check if binning is required
-        # if self.params["binning_factors"] != (1, 1, 1):
-        #     self.verbose_print(
-        #         "[INFO] Binning requested "
-        #         f"(binning_factors = {self.params['binning_factors']})."
-        #     )
-        #     pixel_size_1 = (
-        #         self.params["det_calib_parameters"]["pwidth1"]
-        #         * self.params["binning_factors"][1]
-        #     )
-        #     pixel_size_2 = (
-        #         self.params["det_calib_parameters"]["pwidth2"]
-        #         * self.params["binning_factors"][2]
-        #     )
-        #     self.params["det_calib_parameters"].update(
-        #         {
-        #             "pwidth1": pixel_size_1,
-        #             "pwidth2": pixel_size_2
-        #         }
-        #     )
-        #     self.verbose_print(
-        #         "Pixel size has been updated to "
-        #         fr"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2."
-        #     )
-
-        #     self.cropped_detector_data = rebin(
-        #         self.detector_data,
-        #         rebin_f=self.params["binning_factors"]
-        #     )
-        #     self.space_converter.q_space_transitions =  rebin(
-        #         self.space_converter.q_space_transitions,
-        #         rebin_f=(1, )+self.params["binning_factors"],
-        #         scale="average"
-        #     )
-        #     self.space_converter.cropped_shape = (
-        #         self.cropped_detector_data.shape
-        # )
-        #     self.space_converter.full_shape = (
-        #         self.cropped_detector_data.shape
-        # )
-
         if self.params["orthogonalize_before_phasing"]:
             self.verbose_print(
                 "[INFO] orthogonalization required before phasing.\n"
@@ -940,7 +899,7 @@ class BcdiProcessor:
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
                     support_parameters=(
-                        None if self.params["method_det_support"] == None
+                        None if self.params["method_det_support"] is None
                         else self.params
                     ),
                     isosurface=self.params["isosurface"],
