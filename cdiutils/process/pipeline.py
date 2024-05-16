@@ -20,7 +20,7 @@ from cdiutils.plot.formatting import update_plot_params, get_figure_size
 from cdiutils.utils import pretty_print
 from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
-from .plot import plot_phasing_result
+from .phaser import PhasingResultAnalyser
 from .parameters import check_parameters, convert_np_arrays
 
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
@@ -198,9 +198,7 @@ class BcdiPipeline:
         # the bcdi_processor attribute will be used only if backend
         # is cdiutils
         self.bcdi_processor: BcdiProcessor = None
-        self.phasing_results: list = None
-        self._sorted_phasing_results: dict = None
-        self._metrics: dict = None
+        self.result_analyser: PhasingResultAnalyser = None
 
         # update the plot parameters
         update_plot_params(
@@ -509,17 +507,6 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-    def find_phasing_results(self) -> None:
-        """
-        Find the last phasing results (.cxi files) and add them to the
-        given list if provided, otherwise create the list.
-        """
-        self.phasing_results = []
-        fetched_paths = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
-        for path in fetched_paths:
-            if os.path.isfile(path):
-                self.phasing_results.append(path)
-
     def analyze_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
@@ -544,127 +531,28 @@ class BcdiPipeline:
             plot_phasing_results: bool = False,
             plot_amplitude: bool = False,
     ) -> None:
-        criteria = ["mean_to_max", "std", "llk", "llkf", "all"]
-        if sorting_criterion not in criteria:
-            raise ValueError(
-                f"Provided criterion ({sorting_criterion}) is unknown. "
-                f"Possible criteria are:\n{criteria}."
+        """
+        Wrapper for analyse_phasing_results method of PhasingResultAnalyser
+
+        Args:
+            sorting_criterion (str, optional): what criterion to sort
+                the results. Defaults to "mean_to_max".
+            plot_phasing_results (bool, optional): whether to plot the
+                results.Defaults to False.
+            plot_amplitude (bool, optional): whether to plot amplitude,
+                if False, will plot the phase whit amplitude as opacity.
+                Defaults to False.
+        """
+        if self.result_analyser is None:
+            self.result_analyser = PhasingResultAnalyser(
+                result_dir_path=self.pynx_phasing_dir
             )
-        pretty_print(
-                "[INFO] Analysing phasing results\n"
-                f"({self.sample_name}, S{self.scan})"
+
+        self.result_analyser.analyse_phasing_results(
+            sorting_criterion,
+            plot_phasing_results,
+            plot_amplitude
         )
-        if self._sorted_phasing_results is None:
-            print("[INFO] Computing metrics...")
-            self.find_phasing_results()
-
-            self._metrics = {
-                m: {f: None for f in self.phasing_results}
-                for m in criteria
-            }
-
-            for p in self.phasing_results:
-                data_dic = load_data_from_cxi(
-                    p, "support", "reconstructed_data", "llkf", "llk"
-                )
-
-                support = data_dic["support"]
-                amplitude = np.abs(data_dic["reconstructed_data"])
-
-                amplitude = amplitude[support > 0]
-                amplitude /= np.max(amplitude)
-                # fit the amplitude distribution
-                kernel = gaussian_kde(amplitude)
-                x = np.linspace(0, 1, 100)
-                fitted_counts = kernel(x)
-                max_index = np.argmax(fitted_counts)
-
-                self._metrics["llk"][p] = data_dic["llk"]
-                self._metrics["llkf"][p] = data_dic["llkf"]
-                self._metrics["mean_to_max"][p] = 1 - x[max_index]
-                self._metrics["std"][p] = np.std(amplitude)
-
-            # normalize all the values so they can be compared in the same plot
-            for m in ["mean_to_max", "std", "llk", "llkf"]:
-                minimum_value = min(list(self._metrics[m].values()))
-                ptp_value = np.ptp(np.array(list(self._metrics[m].values())))
-                for k in self._metrics[m].keys():
-                    self._metrics[m][k] = (
-                        (self._metrics[m][k] - minimum_value) / ptp_value
-                    )
-
-            # compute the average value over all metrics
-            for k in self._metrics["all"].keys():
-                self._metrics["all"][k] = 0
-                for m in ["mean_to_max", "std", "llk", "llkf"]:
-                    self._metrics["all"][k] += self._metrics[m][k]
-                self._metrics["all"][k] /= 4
-
-        # now sort the files according to the provided criterion
-        self._sorted_phasing_results = dict(
-                sorted(
-                    self._metrics[sorting_criterion].items(),
-                    key=lambda item: item[1],
-                    reverse=False
-                )
-            )
-        runs = [
-            file.split("Run")[1][2:4]
-            for file in self._sorted_phasing_results.keys()
-        ]
-
-        figsize = get_figure_size(scale=0.75)
-        figure, ax = plt.subplots(1, 1, figsize=figsize)
-        colors = {
-            m: c for m, c in zip(
-                self._metrics.keys(),
-                ["lightcoral", "mediumslateblue",
-                 "dodgerblue", "plum", "crimson"]
-            )
-        }
-        for m in self._metrics.keys():
-            ax.plot(
-                runs,
-                [
-                    self._metrics[m][f]
-                    for f in self._sorted_phasing_results.keys()
-                ],
-                label=m,
-                color=colors[m],
-                marker='o',
-                markersize=4,
-                markerfacecolor=colors[m],
-                markeredgewidth=0.5,
-                markeredgecolor='k'
-            )
-        ax.set_ylabel("Normalised metric")
-        ax.set_xlabel("Run number")
-        figure.legend(
-            frameon=False,
-            loc="upper center",
-            bbox_to_anchor=(0.5, 0.915),
-            ncol=len(criteria)
-        )
-        figure.suptitle(
-            "Phasing result analysis (the lower the better)\n"
-            f"{self.sample_name}, {self.scan}"
-        )
-        figure.tight_layout()
-        plt.show()
-        print(
-            "[INFO] the sorted list of runs using sorting_criterion "
-            f"'{sorting_criterion}' is:\n{runs}"
-        )
-
-        if plot_phasing_results:
-            print("[INFO] Plotting phasing results...")
-            for path in self._sorted_phasing_results.keys():
-                run_number = int(path.split("Run")[1][:4])
-                title = (
-                    f"Phasing results, {self.sample_name}, {self.scan}\n"
-                    f"run {run_number}"
-                )
-                plot_phasing_result(path, title, plot_amplitude)
 
     def find_best_candidates(
             self,
@@ -774,14 +662,6 @@ class BcdiPipeline:
                 authentication. Defaults to None.
         """
 
-        # the bash command to run
-        # run_command = (
-        #     # f"source /sware/exp/pynx/activate_pynx.sh {pynx_version};"
-        #     f"module load pynx/{pynx_version};"
-        #     f"cd {self.pynx_phasing_dir};"
-        #     "pynx-cdi-analysis candidate_*.cxi modes=1 "
-        #     "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
-        # )
         run_command = (
             f"cd {self.pynx_phasing_dir};"
             f"{pynx_analysis_path} candidate_*.cxi modes=1 "
@@ -796,12 +676,11 @@ class BcdiPipeline:
             if key_file_path is None:
                 key_file_path = os.environ["HOME"] + "/.ssh/id_rsa"
                 print(
-                    "key_file_path not provided, will use '{key_file_path}'."
+                    f"key_file_path not provided, will use '{key_file_path}'."
                 )
 
             pretty_print(
                 f"[INFO] Running mode decomposition from machine '{machine}'"
-                "using /sware pynx installation "
                 f"({self.sample_name}, S{self.scan})"
             )
             client = paramiko.SSHClient()
@@ -844,7 +723,6 @@ class BcdiPipeline:
                     )
 
             if self.parameter_file_path is not None:
-                pretty_print("Scan parameter file updated.")
                 if self.backend == "bcdi":
                     update_parameter_file(
                         self.parameter_file_path,
@@ -964,8 +842,10 @@ class BcdiPipeline:
                 "\nScan parameter file saved at:\n"
                 f"{output_file_path}"
             )
-            
+
     def facet_analysis(self) -> None:
-        facet_anlysis_processor = FacetAnalysisProcessor(parameters=self.params)
+        facet_anlysis_processor = FacetAnalysisProcessor(
+            parameters=self.params
+        )
         facet_anlysis_processor.facet_analysis()
-    
+
