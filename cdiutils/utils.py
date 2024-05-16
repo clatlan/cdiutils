@@ -3,6 +3,7 @@ from typing import Optional
 import warnings
 
 import numpy as np
+from numpy.fft import fftn, fftshift, ifftshift
 import matplotlib
 import seaborn as sns
 from scipy.ndimage import convolve, center_of_mass
@@ -935,7 +936,7 @@ def rebin(a, rebin_f, scale="sum", mask=None):
         raise Exception("Only accept arrays of dimensions 3 or 4")
 
 
-def oversampling_ratio(
+def get_oversampling_ratios(
     support: np.ndarray = None,
     direct_space_object: np.ndarray = None,
     isosurface: float = .3,
@@ -974,7 +975,7 @@ def oversampling_ratio(
         np.max(support_indices, axis=1)
         - np.min(support_indices, axis=1)
     )
-    oversampling = np.divide(np.array(support.shape), size_per_dim)
+    oversampling_ratio = np.divide(np.array(support.shape), size_per_dim)
 
     if plot:
         _, ax = matplotlib.pyplot.subplots(
@@ -986,10 +987,41 @@ def oversampling_ratio(
             axes = tuple(np.delete(np.arange(3), n))
             proj = np.max(support, axis=axes)
             ax[n].plot(proj)
-            title = f'oversampling along axis {n}\n{round(oversampling[n],2)}'
+            title = (
+                "oversampling along axis "
+                "{n}\n{round(oversampling_ratio[n],2)}"
+            )
             ax[n].set_title(title, fontsize=15)
 
-    return oversampling
+    return oversampling_ratio
+
+
+def oversampling_from_diffraction(
+        data: np.ndarray,
+        support_threshold: float = 0.1,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the oversampling ratios from diffraction data.
+    Autocorrelation of the intensity is calculated to generate a support
+    using support_threshold (isosurface).
+
+    Args:
+        data (np.ndarray): intensity (diffracted data)
+        support_threshold (0.1): the threshold to build the support from
+         a la pynx, default to 0.1.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: the oversampling ratio and a
+            suggestion for the rebin factors
+    """
+    autocorrelation = np.abs(ifftshift(fftn(fftshift(data))))
+    support = (autocorrelation > support_threshold * np.max(autocorrelation))
+
+    oversampling_ratio = get_oversampling_ratios(support=support)
+
+    rebin_factor_suggestion = (oversampling_ratio // 2).astype(int)
+
+    return oversampling_ratio, rebin_factor_suggestion
 
 
 def get_centred_slices(shape: tuple | list | np.ndarray) -> list:

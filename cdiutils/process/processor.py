@@ -16,7 +16,8 @@ from cdiutils.utils import (
     symmetric_pad,
     CroppingHandler,
     rebin,
-    oversampling_ratio
+    get_oversampling_ratios,
+    oversampling_from_diffraction
 )
 from cdiutils.load import Loader
 from cdiutils.converter import SpaceConverter
@@ -216,8 +217,8 @@ class BcdiProcessor:
                 roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
 
             self.verbose_print(
-                f"Light loading requested, will use ROI {roi} and bin along "
-                "rocking curve direction by "
+                f"\n[INFO] Light loading requested, will use ROI {roi} and bin "
+                "along rocking curve direction by "
                 f"{self.params['binning_along_axis0']} during data loading."
             )
 
@@ -393,7 +394,7 @@ class BcdiProcessor:
                 final_shape = final_shape[1:]
 
             self.verbose_print(
-                "[SHAPE & CROPPING] The reference voxel was found at "
+                "\n[SHAPE & CROPPING] The reference voxel was found at "
                 f"{det_ref} in the uncropped data frame\n"
                 f"The processing_out_put_shape being {final_shape}, the roi "
                 f"used to crop the data is {roi}.\n"
@@ -405,6 +406,19 @@ class BcdiProcessor:
                 if isinstance(value, (list, np.ndarray)):
                     self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
+        # print out the oversampling ratio and rebin factor suggestion
+        ratios, rebin = oversampling_from_diffraction(
+            self.cropped_detector_data
+        )
+        self.verbose_print(
+            "\n[INFO] Oversampling ratios calculated from diffraction pattern "
+            "are: "
+            + ", ".join(
+                [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
+            )
+            + ". If low-strain crystal, you can set PyNX rebin_factors to "
+            "(" + ", ".join([f"{r}" for r in rebin]) + ")"
+        )
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(
             self.cropped_detector_data, "max")
@@ -425,7 +439,7 @@ class BcdiProcessor:
 
         # get the position of the reference, max and det voxels in the
         # q lab space
-        self.verbose_print("Summary table:")
+        self.verbose_print("\nSummary table:")
         self.verbose_print(
             "(max and com in the cropped frame are different to max and com in"
             " the uncropped detector frame.)"
@@ -697,11 +711,11 @@ class BcdiProcessor:
         )
 
         # Print the oversampling ratio
-        ratios = oversampling_ratio(support)
+        ratios = get_oversampling_ratios(support)
         self.verbose_print(
             "[INFO] The oversampling ratios in each direction are "
             + ", ".join(
-                [f"axis{i}: {ratios[0]:.1f}" for i in range(len(ratios))]
+                [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
         )
 
