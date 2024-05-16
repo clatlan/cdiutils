@@ -1,10 +1,7 @@
 from typing import Callable, Dict
 from string import Template
 import glob
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-from scipy.stats import gaussian_kde
 import shutil
 import subprocess
 import time
@@ -14,9 +11,7 @@ import paramiko
 import ruamel.yaml
 import yaml
 
-
-from cdiutils.load.load_data import load_data_from_cxi
-from cdiutils.plot.formatting import update_plot_params, get_figure_size
+from cdiutils.plot.formatting import update_plot_params
 from cdiutils.utils import pretty_print
 from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
