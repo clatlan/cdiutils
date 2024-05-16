@@ -19,15 +19,12 @@ setuptools.setup(
             "scripts/prepare_parameter_files.py"
       ],
       packages=setuptools.find_packages(),
-      data_files=[
-            (
-                  '',
-                  [
-                        "cdiutils/process/pynx-id01cdi_template.slurm",
-                        "cdiutils/examples/analyze_bcdi_data.ipynb",
-                  ]
-            )
-      ],
+      package_data={
+        'cdiutils': [
+            'process/pynx-id01cdi_template.slurm',
+            'examples/analyze_bcdi_data.ipynb',
+        ],
+      },
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
       python_requires=">=3.10",
