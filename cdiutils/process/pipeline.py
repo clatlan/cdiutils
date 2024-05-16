@@ -602,19 +602,21 @@ class BcdiPipeline:
         best_candidates = []
 
         if best_runs is not None and best_runs != []:
-            if self.phasing_results is None or self.phasing_results == []:
-                self.find_phasing_results()
+            if self.result_analyser.result_paths == []:
+                self.result_analyser.find_phasing_results()
 
-            for path in self.phasing_results:
+            for path in self.result_analyser.result_paths:
                 run_number = int(path.split("Run")[1][:4])
                 if run_number in best_runs:
                     best_candidates.append(path)
         elif nb_of_best_sorted_runs:
-            if not self._sorted_phasing_results:
+            if not self.result_analyser._sorted_phasing_results:
                 raise ValueError(
                     "Phasing results have not been analysed yet."
                 )
-            best_candidates = list(self._sorted_phasing_results.keys())
+            best_candidates = list(
+                self.result_analyser._sorted_phasing_results.keys()
+            )
             best_candidates = best_candidates[:nb_of_best_sorted_runs]
         print(
             "[INFO] Best runs selected:\n"
@@ -633,7 +635,6 @@ class BcdiPipeline:
     @process
     def mode_decomposition(
             self,
-            # pynx_version: str="2023.1.2",
             pynx_analysis_path: str = (
                 "/cvmfs/hpc.esrf.fr/software/packages/"
                 "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
