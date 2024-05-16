@@ -788,20 +788,14 @@ class PhasingResultAnalyser:
                         cmap="cet_CET_C9s_r"
                     )
 
-                if i == 0:
-                    x_axis, y_axis = 2, 1
-                elif i == 1:
-                    x_axis, y_axis = 2, 0
-                elif i == 2:
-                    x_axis, y_axis = 1, 0
                 if support.sum() > 0:
                     axes[1, i].set_xlim(
-                        np.nonzero(support.sum(axis=x_axis))[0][[0, -1]]
-                        + np.array([-10, 10])
+                        np.nonzero(support[slices[i]].sum(axis=0))[0][[0, -1]]
+                        + np.array([-5, 5])
                     )
                     axes[1, i].set_ylim(
-                        np.nonzero(support.sum(axis=y_axis))[0][[0, -1]]
-                        + np.array([-10, 10])
+                        np.nonzero(support[slices[i]].sum(axis=1))[0][[0, -1]]
+                        + np.array([-5, 5])
                     )
             figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
             figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
@@ -837,12 +831,12 @@ class PhasingResultAnalyser:
                 )
             if support.sum() > 0:
                 axes[1].set_xlim(
-                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
-                    + np.array([-10, 10])
+                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
+                    + np.array([-5, 5])
                 )
                 axes[1].set_ylim(
-                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
-                    + np.array([-10, 10])
+                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
+                    + np.array([-5, 5])
                 )
             figure.colorbar(rcp_im, ax=axes[0], extend="both")
             figure.colorbar(direct_space_im, ax=axes[1], extend="both")
