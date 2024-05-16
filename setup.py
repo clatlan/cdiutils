@@ -36,7 +36,7 @@ setuptools.setup(
             "h5py>=3.6.0",
             "hdf5plugin>=3.2.0",
             "ipykernel",
-            "matplotlib>=3.5.2",
+            "matplotlib>=3.5.2,<3.9",
             "numpy>=1.23.5",
             "pandas>=1.4.2",
             "paramiko>=2.12.0",
