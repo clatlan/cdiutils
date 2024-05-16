@@ -21,7 +21,7 @@ from cdiutils.utils import (
 from cdiutils.load import Loader
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
-from cdiutils.process.postprocess import PostProcessor
+from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.plot import (
     preprocessing_detector_data_plot,
     summary_slice_plot,
@@ -390,7 +390,7 @@ class BcdiProcessor:
                 self.cropped_detector_data = self.cropped_detector_data[0]
                 cropped_det_ref = cropped_det_ref[1:]
                 self.mask = self.mask[0]
-                final_shape = final_shape[1: ]
+                final_shape = final_shape[1:]
 
             self.verbose_print(
                 "[SHAPE & CROPPING] The reference voxel was found at "
@@ -939,7 +939,10 @@ class BcdiProcessor:
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
-                    support_parameters=None if self.params["method_det_support"] == None else self.params,
+                    support_parameters=(
+                        None if self.params["method_det_support"] == None
+                        else self.params
+                    ),
                     isosurface=self.params["isosurface"],
                     g_vector=g_vector,
                     hkl=self.params["hkl"],
