@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import warnings
@@ -67,7 +66,7 @@ def plot_3d_surface_projections(
         title: str = None,
         cbar_title: str = None,
         **plot_params
-) -> mpl.figure.Figure:
+) -> plt.Figure:
     """Plot 3D projected views from a 3D object.
 
     Args:
@@ -343,12 +342,12 @@ def plot_3d_vector_field(
     fig = plt.figure(figsize=(8, 5))
     ax = fig.add_subplot(projection="3d")
     if arrow:
-        colormap = mpl.cm.get_cmap(cmap)
+        colormap = plt.get_cmap(cmap)
         colors = (norm.ravel() - norm.min()) / norm.ptp()
         colors = np.concatenate((colors, np.repeat(colors, 2)))
         colors = colormap(colors)
 
-        sm = mpl.cm.ScalarMappable(cmap=colormap, norm=None)
+        sm = plt.cm.ScalarMappable(cmap=colormap, norm=None)
 
         q = ax.quiver(
             nonzero_coordinates[0],
