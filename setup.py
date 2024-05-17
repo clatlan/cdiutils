@@ -22,7 +22,7 @@ setuptools.setup(
       package_data={
         'cdiutils': [
             'process/pynx-id01cdi_template.slurm',
-            'examples/analyze_bcdi_data.ipynb',
+            'examples/analyse_bcdi_data.ipynb',
         ],
       },
       include_package_data=True,
