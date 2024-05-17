@@ -1,4 +1,4 @@
-from matplotlib.cm import get_cmap
+import matplotlib.pyplot as plt
 import numpy as np
 import colorcet
 
@@ -128,7 +128,7 @@ TURBO_SECOND_HALF = LinearSegmentedColormap.from_list(
 
 
 def save_json_cmap(colormap_name: str, output_path: str) -> None:
-    cmap = get_cmap(colormap_name)
+    cmap = plt.get_cmap(colormap_name)
     path = 0.03125
     path = 0.015
     array = np.arange(0, 1+path, path)
