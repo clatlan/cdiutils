@@ -19,15 +19,12 @@ setuptools.setup(
             "scripts/prepare_parameter_files.py"
       ],
       packages=setuptools.find_packages(),
-      data_files=[
-            (
-                  '',
-                  [
-                        "cdiutils/process/pynx-id01cdi_template.slurm",
-                        "cdiutils/examples/analyze_bcdi_data.ipynb",
-                  ]
-            )
-      ],
+      package_data={
+        'cdiutils': [
+            'process/pynx-id01cdi_template.slurm',
+            'examples/analyze_bcdi_data.ipynb',
+        ],
+      },
       include_package_data=True,
       url="https://github.com/clatlan/cdiutils",
       python_requires=">=3.10",
@@ -36,7 +33,7 @@ setuptools.setup(
             "h5py>=3.6.0",
             "hdf5plugin>=3.2.0",
             "ipykernel",
-            "matplotlib>=3.5.2",
+            "matplotlib>=3.5.2,<3.9",
             "numpy>=1.23.5",
             "pandas>=1.4.2",
             "paramiko>=2.12.0",
