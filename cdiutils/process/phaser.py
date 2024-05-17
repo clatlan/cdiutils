@@ -545,6 +545,7 @@ class PhasingResultAnalyser:
         """
         sharpness = np.mean((amplitude * support)**4)
         amplitude = amplitude[support > 0]
+        std = np.std(amplitude)
         amplitude /= np.max(amplitude)
 
         # fit the amplitude distribution
@@ -554,7 +555,7 @@ class PhasingResultAnalyser:
         max_index = np.argmax(fitted_counts)
         return {
             "mean_to_max": 1 - x[max_index],
-            "std": np.std(amplitude),
+            "std": std,
             "sharpness": sharpness
         }
 
