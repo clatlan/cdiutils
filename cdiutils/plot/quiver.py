@@ -1,6 +1,5 @@
 import numpy as np
-import matplotlib.cm as cm
-import matplotlib
+import matplotlib.pyplot as plt
 from scipy.interpolate import splev, splrep
 from scipy.ndimage import rotate
 
@@ -25,7 +24,7 @@ def plot_deviation(
         linewidth=0.7,
         **kwargs
 ):
-    colormap = cm.get_cmap(cmap)
+    colormap = plt.get_cmap(cmap)
 
     support = to_bool(deviation, nan_value=True)
     if reference_line:
@@ -95,7 +94,7 @@ def plot_deviation(
                 **kwargs
             )
 
-    sm = cm.ScalarMappable(cmap=colormap, norm=None)
+    sm = plt.cm.ScalarMappable(cmap=colormap, norm=None)
     sm.set_array(attribute if attribute is not None else deviation)
     sm.set_clim(vmin, vmax)
 
@@ -112,8 +111,8 @@ def quiver_plot(
         displacement_scale=1,
         min_max_strain=(-0.1, 0.1),
         min_max_disp=(-0.01, 0.01),
-        background_cmap=cm.get_cmap("cet_CET_D13"),
-        foreground_cmap=cm.get_cmap("cet_CET_D8"),
+        background_cmap=plt.get_cmap("cet_CET_D13"),
+        foreground_cmap=plt.get_cmap("cet_CET_D8"),
         crop_fit=[1, -1],
         rotation=0,
         flip=False,
