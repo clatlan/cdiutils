@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import matplotlib
-from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 import xrayutilities as xu
@@ -19,7 +17,6 @@ def plot_slices(
         nan_supports: list = None,
         vmin: float = None,
         vmax: float = None,
-        log_scale: bool = False,
         alphas: list = None,
         origin: str = "lower",
         cmap: str = "turbo",
