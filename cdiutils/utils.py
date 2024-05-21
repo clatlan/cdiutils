@@ -11,8 +11,6 @@ from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
 
-from cdiutils.plot.formatting import get_figure_size
-
 
 def pretty_print(text: str, max_char_per_line: int = 79) -> None:
     """Print text with a frame of stars."""
@@ -806,7 +804,7 @@ def find_isosurface(
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
-        figsize = get_figure_size()
+        figsize = (5.812, 3.592)  # golden ratio
         fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=figsize)
         ax.bar(
             bin_centres,
