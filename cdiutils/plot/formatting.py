@@ -177,6 +177,7 @@ def update_plot_params(
             "xtick.labelsize": 6,
             "ytick.labelsize": 6,
             "legend.fontsize": 7,
+            "image.interpolation": "none"
         }
     elif style == "thesis":
         parameters = {
