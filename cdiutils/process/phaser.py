@@ -90,7 +90,8 @@ class PyNXPhaser:
         # those provided by the user
         # not elegant, but works...
         self.params = copy.deepcopy(DEFAULT_PYNX_PARAMS)
-        self.params = self._update_params(self.params, new_params=params)
+        if params is not None:
+            self.params = self._update_params(self.params, new_params=params)
 
         if operators is None:
             self.operators = self._init_operators()
@@ -340,15 +341,23 @@ class PyNXPhaser:
             print(f"Run #{i}")
             self.run(recipe, cdi, init_cdi=False)
 
-    def sharpness(self, cdi):
-        amplitude = cdi.get_obj(shift=True) * cdi.get_support(shift=True)
-        return np.mean(amplitude ** 4)
+    # def sharpness(self, cdi):
+    #     amplitude = np.abs(cdi.get_obj(shift=True)) * cdi.get_support(shift=True)
+    #     return np.mean(amplitude ** 4)
+ 
+    # def mean_to_max(self, cdi):
+    #     metrics = PhasingResultAnalyser.amplitude_based_metrics(
+    #         np.abs(cdi.get_obj(shift=True)),
+    #          cdi.get_support(shift=True)
+    #     )
+    #     return metrics["mean_to_max"]
 
     def genetic_phasing(
             self,
             run_nb: int,
             genetic_pass_nb: int,
             recipe: str,
+            selection_method: str = "sharpness",
             init_cdi: bool = True
     ):
         if init_cdi:
@@ -359,7 +368,11 @@ class PyNXPhaser:
                 raise ValueError(
                     "CDI object are not itialised, init_cdi should be True."
                 )
-
+        if not selection_method in ("sharpness", "mean_to_max"):
+            raise ValueError(
+                f"Invalid selection_method ({selection_method}), can be"
+                "'sharpness' or 'mean_to_max'."
+            )
         metrics = [None for _ in range(run_nb)]
 
         for i in range(genetic_pass_nb + 1):
@@ -371,7 +384,11 @@ class PyNXPhaser:
                     f"Updating cdi objects with best reconstruction ()."
                 )
                 for i in range(run_nb):
-                    metrics[i] = self.sharpness(self.cdi_list[i])
+                    metrics[i] = PhasingResultAnalyser.amplitude_based_metrics(
+                        np.abs(self.cdi_list[i].get_obj(shift=True)),
+                        self.cdi_list[i].get_support(shift=True)
+                    )[selection_method]
+
                 indice = np.argsort(metrics)[0]
                 amplitude_reference = np.abs(self.cdi_list[indice].get_obj())
                 for i in range(run_nb):
