@@ -407,7 +407,7 @@ class BcdiProcessor:
                     self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
         # print out the oversampling ratio and rebin factor suggestion
-        ratios, rebin = oversampling_from_diffraction(
+        ratios = oversampling_from_diffraction(
             self.cropped_detector_data
         )
         self.verbose_print(
@@ -417,7 +417,7 @@ class BcdiProcessor:
                 [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
             + ". If low-strain crystal, you can set PyNX rebin_factors to "
-            "(" + ", ".join([f"{r}" for r in rebin]) + ")"
+            "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
         )
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(

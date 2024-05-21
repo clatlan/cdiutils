@@ -997,7 +997,7 @@ def get_oversampling_ratios(
 def oversampling_from_diffraction(
         data: np.ndarray,
         support_threshold: float = 0.1,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
     Compute the oversampling ratios from diffraction data.
     Autocorrelation of the intensity is calculated to generate a support
@@ -1017,9 +1017,7 @@ def oversampling_from_diffraction(
 
     oversampling_ratio = get_oversampling_ratios(support=support)
 
-    rebin_factor_suggestion = (oversampling_ratio // 2).astype(int)
-
-    return oversampling_ratio, rebin_factor_suggestion
+    return oversampling_ratio
 
 
 def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
