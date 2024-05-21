@@ -538,10 +538,9 @@ class BcdiPipeline:
                 if False, will plot the phase whit amplitude as opacity.
                 Defaults to False.
         """
-        if self.result_analyser is None:
-            self.result_analyser = PhasingResultAnalyser(
-                result_dir_path=self.pynx_phasing_dir
-            )
+        self.result_analyser = PhasingResultAnalyser(
+            result_dir_path=self.pynx_phasing_dir
+        )
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion,
