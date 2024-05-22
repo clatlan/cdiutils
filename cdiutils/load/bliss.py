@@ -4,7 +4,6 @@ import numpy as np
 import hdf5plugin
 import silx.io.h5py_utils
 
-from cdiutils.utils import CroppingHandler
 from cdiutils.load import Loader
 
 
@@ -23,10 +22,10 @@ class BlissLoader(Loader):
     """
 
     angle_names = {
-            "sample_outofplane_angle": "eta",
-            "sample_inplane_angle": "phi",
-            "detector_outofplane_angle": "delta",
-            "detector_inplane_angle": "nu"
+        "sample_outofplane_angle": "eta",
+        "sample_inplane_angle": "phi",
+        "detector_outofplane_angle": "delta",
+        "detector_inplane_angle": "nu"
     }
 
     def __init__(
@@ -79,12 +78,7 @@ class BlissLoader(Loader):
             + f".1/measurement/{self.detector_name}"
         )
 
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3))
-        elif len(roi) == 2:
-            roi = tuple([slice(None), roi[0], roi[1]])
-        elif all(isinstance(e, int) for e in roi):
-            roi = CroppingHandler.roi_list_to_slices(roi)
+        roi = self._check_roi(roi)
 
         try:
             if binning_along_axis0:
