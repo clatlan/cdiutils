@@ -47,6 +47,7 @@ DEFAULT_PYNX_PARAMS = {
     # support-related params
     "support_threshold": (0.15, 0.40),
     "smooth_width": (2, 0.5, 600),
+    "support_update_period": 50,
     "post_expand": (1, -2, 1),
     "method": "rms",
     "force_shrink": False,
@@ -64,7 +65,6 @@ DEFAULT_PYNX_PARAMS = {
     "zero_mask": False,
 
     # others
-    "support_update_period": 50,
     "psf": "pseudo-voigt,0.5,0.1,10",
     "compute_free_llk": True,
     "positivity": False,
