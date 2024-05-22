@@ -47,10 +47,10 @@ class Geometry:
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
-        if beamline_setup == "P10":
+        if "P10" in beamline_setup:
             return cls(
-                sample_circles=["x-", "y-"],  # om, phi
-                detector_circles=["y+", "x-"],  # del, gam
+                sample_circles=["x-", "y-"],  # om (or samth), phi
+                detector_circles=["y+", "x-"],  # del (or e2_t02), gam
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
