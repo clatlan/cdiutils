@@ -34,7 +34,7 @@ try:
 except ImportError:
     IS_PYNX_AVAILABLE = False
     PYNX_ERROR_TEXT = (
-        "'pynx' is not available, some functionalities won't be available."
+        "'pynx' is not installed, PyNXPhaser is not available."
     )
     CDI_Type = None
 
@@ -83,6 +83,8 @@ class PyNXPhaser:
             params: dict = None,
             operators: dict = None,
     ) -> None:
+        if not IS_PYNX_AVAILABLE:
+            raise ModuleNotFoundError(PYNX_ERROR_TEXT)
         self.iobs = fftshift(iobs)
         self.mask = fftshift(mask)
 
