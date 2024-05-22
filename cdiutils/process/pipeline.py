@@ -502,23 +502,18 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-    def analyze_phasing_results(
-            self,
-            sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
-    ) -> None:
-        import warnings
-        warnings.warn(
+    def analyze_phasing_results(self, *args, **kwargs) -> None:
+        """
+        Deprecated function, shoud use analyse_phasing_results instead. 
+        """
+        from warnings import warn
+        warn(
             "analyze_phasing_results is deprecated; use "
             "analyse_phasing_results instead",
-            DeprecationWarning
+            DeprecationWarning,
+            stacklevel=2
         )
-        return self.analyse_phasing_results(
-            sorting_criterion,
-            plot_phasing_results,
-            plot_amplitude
-        )
+        return self.analyse_phasing_results(*args, **kwargs)
 
     def analyse_phasing_results(
             self,
