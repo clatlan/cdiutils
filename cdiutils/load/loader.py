@@ -12,7 +12,7 @@ class Loader:
             alien_mask: np.ndarray | str = None
     ) -> None:
         """
-        The gerenic parent class for all loaders.
+        The generic parent class for all loaders.
 
         Args:
             flat_field (np.ndarray | str, optional): flat field to
@@ -50,9 +50,12 @@ class Loader:
         if beamline_setup == "SIXS2022":
             from . import SIXS2022Loader
             return SIXS2022Loader(**metadata)
-        if beamline_setup == "P10":
+        if "P10" in beamline_setup:
             from . import P10Loader
-            return P10Loader(**metadata)
+            if beamline_setup == "P10EH2":
+                return P10Loader(hutch="EH2", **metadata)
+            else:
+                return P10Loader(**metadata)
         raise ValueError(f"Invalid beamline setup: {beamline_setup}")
 
     @staticmethod
