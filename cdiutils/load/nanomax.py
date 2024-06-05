@@ -12,8 +12,8 @@ from cdiutils.load.bliss import safe
 
 class NanoMaxLoader(Loader):
     """
-    A class to handle loading/reading .h5 files that were created using
-    on the NanoMax beamline.
+    A class to handle loading/reading .h5 files that were created at the
+    NanoMax beamline.
 
     Args:
         experiment_file_path (str): path to the master file
