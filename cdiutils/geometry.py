@@ -67,13 +67,14 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # gontheta, gonphi
                 detector_circles=["y-", "x-"],  # delta, gamma
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x+",
+                detector_vertical_orientation="y+",
+                detector_horizontal_orientation="x-",
                 beam_direction=[1, 0, 0]
             )
         raise NotImplementedError(
             f"The beamline_setup {beamline_setup} is not valid. Available:\n"
-            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10' , 'SIXS2022'"
+            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10', 'P10EH2', 'SIXS2022'"
+            "and NanoMAX."
         )
 
     def cxi_to_xu(self) -> None:
