@@ -584,7 +584,7 @@ class PhasingResultAnalyser:
             self,
             sorting_criterion: str = "mean_to_max",
             plot_phasing_results: bool = True,
-            plot_phase: bool = True,
+            plot_phase: bool = False,
     ):
         criteria = ["mean_to_max", "std", "llk", "llkf", "sharpness", "all"]
         if sorting_criterion not in criteria:
