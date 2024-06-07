@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.ticker as mticker
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import colorcet
 
@@ -281,6 +282,51 @@ def get_figure_size(
     fig_height_in = fig_width_in * golden_ratio * (subplots[0] / subplots[1])
 
     return (fig_width_in, fig_height_in)
+
+
+def add_colorbar(
+    ax: matplotlib.axes.Axes,
+    mappable: matplotlib.cm.ScalarMappable,
+    loc: str = "right",
+    size: str = "5%",
+    pad: float = 0.05,
+    label_size: int = 6,
+    scientific_notation: bool = False,
+    **kwargs,
+) -> matplotlib.colorbar.Colorbar:
+    """
+    Add a colorbar to the given axes. Stolen from Edoardo Zatterin sxdm
+    package (https://gitlab.esrf.fr/id01-science/id01-sxdm-utils/).
+
+    Args:
+        ax (matplotlib.axes.Axes): the axes to which the colorbar will
+            be added.
+        mappable (matplotlib.cm.ScalarMappable): the mappable object
+            that the colorbar will be based on.
+        loc (str, optional): the location where the colorbar will be
+            placed. Defaults to "right".
+        size (str, optional): the size of the colorbar. Defaults to
+            "5%".
+        pad (float, optional): the padding between the colorbar and the
+            axes. Defaults to 0.05.
+        label_size (int, optional): the size of the colorbar labels.
+            Defaults to 6.
+        scientific_notation (bool, optional): whether to use scientific
+            notation for colorbar labels. Defaults to False.
+
+    Returns:
+        matplotlib.colorbar.Colorbar: the colorbar object.
+    """
+    fig = ax.get_figure()
+    cax = make_axes_locatable(ax).append_axes(loc, size=size, pad=pad)
+    cax.tick_params(labelsize=label_size)
+    cbar = fig.colorbar(mappable, cax=cax, **kwargs)
+    if scientific_notation:
+        cax.ticklabel_format(
+            axis="y", style="scientific", scilimits=(0, 0), useMathText=True
+        )
+
+    return cbar
 
 
 def two_spine_frameless_ax(
