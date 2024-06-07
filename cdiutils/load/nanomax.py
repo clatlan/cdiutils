@@ -1,7 +1,7 @@
 """
-    Loader for the Nanomax beamlien at MAXIV.
-    See:
-    https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
+Loader for the Nanomax beamlien at MAXIV.
+See:
+https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
 """
 
 import numpy as np
@@ -91,16 +91,16 @@ class NanoMaxLoader(Loader):
         Returns:
             np.ndarray: the detector data.
         """
-        # The self.h5file is initialised by the @safe decorator.
-        h5file = self.h5file
-        if sample_name is None:
-            sample_name = self.sample_name
+        # # The self.h5file is initialised by the @safe decorator.
+        # h5file = self.h5file
+        # if sample_name is None:
+        #     sample_name = self.sample_name
 
-        # Where to find the data.
-        key_path = (
-            "_".join((sample_name, str(scan)))
-            + f"/entry/measurement/{self.detector_name}"
-        )
+        # # Where to find the data.
+        # key_path = (
+        #     "_".join((sample_name, str(scan)))
+        #     + f"/entry/measurement/{self.detector_name}"
+        # )
 
-        roi = self._check_roi(roi)
-
+        # roi = self._check_roi(roi)
+        pass
