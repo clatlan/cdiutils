@@ -1072,7 +1072,7 @@ def hot_pixel_filter(
     data_median = median_filter(data, size=kernel_size)
     mask = (data < threshold * (data_median + 1))
     cleaned_data = data * mask
-    return cleaned_data, mask
+    return cleaned_data, np.logical_not(mask)
 
 
 def valid_args_only(
