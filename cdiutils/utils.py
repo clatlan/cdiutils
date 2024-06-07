@@ -6,7 +6,7 @@ import numpy as np
 from numpy.fft import fftn, fftshift, ifftshift
 import matplotlib
 import seaborn as sns
-from scipy.ndimage import convolve, center_of_mass
+from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
@@ -1046,6 +1046,33 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
         s[i] = shape[i] // 2
         slices.append(tuple(s))
     return slices
+
+
+def hot_pixel_filter(
+        data: np.ndarray,
+        threshold: float = 1e2,
+        kernel_size: int = 3
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Remove hot pixels using a median filter.
+
+    Args:
+        data (np.ndarray): the input data.
+        threshold (float, optional): the threshold to determine the
+            mask. Mask pixels that are threshold times higher than
+            neighboring pixels. Defaults to 1e2.
+        kernel_size (int, optional): the size of the kernel to compute
+            the median filter. It corresponds to the size parameter of
+            scipy.ndimage.median_filter function .Defaults to 3.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: the cleaned data, hot pixel are
+            set to 0 and the mask (1 for hot pixel, 0 otherwise).
+    """
+    data_median = median_filter(data, size=kernel_size)
+    mask = (data < threshold * (data_median + 1))
+    cleaned_data = data * mask
+    return cleaned_data, mask
 
 
 def valid_args_only(
