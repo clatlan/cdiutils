@@ -62,7 +62,7 @@ AUTHORIZED_KEYS = {
         "support_update_period": 20,
         "support_smooth_width_begin": 2,
         "support_smooth_width_end": 1,
-        "support_post_expand": None,
+        "support_post_expand": None,  # (-1, 1)
         "psf": "pseudo-voigt,0.5,0.1,10",
         "nb_raar": 500,
         "nb_hio": 300,

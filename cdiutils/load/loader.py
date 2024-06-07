@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from cdiutils.utils import CroppingHandler
+
 
 class Loader:
     """A generic class for loaders."""
@@ -85,6 +87,39 @@ class Loader:
             "[ERROR] wrong value for flat_field and/or alien_mask "
             "parameter provide a path, np.ndarray or leave it to None"
         )
+
+    @staticmethod
+    def _check_roi(roi: tuple = None) -> tuple[slice]:
+        """
+        Utility function to check if a region of interest (roi) was
+        parsed correctly.
+
+        Args:
+            roi (tuple, optional): the roi, a tuple of slices.
+                len = 2 or len = 3 if tuple of slices. len = 4 or
+                len = 6 if tuple of int. Defaults to None.
+
+        Raises:
+            ValueError: if roi does not correspond to tuple of slices
+                with len 2 or 3 or tuple of int wit len 4 or 6.
+
+        Returns:
+            tuple[slice]: the prepared roi.
+        """
+        usage_text = (
+            "Wrong value for roi (roi={}), roi should be:\n"
+            "\t - either a tuple of slices with len = 2 or len = 3"
+            "\t - either a tuple of int with len = 4 or len = 6"
+        )
+        if roi is None:
+            return tuple(slice(None) for _ in range(3))
+        if len(roi) == 2 or len(roi) == 3:
+            if all(isinstance(e, slice) for e in roi):
+                return (slice(None), roi[0], roi[1])
+        if len(roi) == 4 or len(roi) == 6:
+            if all(isinstance(e, int) for e in roi):
+                return CroppingHandler.roi_list_to_slices(roi)
+        raise ValueError(usage_text.format(roi))
 
     @staticmethod
     def get_mask(

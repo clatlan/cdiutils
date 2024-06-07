@@ -366,7 +366,7 @@ class SpaceConverter():
     def init_interpolator(
             self,
             detector_data: np.ndarray,
-            direct_space_data_shape: tuple = None,
+            direct_space_data_shape: tuple | np.ndarray | list = None,
             direct_space_voxel_size: tuple | np.ndarray | list | float = None,
             space: str = "direct",
             shift_voxel: tuple = None
@@ -414,6 +414,7 @@ class SpaceConverter():
                     "if space is 'direct' direct_space_data_shape must be "
                     "provided."
                 )
+            direct_space_data_shape = tuple(direct_space_data_shape)
             if shape != direct_space_data_shape:
                 raise ValueError(
                     "The cropped_raw_data should have the same shape as the "

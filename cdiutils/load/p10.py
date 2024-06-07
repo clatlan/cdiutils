@@ -127,10 +127,7 @@ class P10Loader(Loader):
         path = self._get_file_path(scan, sample_name)
         key_path = "entry/data/data_000001"
 
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3))
-        elif len(roi) == 2:
-            roi = tuple([slice(None), roi[0], roi[1]])
+        roi = self._check_roi(roi)
 
         with silx.io.h5py_utils.File(path) as h5file:
             if binning_along_axis0:
