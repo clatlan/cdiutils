@@ -113,10 +113,10 @@ class Loader:
         )
         if roi is None:
             return tuple(slice(None) for _ in range(3))
-        elif len(roi) == 2 or len(roi) == 3:
+        if len(roi) == 2 or len(roi) == 3:
             if all(isinstance(e, slice) for e in roi):
                 return tuple([slice(None), roi[0], roi[1]])
-        elif len(roi) == 4 or len(roi) == 6:
+        if len(roi) == 4 or len(roi) == 6:
             if all(isinstance(e, int) for e in roi):
                 return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text.format(roi))
