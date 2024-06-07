@@ -18,7 +18,7 @@ def get_extents(
         shape: tuple,
         voxel_size: tuple | list | np.ndarray,
         plane: list,
-        zero_centered: bool = True,
+        zero_centred: bool = True,
 ) -> tuple:
     """Find the extents for matshow/imshow plotting, for a given plane.
 
@@ -30,21 +30,21 @@ def get_extents(
             the data to plot.
         plane (list): what plane to get the extents from. Should be a
             list of 2 axis integers.
-        zero_centered (bool, optional): whether the plot must be
-            centered at zero. Defaults to True.
+        zero_centred (bool, optional): whether the plot must be
+            zero_centred at zero. Defaults to True.
 
     Returns:
         tuple: first two values correspond to x-axis extent, last two
             to the y-axis extent in the matshow/imshow plot.
     """
     absolute_extents = [
-        voxel_size[i] * shape[i] / (2 if zero_centered else 1)
+        voxel_size[i] * shape[i] / (2 if zero_centred else 1)
         for i in range(3)
     ]
     return (
-        -absolute_extents[plane[0]] if zero_centered else 0,
+        -absolute_extents[plane[0]] if zero_centred else 0,
         absolute_extents[plane[0]],
-        -absolute_extents[plane[1]] if zero_centered else 0,
+        -absolute_extents[plane[1]] if zero_centred else 0,
         absolute_extents[plane[1]],
     )
 
@@ -160,7 +160,7 @@ def set_plot_configs():
 
 def update_plot_params(
         style: str = "default",
-        usetex: bool = True,
+        usetex: bool = False,
         use_siunitx: bool = True,
         **kwargs
 ) -> None:
@@ -177,7 +177,11 @@ def update_plot_params(
             "xtick.labelsize": 6,
             "ytick.labelsize": 6,
             "legend.fontsize": 7,
-            "image.interpolation": "none"
+            "image.interpolation": "none",
+            "font.family": "sans-serif",
+            "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
+            # "font.sans-serif": "DejaVu Sans",
+            "figure.figsize": (4.5, 3.0)
         }
     elif style == "thesis":
         parameters = {
@@ -192,41 +196,40 @@ def update_plot_params(
             "legend.fontsize": 8,
         }
     matplotlib.pyplot.rcParams.update(parameters)
-
-    if use_siunitx and usetex:
-        matplotlib.pyplot.rcParams.update(
-            {
-                'text.latex.preamble': (
-                    r'\usepackage{siunitx}'
-                    r'\sisetup{detect-all}'
-                    r'\usepackage{helvet}'
-                    + (
-                        r'\usepackage{sansmath} \sansmath'
-                        r'\usepackage{textgreek}'
-                        if style in ("default", "nature")
-                        else r'\usepackage{amsmath}'
-                    )
-                ),
-                "text.usetex": True
-            }
-        )
-    else:
-        matplotlib.pyplot.rcParams.update(
-            {
-                "text.usetex": usetex,
-                "text.latex.preamble": "",
-                "mathtext.default": "regular",
-                "font.family": "sans-serif",
-                "font.sans-serif": ["Liberation Sans"]
-            }
-        )
+    if usetex:
+        if use_siunitx:
+            matplotlib.pyplot.rcParams.update(
+                {
+                    'text.latex.preamble': (
+                        r'\usepackage{siunitx}'
+                        r'\sisetup{detect-all}'
+                        r'\usepackage{helvet}'
+                        + (
+                            r'\usepackage{sansmath} \sansmath'
+                            r'\usepackage{textgreek}'
+                            if style in ("default", "nature")
+                            else r'\usepackage{amsmath}'
+                        )
+                    ),
+                    "text.usetex": True
+                }
+            )
+        else:
+            matplotlib.pyplot.rcParams.update(
+                {
+                    "text.usetex": usetex,
+                    "text.latex.preamble": "",
+                    "mathtext.default": "regular",
+                    "font.family": "sans-serif",
+                    "font.sans-serif": ["Liberation Sans"]
+                }
+            )
 
     # in any case
     matplotlib.pyplot.rcParams.update(
         {
             "image.cmap": "turbo",
             "figure.dpi": 200,
-            "figure.figsize": get_figure_size(width=style)
         }
     )
     matplotlib.pyplot.rcParams.update(**kwargs)
