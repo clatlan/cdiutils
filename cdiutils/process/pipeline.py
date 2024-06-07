@@ -518,8 +518,8 @@ class BcdiPipeline:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
+            plot_phasing_results: bool = True,
+            plot_phase: bool = False,
     ) -> None:
         """
         Wrapper for analyse_phasing_results method of PhasingResultAnalyser
@@ -540,7 +540,7 @@ class BcdiPipeline:
         self.result_analyser.analyse_phasing_results(
             sorting_criterion,
             plot_phasing_results,
-            plot_amplitude
+            plot_phase
         )
 
     def find_best_candidates(

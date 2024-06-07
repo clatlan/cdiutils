@@ -505,13 +505,12 @@ class PyNXPhaser:
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
         fig.tight_layout()
-        fig.show()
 
 
 class PhasingResultAnalyser:
     def __init__(
             self,
-            cdi_results: dict = None,
+            cdi_results: list = None,
             result_dir_path: str = None
     ) -> None:
         if cdi_results is None and result_dir_path is None:
@@ -520,12 +519,15 @@ class PhasingResultAnalyser:
                 "None"
             )
 
-        elif cdi_results is not None and result_dir_path is not None:
+        if cdi_results is not None and result_dir_path is not None:
             raise ValueError(
                 "cdi_results and result_dir_path cannot be provided "
                 "simultaneously. "
             )
-        self.cdi_results = cdi_results
+        # Convert the parsed list into a dict whose keys are run numbers
+        self.cdi_results = {
+            f"Run{i+1:04d}": cdi for i, cdi in enumerate(cdi_results)
+        }
         self.result_dir_path = result_dir_path
         self._metrics = None
         self._sorted_phasing_results = None
@@ -581,8 +583,8 @@ class PhasingResultAnalyser:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
+            plot_phasing_results: bool = True,
+            plot_phase: bool = True,
     ):
         criteria = ["mean_to_max", "std", "llk", "llkf", "sharpness", "all"]
         if sorting_criterion not in criteria:
@@ -724,7 +726,7 @@ class PhasingResultAnalyser:
                 title = (
                     f"Phasing results, run {int(result.split('Run')[1][:4])}"
                 )
-                self.plot_phasing_result(data, support, title, plot_amplitude)
+                self.plot_phasing_result(data, support, title, plot_phase)
 
     def decompose_into_one_mode(self, verbose: bool = True) -> np.ndarray:
         if not IS_PYNX_AVAILABLE:
@@ -768,7 +770,7 @@ class PhasingResultAnalyser:
             data: np.ndarray,
             support: np.ndarray,
             title: str = None,
-            plot_amplitude: bool = False
+            plot_phase: bool = False
     ) -> None:
         """
         Plot the reconstructed object in reciprocal and direct spaces.
@@ -792,20 +794,20 @@ class PhasingResultAnalyser:
                     cmap="turbo",
                     norm=LogNorm()
                 )
-                if plot_amplitude:
-                    direct_space_im = axes[1, i].matshow(
-                        direct_space_amplitude[slices[i]],
-                        vmin=0,
-                        vmax=direct_space_amplitude.max(),
-                        cmap="turbo"
-                    )
-                else:
+                if plot_phase:
                     direct_space_im = axes[1, i].matshow(
                         direct_space_phase[slices[i]],
                         vmin=-np.pi,
                         vmax=np.pi,
                         alpha=normalised_direct_space_amplitude[slices[i]],
                         cmap="cet_CET_C9s_r"
+                    )
+                else:
+                    direct_space_im = axes[1, i].matshow(
+                        direct_space_amplitude[slices[i]],
+                        vmin=0,
+                        vmax=direct_space_amplitude.max(),
+                        cmap="turbo"
                     )
 
                 if support.sum() > 0:
@@ -822,7 +824,7 @@ class PhasingResultAnalyser:
 
             axes[0, 1].set_title("Log. Proj. intensity (a.u.)")
             axes[1, 1].set_title(
-                "Amplitude (a.u.)" if plot_amplitude else "Phase (rad)"
+                "Phase (rad)" if plot_phase else "Amplitude (a.u.)"
             )
 
         if data.ndim == 2:
@@ -834,20 +836,20 @@ class PhasingResultAnalyser:
                 cmap="turbo",
                 norm=LogNorm()
             )
-            if plot_amplitude:
-                direct_space_im = axes[1].matshow(
-                    direct_space_amplitude,
-                    vmin=0,
-                    vmax=direct_space_amplitude.max(),
-                    cmap="turbo"
-                )
-            else:
+            if plot_phase:
                 direct_space_im = axes[1].matshow(
                     direct_space_phase,
                     vmin=-np.pi,
                     vmax=np.pi,
                     alpha=normalised_direct_space_amplitude,
                     cmap="cet_CET_C9s_r"
+                )
+            else:
+                direct_space_im = axes[1].matshow(
+                    direct_space_amplitude,
+                    vmin=0,
+                    vmax=direct_space_amplitude.max(),
+                    cmap="turbo"
                 )
             if support.sum() > 0:
                 axes[1].set_xlim(
@@ -863,7 +865,7 @@ class PhasingResultAnalyser:
 
             axes[0].set_title("Log. Proj. intensity (a.u.)")
             axes[1].set_title(
-                "Amplitude (a.u.)" if plot_amplitude else "Phase (rad)"
+                "Phase (rad)" if plot_phase else "Amplitude (a.u.)"
             )
 
         for ax in axes.ravel():
