@@ -38,7 +38,7 @@ def get_extents(
             to the y-axis extent in the matshow/imshow plot.
     """
     absolute_extents = [
-        voxel_size[i] * shape[i] // (2 if zero_centered else 1)
+        voxel_size[i] * shape[i] / (2 if zero_centered else 1)
         for i in range(3)
     ]
     return (

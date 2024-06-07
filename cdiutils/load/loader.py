@@ -88,7 +88,8 @@ class Loader:
             "parameter provide a path, np.ndarray or leave it to None"
         )
 
-    def _check_roi(self, roi: tuple = None) -> tuple[slice]:
+    @staticmethod
+    def _check_roi(roi: tuple = None) -> tuple[slice]:
         """
         Utility function to check if a region of interest (roi) was
         parsed correctly.
