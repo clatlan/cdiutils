@@ -476,11 +476,11 @@ class PyNXPhaser:
             # if key in ("support", "phase") and support.sum() > 0:
             if key in ("amplitude", "support", "phase") and support.sum() > 0:
                 ax.set_xlim(
-                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
+                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
                     + np.array([-10, 10])
                 )
                 ax.set_ylim(
-                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
+                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
                     + np.array([-10, 10])
                 )
 
