@@ -19,7 +19,7 @@ def x_y_lim_from_support(
     ax: matplotlib.axes.Axes,
     support: np.ndarray,
     pixel_size: tuple = (1, 1),
-    pad: tuple = (-5, 5)
+    pad: tuple = (-10, 10)
 ) -> None:
     """
     Set the x and y limits of the a plot using support constraints. The
