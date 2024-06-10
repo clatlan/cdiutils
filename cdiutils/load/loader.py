@@ -1,10 +1,13 @@
 """A generic class for loaders."""
 
 from typing import Callable
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.utils import CroppingHandler
+from cdiutils.utils import CroppingHandler, get_centred_slices
+from cdiutils.plot import add_colorbar
 
 
 def h5_safe_load(func: Callable) -> Callable:
@@ -163,7 +166,6 @@ class Loader:
 
         return data
 
-
     @staticmethod
     def get_mask(
             channel: int = None,
@@ -231,3 +233,57 @@ class Loader:
         if channel:
             return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
         return mask[roi]
+
+    @staticmethod
+    def plot_detector_data(
+            detector_data: np.ndarray,
+            title: str = None,
+            return_fig: bool = False,
+            **plot_params
+    ) -> plt.Figure:
+        _plot_params = {
+            "norm": LogNorm(1),
+            "origin": "upper",
+            "cmap": "PuBu_r"
+        }
+        if plot_params:
+            _plot_params.update(plot_params)
+
+        if detector_data.ndim == 3:
+            slices = get_centred_slices(detector_data.shape)
+
+            fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
+            for i in range(3):
+                img_slice = axes[0, i].imshow(
+                    np.swapaxes(detector_data[slices[i]], 0, 1) if i == 2 else detector_data[slices[i]],
+                    **_plot_params
+                )
+                img_sum = axes[1, i].imshow(
+                    np.swapaxes(detector_data.sum(axis=i), 0, 1) if i == 2 else detector_data.sum(axis=i),
+                    **_plot_params,
+                )
+                add_colorbar(axes[0, i], img_slice)
+                add_colorbar(axes[1, i], img_sum)
+
+            for i in range(2):
+                axes[i, 0].set_xlabel(r"axis$_{2}$, det. horiz.")
+                axes[i, 0].set_ylabel(r"axis$_{1}$, det. vert.")
+
+                axes[i, 1].set_xlabel(r"axis$_{2}$, det. horiz.")
+                axes[i, 1].set_ylabel(r"axis$_{0}$, rocking curve")
+
+                axes[i, 2].set_xlabel(r"axis$_{0}$, rocking curve")
+                axes[i, 2].set_ylabel(r"axis$_{1}$, det. vert.")
+
+            axes[0, 1].set_title("Intensity slice")
+            axes[1, 1].set_title("Intensity sum")
+            fig.suptitle(title)
+            if return_fig:
+                return fig
+            return None
+        elif detector_data.ndim == 2:
+            pass
+        raise ValueError(
+            f"Invalid data shape (detector_data.shape={detector_data.shape})."
+            "Should be 2D or 3D."
+        )
