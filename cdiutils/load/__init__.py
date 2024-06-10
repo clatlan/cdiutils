@@ -12,5 +12,5 @@ __all__ = [
     "P10Loader",
     "SpecLoader",
     "SIXS2022Loader",
-    "Cristal"
+    "CristalLoader"
 ]

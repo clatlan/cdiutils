@@ -8,7 +8,7 @@ import numpy as np
 from cdiutils.load import Loader, h5_safe_load
 
 
-class Cristal(Loader):
+class CristalLoader(Loader):
     """
     A class to handle loading/reading .h5 files that were created at the
     Cristal beamline.
