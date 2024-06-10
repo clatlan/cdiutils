@@ -564,6 +564,17 @@ class BcdiPipeline:
             nb_of_best_sorted_runs: int = None,
             best_runs: list = None
     ) -> None:
+        """
+        A function wrapper for
+        PhasingResultAnalyser.select_best_candidates 
+
+        Args:
+            nb_of_best_sorted_runs (int, optional): _description_. Defaults to None.
+            best_runs (list, optional): _description_. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+        """
         if not self.result_analyser:
             raise ValueError(
                 "self.result_analyser not initialised yet. Run"
