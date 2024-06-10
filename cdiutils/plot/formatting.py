@@ -15,6 +15,36 @@ CXI_VIEW_PARAMETERS = {
 }
 
 
+def x_y_lim_from_support(
+    ax: matplotlib.axes.Axes,
+    support: np.ndarray,
+    pixel_size: tuple = (1, 1),
+    pad: tuple = (-5, 5)
+) -> None:
+    """
+    Set the x and y limits of the a plot using support constraints. The
+    plot will be limites to the support dimension + the pad.
+
+    Args:
+        ax (matplotlib.axes.Axes): the matpltolib ax to work on.
+        support (np.ndarray): the support to get the limits from.
+        pixel_size (tuple, optional): the pixel size. Defaults to (1, 1).
+        pad (tuple, optional): the space between the limits found from
+            the support limits and the ax frame. Defaults to (-5, 5).
+    """
+    if support.sum() > 0:
+        pad = np.array(pad) * np.array(pixel_size)
+
+        ax.set_xlim(
+            np.nonzero(support.sum(axis=0))[0][[0, -1]] * pixel_size[0]
+            + np.array(pad)
+        )
+        ax.set_ylim(
+            np.nonzero(support.sum(axis=1))[0][[0, -1]] * pixel_size[1]
+            + np.array(pad)
+        )
+
+
 def get_extents(
         shape: tuple,
         voxel_size: tuple | list | np.ndarray,
