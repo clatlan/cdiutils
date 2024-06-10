@@ -3,7 +3,7 @@ from .bliss import BlissLoader
 from .p10 import P10Loader
 from .spec import SpecLoader
 from .sixs import SIXS2022Loader
-from .cristal import Cristal
+from .cristal import CristalLoader
 
 __all__ = [
     "Loader",
