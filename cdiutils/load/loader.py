@@ -1,8 +1,18 @@
 """A generic class for loaders."""
 
+from typing import Callable
 import numpy as np
+import silx.io.h5py_utils
 
 from cdiutils.utils import CroppingHandler
+
+
+def h5_safe_load(func: Callable) -> Callable:
+    """A wrapper to safely load data in h5 file"""
+    def wrap(self, *args, **kwargs):
+        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
+            return func(self, *args, **kwargs)
+    return wrap
 
 
 class Loader:
@@ -120,6 +130,39 @@ class Loader:
             if all(isinstance(e, int) for e in roi):
                 return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text.format(roi))
+
+    def bin_flat_mask(
+            self,
+            data: np.ndarray,
+            roi: list = None,
+            binning_along_axis0: int = None,
+            binning_method: str = "sum",
+    ) -> np.ndarray:
+        if binning_along_axis0:
+            original_dim0 = data.shape[0]
+            nb_of_bins = original_dim0 // binning_along_axis0
+            first_slices = nb_of_bins * binning_along_axis0
+            last_slices = first_slices + original_dim0 % binning_along_axis0
+            if binning_method == "sum":
+                binned_data = [
+                    np.sum(e, axis=0)
+                    for e in np.array_split(data[:first_slices], nb_of_bins)
+                ]
+                if original_dim0 % binning_along_axis0 != 0:
+                    binned_data.append(np.sum(data[last_slices:], axis=0))
+                data = np.asarray(binned_data)
+
+        if binning_along_axis0 and roi:
+            data = data[roi]
+
+        if self.flat_field is not None:
+            data = data * self.flat_field[roi[1:]]
+
+        if self.alien_mask is not None:
+            data = data * self.alien_mask[roi[1:]]
+
+        return data
+
 
     @staticmethod
     def get_mask(

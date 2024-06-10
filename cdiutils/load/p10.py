@@ -135,29 +135,12 @@ class P10Loader(Loader):
             else:
                 data = h5file[key_path][roi]
 
-        if binning_along_axis0:
-            original_dim0 = data.shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-
-            if binning_method == "sum":
-                binned_data = [
-                    np.sum(e, axis=0)
-                    for e in np.array_split(data[:first_slices], nb_of_bins)
-                ]
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_data.append(np.sum(data[last_slices:], axis=0))
-                data = np.asarray(binned_data)
-
-        if binning_along_axis0 and roi:
-            data = data[roi]
-
-        if self.flat_field is not None:
-            data = data * self.flat_field[roi[1:]]
-
-        if self.alien_mask is not None:
-            data = data * self.alien_mask[roi[1:]]
+        data = self.bin_flat_mask(
+            data,
+            roi,
+            binning_along_axis0,
+            binning_method,
+        )
 
         # Must apply mask on P10 Eiger data
         mask = self.get_mask(
@@ -165,7 +148,6 @@ class P10Loader(Loader):
             detector_name=self.detector_name,
             roi=(slice(None), roi[1], roi[2])
         )
-
         data = data * np.where(mask, 0, 1)
 
         return data

@@ -1,18 +1,8 @@
-from typing import Callable
 import dateutil.parser
 import numpy as np
 import hdf5plugin
-import silx.io.h5py_utils
 
-from cdiutils.load import Loader
-
-
-def safe(func: Callable) -> Callable:
-    """A wrapper to safely load data in h5 file"""
-    def wrap(self, *args, **kwargs):
-        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
-            return func(self, *args, **kwargs)
-    return wrap
+from cdiutils.load import Loader, h5_safe_load
 
 
 class BlissLoader(Loader):
@@ -58,7 +48,7 @@ class BlissLoader(Loader):
         self.detector_name = detector_name
         self.sample_name = sample_name
 
-    @safe
+    @h5_safe_load
     def load_detector_data(
             self,
             scan: int,
@@ -91,32 +81,14 @@ class BlissLoader(Loader):
                 "Are sample_name, scan number or detector name correct?"
             ) from exc
 
-        if binning_along_axis0:
-            original_dim0 = data.shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-            if binning_method == "sum":
-                binned_data = [
-                    np.sum(e, axis=0)
-                    for e in np.array_split(data[:first_slices], nb_of_bins)
-                ]
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_data.append(np.sum(data[last_slices:], axis=0))
-                data = np.asarray(binned_data)
+        return self.bin_flat_mask(
+            data,
+            roi,
+            binning_along_axis0,
+            binning_method
+        )
 
-        if binning_along_axis0 and roi:
-            data = data[roi]
-
-        if self.flat_field is not None:
-            data = data * self.flat_field[roi[1:]]
-
-        if self.alien_mask is not None:
-            data = data * self.alien_mask[roi[1:]]
-
-        return data
-
-    @safe
+    @h5_safe_load
     def get_array_shape(self, scan: int, sample_name: str = None) -> tuple:
         h5file = self.h5file
         if sample_name is None:
@@ -128,7 +100,7 @@ class BlissLoader(Loader):
         )
         return h5file[key_path].shape
 
-    @safe
+    @h5_safe_load
     def show_scan_attributes(
             self,
             scan: int,
@@ -142,7 +114,7 @@ class BlissLoader(Loader):
         print(h5file[key_path].keys())
 
     # @silx.io.h5py_utils.retry()
-    @safe
+    @h5_safe_load
     def load_motor_positions(
             self,
             scan: int,
@@ -224,7 +196,7 @@ class BlissLoader(Loader):
                     continue
         return angles
 
-    @safe
+    @h5_safe_load
     def load_measurement_parameters(
             self,
             scan: int,
@@ -242,7 +214,7 @@ class BlissLoader(Loader):
         ][()]
         return requested_mes_parameters
 
-    @safe
+    @h5_safe_load
     def load_instrument_parameters(
             self,
             scan: int,
@@ -258,7 +230,7 @@ class BlissLoader(Loader):
 
         return self.h5file[key_path + "/" + instrument_parameter][()]
 
-    @safe
+    @h5_safe_load
     def load_sample_parameters(
             self,
             scan: int,
@@ -274,7 +246,7 @@ class BlissLoader(Loader):
         ][()]
         return requested_parameters
 
-    @safe
+    @h5_safe_load
     def load_plotselect_parameter(
             self,
             sample_name,
@@ -288,7 +260,7 @@ class BlissLoader(Loader):
 
         return requested_parameter
 
-    @safe
+    @h5_safe_load
     def get_start_time(self, scan: int, sample_name: str = None) -> str:
         """
         This functions will return the start time of the given scan.

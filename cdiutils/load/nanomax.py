@@ -1,13 +1,12 @@
 """
-Loader for the Nanomax beamlien at MAXIV.
+Loader for the Nanomax beamline at MAXIV.
 See:
 https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
 """
 
 import numpy as np
 
-from cdiutils.load import Loader
-from cdiutils.load.bliss import safe
+from cdiutils.load import Loader, h5_safe_load
 
 
 class NanoMaxLoader(Loader):
@@ -65,7 +64,7 @@ class NanoMaxLoader(Loader):
         self.detector_name = detector_name
         self.sample_name = sample_name
 
-    @safe
+    @h5_safe_load
     def load_detector_data(
             self,
             scan: int,
