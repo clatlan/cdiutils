@@ -38,10 +38,10 @@ def get_extents(
         tuple: first two values correspond to x-axis extent, last two
             to the y-axis extent in the matshow/imshow plot.
     """
-    absolute_extents = [
-        voxel_size[i] * shape[i] / (2 if zero_centred else 1)
-        for i in range(3)
-    ]
+    if isinstance(voxel_size, (int, float)):
+        voxel_size = np.repeat(voxel_size, len(shape))
+    absolute_extents = voxel_size * shape / (2 if zero_centred else 1)
+
     return (
         -absolute_extents[plane[0]] if zero_centred else 0,
         absolute_extents[plane[0]],
