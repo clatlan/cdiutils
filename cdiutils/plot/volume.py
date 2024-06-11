@@ -136,7 +136,7 @@ def plot_3d_surface_projections(
 
         # to handle extent and origin please refer to
         # https://matplotlib.org/stable/users/explain/artists/imshow_extent.html#imshow-extent
-        extent = get_extents(
+        extent = get_extent(
             shape,
             voxel_size,
             view_parameters[v]["plane_axes"]
