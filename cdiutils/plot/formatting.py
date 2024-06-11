@@ -16,9 +16,10 @@ CXI_VIEW_PARAMETERS = {
 
 
 def x_y_lim_from_support(
-    ax: matplotlib.axes.Axes,
+    ax,
     support: np.ndarray,
     pixel_size: tuple = (1, 1),
+    central_pixel: tuple = None,
     pad: tuple = (-10, 10)
 ) -> None:
     """
@@ -29,20 +30,24 @@ def x_y_lim_from_support(
         ax (matplotlib.axes.Axes): the matpltolib ax to work on.
         support (np.ndarray): the support to get the limits from.
         pixel_size (tuple, optional): the pixel size. Defaults to (1, 1).
+        central_pixel (tuple, optional): the position of the central
+            pixel. This matters only if extent/aspect/pixel size are
+            specific. In this case, the user might want to specify where
+            to centre the plotting at.
         pad (tuple, optional): the space between the limits found from
             the support limits and the ax frame. Defaults to (-5, 5).
     """
     if support.sum() > 0:
         pad = np.array(pad) * np.array(pixel_size)
-
-        ax.set_xlim(
-            np.nonzero(support.sum(axis=0))[0][[0, -1]] * pixel_size[0]
-            + np.array(pad)
-        )
-        ax.set_ylim(
-            np.nonzero(support.sum(axis=1))[0][[0, -1]] * pixel_size[1]
-            + np.array(pad)
-        )
+        lims = []
+        for i in range(2):
+            lim = np.nonzero(support.sum(axis=i))[0][[0, -1]] * pixel_size[0]
+            lim += np.array(pad)
+            if central_pixel:
+                lim -= (lim.mean() - central_pixel[i])
+            lims.append(lim)
+        ax.set_xlim(lims[0])
+        ax.set_ylim(lims[1])
 
 
 def get_extent(
