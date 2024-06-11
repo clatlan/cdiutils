@@ -45,13 +45,17 @@ def x_y_lim_from_support(
         )
 
 
-def get_extents(
+def get_extent(
         shape: tuple,
         voxel_size: tuple | list | np.ndarray,
         plane: list,
         zero_centred: bool = True,
+        indexing: str = "xy"
 ) -> tuple:
     """Find the extents for matshow/imshow plotting, for a given plane.
+    Note that in matlotlib convention, the extent must be provided in
+    the order x, y, but the imshow function plot axis0 along y and axis1
+    along x. Therefore, plane and indexing must be chosen appropriately. 
 
     Args:
         shape (tuple): the shape of the data to plot.
@@ -63,6 +67,10 @@ def get_extents(
             list of 2 axis integers.
         zero_centred (bool, optional): whether the plot must be
             zero_centred at zero. Defaults to True.
+        indexing (str): the indexing convention. If 'xy', plane[0] and
+            plane[1] must correspond to x and y respectively. If 'ij',
+            plane[0] and plane[1] must correspond to y and x,
+            respectively (numpy/matrix convent).
 
     Returns:
         tuple: first two values correspond to x-axis extent, last two
@@ -71,13 +79,20 @@ def get_extents(
     if isinstance(voxel_size, (int, float)):
         voxel_size = np.repeat(voxel_size, len(shape))
     absolute_extents = voxel_size * shape / (2 if zero_centred else 1)
-
-    return (
-        -absolute_extents[plane[0]] if zero_centred else 0,
-        absolute_extents[plane[0]],
-        -absolute_extents[plane[1]] if zero_centred else 0,
-        absolute_extents[plane[1]],
-    )
+    if indexing == "xy":
+        return (
+            -absolute_extents[plane[0]] if zero_centred else 0,
+            absolute_extents[plane[0]],
+            -absolute_extents[plane[1]] if zero_centred else 0,
+            absolute_extents[plane[1]],
+        )
+    if indexing == "ij":
+        return (
+            -absolute_extents[plane[1]] if zero_centred else 0,
+            absolute_extents[plane[1]],
+            -absolute_extents[plane[0]] if zero_centred else 0,
+            absolute_extents[plane[0]],
+        )
 
 
 def get_plot_configs(key: str) -> dict:
