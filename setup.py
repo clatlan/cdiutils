@@ -37,7 +37,6 @@ setuptools.setup(
             "numpy>=1.23.5",
             "pandas>=1.4.2",
             "paramiko>=2.12.0",
-            "PyYAML>=6.0",
             "ruamel.yaml>=0.17.21",
             "ruamel.yaml.clib>=0.2.7",
             "scikit-image>=0.19.2",
