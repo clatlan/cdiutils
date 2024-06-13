@@ -1,29 +1,29 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
-import os
-import silx.io
-import h5py
+# from numpy.fft import fftn, fftshift, ifftshift
+# import os
+# import silx.io
+# import h5py
 
-from cdiutils.utils import (
-    zero_to_nan, find_suitable_array_shape, nan_center_of_mass, center,
-    crop_at_center
-)
+from cdiutils.utils import zero_to_nan
 from cdiutils.plot.formatting import (
-    set_plot_configs, white_interior_ticks_labels, get_figure_size
+    set_plot_configs,
+    white_interior_ticks_labels,
+    get_figure_size,
+    get_x_y_limits_extents
 )
 from cdiutils.plot.slice import plot_contour
 
 
 def preprocessing_detector_data_plot(
         cropped_data: np.ndarray,
-        cropped_max_voxel: np.ndarray or list or tuple,
-        cropped_com_voxel: np.ndarray or list or tuple,
+        cropped_max_voxel: np.ndarray | list | tuple,
+        cropped_com_voxel: np.ndarray | list | tuple,
         detector_data: np.ndarray = None,
-        det_reference_voxel: np.ndarray or list or tuple = None,
-        det_max_voxel: np.ndarray or list or tuple = None,
-        det_com_voxel: np.ndarray or list or tuple = None,
+        det_reference_voxel: np.ndarray | list | tuple = None,
+        det_max_voxel: np.ndarray | list | tuple = None,
+        det_com_voxel: np.ndarray | list | tuple = None,
         title: str = None
 ) -> matplotlib.figure.Figure:
     """
@@ -36,15 +36,15 @@ def preprocessing_detector_data_plot(
         The raw detector data.
     cropped_data: np.array
         The cropped/centered data.
-    det_reference_voxel: np.array or list or tuple
+    det_reference_voxel: np.array | list | tuple
         The voxel reference in the full detector frame.
-    det_max_voxel: np.array or list or tuple
+    det_max_voxel: np.array | list | tuple
         The max voxel in the full detector frame.
-    det_com_voxel: np.array or list or tuple
+    det_com_voxel: np.array | list | tuple
         The center of mass voxel in the full detector frame.
-    cropped_max_voxel: np.array or list or tuple
+    cropped_max_voxel: np.array | list | tuple
         The max voxel in the centered/cropped detector frame.
-    cropped_com_voxel: np.array or list or tuple
+    cropped_com_voxel: np.array | list | tuple
         The center of mass voxel in the centered/cropped detector frame.
     title: str
         The title of the figure.
@@ -360,17 +360,16 @@ def preprocessing_detector_data_plot(
 
 
 def summary_slice_plot(
+        support: np.ndarray,
         save: str = None,
         title: str = None,
         dpi: int = 200,
         show: bool = False,
-        voxel_size: np.ndarray or list or tuple = None,
+        voxel_size: np.ndarray | list | tuple = None,
         isosurface: float = None,
         averaged_dspacing: float = None,
         averaged_lattice_parameter: float = None,
-        det_reference_voxel: np.ndarray or list or tuple = None,
-        respect_aspect=False,
-        support: np.ndarray = None,
+        det_reference_voxel: np.ndarray | list | tuple = None,
         single_vmin: float = None,
         single_vmax: float = None,
         cmap: str = None,
@@ -380,15 +379,13 @@ def summary_slice_plot(
     ANGSTROM_SYMBOL, _, PLOT_CONFIGS = set_plot_configs()
 
     # take care of the aspect ratios:
-    if voxel_size is not None and respect_aspect:
-        aspect_ratios = {
-            "zy": voxel_size[0]/voxel_size[1],
-            "zx": voxel_size[0]/voxel_size[2],
-            "yx":  voxel_size[1]/voxel_size[2]
-
-        }
-    else:
-        aspect_ratios = {"zy": "auto", "zx": "auto", "yx": "auto"}
+    if voxel_size is not None:
+        extents = get_x_y_limits_extents(
+            support.shape,
+            voxel_size,
+            data_centre=(0, 0, 0),
+            equal_limits=True
+        )
 
     figsize = get_figure_size()
     figure, axes = plt.subplots(
@@ -396,45 +393,44 @@ def summary_slice_plot(
     )
 
     axes[0, 0].annotate(
-                r"(xy)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[0, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(xy)$_{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[0, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     axes[1, 0].annotate(
-                r"(xz)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[1, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(xz)$_{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[1, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     axes[2, 0].annotate(
-                r"(zy)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[2, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(zy)$_{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[2, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     mappables = {}
-    if support is not None:
-        support = zero_to_nan(support)
+    support = zero_to_nan(support)
     for i, (key, array) in enumerate(kwargs.items()):
         if support is not None and key != "amplitude":
             array = support * array
 
         if key in PLOT_CONFIGS.keys():
             cmap = PLOT_CONFIGS[key]["cmap"]
-            # check if vmin and vmax are given or not
+            # check if vmin and vmax are given | not
             if single_vmin is None or single_vmax is None:
                 if support is not None:
                     if key in ("dspacing", "lattice_parameter"):
@@ -465,7 +461,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["yx"]
+            extent=extents[2] + extents[1]
         )
         axes[1, i].matshow(
             array[:, shape[1] // 2, :],
@@ -473,7 +469,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["zx"]
+            extent=extents[2] + extents[0]
         )
         mappables[key] = axes[2, i].matshow(
             np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
@@ -481,17 +477,32 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["zy"]
+            extent=extents[0] + extents[1]
         )
 
         if key == "amplitude":
-            plot_contour(axes[0, i], support[shape[0] // 2], color="k")
-            plot_contour(axes[1, i], support[:, shape[1] // 2, :], color="k")
+            plot_contour(
+                axes[0, i],
+                support[shape[0] // 2],
+                color="k",
+                pixel_size=(voxel_size[1], voxel_size[2]),
+                data_centre=(0, 0)
+            )
+            plot_contour(
+                axes[1, i],
+                support[:, shape[1] // 2, :],
+                color="k",
+                pixel_size=(voxel_size[0], voxel_size[2]),
+                data_centre=(0, 0)
+            )
             plot_contour(
                 axes[2, i],
                 np.swapaxes(support[..., shape[2] // 2], axis1=0, axis2=1),
-                color="k"
+                color="k",
+                pixel_size=(voxel_size[1], voxel_size[0]),
+                data_centre=(0, 0)
             )
+
 
     table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.15])
     table_ax.axis("tight")
@@ -586,7 +597,7 @@ def plot_q_lab_orthogonalization_process(
     subplots = (3, 3)
     figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(
-        subplots[0], subplots[1], figsize=figsize)
+        subplots[0], subplots[1], layout="tight", figsize=figsize)
 
     # add 1 to avoid log(0)
     detector_data += 1
@@ -621,10 +632,10 @@ def plot_q_lab_orthogonalization_process(
     axes[0, 2].set_ylabel(r"detector axis$_1$")
 
     if where_in_ortho_space is None:
-        print(
-            "where_in_ortho_space parameter not provided, will plot the "
-            "data at the center"
-        )
+        # print(
+        #     "where_in_ortho_space parameter not provided, will plot the "
+        #     "data at the center"
+        # )
         where_in_ortho_space = tuple(
             e // 2 for e in orthogonalized_data.shape)
 
@@ -725,24 +736,22 @@ def plot_q_lab_orthogonalization_process(
     axes[2, 2].set_ylabel(
         r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
-    axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-    axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-q lab frame}")
-    axes[2, 1].set_title(r"Orthogonalized data in \textbf{q lab frame}")
+    axes[0, 1].set_title(r"Raw data in detector frame")
+    axes[1, 1].set_title(r"Orthogonalized data in index-of-q lab frame")
+    axes[2, 1].set_title(r"Orthogonalized data in q lab frame")
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        # ax.tick_params(axis="x", bottom=True, top=False, labeltop=False, labelbottom=True)
         white_interior_ticks_labels(ax, -10, -20)
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
     figure.suptitle(title)
-    text = (
-        "The white X marker shows the\nreference voxel used for the"
-        "\ntransformation"
-    )
-    figure.text(0.05, 0.92, text, transform=figure.transFigure)
-    figure.tight_layout()
+    # text = (
+    #     "The white X marker shows the\nreference voxel used for the"
+    #     "\ntransformation"
+    # )
+    # figure.text(0.05, 0.92, text, transform=figure.transFigure)
 
     return figure
 
@@ -783,10 +792,10 @@ def plot_direct_lab_orthogonalization_process(
         axes[0, 1].set_ylabel(r"detector axis$_0$")
         axes[0, 2].set_xlabel(r"detector axis$_0$")
         axes[0, 2].set_ylabel(r"detector axis$_1$")
-        axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
+        axes[0, 1].set_title(r"Raw data in detector frame")
 
     axes[ax_row_index, 1].set_title(
-        r"Orthogonalized data in \textbf{index-of-direct lab frame}"
+        r"Orthogonalized data in index-of-direct lab frame"
     )
 
     plot_at = tuple(e // 2 for e in direct_lab_data.shape)
@@ -855,7 +864,7 @@ def plot_direct_lab_orthogonalization_process(
     axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
     axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
     axes[ax_row_index, 1].set_title(
-        r"Orthogonalized data in \textbf{direct lab frame}"
+        r"Orthogonalized data in direct lab frame"
     )
 
     # for ax in axes[2, :].ravel():
@@ -1001,9 +1010,9 @@ def plot_final_object_fft(
             r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(
-        r"FFT of final object in \textbf{q lab frame}")
+        r"FFT of final object in q lab frame")
     axes[1, 1].set_title(
-        r"Orthogonalized experimental data in \textbf{q lab frame}")
+        r"Orthogonalized experimental data in q lab frame")
 
     figure.canvas.draw()
     for ax in axes.ravel():
