@@ -108,7 +108,7 @@ def plot_3d_surface_projections(
 
     cropped_data = data[CroppingHandler.roi_list_to_slices(roi)]
 
-    for v in view_parameters.keys():
+    for v in view_parameters:
         looking_from_downstream = False
         row = 0
         if v.endswith("+"):
@@ -129,9 +129,7 @@ def plot_3d_surface_projections(
         # corresponds to the y-axis and the seconde plane to the x-axis.
         # If first plane axis > second plane axis, the default orientation is
         # correct, and no swapping is needed.
-        if view_parameters[v]["plane_axes"] == sorted(
-                view_parameters[v]["plane_axes"]
-        ):
+        if view_parameters[v]["plane"] != sorted(view_parameters[v]["plane"]):
             projection = np.swapaxes(projection, axis1=0, axis2=1)
 
         # to handle extent and origin please refer to
@@ -139,7 +137,7 @@ def plot_3d_surface_projections(
         extent = get_extent(
             shape,
             voxel_size,
-            view_parameters[v]["plane_axes"]
+            view_parameters[v]["plane"]
         )
 
         if view_parameters[v]["yaxis_points_left"]:
@@ -186,22 +184,24 @@ def plot_3d_surface_projections(
             transform=ax.transAxes,
             clip_on=False
         )
-        xlabel = (
-            r"$z_{CXI}$"
-            if view_parameters[v]["plane_axes"][0] == 0
-            else r"$y_{CXI}$"
-            if view_parameters[v]["plane_axes"][0] == 1
-            else r"$x_{CXI}$"
-        )
-        ylabel = (
-            r"$z_{CXI}$"
-            if view_parameters[v]["plane_axes"][1] == 0
-            else r"$y_{CXI}$"
-            if view_parameters[v]["plane_axes"][1] == 1
-            else r"$x_{CXI}$"
-        )
-        ax.set_xlabel(xlabel + "(nm)", labelpad=1)
-        ax.set_ylabel(ylabel + "(nm)", labelpad=1)
+        xlabel = view_parameters[v]["xlabel"]
+        ylabel = view_parameters[v]["ylabel"]
+        # xlabel = (
+        #     r"$z_{CXI}$"
+        #     if view_parameters[v]["plane_axes"][0] == 0
+        #     else r"$y_{CXI}$"
+        #     if view_parameters[v]["plane_axes"][0] == 1
+        #     else r"$x_{CXI}$"
+        # )
+        # ylabel = (
+        #     r"$z_{CXI}$"
+        #     if view_parameters[v]["plane_axes"][1] == 0
+        #     else r"$y_{CXI}$"
+        #     if view_parameters[v]["plane_axes"][1] == 1
+        #     else r"$x_{CXI}$"
+        # )
+        ax.set_xlabel(xlabel, labelpad=1)
+        ax.set_ylabel(ylabel, labelpad=1)
         ax.tick_params(axis='both', which='major', pad=1.5)
 
         ax.locator_params(nbins=5)

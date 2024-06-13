@@ -5,13 +5,51 @@ import numpy as np
 import colorcet
 
 
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
 CXI_VIEW_PARAMETERS = {
-   "z+": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": True},
-   "z-": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": False},
-   "y+": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": False},
-   "y-": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": True},
-   "x+": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": False},
-   "x-": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": True},
+   "z+": {
+       "axis": 0, "plane": [1, 2], "yaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z-": {
+       "axis": 0, "plane": [1, 2], "yaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y+": {
+       "axis": 1, "plane": [0, 2], "yaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y-": {
+       "axis": 1, "plane": [0, 2], "yaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x+": {
+       "axis": 2, "plane": [1, 0], "yaxis_points_left": False,
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x-": {
+       "axis": 2, "plane": [1, 0], "yaxis_points_left": True,
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
 }
 
 # Planes are given with the indexing convention,
@@ -163,7 +201,7 @@ def get_extent(
         voxel_size: tuple | list | np.ndarray,
         plane: list,
         zero_centred: bool = True,
-        indexing: str = "xy"
+        indexing: str = "ij"
 ) -> tuple:
     """Find the extents for matshow/imshow plotting, for a given plane.
     Note that in matlotlib convention, the extent must be provided in
