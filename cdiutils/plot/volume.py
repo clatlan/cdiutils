@@ -5,7 +5,7 @@ import warnings
 
 from cdiutils.plot.formatting import (
     get_figure_size,
-    get_extents,
+    get_extent,
     CXI_VIEW_PARAMETERS
 )
 from cdiutils.utils import (
