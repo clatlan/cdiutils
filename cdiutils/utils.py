@@ -747,6 +747,25 @@ def find_suitable_array_shape(
     return shape
 
 
+def extract_reduced_shape(
+        support: np.ndarray,
+        pad: tuple | list | np.ndarray = None,
+        symmetric: bool = False
+) -> tuple:
+    if pad is None:
+        pad = np.array([-10, 10])
+
+    support_limits = []
+    for i in range(support.ndim):
+        limit = np.nonzero(support.sum(axis=i))[0][[0, -1]]
+        limit += pad  # padding
+        support_limits.append(limit)
+    shape = [limit.ptp() for limit in support_limits]
+    if symmetric:
+        return tuple(np.repeat(np.max(shape), support.ndim))
+    return shape
+
+
 def find_isosurface(
         amplitude: np.ndarray,
         nbins: int = 100,
