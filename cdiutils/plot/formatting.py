@@ -14,20 +14,125 @@ CXI_VIEW_PARAMETERS = {
    "x-": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": True},
 }
 
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
+XU_VIEW_PARAMETERS = {
+   "x+": {
+       "axis": 0, "plane": [2, 1], "xaxis_points_left": True,
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x-": {
+       "axis": 0, "plane": [2, 1], "xaxis_points_left": False,
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y+": {
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
+       "xlabel": r"$x{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y-": {
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z+": {
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z-": {
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+}
+
+
+def add_labels(
+        axes: matplotlib.axes.Axes,
+        views: tuple[str] = ("x-", "y-", "z-"),
+        space: str = "rcp",
+        convention: str = "xu"
+) -> None:
+    if len(axes) != len(views):
+        raise ValueError(
+            "axes and views must have the same length "
+            f"(len(axes) = {len(axes)} != len(views) = {len(views)})"
+        )
+    if convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()
+    elif convention.lower() == "cxi":
+        view_params = CXI_VIEW_PARAMETERS.copy()
+    else:
+        raise ValueError(f"Invalid convention ({convention}).")
+
+    if space.lower() in ("reciprocal", "rcp"):
+        xlabel_key = "qxlabel"
+        ylabel_key = "qylabel"
+    elif space.lower() in ("direct", "dr", "drct", "drt"):
+        xlabel_key = "xlabel"
+        ylabel_key = "ylabel"
+    else:
+        raise ValueError(f"Invalid space name ({space}).")
+
+    for ax, v in zip(axes.flat, views):
+        ax.set_xlabel(view_params[v][xlabel_key])
+        ax.set_ylabel(view_params[v][ylabel_key])
+
+
+def get_x_y_limits_extents(
+        shape,
+        voxel_size,
+        data_centre=None,
+        equal_limits: bool = False
+):
+    shape = np.array(shape)
+    voxel_size = np.array(voxel_size)
+
+    extents = np.array(shape) * np.array(voxel_size)
+
+    if equal_limits:
+        # Must be used only for limits !
+        extents = np.repeat(np.max(extents), len(shape))
+
+    if data_centre is None:
+        return [(0, e) for e in extents]
+    return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
+
+
+def set_x_y_limits_extents(ax, extents, limits, plane):
+    image = ax.images[0]
+    image.origin = "lower"
+    image.set_extent(extents[plane[1]] + extents[plane[0]])
+    ax.set_xlim(limits[plane[1]])
+    ax.set_ylim(limits[plane[0]])
+
 
 def x_y_lim_from_support(
-    ax,
-    support: np.ndarray,
-    pixel_size: tuple = (1, 1),
-    central_pixel: tuple = None,
-    pad: tuple = (-10, 10)
-) -> None:
+        support: np.ndarray,
+        pixel_size: tuple = (1, 1),
+        central_pixel: tuple = None,
+        pad: tuple = (-10, 10)
+) -> list:
     """
-    Set the x and y limits of the a plot using support constraints. The
-    plot will be limites to the support dimension + the pad.
+    Return the x and y limits of the a plot using support constraints.
+    The plot will be limited to the support dimension + the pad.
 
     Args:
-        ax (matplotlib.axes.Axes): the matpltolib ax to work on.
         support (np.ndarray): the support to get the limits from.
         pixel_size (tuple, optional): the pixel size. Defaults to (1, 1).
         central_pixel (tuple, optional): the position of the central
@@ -36,6 +141,9 @@ def x_y_lim_from_support(
             to centre the plotting at.
         pad (tuple, optional): the space between the limits found from
             the support limits and the ax frame. Defaults to (-5, 5).
+
+    Returns:
+        list: the x_limits and y_limits.
     """
     if support.sum() > 0:
         pad = np.array(pad) * np.array(pixel_size)
@@ -46,8 +154,8 @@ def x_y_lim_from_support(
             if central_pixel:
                 lim -= (lim.mean() - central_pixel[i])
             lims.append(lim)
-        ax.set_xlim(lims[0])
-        ax.set_ylim(lims[1])
+        return lims
+    return None
 
 
 def get_extent(
