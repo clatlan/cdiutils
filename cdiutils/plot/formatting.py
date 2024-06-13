@@ -102,21 +102,26 @@ XU_VIEW_PARAMETERS = {
 
 def add_labels(
         axes: matplotlib.axes.Axes,
-        views: tuple[str] = ("x-", "y-", "z-"),
-        space: str = "rcp",
-        convention: str = "xu"
+        views: tuple[str] = None,
+        space: str = "direct",
+        convention: str = "cxi"
 ) -> None:
+    if convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("x-", "y-", "z-")
+    elif convention.lower() == "cxi":
+        view_params = CXI_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("z-", "y+", "x+")
+    else:
+        raise ValueError(f"Invalid convention ({convention}).")
+
     if len(axes) != len(views):
         raise ValueError(
             "axes and views must have the same length "
             f"(len(axes) = {len(axes)} != len(views) = {len(views)})"
         )
-    if convention.lower() in ("xu", "lab"):
-        view_params = XU_VIEW_PARAMETERS.copy()
-    elif convention.lower() == "cxi":
-        view_params = CXI_VIEW_PARAMETERS.copy()
-    else:
-        raise ValueError(f"Invalid convention ({convention}).")
 
     if space.lower() in ("reciprocal", "rcp"):
         xlabel_key = "qxlabel"
