@@ -11,7 +11,8 @@ from cdiutils.plot.formatting import (
     set_plot_configs,
     white_interior_ticks_labels,
     get_figure_size,
-    get_x_y_limits_extents
+    get_x_y_limits_extents,
+    set_x_y_limits_extents
 )
 from cdiutils.plot.slice import plot_contour
 
@@ -383,6 +384,11 @@ def summary_slice_plot(
         extents = get_x_y_limits_extents(
             support.shape,
             voxel_size,
+            data_centre=(0, 0, 0)
+        )
+        limits = get_x_y_limits_extents(
+            support.shape,
+            voxel_size,
             data_centre=(0, 0, 0),
             equal_limits=True
         )
@@ -461,7 +467,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            extent=extents[2] + extents[1]
+            # extent=extents[2] + extents[1]
         )
         axes[1, i].matshow(
             array[:, shape[1] // 2, :],
@@ -469,7 +475,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            extent=extents[2] + extents[0]
+            # extent=extents[2] + extents[0]
         )
         mappables[key] = axes[2, i].matshow(
             np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
@@ -477,8 +483,13 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            extent=extents[0] + extents[1]
+            # extent=extents[0] + extents[1]
         )
+        for ax, plane in zip(
+                (axes[0, i], axes[1, i], axes[2, i]),
+                ((1, 2), (0, 2), (1, 0))
+        ):
+            set_x_y_limits_extents(ax, extents, limits, plane)
 
         if key == "amplitude":
             plot_contour(
@@ -559,7 +570,7 @@ def summary_slice_plot(
                 i % len(kwargs) == 0
                 and list(kwargs.keys())[i % len(kwargs.keys())] == "amplitude"
         ):
-            white_interior_ticks_labels(ax, -10, -12)
+            white_interior_ticks_labels(ax, -10, -9)
 
         else:
             ax.axes.xaxis.set_ticks([])
