@@ -675,8 +675,8 @@ def plot_contour(
     x_range = np.arange(0, shape[1])
     y_range = np.arange(0, shape[0])
     if pixel_size is not None:
-        x_range *= pixel_size[1]
-        y_range *= pixel_size[0]
+        x_range = x_range * pixel_size[1]
+        y_range = y_range * pixel_size[0]
     if data_centre is not None:
         x_range = x_range - x_range.mean() + data_centre[1]
         y_range = y_range - y_range.mean() + data_centre[0]
