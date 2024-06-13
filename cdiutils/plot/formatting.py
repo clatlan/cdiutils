@@ -539,6 +539,8 @@ def white_interior_ticks_labels(
 
     xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
     xlabels[1] = ylabels[1] = ""
+    for t in ax.yaxis.get_majorticklabels():
+        t.set_ha("left")
     ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
     ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
     ax.set_xticklabels(xlabels)
