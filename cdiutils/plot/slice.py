@@ -5,8 +5,75 @@ import numpy as np
 import xrayutilities as xu
 import warnings
 
-from cdiutils.utils import nan_to_zero
-from cdiutils.plot.formatting import get_figure_size
+from cdiutils.utils import (
+    nan_to_zero,
+    extract_reduced_shape,
+    get_centred_slices
+)
+from cdiutils.plot.formatting import (
+    get_figure_size,
+    add_colorbar,
+    get_x_y_limits_extents,
+    set_x_y_limits_extents,
+    XU_VIEW_PARAMETERS
+)
+
+
+def plot_volume_slices(
+        data: np.ndarray,
+        support: np.ndarray = None,
+        voxel_size=None,
+        data_centre=None,
+        views=("x-", "y-", "z-"),
+        convention="xu",
+        title: str = None,
+        equal_limits: bool = True,
+        **plot_params
+) -> None:
+    _plot_params = {
+        "cmap": "turbo",
+    }
+
+    if plot_params:
+        _plot_params.update(plot_params)
+
+    view_params = XU_VIEW_PARAMETERS if convention.lower() == "xu" else 1
+
+    slices = get_centred_slices(data.shape)
+    # TODO: better handling of shape
+    shape = data.shape
+    if support is not None:
+        shape = extract_reduced_shape(support)
+
+    if voxel_size is not None:
+        extents = get_x_y_limits_extents(data.shape, voxel_size, data_centre)
+        limits = get_x_y_limits_extents(
+            shape, voxel_size, data_centre, equal_limits=equal_limits
+        )
+
+    figure, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
+    for i, v in enumerate(views):
+        plane = view_params[v]["plane"]
+        if convention.lower() in ("xu", "lab"):
+            axes[i].imshow(
+                np.swapaxes(data[slices[i]], 1, 0)
+                if plane[0] > plane[1]
+                else data[slices[i]],
+                **_plot_params
+            )
+        elif convention.lower() == "cxi":
+            axes[i].imshow(
+                np.swapaxes(data[slices[i]], 1, 0)
+                if plane[0] < plane[1]
+                else data[slices[i]],
+                **_plot_params
+            )
+        add_colorbar(axes[i], axes[i].images[0])
+        if voxel_size is not None:
+            set_x_y_limits_extents(axes[i], extents, limits, plane)
+
+    figure.suptitle(title)
+    return figure, axes
 
 
 def plot_slices(
@@ -596,16 +663,33 @@ def plot_diffraction_patterns(
         return fig, cnt
 
 
-def plot_contour(ax, support_2D, linewidth=1, color="k"):
-    shape = support_2D.shape
-    X, Y = np.meshgrid(np.arange(0, shape[1]), np.arange(0, shape[0]))
+def plot_contour(
+        ax,
+        support_2d,
+        linewidth=1,
+        color="k",
+        pixel_size=None,
+        data_centre=None
+):
+    shape = support_2d.shape
+    x_range = np.arange(0, shape[1])
+    y_range = np.arange(0, shape[0])
+    if pixel_size is not None:
+        x_range *= pixel_size[1]
+        y_range *= pixel_size[0]
+    if data_centre is not None:
+        x_range = x_range - x_range.mean() + data_centre[1]
+        y_range = y_range - y_range.mean() + data_centre[0]
+
+    X, Y = np.meshgrid(x_range, y_range)
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
         ax.contour(
             X,
             Y,
-            nan_to_zero(support_2D),
+            nan_to_zero(support_2d),
             levels=[0, 1],
             linewidths=linewidth,
-            colors=color
+            colors=color,
         )
