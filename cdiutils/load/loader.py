@@ -236,34 +236,51 @@ class Loader:
 
     @staticmethod
     def plot_detector_data(
-            detector_data: np.ndarray,
+            data: np.ndarray,
             title: str = None,
             return_fig: bool = False,
+            equal_limits: bool = False,
             **plot_params
     ) -> plt.Figure:
         _plot_params = {
             "norm": LogNorm(1),
             "origin": "upper",
-            "cmap": "PuBu_r"
+            "cmap": "turbo"  # "PuBu_r"
         }
         if plot_params:
             _plot_params.update(plot_params)
 
-        if detector_data.ndim == 3:
-            slices = get_centred_slices(detector_data.shape)
+        if data.ndim == 3:
+            limits = [
+                (s/2 - np.max(data.shape)/2, s/2 + np.max(data.shape)/2)
+                for s in data.shape
+            ]
+            slices = get_centred_slices(data.shape)
+            planes = ((1, 2), (0, 2), (1, 0))  # indexing convention
 
             fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
-            for i in range(3):
-                img_slice = axes[0, i].imshow(
-                    np.swapaxes(detector_data[slices[i]], 0, 1) if i == 2 else detector_data[slices[i]],
+            for i, p in enumerate(planes):
+                axes[0, i].imshow(
+                    (
+                        np.swapaxes(data[slices[i]], 0, 1)
+                        if p[0] > p[1] else data[slices[i]]
+                    ),
                     **_plot_params
                 )
-                img_sum = axes[1, i].imshow(
-                    np.swapaxes(detector_data.sum(axis=i), 0, 1) if i == 2 else detector_data.sum(axis=i),
+                axes[1, i].imshow(
+                    (
+                        np.swapaxes(data.sum(axis=i), 0, 1)
+                        if p[0] > p[1] else data.sum(axis=i)
+                    ),
                     **_plot_params,
                 )
-                add_colorbar(axes[0, i], img_slice)
-                add_colorbar(axes[1, i], img_sum)
+                for ax in (axes[0, i], axes[1, i]):
+                    add_colorbar(ax, ax.images[0])
+                    if equal_limits:
+                        ax.set_xlim(limits[p[1]])
+                        if _plot_params["origin"] == "upper":
+                            ax.set_ylim(limits[p[0]][1], limits[p[0]][0])
+                        ax.set_ylim(limits[p[0]])
 
             for i in range(2):
                 axes[i, 0].set_xlabel(r"axis$_{2}$, det. horiz.")
@@ -281,9 +298,9 @@ class Loader:
             if return_fig:
                 return fig
             return None
-        elif detector_data.ndim == 2:
+        elif data.ndim == 2:
             pass
         raise ValueError(
-            f"Invalid data shape (detector_data.shape={detector_data.shape})."
+            f"Invalid data shape (detector_data.shape={data.shape})."
             "Should be 2D or 3D."
         )
