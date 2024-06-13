@@ -15,7 +15,8 @@ from cdiutils.plot.formatting import (
     add_colorbar,
     get_x_y_limits_extents,
     set_x_y_limits_extents,
-    XU_VIEW_PARAMETERS
+    XU_VIEW_PARAMETERS,
+    CXI_VIEW_PARAMETERS
 )
 
 
@@ -24,8 +25,8 @@ def plot_volume_slices(
         support: np.ndarray = None,
         voxel_size=None,
         data_centre=None,
-        views=("x-", "y-", "z-"),
-        convention="xu",
+        views: tuple[str] = None,
+        convention="cxi",
         title: str = None,
         equal_limits: bool = True,
         **plot_params
@@ -37,7 +38,14 @@ def plot_volume_slices(
     if plot_params:
         _plot_params.update(plot_params)
 
-    view_params = XU_VIEW_PARAMETERS if convention.lower() == "xu" else 1
+    if convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("x-", "y-", "z-")
+    elif convention.lower() == "cxi":
+        view_params = CXI_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("z-", "y+", "x+")
 
     slices = get_centred_slices(data.shape)
     # TODO: better handling of shape
@@ -54,20 +62,10 @@ def plot_volume_slices(
     figure, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
-        if convention.lower() in ("xu", "lab"):
-            axes[i].imshow(
-                np.swapaxes(data[slices[i]], 1, 0)
-                if plane[0] > plane[1]
-                else data[slices[i]],
-                **_plot_params
-            )
-        elif convention.lower() == "cxi":
-            axes[i].imshow(
-                np.swapaxes(data[slices[i]], 1, 0)
-                if plane[0] < plane[1]
-                else data[slices[i]],
-                **_plot_params
-            )
+        to_plot = data[slices[i]]
+        if plane[0] > plane[1]:
+            to_plot = np.swapaxes(to_plot, 1, 0)
+        axes[i].imshow(to_plot, **_plot_params)
         add_colorbar(axes[i], axes[i].images[0])
         if voxel_size is not None:
             set_x_y_limits_extents(axes[i], extents, limits, plane)
@@ -610,7 +608,7 @@ def plot_diffraction_patterns(
             axes[ax_coord].set_ylim(ylim[0], ylim[1])
         if not no_title and data_stacking == "horizontal":
             axes[ax_coord].set_title(titles[i])
-        
+
         ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
         summed_intensity = log_intensity.sum(axis=1).T
         normalized_intensity = (
@@ -625,7 +623,6 @@ def plot_diffraction_patterns(
         for c in cnt.collections:
             c.set_edgecolor("face")
 
-        
         if xlim is not None:
             axes[ax_coord].set_xlim(xlim[0], xlim[1])
         if zlim is not None:
