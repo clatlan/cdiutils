@@ -687,16 +687,16 @@ class SpaceConverter():
         )
 
     @staticmethod
-    def lab_to_cxi_conventions(
+    def xu_to_cxi(
             data: np.ndarray | tuple | list
     ) -> np.ndarray | tuple | list:
         """
         Convert the a np.ndarray, a list or a tuple from the lab frame
         system to the cxi frame conventions.
         [
-            axis0=Xlab (pointing away from the light source),
-            axis1=Ylab (outboard),
-            axis2=Zlab (vertical up)
+            axis0=Xxu (pointing away from the light source),
+            axis1=Yxu (outboard),
+            axis2=Zxu (vertical up)
         ]
         will be converted into
         [
@@ -715,7 +715,7 @@ class SpaceConverter():
             return np.swapaxes(data, axis1=1, axis2=2)
 
     @staticmethod
-    def cxi_to_lab_conventions(
+    def cxi_to_xu(
             data: np.ndarray | tuple | list
     ) -> np.ndarray | tuple | list:
         """

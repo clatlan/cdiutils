@@ -785,12 +785,12 @@ class BcdiProcessor:
 
         if self.params["orientation_convention"].lower() == "cxi":
             self.orthogonalized_object = (
-                    self.space_converter.lab_to_cxi_conventions(
+                    self.space_converter.xu_to_cxi(
                         self.orthogonalized_object
                     )
             )
 
-            self.voxel_size = self.space_converter.lab_to_cxi_conventions(
+            self.voxel_size = self.space_converter.xu_to_cxi(
                 self.voxel_size
             )
 
@@ -904,7 +904,7 @@ class BcdiProcessor:
             wrap=False
         )
         if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.lab_to_cxi_conventions(
+            g_vector = SpaceConverter.xu_to_cxi(
                         self.params["q_lab_reference"]
             )
         else:
@@ -1065,7 +1065,7 @@ class BcdiProcessor:
         # We must multiply by -1 the phase to compare with the
         # measured intensity.
         final_object_fft = symmetric_pad(
-            self.space_converter.cxi_to_lab_conventions(
+            self.space_converter.cxi_to_xu(
                 self.structural_properties["amplitude"]
                 * np.exp(-1j*self.structural_properties["phase"])
             ),
@@ -1156,7 +1156,7 @@ class BcdiProcessor:
         if self.params["orientation_convention"].lower() == "cxi":
             to_save.update(
                 {
-                    f"q_cxi_{pos}": SpaceConverter.lab_to_cxi_conventions(
+                    f"q_cxi_{pos}": SpaceConverter.xu_to_cxi(
                         self.params[f"q_lab_{pos}"]
                     ) for pos in ["reference", "max", "com"]
                 }
@@ -1223,7 +1223,7 @@ class BcdiProcessor:
                 for pos in ["reference", "max", "com"]:
                     scalars.create_dataset(
                         f"q_cxi_{pos}",
-                        data=SpaceConverter.lab_to_cxi_conventions(
+                        data=SpaceConverter.xu_to_cxi(
                            self.params[f"q_lab_{pos}"]
                         )
                     )
