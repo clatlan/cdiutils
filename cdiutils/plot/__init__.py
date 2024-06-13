@@ -8,6 +8,7 @@ from .formatting import x_y_lim_from_support
 from .formatting import get_x_y_limits_extents
 from .formatting import add_labels
 from . import slice
+from . import volume
 
 __all__ = [
     "update_plot_params",
@@ -19,5 +20,6 @@ __all__ = [
     "x_y_lim_from_support",
     "get_x_y_limits_extents",
     "add_labels",
-    "slice"
+    "slice",
+    "volume"
 ]
