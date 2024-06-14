@@ -328,12 +328,12 @@ class BcdiPipeline:
     @process
     def phase_retrieval(
             self,
-            machine: str = "slurm-nice-devel",
+            machine: str = None,  #"slurm-nice-devel",
             user: str = os.environ["USER"],
             number_of_nodes: int = 2,
             key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
             pynx_slurm_file_template: str = None,
-            remove_last_results: bool = False
+            clear_former_results: bool = False
     ) -> None:
         """
         Run the phase retrieval using pynx through ssh connection to a
@@ -345,7 +345,7 @@ class BcdiPipeline:
             f"({self.sample_name}, S{self.scan})"
         )
 
-        if remove_last_results:
+        if clear_former_results:
             print("[INFO] Removing former results\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
@@ -362,24 +362,32 @@ class BcdiPipeline:
             for key, value in self.params["pynx"].items():
                 file.write(f"{key} = {value}\n")
 
-        if os.uname()[1].startswith("p9"):
-            with subprocess.Popen(
-                    "source /sware/exp/pynx/activate_pynx.sh;"
-                    f"cd {self.pynx_phasing_dir};"
-                    "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
-                    "pynx-cdi-id01 pynx-cdi-inputs.txt",
-                    shell=True,
-                    executable="/bin/bash",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-            ) as proc:
-                stdout, stderr = proc.communicate()
-                print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
-                if proc.returncode:
+        if machine is None:
+            print(
+                "[INFO] No machine provided, assuming PyNX is installed on "
+                "the current machine.\n"
+            )
+            if os.uname()[1].lower().startswith(("p9", "scisoft16")):
+                with subprocess.Popen(
+                        # "source /sware/exp/pynx/activate_pynx.sh;"
+                        f"cd {self.pynx_phasing_dir};"
+                        # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
+                        "pynx-cdi-id01 pynx-cdi-inputs.txt",
+                        shell=True,
+                        executable="/bin/bash",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                ) as proc:
+                    stdout, stderr = proc.communicate()
                     print(
-                        "[STDERR FROM SUBPROCESS]\n",
-                        stderr.decode("utf-8")
+                        "[STDOUT FROM SUBPROCESS RUNNING PYNX]\n",
+                        stdout.decode("utf-8")
                     )
+                    if proc.returncode:
+                        print(
+                            "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
+                            stderr.decode("utf-8")
+                        )
         else:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
@@ -588,7 +596,7 @@ class BcdiPipeline:
     @process
     def mode_decomposition(
             self,
-            pynx_analysis_path: str = (
+            pynx_analysis_script: str = (
                 "/cvmfs/hpc.esrf.fr/software/packages/"
                 "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
             ), 
@@ -613,7 +621,7 @@ class BcdiPipeline:
 
         run_command = (
             f"cd {self.pynx_phasing_dir};"
-            f"{pynx_analysis_path} candidate_*.cxi modes=1 "
+            f"{pynx_analysis_script} candidate_*.cxi modes=1 "
             "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
         )
 
