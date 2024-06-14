@@ -346,7 +346,7 @@ class BcdiPipeline:
         )
 
         if clear_former_results:
-            print("[INFO] Removing former results\n")
+            print("[INFO] Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
