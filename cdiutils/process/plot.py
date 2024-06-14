@@ -333,7 +333,7 @@ def preprocessing_detector_data_plot(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -15, -15)
+        white_interior_ticks_labels(ax, -10, -9)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
@@ -753,7 +753,7 @@ def plot_q_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -20)
+        white_interior_ticks_labels(ax, -10, -9)
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
@@ -885,7 +885,7 @@ def plot_direct_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -18)
+        white_interior_ticks_labels(ax, -10, -9)
 
     figure.suptitle(title)
     figure.tight_layout()
@@ -1028,7 +1028,7 @@ def plot_final_object_fft(
     figure.canvas.draw()
     for ax in axes.ravel():
         ax.set_aspect("equal")
-        white_interior_ticks_labels(ax, -10, -20)
+        white_interior_ticks_labels(ax, -10, -9)
 
     figure.suptitle(title)
     figure.tight_layout()
