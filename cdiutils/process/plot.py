@@ -342,6 +342,7 @@ def preprocessing_detector_data_plot(
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
     _, b1, _, h1 = axes[1, 1].get_position().bounds
     center_y = (b0 + (b1+h1)) / 2
+    # print(b0, b1, h1, center_y)
     # cax = figure.add_axes([l0, center_y, w0, 0.020])
     # # cax = figure.add_axes([l0, 0.52, w0, 0.020])
     # cax.set_title("Log(Int.) (a.u.)")
@@ -351,8 +352,10 @@ def preprocessing_detector_data_plot(
     axes[1, 1].legend(
         loc="center",
         ncol=2,
-        bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
-        bbox_transform=figure.transFigure
+        # bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
+        bbox_to_anchor=(0.5 , 0.5),
+        bbox_transform=figure.transFigure,
+        frameon=False
     )
     if not plot_raw_data:
         for i in range(3):
@@ -573,7 +576,7 @@ def summary_slice_plot(
                 i % len(kwargs) == 0
                 and list(kwargs.keys())[i % len(kwargs.keys())] == "amplitude"
         ):
-            ax.locator_params(nbins=7)
+            ax.locator_params(nbins=5)
             white_interior_ticks_labels(ax, -10, -5)
 
         else:
