@@ -11,6 +11,7 @@ from cdiutils.plot.formatting import (
     set_plot_configs,
     white_interior_ticks_labels,
     get_figure_size,
+    add_colorbar,
     get_x_y_limits_extents,
     set_x_y_limits_extents
 )
@@ -318,7 +319,7 @@ def preprocessing_detector_data_plot(
 
         axes[0, 2].set_xlabel("rocking angle axis")
         axes[0, 2].set_ylabel(r"detector axis$_1$")
-        axes[0, 1].set_title("raw detector data", y=1.8)
+        axes[0, 1].set_title("raw detector data", y=1)
 
     axes[1, 0].set_xlabel(r"cropped axis$_2$")
     axes[1, 0].set_ylabel(r"cropped axis$_1$")
@@ -329,20 +330,22 @@ def preprocessing_detector_data_plot(
     axes[1, 2].set_xlabel("cropped rocking angle axis")
     axes[1, 2].set_ylabel(r"cropped axis$_1$")
 
-    axes[1, 1].set_title("cropped detector data", y=1.05)
+    axes[1, 1].set_title("cropped detector data", y=1)
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -9)
+        # add_colorbar(ax, ax.images[0])
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
     _, b1, _, h1 = axes[1, 1].get_position().bounds
     center_y = (b0 + (b1+h1)) / 2
-    cax = figure.add_axes([l0, center_y, w0, 0.020])
-    # cax = figure.add_axes([l0, 0.52, w0, 0.020])
-    cax.set_title("Log(Int.) (a.u.)")
-    figure.colorbar(mappable, cax=cax, orientation="horizontal")
+    # cax = figure.add_axes([l0, center_y, w0, 0.020])
+    # # cax = figure.add_axes([l0, 0.52, w0, 0.020])
+    # cax.set_title("Log(Int.) (a.u.)")
+    # figure.colorbar(mappable, cax=cax, orientation="horizontal")
 
     # handle the legend
     axes[1, 1].legend(
@@ -399,7 +402,7 @@ def summary_slice_plot(
     )
 
     axes[0, 0].annotate(
-        r"(xy)$_{CXI}$ slice",
+        r"(xy)$_\mathrm{CXI}$ slice",
         xy=(0.2, 0.5),
         xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
         xycoords=axes[0, 0].yaxis.label,
@@ -409,7 +412,7 @@ def summary_slice_plot(
     )
 
     axes[1, 0].annotate(
-        r"(xz)$_{CXI}$ slice",
+        r"(xz)$_\mathrm{CXI}$ slice",
         xy=(0.2, 0.5),
         xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
         xycoords=axes[1, 0].yaxis.label,
@@ -419,7 +422,7 @@ def summary_slice_plot(
     )
 
     axes[2, 0].annotate(
-        r"(zy)$_{CXI}$ slice",
+        r"(zy)$_\mathrm{CXI}$ slice",
         xy=(0.2, 0.5),
         xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
         xycoords=axes[2, 0].yaxis.label,
@@ -570,7 +573,8 @@ def summary_slice_plot(
                 i % len(kwargs) == 0
                 and list(kwargs.keys())[i % len(kwargs.keys())] == "amplitude"
         ):
-            white_interior_ticks_labels(ax, -10, -9)
+            ax.locator_params(nbins=7)
+            white_interior_ticks_labels(ax, -10, -5)
 
         else:
             ax.axes.xaxis.set_ticks([])
@@ -677,12 +681,12 @@ def plot_q_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
-    axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 2].set_ylabel(r"x$_{lab}/$z$_{cxi}$")
+    axes[1, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[1, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[1, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
+    axes[1, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[1, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[1, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
 
     # load the orthogonalized grid values
     x_array, y_array, z_array = q_lab_regular_grid
@@ -721,31 +725,19 @@ def plot_q_lab_orthogonalization_process(
         levels=100,
     )
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
-    # axes[2, 0].set_xlabel(
-    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 0].set_ylabel(
-    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 1].set_xlabel(
-    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 1].set_ylabel(
-    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 2].set_xlabel(
-    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 2].set_ylabel(
-    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[2, 0].set_xlabel(
-        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 0].set_ylabel(
-        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_xlabel(
-        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_ylabel(
-        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_xlabel(
-        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_ylabel(
-        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(r"Raw data in detector frame")
     axes[1, 1].set_title(r"Orthogonalized data in index-of-q lab frame")
@@ -753,7 +745,8 @@ def plot_q_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -9)
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
@@ -830,12 +823,12 @@ def plot_direct_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+    axes[ax_row_index, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[ax_row_index, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[ax_row_index, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
+    axes[ax_row_index, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[ax_row_index, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[ax_row_index, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
 
     ax_row_index += 1
 
@@ -868,12 +861,12 @@ def plot_direct_lab_orthogonalization_process(
         levels=100
     )
 
-    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$ (nm)")
-    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
+    axes[ax_row_index, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$ (nm)")
     axes[ax_row_index, 1].set_title(
         r"Orthogonalized data in direct lab frame"
     )
@@ -885,7 +878,8 @@ def plot_direct_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -9)
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
 
     figure.suptitle(title)
     figure.tight_layout()
@@ -994,31 +988,18 @@ def plot_final_object_fft(
 
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
     for i in range(2):
-        # axes[i, 0].set_xlabel(
-        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 0].set_ylabel(
-        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 1].set_xlabel(
-        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 1].set_ylabel(
-        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 2].set_xlabel(
-        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 2].set_ylabel(
-        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        
         axes[i, 0].set_xlabel(
-            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 0].set_ylabel(
-            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_xlabel(
-            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_ylabel(
-            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_xlabel(
-            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_ylabel(
-            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(
         r"FFT of final object in q lab frame")
@@ -1026,9 +1007,10 @@ def plot_final_object_fft(
         r"Orthogonalized experimental data in q lab frame")
 
     figure.canvas.draw()
-    for ax in axes.ravel():
+    for ax in axes.flat:
+        ax.locator_params(nbins=5)
         ax.set_aspect("equal")
-        white_interior_ticks_labels(ax, -10, -9)
+        white_interior_ticks_labels(ax, -10, -5)
 
     figure.suptitle(title)
     figure.tight_layout()
