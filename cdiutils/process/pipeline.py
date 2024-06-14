@@ -638,7 +638,7 @@ class BcdiPipeline:
                 )
 
             pretty_print(
-                f"[INFO] Running mode decomposition from machine '{machine}'"
+                f"[INFO] Running mode decomposition on machine '{machine}'"
                 f"({self.sample_name}, S{self.scan})"
             )
             client = paramiko.SSHClient()
