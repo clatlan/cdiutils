@@ -598,8 +598,9 @@ class BcdiPipeline:
             self,
             pynx_analysis_script: str = (
                 "/cvmfs/hpc.esrf.fr/software/packages/"
-                "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
-            ), 
+                "ubuntu20.04/x86_64/pynx/2024.1/bin/pynx-cdi-analysis"
+            ),
+            run_command: str = None,
             machine: str = None,
             user: str = None,
             key_file_path: str = None
@@ -609,8 +610,8 @@ class BcdiPipeline:
         script as a subprocess.
 
         Args:
-            pynx_version (str, optional): Version of PyNX to use.
-                Defaults to "2023.1".
+            pynx_analysis_script (str, optional): Version of PyNX to
+                use. Defaults to "2024.1".
             machine (str, optional): Remote machine to run the mode
                 decomposition on. Defaults to None.
             user (str, optional): User for the remote machine. Defaults
@@ -618,12 +619,12 @@ class BcdiPipeline:
             key_file_path (str, optional): Path to the key file for SSH
                 authentication. Defaults to None.
         """
-
-        run_command = (
-            f"cd {self.pynx_phasing_dir};"
-            f"{pynx_analysis_script} candidate_*.cxi modes=1 "
-            "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
-        )
+        if run_command is None:
+            run_command = (
+                f"cd {self.pynx_phasing_dir};"
+                f"{pynx_analysis_script} candidate_*.cxi --modes 1 "
+                "--modes_output mode.h5 2>&1 | tee mode_decomposition.log"
+            )
 
         if machine:
             print(f"[INFO] Remote connection to machine '{machine}'requested.")
