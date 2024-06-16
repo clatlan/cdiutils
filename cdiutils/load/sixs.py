@@ -107,10 +107,7 @@ class SIXS2022Loader(Loader):
         path = self._get_file_path(scan, sample_name)
         key_path = "com/scan_data/test_image"
 
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3))
-        elif len(roi) == 2:
-            roi = tuple([slice(None), roi[0], roi[1]])
+        roi = self._check_roi(roi)
 
         with silx.io.h5py_utils.File(path) as h5file:
             if binning_along_axis0:
@@ -118,31 +115,12 @@ class SIXS2022Loader(Loader):
             else:
                 data = h5file[key_path][roi]
 
-        if binning_along_axis0:
-            original_dim0 = data.shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-
-            if binning_method == "sum":
-                binned_data = [
-                    np.sum(e, axis=0)
-                    for e in np.array_split(data[:first_slices], nb_of_bins)
-                ]
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_data.append(np.sum(data[last_slices:], axis=0))
-                data = np.asarray(binned_data)
-
-        if binning_along_axis0 and roi:
-            data = data[roi]
-
-        if self.flat_field is not None:
-            data = data * self.flat_field[roi[1:]]
-
-        if self.alien_mask is not None:
-            data = data * self.alien_mask[roi[1:]]
-
-        return data
+        return self.bin_flat_mask(
+            data,
+            roi,
+            binning_along_axis0,
+            binning_method
+        )
 
     def load_motor_positions(
             self,

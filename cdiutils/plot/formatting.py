@@ -1,26 +1,217 @@
 import matplotlib
 import matplotlib.ticker as mticker
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import colorcet
 
 
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
 CXI_VIEW_PARAMETERS = {
-   "z+": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": True},
-   "z-": {"axis": 0, "plane_axes": [2, 1], "yaxis_points_left": False},
-   "y+": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": False},
-   "y-": {"axis": 1, "plane_axes": [2, 0], "yaxis_points_left": True},
-   "x+": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": False},
-   "x-": {"axis": 2, "plane_axes": [0, 1], "yaxis_points_left": True},
+   "z+": {
+       "axis": 0, "plane": [1, 2], "yaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z-": {
+       "axis": 0, "plane": [1, 2], "yaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y+": {
+       "axis": 1, "plane": [0, 2], "yaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y-": {
+       "axis": 1, "plane": [0, 2], "yaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x+": {
+       "axis": 2, "plane": [1, 0], "yaxis_points_left": False,
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x-": {
+       "axis": 2, "plane": [1, 0], "yaxis_points_left": True,
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+    },
+}
+
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
+XU_VIEW_PARAMETERS = {
+   "x+": {
+       "axis": 0, "plane": [2, 1], "xaxis_points_left": True,
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "x-": {
+       "axis": 0, "plane": [2, 1], "xaxis_points_left": False,
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y+": {
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
+       "xlabel": r"$x{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "y-": {
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z+": {
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
+   "z-": {
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+    },
 }
 
 
-def get_extents(
+def add_labels(
+        axes: matplotlib.axes.Axes,
+        views: tuple[str] = None,
+        space: str = "direct",
+        convention: str = "cxi"
+) -> None:
+    if convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("x-", "y-", "z-")
+    elif convention.lower() == "cxi":
+        view_params = CXI_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("z-", "y+", "x+")
+    else:
+        raise ValueError(f"Invalid convention ({convention}).")
+
+    if len(axes) != len(views):
+        raise ValueError(
+            "axes and views must have the same length "
+            f"(len(axes) = {len(axes)} != len(views) = {len(views)})"
+        )
+
+    if space.lower() in ("reciprocal", "rcp"):
+        xlabel_key = "qxlabel"
+        ylabel_key = "qylabel"
+    elif space.lower() in ("direct", "dr", "drct", "drt"):
+        xlabel_key = "xlabel"
+        ylabel_key = "ylabel"
+    else:
+        raise ValueError(f"Invalid space name ({space}).")
+
+    for ax, v in zip(axes.flat, views):
+        ax.set_xlabel(view_params[v][xlabel_key])
+        ax.set_ylabel(view_params[v][ylabel_key])
+
+
+def get_x_y_limits_extents(
+        shape,
+        voxel_size,
+        data_centre=None,
+        equal_limits: bool = False
+):
+    shape = np.array(shape)
+    voxel_size = np.array(voxel_size)
+
+    extents = np.array(shape) * np.array(voxel_size)
+
+    if equal_limits:
+        # Must be used only for limits !
+        extents = np.repeat(np.max(extents), len(shape))
+
+    if data_centre is None:
+        return [(0, e) for e in extents]
+    return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
+
+
+def set_x_y_limits_extents(ax, extents, limits, plane):
+    image = ax.images[0]
+    image.origin = "lower"
+    image.set_extent(extents[plane[1]] + extents[plane[0]])
+    ax.set_xlim(limits[plane[1]])
+    ax.set_ylim(limits[plane[0]])
+
+
+def x_y_lim_from_support(
+        support: np.ndarray,
+        pixel_size: tuple = (1, 1),
+        central_pixel: tuple = None,
+        pad: tuple = (-10, 10)
+) -> list:
+    """
+    Return the x and y limits of the a plot using support constraints.
+    The plot will be limited to the support dimension + the pad.
+
+    Args:
+        support (np.ndarray): the support to get the limits from.
+        pixel_size (tuple, optional): the pixel size. Defaults to (1, 1).
+        central_pixel (tuple, optional): the position of the central
+            pixel. This matters only if extent/aspect/pixel size are
+            specific. In this case, the user might want to specify where
+            to centre the plotting at.
+        pad (tuple, optional): the space between the limits found from
+            the support limits and the ax frame. Defaults to (-5, 5).
+
+    Returns:
+        list: the x_limits and y_limits.
+    """
+    if support.sum() > 0:
+        pad = np.array(pad) * np.array(pixel_size)
+        lims = []
+        for i in range(2):
+            lim = np.nonzero(support.sum(axis=i))[0][[0, -1]] * pixel_size[0]
+            lim += np.array(pad)
+            if central_pixel:
+                lim -= (lim.mean() - central_pixel[i])
+            lims.append(lim)
+        return lims
+    return None
+
+
+def get_extent(
         shape: tuple,
         voxel_size: tuple | list | np.ndarray,
         plane: list,
-        zero_centered: bool = True,
+        zero_centred: bool = True,
+        indexing: str = "ij"
 ) -> tuple:
     """Find the extents for matshow/imshow plotting, for a given plane.
+    Note that in matlotlib convention, the extent must be provided in
+    the order x, y, but the imshow function plot axis0 along y and axis1
+    along x. Therefore, plane and indexing must be chosen appropriately. 
 
     Args:
         shape (tuple): the shape of the data to plot.
@@ -30,23 +221,34 @@ def get_extents(
             the data to plot.
         plane (list): what plane to get the extents from. Should be a
             list of 2 axis integers.
-        zero_centered (bool, optional): whether the plot must be
-            centered at zero. Defaults to True.
+        zero_centred (bool, optional): whether the plot must be
+            zero_centred at zero. Defaults to True.
+        indexing (str): the indexing convention. If 'xy', plane[0] and
+            plane[1] must correspond to x and y respectively. If 'ij',
+            plane[0] and plane[1] must correspond to y and x,
+            respectively (numpy/matrix convent).
 
     Returns:
         tuple: first two values correspond to x-axis extent, last two
             to the y-axis extent in the matshow/imshow plot.
     """
-    absolute_extents = [
-        voxel_size[i] * shape[i] // (2 if zero_centered else 1)
-        for i in range(3)
-    ]
-    return (
-        -absolute_extents[plane[0]] if zero_centered else 0,
-        absolute_extents[plane[0]],
-        -absolute_extents[plane[1]] if zero_centered else 0,
-        absolute_extents[plane[1]],
-    )
+    if isinstance(voxel_size, (int, float)):
+        voxel_size = np.repeat(voxel_size, len(shape))
+    absolute_extents = voxel_size * shape / (2 if zero_centred else 1)
+    if indexing == "xy":
+        return (
+            -absolute_extents[plane[0]] if zero_centred else 0,
+            absolute_extents[plane[0]],
+            -absolute_extents[plane[1]] if zero_centred else 0,
+            absolute_extents[plane[1]],
+        )
+    if indexing == "ij":
+        return (
+            -absolute_extents[plane[1]] if zero_centred else 0,
+            absolute_extents[plane[1]],
+            -absolute_extents[plane[0]] if zero_centred else 0,
+            absolute_extents[plane[0]],
+        )
 
 
 def get_plot_configs(key: str) -> dict:
@@ -160,7 +362,7 @@ def set_plot_configs():
 
 def update_plot_params(
         style: str = "default",
-        usetex: bool = True,
+        usetex: bool = False,
         use_siunitx: bool = True,
         **kwargs
 ) -> None:
@@ -177,6 +379,11 @@ def update_plot_params(
             "xtick.labelsize": 6,
             "ytick.labelsize": 6,
             "legend.fontsize": 7,
+            "image.interpolation": "none",
+            "font.family": "sans-serif",
+            "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
+            # "font.sans-serif": "DejaVu Sans",
+            "figure.figsize": (4.5, 3.0)
         }
     elif style == "thesis":
         parameters = {
@@ -191,41 +398,40 @@ def update_plot_params(
             "legend.fontsize": 8,
         }
     matplotlib.pyplot.rcParams.update(parameters)
-
-    if use_siunitx and usetex:
-        matplotlib.pyplot.rcParams.update(
-            {
-                'text.latex.preamble': (
-                    r'\usepackage{siunitx}'
-                    r'\sisetup{detect-all}'
-                    r'\usepackage{helvet}'
-                    + (
-                        r'\usepackage{sansmath} \sansmath'
-                        r'\usepackage{textgreek}'
-                        if style in ("default", "nature")
-                        else r'\usepackage{amsmath}'
-                    )
-                ),
-                "text.usetex": True
-            }
-        )
-    else:
-        matplotlib.pyplot.rcParams.update(
-            {
-                "text.usetex": usetex,
-                "text.latex.preamble": "",
-                "mathtext.default": "regular",
-                "font.family": "sans-serif",
-                "font.sans-serif": ["Liberation Sans"]
-            }
-        )
+    if usetex:
+        if use_siunitx:
+            matplotlib.pyplot.rcParams.update(
+                {
+                    'text.latex.preamble': (
+                        r'\usepackage{siunitx}'
+                        r'\sisetup{detect-all}'
+                        r'\usepackage{helvet}'
+                        + (
+                            r'\usepackage{sansmath} \sansmath'
+                            r'\usepackage{textgreek}'
+                            if style in ("default", "nature")
+                            else r'\usepackage{amsmath}'
+                        )
+                    ),
+                    "text.usetex": True
+                }
+            )
+        else:
+            matplotlib.pyplot.rcParams.update(
+                {
+                    "text.usetex": usetex,
+                    "text.latex.preamble": "",
+                    "mathtext.default": "regular",
+                    "font.family": "sans-serif",
+                    "font.sans-serif": ["Liberation Sans"]
+                }
+            )
 
     # in any case
     matplotlib.pyplot.rcParams.update(
         {
             "image.cmap": "turbo",
             "figure.dpi": 200,
-            "figure.figsize": get_figure_size(width=style)
         }
     )
     matplotlib.pyplot.rcParams.update(**kwargs)
@@ -277,6 +483,51 @@ def get_figure_size(
     fig_height_in = fig_width_in * golden_ratio * (subplots[0] / subplots[1])
 
     return (fig_width_in, fig_height_in)
+
+
+def add_colorbar(
+    ax: matplotlib.axes.Axes,
+    mappable: matplotlib.cm.ScalarMappable,
+    loc: str = "right",
+    size: str = "5%",
+    pad: float = 0.05,
+    label_size: int = 6,
+    scientific_notation: bool = False,
+    **kwargs,
+) -> matplotlib.colorbar.Colorbar:
+    """
+    Add a colorbar to the given axes. Stolen from Edoardo Zatterin sxdm
+    package (https://gitlab.esrf.fr/id01-science/id01-sxdm-utils/).
+
+    Args:
+        ax (matplotlib.axes.Axes): the axes to which the colorbar will
+            be added.
+        mappable (matplotlib.cm.ScalarMappable): the mappable object
+            that the colorbar will be based on.
+        loc (str, optional): the location where the colorbar will be
+            placed. Defaults to "right".
+        size (str, optional): the size of the colorbar. Defaults to
+            "5%".
+        pad (float, optional): the padding between the colorbar and the
+            axes. Defaults to 0.05.
+        label_size (int, optional): the size of the colorbar labels.
+            Defaults to 6.
+        scientific_notation (bool, optional): whether to use scientific
+            notation for colorbar labels. Defaults to False.
+
+    Returns:
+        matplotlib.colorbar.Colorbar: the colorbar object.
+    """
+    fig = ax.get_figure()
+    cax = make_axes_locatable(ax).append_axes(loc, size=size, pad=pad)
+    cax.tick_params(labelsize=label_size)
+    cbar = fig.colorbar(mappable, cax=cax, **kwargs)
+    if scientific_notation:
+        cax.ticklabel_format(
+            axis="y", style="scientific", scilimits=(0, 0), useMathText=True
+        )
+
+    return cbar
 
 
 def two_spine_frameless_ax(
@@ -331,6 +582,8 @@ def white_interior_ticks_labels(
 
     xlabels, ylabels = ax.get_xticklabels(), ax.get_yticklabels()
     xlabels[1] = ylabels[1] = ""
+    for t in ax.yaxis.get_majorticklabels():
+        t.set_ha("left")
     ax.xaxis.set_major_locator(mticker.FixedLocator(xticks_loc))
     ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
     ax.set_xticklabels(xlabels)

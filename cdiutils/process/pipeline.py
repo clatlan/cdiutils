@@ -13,7 +13,6 @@ import yaml
 
 from cdiutils.plot.formatting import update_plot_params
 from cdiutils.utils import pretty_print
-from .find_best_candidates import find_best_candidates
 from .processor import BcdiProcessor
 from .phaser import PhasingResultAnalyser
 from .parameters import check_parameters, convert_np_arrays
@@ -329,12 +328,12 @@ class BcdiPipeline:
     @process
     def phase_retrieval(
             self,
-            machine: str = "slurm-nice-devel",
+            machine: str = None,  #"slurm-nice-devel",
             user: str = os.environ["USER"],
             number_of_nodes: int = 2,
             key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
             pynx_slurm_file_template: str = None,
-            remove_last_results: bool = False
+            clear_former_results: bool = False
     ) -> None:
         """
         Run the phase retrieval using pynx through ssh connection to a
@@ -345,11 +344,9 @@ class BcdiPipeline:
             "[INFO] Proceeding to PyNX phase retrieval "
             f"({self.sample_name}, S{self.scan})"
         )
-        # reset the sorted phasing results to None
-        self._sorted_phasing_results = None
 
-        if remove_last_results:
-            print("[INFO] Removing former results\n")
+        if clear_former_results:
+            print("[INFO] Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
@@ -365,24 +362,32 @@ class BcdiPipeline:
             for key, value in self.params["pynx"].items():
                 file.write(f"{key} = {value}\n")
 
-        if os.uname()[1].startswith("p9"):
-            with subprocess.Popen(
-                    "source /sware/exp/pynx/activate_pynx.sh;"
-                    f"cd {self.pynx_phasing_dir};"
-                    "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
-                    "pynx-cdi-id01 pynx-cdi-inputs.txt",
-                    shell=True,
-                    executable="/bin/bash",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-            ) as proc:
-                stdout, stderr = proc.communicate()
-                print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
-                if proc.returncode:
+        if machine is None:
+            print(
+                "[INFO] No machine provided, assuming PyNX is installed on "
+                "the current machine.\n"
+            )
+            if os.uname()[1].lower().startswith(("p9", "scisoft16")):
+                with subprocess.Popen(
+                        # "source /sware/exp/pynx/activate_pynx.sh;"
+                        f"cd {self.pynx_phasing_dir};"
+                        # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
+                        "pynx-cdi-id01 pynx-cdi-inputs.txt",
+                        shell=True,
+                        executable="/bin/bash",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                ) as proc:
+                    stdout, stderr = proc.communicate()
                     print(
-                        "[STDERR FROM SUBPROCESS]\n",
-                        stderr.decode("utf-8")
+                        "[STDOUT FROM SUBPROCESS RUNNING PYNX]\n",
+                        stdout.decode("utf-8")
                     )
+                    if proc.returncode:
+                        print(
+                            "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
+                            stderr.decode("utf-8")
+                        )
         else:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
@@ -502,143 +507,100 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-    def analyze_phasing_results(
-            self,
-            sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
-    ) -> None:
-        import warnings
-        warnings.warn(
+    def analyze_phasing_results(self, *args, **kwargs) -> None:
+        """
+        Deprecated function, shoud use analyse_phasing_results instead.
+        """
+        from warnings import warn
+        warn(
             "analyze_phasing_results is deprecated; use "
             "analyse_phasing_results instead",
-            DeprecationWarning
+            DeprecationWarning,
+            stacklevel=2
         )
-        return self.analyse_phasing_results(
-            sorting_criterion,
-            plot_phasing_results,
-            plot_amplitude
-        )
+        return self.analyse_phasing_results(*args, **kwargs)
 
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
+            plot_phasing_results: bool = True,
+            plot_phase: bool = False,
     ) -> None:
         """
-        Wrapper for analyse_phasing_results method of PhasingResultAnalyser
+        Wrapper for analyse_phasing_results method of
+        PhasingResultAnalyser class.
+
+        Analyse the phase retrieval results by sorting them according to
+        the sorting_criteion, which must be selected in among:
+        * mean_to_max the difference between the mean of the
+            Gaussian fitting of the amplitude histogram and the maximum
+            value of the amplitude. We consider the closest to the max
+            the mean is, the most homogeneous is the amplitude of the
+            reconstruction, hence the best.
+        * the sharpness the sum of the amplitude within support to
+            the power of 4. For reconstruction with similar support,
+            lowest values means graeter amplitude homogeneity.
+        * std the standard deviation of the amplitude.
+        * llk the log-likelihood of the reconstruction.
+        * llkf the free log-likelihood of the reconstruction.
 
         Args:
-            sorting_criterion (str, optional): what criterion to sort
-                the results. Defaults to "mean_to_max".
+            sorting_criterion (str, optional): the criterion to sort the
+                results with. Defaults to "mean_to_max".
             plot_phasing_results (bool, optional): whether to plot the
-                results.Defaults to False.
-            plot_amplitude (bool, optional): whether to plot amplitude,
-                if False, will plot the phase whit amplitude as opacity.
-                Defaults to False.
+                phasing results. Defaults to True.
+            plot_phase (bool, optional): whether the phase must be
+                plotted. If True, will the phase is plotted with 
+                amplitude as opacity. If False, amplitude is plotted
+                instead. Defaults to False.
+
+        Raises:
+            ValueError: if sorting_criterion is unknown.
         """
-        if self.result_analyser is None:
-            self.result_analyser = PhasingResultAnalyser(
-                result_dir_path=self.pynx_phasing_dir
-            )
+        self.result_analyser = PhasingResultAnalyser(
+            result_dir_path=self.pynx_phasing_dir
+        )
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion,
             plot_phasing_results,
-            plot_amplitude
-        )
-
-    def find_best_candidates(
-            self,
-            nb_to_keep: int = 10,
-            criterion: str = "mean_to_max"
-    ) -> None:
-        """Find the best candidates of the PyNX output"""
-
-        print(
-            "[WARNING] This function is deprecated and will be removed.\n"
-            "Please use select_best_candidates instead."
-        )
-
-        pretty_print(
-            "[INFO] Finding the best candidates of the PyNX run with "
-            f"criterion: {criterion}. ({self.sample_name}, S{self.scan})"
-        )
-        # remove the previous candidates if needed
-        files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
-        if files:
-            for f in files:
-                os.remove(f)
-
-        self.find_phasing_results()
-        if not self.phasing_results:
-            raise ValueError(
-                "No PyNX output in the following directory: "
-                f"{self.pynx_phasing_dir}."
-            )
-        find_best_candidates(
-                self.phasing_results,
-                nb_to_keep=nb_to_keep,
-                criterion=criterion,
-                plot=True
+            plot_phase
         )
 
     def select_best_candidates(
             self,
             nb_of_best_sorted_runs: int = None,
             best_runs: list = None
-    ):
-        if nb_of_best_sorted_runs is None and best_runs is None:
+    ) -> None:
+        """
+        A function wrapper for
+        PhasingResultAnalyser.select_best_candidates 
+
+        Args:
+            nb_of_best_sorted_runs (int, optional): _description_. Defaults to None.
+            best_runs (list, optional): _description_. Defaults to None.
+
+        Raises:
+            ValueError: _description_
+        """
+        if not self.result_analyser:
             raise ValueError(
-                "Either nb_of_best_sorted_runs or best_runs must be provided"
+                "self.result_analyser not initialised yet. Run"
+                " self.analyse_pahsing_results() first."
             )
-        # remove the previous candidates
-        files = glob.glob(self.pynx_phasing_dir + "/candidate_*.cxi")
-        if files:
-            for f in files:
-                os.remove(f)
-
-        best_candidates = []
-
-        if best_runs is not None and best_runs != []:
-            if self.result_analyser.result_paths == []:
-                self.result_analyser.find_phasing_results()
-
-            for path in self.result_analyser.result_paths:
-                run_number = int(path.split("Run")[1][:4])
-                if run_number in best_runs:
-                    best_candidates.append(path)
-        elif nb_of_best_sorted_runs:
-            if not self.result_analyser._sorted_phasing_results:
-                raise ValueError(
-                    "Phasing results have not been analysed yet."
-                )
-            best_candidates = list(
-                self.result_analyser._sorted_phasing_results.keys()
-            )
-            best_candidates = best_candidates[:nb_of_best_sorted_runs]
-        print(
-            "[INFO] Best runs selected:\n"
-            f"{[file.split('Run')[1][2:4] for file in best_candidates]}"
+        self.result_analyser.select_best_candidates(
+            nb_of_best_sorted_runs,
+            best_runs
         )
-        for i, f in enumerate(best_candidates):
-            dir_name, file_name = os.path.split(f)
-            run_nb = file_name.split("Run")[1][2:4]
-            scan_nb = file_name.split("_")[0]
-            file_name = (
-                f"/candidate_{i+1}-{len(best_candidates)}_{scan_nb}_run"
-                f"_{run_nb}.cxi"
-            )
-            shutil.copy(f, dir_name + file_name)
 
     @process
     def mode_decomposition(
             self,
-            pynx_analysis_path: str = (
+            pynx_analysis_script: str = (
                 "/cvmfs/hpc.esrf.fr/software/packages/"
-                "ubuntu20.04/x86_64/pynx/2023.1.2/bin/pynx-cdi-analysis"
+                "ubuntu20.04/x86_64/pynx/2024.1/bin/pynx-cdi-analysis"
             ),
+            run_command: str = None,
             machine: str = None,
             user: str = None,
             key_file_path: str = None
@@ -648,8 +610,8 @@ class BcdiPipeline:
         script as a subprocess.
 
         Args:
-            pynx_version (str, optional): Version of PyNX to use.
-                Defaults to "2023.1".
+            pynx_analysis_script (str, optional): Version of PyNX to
+                use. Defaults to "2024.1".
             machine (str, optional): Remote machine to run the mode
                 decomposition on. Defaults to None.
             user (str, optional): User for the remote machine. Defaults
@@ -657,12 +619,12 @@ class BcdiPipeline:
             key_file_path (str, optional): Path to the key file for SSH
                 authentication. Defaults to None.
         """
-
-        run_command = (
-            f"cd {self.pynx_phasing_dir};"
-            f"{pynx_analysis_path} candidate_*.cxi modes=1 "
-            "modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
-        )
+        if run_command is None:
+            run_command = (
+                f"cd {self.pynx_phasing_dir};"
+                f"{pynx_analysis_script} candidate_*.cxi --modes 1 "
+                "--modes_output mode.h5 2>&1 | tee mode_decomposition.log"
+            )
 
         if machine:
             print(f"[INFO] Remote connection to machine '{machine}'requested.")
@@ -676,7 +638,7 @@ class BcdiPipeline:
                 )
 
             pretty_print(
-                f"[INFO] Running mode decomposition from machine '{machine}'"
+                f"[INFO] Running mode decomposition on machine '{machine}'"
                 f"({self.sample_name}, S{self.scan})"
             )
             client = paramiko.SSHClient()

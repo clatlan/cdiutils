@@ -24,6 +24,7 @@ class P10Loader(Loader):
             sample_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
+            hutch: str = "EH1",
             **kwargs
     ) -> None:
         """
@@ -46,6 +47,17 @@ class P10Loader(Loader):
         self.experiment_data_dir_path = experiment_data_dir_path
         self.detector_name = detector_name
         self.sample_name = sample_name
+
+        if hutch.lower() == "eh2":
+            self.angle_names["sample_outofplane_angle"] = "samth"
+            self.angle_names["detector_outofplane_angle"] = "e2_t02"
+            self.angle_names["sample_inplane_angle"] = None
+            self.angle_names["detector_inplane_angle"] = None
+        elif hutch.lower() != "eh1":
+            raise ValueError(
+                f"Hutch name (hutch={hutch}) is not valid. Can be 'EH1' or "
+                "'EH2'."
+            )
 
     def _get_file_path(
             self,
@@ -115,10 +127,7 @@ class P10Loader(Loader):
         path = self._get_file_path(scan, sample_name)
         key_path = "entry/data/data_000001"
 
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3))
-        elif len(roi) == 2:
-            roi = tuple([slice(None), roi[0], roi[1]])
+        roi = self._check_roi(roi)
 
         with silx.io.h5py_utils.File(path) as h5file:
             if binning_along_axis0:
@@ -126,29 +135,12 @@ class P10Loader(Loader):
             else:
                 data = h5file[key_path][roi]
 
-        if binning_along_axis0:
-            original_dim0 = data.shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-
-            if binning_method == "sum":
-                binned_data = [
-                    np.sum(e, axis=0)
-                    for e in np.array_split(data[:first_slices], nb_of_bins)
-                ]
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_data.append(np.sum(data[last_slices:], axis=0))
-                data = np.asarray(binned_data)
-
-        if binning_along_axis0 and roi:
-            data = data[roi]
-
-        if self.flat_field is not None:
-            data = data * self.flat_field[roi[1:]]
-
-        if self.alien_mask is not None:
-            data = data * self.alien_mask[roi[1:]]
+        data = self.bin_flat_mask(
+            data,
+            roi,
+            binning_along_axis0,
+            binning_method,
+        )
 
         # Must apply mask on P10 Eiger data
         mask = self.get_mask(
@@ -156,7 +148,6 @@ class P10Loader(Loader):
             detector_name=self.detector_name,
             roi=(slice(None), roi[1], roi[2])
         )
-
         data = data * np.where(mask, 0, 1)
 
         return data
@@ -199,34 +190,46 @@ class P10Loader(Loader):
         elif len(roi) == 3:
             roi = roi[0]
 
-        angles = {name: None for name in P10Loader.angle_names.values()}
+        angles = {name: None for name in self.angle_names.values()}
 
         rocking_angle_values = []
 
         with open(path, encoding="utf8") as fio_file:
             lines = fio_file.readlines()
-
+            rocking_angle_column = None
             for line in lines:
                 line = line.strip()
                 words = line.split()
 
-                for name in P10Loader.angle_names.values():
+                for name in self.angle_names.values():
                     if name in words:
                         if "=" in words:
                             angles[name] = float(words[-1])
-                        elif "Col" in words:
-                            column_index = int(words[1]) - 1
-                            rocking_angle = words[2]
+                        if "Col" in words:
+                            if rocking_angle_column is None:
+                                rocking_angle_column = int(words[1]) - 1
+                                rocking_angle = words[2]
+
             for line in lines:
                 line = line.strip()
                 words = line.split()
 
                 # check if the first word is numeric, if True the line
                 # contains motor position values
-                if words[0].replace(".", "", 1).isdigit():
-                    rocking_angle_values.append(float(words[column_index]))
+                # if words[0].replace(".", "", 1).isdigit():
+                if words[0].replace(".", "").replace("-", "").isnumeric():
+                    rocking_angle_values.append(
+                        float(words[rocking_angle_column])
+                    )
+                    if "e2_t02" in angles:
+                        # This means that 'e2_t02' must be used as the
+                        # detector out-of-plane angle.
+                        angles["e2_t02"] = float(words[1])
 
         angles[rocking_angle] = np.array(rocking_angle_values)
+        for name in angles:
+            if angles[name] is None:
+                angles[name] = 0
 
         if binning_along_axis0:
             original_dim0 = angles[rocking_angle].shape[0]
@@ -264,5 +267,5 @@ class P10Loader(Loader):
 
         return {
             angle: angles[name]
-            for angle, name in P10Loader.angle_names.items()
+            for angle, name in self.angle_names.items()
         }

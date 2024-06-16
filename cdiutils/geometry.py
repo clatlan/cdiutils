@@ -39,33 +39,50 @@ class Geometry:
         """Create a Geometry instance using a beamline name."""
 
         # Note that we use CXI convention here
-        if beamline_setup in ("ID01", "ID01SPEC", "ID01BLISS"):
+        if beamline_setup.lower() in ("id01", "id01spec", "id01bliss"):
             return cls(
                 sample_circles=["x-", "y-"],  # eta, phi
-                detector_circles=["y-", "x-"],  # delta, nu
+                detector_circles=["y-", "x-"],  # nu, delta
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
-        if beamline_setup == "P10":
+        if "p10" in beamline_setup.lower():
             return cls(
-                sample_circles=["x-", "y-"],  # om, phi
-                detector_circles=["y+", "x-"],  # del, gam
+                sample_circles=["x-", "y-"],  # om (or samth), phi
+                detector_circles=["y+", "x-"],  # gam, del (or e2_t02)
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
-        if beamline_setup == "SIXS2022":
+        if beamline_setup.lower() == "sixs2022":
             return cls(
                 sample_circles=["x-", "y+"],  # mu, omega
-                detector_circles=["y+", "x-"],  # gamma, delta
+                detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE OF THE COMMENT
+                detector_vertical_orientation="y-",
+                detector_horizontal_orientation="x+",
+                beam_direction=[1, 0, 0]
+            )
+        if beamline_setup.lower() == "nanomax":
+            return cls(
+                sample_circles=["x-", "y-"],  # gontheta, gonphi
+                detector_circles=["y-", "x-"],  # gamma, delta
+                detector_vertical_orientation="y+",
+                detector_horizontal_orientation="x-",
+                beam_direction=[1, 0, 0]
+            )
+        if beamline_setup.lower() == "cristal":
+            return cls(
+                sample_circles=["x-", "y+"],  # omega, phi
+                detector_circles=["y+", "x-"],  # gamma, delta  OK FOR omega/delta but not for the two others
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x+",
                 beam_direction=[1, 0, 0]
             )
         raise NotImplementedError(
             f"The beamline_setup {beamline_setup} is not valid. Available:\n"
-            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10' , 'SIXS2022'"
+            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10', 'P10EH2', 'SIXS2022' "
+            "and NanoMAX."
         )
 
     def cxi_to_xu(self) -> None:

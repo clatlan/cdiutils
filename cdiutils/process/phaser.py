@@ -9,6 +9,7 @@ from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 from numpy.fft import fftn, fftshift, ifftshift
+import shutil
 from scipy.stats import gaussian_kde
 import silx.io
 
@@ -34,7 +35,7 @@ try:
 except ImportError:
     IS_PYNX_AVAILABLE = False
     PYNX_ERROR_TEXT = (
-        "'pynx' is not available, some functionalities won't be available."
+        "'pynx' is not installed, PyNXPhaser is not available."
     )
     CDI_Type = None
 
@@ -47,7 +48,8 @@ DEFAULT_PYNX_PARAMS = {
     # support-related params
     "support_threshold": (0.15, 0.40),
     "smooth_width": (2, 0.5, 600),
-    "post_expand": (1, -2, 1),
+    "post_expand": None,  # (-1, 1)
+    "support_update_period": 50,
     "method": "rms",
     "force_shrink": False,
     "update_border_n": 0,
@@ -64,7 +66,6 @@ DEFAULT_PYNX_PARAMS = {
     "zero_mask": False,
 
     # others
-    "support_update_period": 50,
     "psf": "pseudo-voigt,0.5,0.1,10",
     "compute_free_llk": True,
     "positivity": False,
@@ -83,6 +84,8 @@ class PyNXPhaser:
             params: dict = None,
             operators: dict = None,
     ) -> None:
+        if not IS_PYNX_AVAILABLE:
+            raise ModuleNotFoundError(PYNX_ERROR_TEXT)
         self.iobs = fftshift(iobs)
         self.mask = fftshift(mask)
 
@@ -90,7 +93,8 @@ class PyNXPhaser:
         # those provided by the user
         # not elegant, but works...
         self.params = copy.deepcopy(DEFAULT_PYNX_PARAMS)
-        self.params = self._update_params(self.params, new_params=params)
+        if params is not None:
+            self.params = self._update_params(self.params, new_params=params)
 
         if operators is None:
             self.operators = self._init_operators()
@@ -340,15 +344,12 @@ class PyNXPhaser:
             print(f"Run #{i}")
             self.run(recipe, cdi, init_cdi=False)
 
-    def sharpness(self, cdi):
-        amplitude = cdi.get_obj(shift=True) * cdi.get_support(shift=True)
-        return np.mean(amplitude ** 4)
-
     def genetic_phasing(
             self,
             run_nb: int,
             genetic_pass_nb: int,
             recipe: str,
+            selection_method: str = "sharpness",
             init_cdi: bool = True
     ):
         if init_cdi:
@@ -359,7 +360,11 @@ class PyNXPhaser:
                 raise ValueError(
                     "CDI object are not itialised, init_cdi should be True."
                 )
-
+        if selection_method not in ("sharpness", "mean_to_max"):
+            raise ValueError(
+                f"Invalid selection_method ({selection_method}), can be"
+                "'sharpness' or 'mean_to_max'."
+            )
         metrics = [None for _ in range(run_nb)]
 
         for i in range(genetic_pass_nb + 1):
@@ -371,7 +376,11 @@ class PyNXPhaser:
                     f"Updating cdi objects with best reconstruction ()."
                 )
                 for i in range(run_nb):
-                    metrics[i] = self.sharpness(self.cdi_list[i])
+                    metrics[i] = PhasingResultAnalyser.amplitude_based_metrics(
+                        np.abs(self.cdi_list[i].get_obj(shift=True)),
+                        self.cdi_list[i].get_support(shift=True)
+                    )[selection_method]
+
                 indice = np.argsort(metrics)[0]
                 amplitude_reference = np.abs(self.cdi_list[indice].get_obj())
                 for i in range(run_nb):
@@ -467,11 +476,11 @@ class PyNXPhaser:
             # if key in ("support", "phase") and support.sum() > 0:
             if key in ("amplitude", "support", "phase") and support.sum() > 0:
                 ax.set_xlim(
-                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
+                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
                     + np.array([-10, 10])
                 )
                 ax.set_ylim(
-                    np.nonzero(support.sum(axis=0))[0][[0, -1]]
+                    np.nonzero(support.sum(axis=1))[0][[0, -1]]
                     + np.array([-10, 10])
                 )
 
@@ -486,31 +495,53 @@ class PyNXPhaser:
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
         fig.tight_layout()
-        fig.show()
 
 
 class PhasingResultAnalyser:
+    """
+    This class provided utility function for phase retrieval results
+    anaylis.
+    """
     def __init__(
             self,
-            cdi_results: dict = None,
+            cdi_results: list = None,
             result_dir_path: str = None
     ) -> None:
-        if cdi_results is None and result_dir_path is None:
-            raise ValueError(
-                "Both parameters cdi_results and result_dir_path cannot be "
-                "None"
-            )
+        """
+        Init method.
 
-        elif cdi_results is not None and result_dir_path is not None:
-            raise ValueError(
-                "cdi_results and result_dir_path cannot be provided "
-                "simultaneously. "
-            )
-        self.cdi_results = cdi_results
+        Args:
+            cdi_results (list, optional): results as CDI objects.
+                Defaults to None.
+            result_dir_path (str, optional): the path of directory
+                containing the .cxi phase retrieval results. Defaults
+                to None.
+
+        Raises:
+            ValueError: if non of the parameters is provided or if both
+                are.
+        """
+        message = (
+            "cdi_results or result_dir_path cannot be provided simultaneously"
+            ", but one of the two must be."
+        )
+        if cdi_results is None and result_dir_path is None:
+            raise ValueError(message)
+
+        if cdi_results is not None and result_dir_path is not None:
+            raise ValueError(message)
+
+        # Convert the parsed list into a dict whose keys are run numbers
+        self.cdi_results = []
+        if cdi_results:
+            self.cdi_results = {
+                f"Run{i+1:04d}": cdi for i, cdi in enumerate(cdi_results)
+            }
         self.result_dir_path = result_dir_path
         self._metrics = None
         self._sorted_phasing_results = None
         self.result_paths = []
+        self.best_candidates = None
 
     def find_phasing_results(self) -> None:
         """
@@ -522,6 +553,11 @@ class PhasingResultAnalyser:
         for path in fetched_paths:
             if os.path.isfile(path):
                 self.result_paths.append(path)
+        if not self.result_paths:
+            raise ValueError(
+                "No result found that match the pattern '*Run*.cxi' in the "
+                f"result_dir_path ({self.result_dir_path})"
+            )
 
     @staticmethod
     def amplitude_based_metrics(
@@ -562,9 +598,37 @@ class PhasingResultAnalyser:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
-            plot_phasing_results: bool = False,
-            plot_amplitude: bool = False,
-    ):
+            plot_phasing_results: bool = True,
+            plot_phase: bool = False,
+    ) -> None:
+        """
+        Analyse the phase retrieval results by sorting them according to
+        the sorting_criteion, which must be selected in among:
+        * mean_to_max the difference between the mean of the
+            Gaussian fitting of the amplitude histogram and the maximum
+            value of the amplitude. We consider the closest to the max
+            the mean is, the most homogeneous is the amplitude of the
+            reconstruction, hence the best.
+        * the sharpness the sum of the amplitude within support to
+            the power of 4. For reconstruction with similar support,
+            lowest values means graeter amplitude homogeneity.
+        * std the standard deviation of the amplitude.
+        * llk the log-likelihood of the reconstruction.
+        * llkf the free log-likelihood of the reconstruction.
+
+        Args:
+            sorting_criterion (str, optional): the criterion to sort the
+                results with. Defaults to "mean_to_max".
+            plot_phasing_results (bool, optional): whether to plot the
+                phasing results. Defaults to True.
+            plot_phase (bool, optional): whether the phase must be
+                plotted. If True, will the phase is plotted with
+                amplitude as opacity. If False, amplitude is plotted
+                instead. Defaults to False.
+
+        Raises:
+            ValueError: if sorting_criterion is unknown.
+        """
         criteria = ["mean_to_max", "std", "llk", "llkf", "sharpness", "all"]
         if sorting_criterion not in criteria:
             raise ValueError(
@@ -579,7 +643,7 @@ class PhasingResultAnalyser:
                 m: {f: None for f in self.result_paths}
                 for m in criteria
             }
-            if self.cdi_results is not None:
+            if self.cdi_results:
                 for run in self.cdi_results:
                     self._metrics["llk"][run] = (
                         self.cdi_results[run].llk_poisson
@@ -653,7 +717,7 @@ class PhasingResultAnalyser:
             ]
 
         figsize = get_figure_size(scale=0.75)
-        figure, ax = plt.subplots(1, 1, figsize=figsize)
+        figure, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
         colors = {
             m: c for m, c in zip(
                 self._metrics,
@@ -684,8 +748,6 @@ class PhasingResultAnalyser:
         figure.suptitle(
             "Phasing result analysis (the lower the better)\n"
         )
-        figure.tight_layout()
-        plt.show()
         print(
             "[INFO] the sorted list of runs using sorting_criterion "
             f"'{sorting_criterion}' is:\n{runs}"
@@ -694,7 +756,7 @@ class PhasingResultAnalyser:
         if plot_phasing_results:
             print("[INFO] Plotting phasing results...")
             for result in self._sorted_phasing_results:
-                if self.cdi_results is not None:
+                if self.cdi_results:
                     data = self.cdi_results[result].get_obj(shift=True)
                     support = self.cdi_results[result].get_support(shift=True)
                 else:
@@ -705,54 +767,160 @@ class PhasingResultAnalyser:
                 title = (
                     f"Phasing results, run {int(result.split('Run')[1][:4])}"
                 )
-                self.plot_phasing_result(data, support, title, plot_amplitude)
+                self.plot_phasing_result(data, support, title, plot_phase)
 
-    def decompose_into_one_mode(self, verbose: bool = True) -> np.ndarray:
+    def select_best_candidates(
+            self,
+            nb_of_best_sorted_runs: int = None,
+            best_runs: list[int] = None
+    ) -> None:
+        """
+        Select the best candidates, two methods are possible. Either
+        select a specific number of runs, provided they were alaysed and
+        sorted beforehand. Or simply provide a list of integers
+        corresponding to the digit numbers of the best runs.
+
+        Args:
+            nb_of_best_sorted_runs (int, optional): the number of best
+                runs to select, provided they were analysed beforehand.
+                Defaults to None.
+            best_runs (list[int], optional): the best runs to select.
+                Defaults to None.
+
+        Raises:
+            ValueError: If nb_of_best_sorted_runs but reconstructions
+            were not analysed before.
+        """
+        if nb_of_best_sorted_runs is None and best_runs is None:
+            print(
+                "Neither nb_of_best_sorted_runs nor best_runs are provided. "
+                "Will select only the first best run."
+            )
+            nb_of_best_sorted_runs = 1
+
+        # If selection is made by hand, i.e. best_runs is provided
+        if best_runs:
+            if self.cdi_results:
+                # This is the notebook mode
+                self.best_candidates = [f'Run{r:04d}' for r in best_runs]
+            else:
+                # This is the script/pipeline mode
+                if not self.result_paths:
+                    self.find_phasing_results()
+                for path in self.result_paths:
+                    run_nb = int(path.split("Run")[1][:4])
+                    if run_nb in best_runs:
+                        self.best_candidates.append(path)
+
+        elif nb_of_best_sorted_runs:
+            if self._sorted_phasing_results is None:
+                raise ValueError(
+                        "Phasing results have not been analysed yet."
+                )
+            self.best_candidates = list(self._sorted_phasing_results.keys())
+            self.best_candidates = self.best_candidates[
+                :nb_of_best_sorted_runs
+            ]
+            if not self.cdi_results:
+                # This is the script/pipeline mode
+                # Remove the previous candidate files
+                for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
+                    os.remove(f)
+                print(
+                    "[INFO] Best candidates selected:\n"
+                    f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
+                )
+                for i, f in enumerate(self.best_candidates):
+                    dir_name, file_name = os.path.split(f)
+                    run_nb = file_name.split("Run")[1][2:4]
+                    scan_nb = file_name.split("_")[0]
+                    file_name = (
+                        f"/candidate_{i+1}-{len(self.best_candidates)}"
+                        f"_{scan_nb}_run_{run_nb}.cxi"
+                    )
+                    shutil.copy(f, dir_name + file_name)
+
+    # Note: this method only works if PyNX is installed. If not, use
+    # the BcdiPipeline method.
+    def mode_decomposition(self, verbose: bool = True) -> np.ndarray:
+        """
+        Run a mode decomposition à la PyNX. See pynx_cdi_analysis.py
+        script. Note that this method only works if PyNX is installed.
+        If not, use the BcdiPipeline method.
+
+        Args:
+            verbose (bool, optional): whether to print some logs.
+                Defaults to True.
+
+        Raises:
+            ValueError: in script/notebook mode, if not results are
+            found in the reconstruction folder.
+
+        Returns:
+            np.ndarray: the main mode.
+        """
         if not IS_PYNX_AVAILABLE:
             raise ValueError(PYNX_ERROR_TEXT)
-        if self._sorted_phasing_results is not None:
-            result_keys = self._sorted_phasing_results
+
+        if self.best_candidates:
+            result_keys = self.best_candidates
+
         else:
-            if verbose:
-                print(
-                    "Results are not sorted, therefore matching won't be "
-                    "done against the best result."
-                )
-            if self.result_paths is None:
-                self.find_phasing_results()
-            result_keys = self.result_paths
+            print(
+                "No best candidates selected, computation will be conducted "
+                "on all reconstructions."
+            )
+            if self._sorted_phasing_results is not None:
+                result_keys = self._sorted_phasing_results.keys()
+            else:
+                if verbose:
+                    print(
+                        "Results are not sorted, therefore matching won't be "
+                        "done against the best result."
+                    )
+                if self.result_paths is None:
+                    self.find_phasing_results()
+                result_keys = self.result_paths
         results = []
         for r in result_keys:
-            if self.cdi_results is not None:
+            if self.cdi_results:
                 results.append(self.cdi_results[r].get_obj(shift=True))
             else:
                 with silx.io.h5py_utils.File(r, "r") as file:
                     results.append(file["entry_1/data_1/data"][()])
 
-        first_result = results[0]
-        match2_results = []
+        match2_results = [results[0]]
         for i in range(1, len(results)):
-            _, d2c, r = match2(first_result, results[i])
+            _, d2c, r = match2(results[0], results[i])
             match2_results.append(d2c)  # don't know if needed, that's PyNX way
             if verbose:
                 print(f"R_match({i}) = {r*100:6.3f} %")
 
-        principle_mode, mode_weights = ortho_modes(
+        modes, mode_weights = ortho_modes(
             match2_results, nb_mode=1, return_weights=True
         )
         if verbose:
             print(f"First mode represents {mode_weights[0] * 100:6.3f} %")
-        return principle_mode[0]
+        return modes[0]
 
     @staticmethod
     def plot_phasing_result(
             data: np.ndarray,
             support: np.ndarray,
             title: str = None,
-            plot_amplitude: bool = False
+            plot_phase: bool = False
     ) -> None:
         """
         Plot the reconstructed object in reciprocal and direct spaces.
+
+        Args:
+            data (np.ndarray): the reconstruction data to plot.
+            support (np.ndarray): the support of the reconstruction.
+            title (str, optional): the title of the plot. Defaults to None.
+            plot_phase (bool, optional):  whether to plot the phase,
+                if True, will plot the phase whit amplitude as opacity.
+                If False, amplitude will be plotted.
+                Defaults to False.
         """
         reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
         direct_space_amplitude = np.abs(data)
@@ -773,20 +941,20 @@ class PhasingResultAnalyser:
                     cmap="turbo",
                     norm=LogNorm()
                 )
-                if plot_amplitude:
-                    direct_space_im = axes[1, i].matshow(
-                        direct_space_amplitude[slices[i]],
-                        vmin=0,
-                        vmax=direct_space_amplitude.max(),
-                        cmap="turbo"
-                    )
-                else:
+                if plot_phase:
                     direct_space_im = axes[1, i].matshow(
                         direct_space_phase[slices[i]],
                         vmin=-np.pi,
                         vmax=np.pi,
                         alpha=normalised_direct_space_amplitude[slices[i]],
                         cmap="cet_CET_C9s_r"
+                    )
+                else:
+                    direct_space_im = axes[1, i].matshow(
+                        direct_space_amplitude[slices[i]],
+                        vmin=0,
+                        vmax=direct_space_amplitude.max(),
+                        cmap="turbo"
                     )
 
                 if support.sum() > 0:
@@ -801,9 +969,9 @@ class PhasingResultAnalyser:
             figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
             figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
 
-            axes[0, 1].set_title("Log. Proj. intensity (a.u.)")
+            axes[0, 1].set_title("Intensity sum (a.u.)")
             axes[1, 1].set_title(
-                "Amplitude (a.u.)" if plot_amplitude else "Phase (rad)"
+                "Phase (rad)" if plot_phase else "Amplitude (a.u.)"
             )
 
         if data.ndim == 2:
@@ -815,20 +983,20 @@ class PhasingResultAnalyser:
                 cmap="turbo",
                 norm=LogNorm()
             )
-            if plot_amplitude:
-                direct_space_im = axes[1].matshow(
-                    direct_space_amplitude,
-                    vmin=0,
-                    vmax=direct_space_amplitude.max(),
-                    cmap="turbo"
-                )
-            else:
+            if plot_phase:
                 direct_space_im = axes[1].matshow(
                     direct_space_phase,
                     vmin=-np.pi,
                     vmax=np.pi,
                     alpha=normalised_direct_space_amplitude,
                     cmap="cet_CET_C9s_r"
+                )
+            else:
+                direct_space_im = axes[1].matshow(
+                    direct_space_amplitude,
+                    vmin=0,
+                    vmax=direct_space_amplitude.max(),
+                    cmap="turbo"
                 )
             if support.sum() > 0:
                 axes[1].set_xlim(
@@ -842,9 +1010,9 @@ class PhasingResultAnalyser:
             figure.colorbar(rcp_im, ax=axes[0], extend="both")
             figure.colorbar(direct_space_im, ax=axes[1], extend="both")
 
-            axes[0].set_title("Log. Proj. intensity (a.u.)")
+            axes[0].set_title("Intensity sum (a.u.)")
             axes[1].set_title(
-                "Amplitude (a.u.)" if plot_amplitude else "Phase (rad)"
+                "Phase (rad)" if plot_phase else "Amplitude (a.u.)"
             )
 
         for ax in axes.ravel():

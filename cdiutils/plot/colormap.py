@@ -129,9 +129,8 @@ TURBO_SECOND_HALF = LinearSegmentedColormap.from_list(
 
 def save_json_cmap(colormap_name: str, output_path: str) -> None:
     cmap = plt.get_cmap(colormap_name)
-    path = 0.03125
-    path = 0.015
-    array = np.arange(0, 1+path, path)
+    pace = 0.015
+    array = np.arange(0, 1+pace, pace)
 
     with open(output_path, "w") as file:
         file.write(

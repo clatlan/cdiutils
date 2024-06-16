@@ -64,7 +64,6 @@ class PostProcessor:
                     support,
                     padding=np.repeat(6, support.ndim)
                 )
-                print(f"[INFO] new array shape is {final_shape}")
             # center the arrays at the center of mass of the support
             com = CroppingHandler.get_position(support, "com")
             complex_object = CroppingHandler.force_centered_cropping(

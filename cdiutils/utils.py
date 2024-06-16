@@ -6,12 +6,10 @@ import numpy as np
 from numpy.fft import fftn, fftshift, ifftshift
 import matplotlib
 import seaborn as sns
-from scipy.ndimage import convolve, center_of_mass
+from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
-
-from cdiutils.plot.formatting import get_figure_size
 
 
 def pretty_print(text: str, max_char_per_line: int = 79) -> None:
@@ -749,6 +747,25 @@ def find_suitable_array_shape(
     return shape
 
 
+def extract_reduced_shape(
+        support: np.ndarray,
+        pad: tuple | list | np.ndarray = None,
+        symmetric: bool = False
+) -> tuple:
+    if pad is None:
+        pad = np.array([-10, 10])
+
+    support_limits = []
+    for i in range(support.ndim):
+        limit = np.nonzero(support.sum(axis=i))[0][[0, -1]]
+        limit += pad  # padding
+        support_limits.append(limit)
+    shape = [limit.ptp() for limit in support_limits]
+    if symmetric:
+        return tuple(np.repeat(np.max(shape), support.ndim))
+    return shape
+
+
 def find_isosurface(
         amplitude: np.ndarray,
         nbins: int = 100,
@@ -806,7 +823,7 @@ def find_isosurface(
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
-        figsize = get_figure_size()
+        figsize = (5.812, 3.592)  # golden ratio
         fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=figsize)
         ax.bar(
             bin_centres,
@@ -999,7 +1016,7 @@ def get_oversampling_ratios(
 def oversampling_from_diffraction(
         data: np.ndarray,
         support_threshold: float = 0.1,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
     Compute the oversampling ratios from diffraction data.
     Autocorrelation of the intensity is calculated to generate a support
@@ -1019,9 +1036,7 @@ def oversampling_from_diffraction(
 
     oversampling_ratio = get_oversampling_ratios(support=support)
 
-    rebin_factor_suggestion = (oversampling_ratio // 2).astype(int)
-
-    return oversampling_ratio, rebin_factor_suggestion
+    return oversampling_ratio
 
 
 def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
@@ -1050,6 +1065,33 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
         s[i] = shape[i] // 2
         slices.append(tuple(s))
     return slices
+
+
+def hot_pixel_filter(
+        data: np.ndarray,
+        threshold: float = 1e2,
+        kernel_size: int = 3
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Remove hot pixels using a median filter.
+
+    Args:
+        data (np.ndarray): the input data.
+        threshold (float, optional): the threshold to determine the
+            mask. Mask pixels that are threshold times higher than
+            neighboring pixels. Defaults to 1e2.
+        kernel_size (int, optional): the size of the kernel to compute
+            the median filter. It corresponds to the size parameter of
+            scipy.ndimage.median_filter function .Defaults to 3.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: the cleaned data, hot pixel are
+            set to 0 and the mask (1 for hot pixel, 0 otherwise).
+    """
+    data_median = median_filter(data, size=kernel_size)
+    mask = (data < threshold * (data_median + 1))
+    cleaned_data = data * mask
+    return cleaned_data, np.logical_not(mask)
 
 
 def valid_args_only(

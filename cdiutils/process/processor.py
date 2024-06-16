@@ -407,7 +407,7 @@ class BcdiProcessor:
                     self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
         # print out the oversampling ratio and rebin factor suggestion
-        ratios, rebin = oversampling_from_diffraction(
+        ratios = oversampling_from_diffraction(
             self.cropped_detector_data
         )
         self.verbose_print(
@@ -417,7 +417,7 @@ class BcdiProcessor:
                 [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
             + ". If low-strain crystal, you can set PyNX rebin_factors to "
-            "(" + ", ".join([f"{r}" for r in rebin]) + ")"
+            "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
         )
         # position of the max and com in the cropped detector frame
         cropped_det_max = CroppingHandler.get_position(
@@ -541,7 +541,7 @@ class BcdiProcessor:
                 cropped_det_ref,
                 where_in_ortho_space,
                 title=(
-                    r"From \textbf{detector frame} to \textbf{q lab frame}"
+                    r"From detector frame to q lab frame"
                     f", {self.sample_name}, {self.scan}"
                 )
             )
@@ -770,8 +770,8 @@ class BcdiProcessor:
                     self.space_converter.get_direct_lab_regular_grid(),
                     detector_direct_space_data=reconstructed_amplitude,
                     title=(
-                        r"From \textbf{detector frame} to "
-                        r"\textbf{direct lab frame}, "
+                        r"From detector frame to "
+                        r"direct lab frame, "
                         f"S{self.scan}"
                     )
                 )
@@ -785,12 +785,12 @@ class BcdiProcessor:
 
         if self.params["orientation_convention"].lower() == "cxi":
             self.orthogonalized_object = (
-                    self.space_converter.lab_to_cxi_conventions(
+                    self.space_converter.xu_to_cxi(
                         self.orthogonalized_object
                     )
             )
 
-            self.voxel_size = self.space_converter.lab_to_cxi_conventions(
+            self.voxel_size = self.space_converter.xu_to_cxi(
                 self.voxel_size
             )
 
@@ -904,7 +904,7 @@ class BcdiProcessor:
             wrap=False
         )
         if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.lab_to_cxi_conventions(
+            g_vector = SpaceConverter.xu_to_cxi(
                         self.params["q_lab_reference"]
             )
         else:
@@ -962,7 +962,7 @@ class BcdiProcessor:
             cmap="cet_CET_D13",
             vmin=-np.nanmax(np.abs(self.structural_properties["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_properties["het_strain"])),
-            cbar_title=r"Strain (\%)",
+            cbar_title=r"Strain (%)",
             title=f"3D views of the strain, {self.sample_name}, S{self.scan}"
         )
 
@@ -1065,7 +1065,7 @@ class BcdiProcessor:
         # We must multiply by -1 the phase to compare with the
         # measured intensity.
         final_object_fft = symmetric_pad(
-            self.space_converter.cxi_to_lab_conventions(
+            self.space_converter.cxi_to_xu(
                 self.structural_properties["amplitude"]
                 * np.exp(-1j*self.structural_properties["phase"])
             ),
@@ -1156,7 +1156,7 @@ class BcdiProcessor:
         if self.params["orientation_convention"].lower() == "cxi":
             to_save.update(
                 {
-                    f"q_cxi_{pos}": SpaceConverter.lab_to_cxi_conventions(
+                    f"q_cxi_{pos}": SpaceConverter.xu_to_cxi(
                         self.params[f"q_lab_{pos}"]
                     ) for pos in ["reference", "max", "com"]
                 }
@@ -1223,7 +1223,7 @@ class BcdiProcessor:
                 for pos in ["reference", "max", "com"]:
                     scalars.create_dataset(
                         f"q_cxi_{pos}",
-                        data=SpaceConverter.lab_to_cxi_conventions(
+                        data=SpaceConverter.xu_to_cxi(
                            self.params[f"q_lab_{pos}"]
                         )
                     )

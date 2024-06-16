@@ -1,14 +1,77 @@
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import matplotlib
-from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
 import xrayutilities as xu
 import warnings
 
-from cdiutils.utils import nan_to_zero
-from cdiutils.plot.formatting import get_figure_size
+from cdiutils.utils import (
+    nan_to_zero,
+    extract_reduced_shape,
+    get_centred_slices
+)
+from cdiutils.plot.formatting import (
+    get_figure_size,
+    add_colorbar,
+    get_x_y_limits_extents,
+    set_x_y_limits_extents,
+    XU_VIEW_PARAMETERS,
+    CXI_VIEW_PARAMETERS
+)
+
+
+def plot_volume_slices(
+        data: np.ndarray,
+        support: np.ndarray = None,
+        voxel_size=None,
+        data_centre=None,
+        views: tuple[str] = None,
+        convention="cxi",
+        title: str = None,
+        equal_limits: bool = True,
+        **plot_params
+) -> None:
+    _plot_params = {
+        "cmap": "turbo",
+    }
+
+    if plot_params:
+        _plot_params.update(plot_params)
+
+    if convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("x-", "y-", "z-")
+    elif convention.lower() == "cxi":
+        view_params = CXI_VIEW_PARAMETERS.copy()
+        if views is None:
+            views = ("z-", "y+", "x+")
+
+    slices = get_centred_slices(data.shape)
+    # TODO: better handling of shape
+    shape = data.shape
+    if support is not None:
+        shape = extract_reduced_shape(support)
+
+    if voxel_size is not None:
+        extents = get_x_y_limits_extents(data.shape, voxel_size, data_centre)
+        limits = get_x_y_limits_extents(
+            shape, voxel_size, data_centre, equal_limits=equal_limits
+        )
+
+    figure, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
+    for i, v in enumerate(views):
+        plane = view_params[v]["plane"]
+        to_plot = data[slices[i]]
+        if plane[0] > plane[1]:
+            to_plot = np.swapaxes(to_plot, 1, 0)
+        axes[i].imshow(to_plot, **_plot_params)
+        add_colorbar(axes[i], axes[i].images[0])
+        if voxel_size is not None:
+            set_x_y_limits_extents(axes[i], extents, limits, plane)
+
+    figure.suptitle(title)
+    return figure, axes
 
 
 def plot_slices(
@@ -19,7 +82,6 @@ def plot_slices(
         nan_supports: list = None,
         vmin: float = None,
         vmax: float = None,
-        log_scale: bool = False,
         alphas: list = None,
         origin: str = "lower",
         cmap: str = "turbo",
@@ -546,7 +608,7 @@ def plot_diffraction_patterns(
             axes[ax_coord].set_ylim(ylim[0], ylim[1])
         if not no_title and data_stacking == "horizontal":
             axes[ax_coord].set_title(titles[i])
-        
+
         ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
         summed_intensity = log_intensity.sum(axis=1).T
         normalized_intensity = (
@@ -561,7 +623,6 @@ def plot_diffraction_patterns(
         for c in cnt.collections:
             c.set_edgecolor("face")
 
-        
         if xlim is not None:
             axes[ax_coord].set_xlim(xlim[0], xlim[1])
         if zlim is not None:
@@ -599,16 +660,33 @@ def plot_diffraction_patterns(
         return fig, cnt
 
 
-def plot_contour(ax, support_2D, linewidth=1, color="k"):
-    shape = support_2D.shape
-    X, Y = np.meshgrid(np.arange(0, shape[1]), np.arange(0, shape[0]))
+def plot_contour(
+        ax,
+        support_2d,
+        linewidth=1,
+        color="k",
+        pixel_size=None,
+        data_centre=None
+):
+    shape = support_2d.shape
+    x_range = np.arange(0, shape[1])
+    y_range = np.arange(0, shape[0])
+    if pixel_size is not None:
+        x_range = x_range * pixel_size[1]
+        y_range = y_range * pixel_size[0]
+    if data_centre is not None:
+        x_range = x_range - x_range.mean() + data_centre[1]
+        y_range = y_range - y_range.mean() + data_centre[0]
+
+    X, Y = np.meshgrid(x_range, y_range)
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=UserWarning)
         ax.contour(
             X,
             Y,
-            nan_to_zero(support_2D),
+            nan_to_zero(support_2d),
             levels=[0, 1],
             linewidths=linewidth,
-            colors=color
+            colors=color,
         )

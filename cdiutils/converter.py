@@ -366,10 +366,11 @@ class SpaceConverter():
     def init_interpolator(
             self,
             detector_data: np.ndarray,
-            direct_space_data_shape: tuple = None,
+            direct_space_data_shape: tuple | np.ndarray | list = None,
             direct_space_voxel_size: tuple | np.ndarray | list | float = None,
             space: str = "direct",
-            shift_voxel: tuple = None
+            shift_voxel: tuple = None,
+            verbose: bool = False
     ):
 
         if space not in (
@@ -414,6 +415,7 @@ class SpaceConverter():
                     "if space is 'direct' direct_space_data_shape must be "
                     "provided."
                 )
+            direct_space_data_shape = tuple(direct_space_data_shape)
             if shape != direct_space_data_shape:
                 raise ValueError(
                     "The cropped_raw_data should have the same shape as the "
@@ -443,10 +445,12 @@ class SpaceConverter():
                 direct_lab_transformation_matrix,
                 axis=1
             )
-            print(
-                "[INFO] Voxel size in the direct lab space due to the "
-                f"orthognolization process is:\n{direct_lab_voxel_size} (nm)."
-            )
+            if verbose:
+                print(
+                    "[INFO] Voxel size in the direct lab space due to the "
+                    f"orthognolization process is:\n{direct_lab_voxel_size} "
+                    "(nm)."
+                )
 
             # initialise the interpolator instance
             self.direct_lab_interpolator = Interpolator3D(
@@ -606,8 +610,8 @@ class SpaceConverter():
             raise ValueError(
                 "arrangement should be 'l', 'list', 'c' or 'cubinates'"
             )
-    
-    def get_xu_q_lab_regular_grid(self, arrangement: str="list"):
+
+    def get_xu_q_lab_regular_grid(self, arrangement: str = "list"):
         """
         Get the regular grid used for the xu orthogonalization in the q lab
         space and chose the arrangement either a list of three 1d arrays
@@ -637,7 +641,7 @@ class SpaceConverter():
             "arrangement should be 'l', 'list', 'c' or 'cubinates'"
         )
 
-    def get_q_lab_regular_grid(self, arrangement: str="list"):
+    def get_q_lab_regular_grid(self, arrangement: str = "list"):
         """
         Get the regular grid used for the orthogonalization in the q lab
         space and chose the arrangement either a list of three 1d array
@@ -662,7 +666,7 @@ class SpaceConverter():
             "arrangement should be 'l', 'list', 'c' or 'cubinates'."
         )
 
-    def get_direct_lab_regular_grid(self, arrangement: str="list"):
+    def get_direct_lab_regular_grid(self, arrangement: str = "list"):
         """
         Get the regular grid used for the orthogonalization in the
         direct space and chose the arrangement either a list of three
@@ -683,16 +687,16 @@ class SpaceConverter():
         )
 
     @staticmethod
-    def lab_to_cxi_conventions(
+    def xu_to_cxi(
             data: np.ndarray | tuple | list
     ) -> np.ndarray | tuple | list:
         """
         Convert the a np.ndarray, a list or a tuple from the lab frame
         system to the cxi frame conventions.
         [
-            axis0=Xlab (pointing away from the light source),
-            axis1=Ylab (outboard),
-            axis2=Zlab (vertical up)
+            axis0=Xxu (pointing away from the light source),
+            axis1=Yxu (outboard),
+            axis2=Zxu (vertical up)
         ]
         will be converted into
         [
@@ -711,7 +715,7 @@ class SpaceConverter():
             return np.swapaxes(data, axis1=1, axis2=2)
 
     @staticmethod
-    def cxi_to_lab_conventions(
+    def cxi_to_xu(
             data: np.ndarray | tuple | list
     ) -> np.ndarray | tuple | list:
         """
@@ -769,19 +773,18 @@ class SpaceConverter():
 
         return sorted_q_norm, sorted_flat_intens
 
-
     @staticmethod
     def run_detector_calibration(
             detector_calibration_frames: np.ndarray,
             detector_outofplane_angle: float,
             detector_inplane_angle: float,
             energy: float,
-            xu_detector_circles: list, # Convention should be xu not cxi
-            pixel_size_x=55e-6,
-            pixel_size_y=55e-6,
-            sdd_estimate: float=None,
-            show=True,
-            verbose=True,
+            xu_detector_circles: list,  # Convention should be xu not cxi
+            pixel_size_x: float = 55e-6,
+            pixel_size_y: float = 55e-6,
+            sdd_estimate: float = None,
+            show: bool = True,
+            verbose: bool = True,
     ) -> dict:
 
         coms = []
@@ -795,7 +798,8 @@ class SpaceConverter():
             # detector has rotated by 1 degree. We may find this value with
             # delta or nu. Here, we do both and calculate the average. The
             # leading coefficient of the function x_com = f(delta) gives
-            # how much the x_com has moved when delta has changed by one degree.
+            # how much the x_com has moved when delta has changed by one
+            # degree.
             slope = [
                 np.polynomial.polynomial.polyfit(a, c, 1)[1]
                 for a, c in zip(
@@ -864,7 +868,7 @@ class SpaceConverter():
 class Interpolator3D:
     """
     A class to handle 3D interpolations using the
-    RegularGridInterpolator of scipy.interpolate. This class deals with the 
+    RegularGridInterpolator of scipy.interpolate. This class deals with the
     shape of the target space based on the shape in the original space and the
     given transfer matrix.
     """

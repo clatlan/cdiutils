@@ -66,10 +66,7 @@ class SpecLoader(Loader):
             roi: tuple[slice] = None,
             binning_along_axis0=None
     ):
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3))
-        elif len(roi) == 2:
-            roi = tuple([slice(None), roi[0], roi[1]])
+        roi = self._check_roi(roi)
 
         # TODO: implement flat_field consideration and binning_along_axis0
         frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]

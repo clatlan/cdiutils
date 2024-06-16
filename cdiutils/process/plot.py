@@ -1,29 +1,31 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
-import os
-import silx.io
-import h5py
+# from numpy.fft import fftn, fftshift, ifftshift
+# import os
+# import silx.io
+# import h5py
 
-from cdiutils.utils import (
-    zero_to_nan, find_suitable_array_shape, nan_center_of_mass, center,
-    crop_at_center
-)
+from cdiutils.utils import zero_to_nan
 from cdiutils.plot.formatting import (
-    set_plot_configs, white_interior_ticks_labels, get_figure_size
+    set_plot_configs,
+    white_interior_ticks_labels,
+    get_figure_size,
+    add_colorbar,
+    get_x_y_limits_extents,
+    set_x_y_limits_extents
 )
 from cdiutils.plot.slice import plot_contour
 
 
 def preprocessing_detector_data_plot(
         cropped_data: np.ndarray,
-        cropped_max_voxel: np.ndarray or list or tuple,
-        cropped_com_voxel: np.ndarray or list or tuple,
+        cropped_max_voxel: np.ndarray | list | tuple,
+        cropped_com_voxel: np.ndarray | list | tuple,
         detector_data: np.ndarray = None,
-        det_reference_voxel: np.ndarray or list or tuple = None,
-        det_max_voxel: np.ndarray or list or tuple = None,
-        det_com_voxel: np.ndarray or list or tuple = None,
+        det_reference_voxel: np.ndarray | list | tuple = None,
+        det_max_voxel: np.ndarray | list | tuple = None,
+        det_com_voxel: np.ndarray | list | tuple = None,
         title: str = None
 ) -> matplotlib.figure.Figure:
     """
@@ -36,15 +38,15 @@ def preprocessing_detector_data_plot(
         The raw detector data.
     cropped_data: np.array
         The cropped/centered data.
-    det_reference_voxel: np.array or list or tuple
+    det_reference_voxel: np.array | list | tuple
         The voxel reference in the full detector frame.
-    det_max_voxel: np.array or list or tuple
+    det_max_voxel: np.array | list | tuple
         The max voxel in the full detector frame.
-    det_com_voxel: np.array or list or tuple
+    det_com_voxel: np.array | list | tuple
         The center of mass voxel in the full detector frame.
-    cropped_max_voxel: np.array or list or tuple
+    cropped_max_voxel: np.array | list | tuple
         The max voxel in the centered/cropped detector frame.
-    cropped_com_voxel: np.array or list or tuple
+    cropped_com_voxel: np.array | list | tuple
         The center of mass voxel in the centered/cropped detector frame.
     title: str
         The title of the figure.
@@ -317,7 +319,7 @@ def preprocessing_detector_data_plot(
 
         axes[0, 2].set_xlabel("rocking angle axis")
         axes[0, 2].set_ylabel(r"detector axis$_1$")
-        axes[0, 1].set_title("raw detector data", y=1.8)
+        axes[0, 1].set_title("raw detector data", y=1)
 
     axes[1, 0].set_xlabel(r"cropped axis$_2$")
     axes[1, 0].set_ylabel(r"cropped axis$_1$")
@@ -328,27 +330,32 @@ def preprocessing_detector_data_plot(
     axes[1, 2].set_xlabel("cropped rocking angle axis")
     axes[1, 2].set_ylabel(r"cropped axis$_1$")
 
-    axes[1, 1].set_title("cropped detector data", y=1.05)
+    axes[1, 1].set_title("cropped detector data", y=1)
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -15, -15)
+        # add_colorbar(ax, ax.images[0])
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
 
     # handle the colorbar
     l0, b0, w0, _ = axes[0, 1].get_position().bounds
     _, b1, _, h1 = axes[1, 1].get_position().bounds
     center_y = (b0 + (b1+h1)) / 2
-    cax = figure.add_axes([l0, center_y, w0, 0.020])
-    # cax = figure.add_axes([l0, 0.52, w0, 0.020])
-    cax.set_title("Log(Int.) (a.u.)")
-    figure.colorbar(mappable, cax=cax, orientation="horizontal")
+    # print(b0, b1, h1, center_y)
+    # cax = figure.add_axes([l0, center_y, w0, 0.020])
+    # # cax = figure.add_axes([l0, 0.52, w0, 0.020])
+    # cax.set_title("Log(Int.) (a.u.)")
+    # figure.colorbar(mappable, cax=cax, orientation="horizontal")
 
     # handle the legend
     axes[1, 1].legend(
         loc="center",
         ncol=2,
-        bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
-        bbox_transform=figure.transFigure
+        # bbox_to_anchor=((l0 + l0 + w0)/2, (b0 + center_y)/2),
+        bbox_to_anchor=(0.5 , 0.5),
+        bbox_transform=figure.transFigure,
+        frameon=False
     )
     if not plot_raw_data:
         for i in range(3):
@@ -360,17 +367,16 @@ def preprocessing_detector_data_plot(
 
 
 def summary_slice_plot(
+        support: np.ndarray,
         save: str = None,
         title: str = None,
         dpi: int = 200,
         show: bool = False,
-        voxel_size: np.ndarray or list or tuple = None,
+        voxel_size: np.ndarray | list | tuple = None,
         isosurface: float = None,
         averaged_dspacing: float = None,
         averaged_lattice_parameter: float = None,
-        det_reference_voxel: np.ndarray or list or tuple = None,
-        respect_aspect=False,
-        support: np.ndarray = None,
+        det_reference_voxel: np.ndarray | list | tuple = None,
         single_vmin: float = None,
         single_vmax: float = None,
         cmap: str = None,
@@ -380,15 +386,18 @@ def summary_slice_plot(
     ANGSTROM_SYMBOL, _, PLOT_CONFIGS = set_plot_configs()
 
     # take care of the aspect ratios:
-    if voxel_size is not None and respect_aspect:
-        aspect_ratios = {
-            "zy": voxel_size[0]/voxel_size[1],
-            "zx": voxel_size[0]/voxel_size[2],
-            "yx":  voxel_size[1]/voxel_size[2]
-
-        }
-    else:
-        aspect_ratios = {"zy": "auto", "zx": "auto", "yx": "auto"}
+    if voxel_size is not None:
+        extents = get_x_y_limits_extents(
+            support.shape,
+            voxel_size,
+            data_centre=(0, 0, 0)
+        )
+        limits = get_x_y_limits_extents(
+            support.shape,
+            voxel_size,
+            data_centre=(0, 0, 0),
+            equal_limits=True
+        )
 
     figsize = get_figure_size()
     figure, axes = plt.subplots(
@@ -396,45 +405,44 @@ def summary_slice_plot(
     )
 
     axes[0, 0].annotate(
-                r"(xy)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[0, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(xy)$_\mathrm{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[0, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[0, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     axes[1, 0].annotate(
-                r"(xz)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[1, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(xz)$_\mathrm{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[1, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[1, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     axes[2, 0].annotate(
-                r"(zy)$_{cxi}$ slice",
-                xy=(0.2, 0.5),
-                xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
-                xycoords=axes[2, 0].yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
+        r"(zy)$_\mathrm{CXI}$ slice",
+        xy=(0.2, 0.5),
+        xytext=(-axes[2, 0].yaxis.labelpad - 2, 0),
+        xycoords=axes[2, 0].yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
     )
 
     mappables = {}
-    if support is not None:
-        support = zero_to_nan(support)
+    support = zero_to_nan(support)
     for i, (key, array) in enumerate(kwargs.items()):
         if support is not None and key != "amplitude":
             array = support * array
 
         if key in PLOT_CONFIGS.keys():
             cmap = PLOT_CONFIGS[key]["cmap"]
-            # check if vmin and vmax are given or not
+            # check if vmin and vmax are given | not
             if single_vmin is None or single_vmax is None:
                 if support is not None:
                     if key in ("dspacing", "lattice_parameter"):
@@ -465,7 +473,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["yx"]
+            # extent=extents[2] + extents[1]
         )
         axes[1, i].matshow(
             array[:, shape[1] // 2, :],
@@ -473,7 +481,7 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["zx"]
+            # extent=extents[2] + extents[0]
         )
         mappables[key] = axes[2, i].matshow(
             np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
@@ -481,17 +489,37 @@ def summary_slice_plot(
             vmax=vmax,
             cmap=cmap,
             origin="lower",
-            aspect=aspect_ratios["zy"]
+            # extent=extents[0] + extents[1]
         )
+        for ax, plane in zip(
+                (axes[0, i], axes[1, i], axes[2, i]),
+                ((1, 2), (0, 2), (1, 0))
+        ):
+            set_x_y_limits_extents(ax, extents, limits, plane)
 
         if key == "amplitude":
-            plot_contour(axes[0, i], support[shape[0] // 2], color="k")
-            plot_contour(axes[1, i], support[:, shape[1] // 2, :], color="k")
+            plot_contour(
+                axes[0, i],
+                support[shape[0] // 2],
+                color="k",
+                pixel_size=(voxel_size[1], voxel_size[2]),
+                data_centre=(0, 0)
+            )
+            plot_contour(
+                axes[1, i],
+                support[:, shape[1] // 2, :],
+                color="k",
+                pixel_size=(voxel_size[0], voxel_size[2]),
+                data_centre=(0, 0)
+            )
             plot_contour(
                 axes[2, i],
                 np.swapaxes(support[..., shape[2] // 2], axis1=0, axis2=1),
-                color="k"
+                color="k",
+                pixel_size=(voxel_size[1], voxel_size[0]),
+                data_centre=(0, 0)
             )
+
 
     table_ax = figure.add_axes([0.25, -0.05, 0.5, 0.15])
     table_ax.axis("tight")
@@ -548,7 +576,8 @@ def summary_slice_plot(
                 i % len(kwargs) == 0
                 and list(kwargs.keys())[i % len(kwargs.keys())] == "amplitude"
         ):
-            white_interior_ticks_labels(ax, -10, -12)
+            ax.locator_params(nbins=5)
+            white_interior_ticks_labels(ax, -10, -5)
 
         else:
             ax.axes.xaxis.set_ticks([])
@@ -586,7 +615,7 @@ def plot_q_lab_orthogonalization_process(
     subplots = (3, 3)
     figsize = get_figure_size(subplots=subplots)
     figure, axes = plt.subplots(
-        subplots[0], subplots[1], figsize=figsize)
+        subplots[0], subplots[1], layout="tight", figsize=figsize)
 
     # add 1 to avoid log(0)
     detector_data += 1
@@ -621,10 +650,10 @@ def plot_q_lab_orthogonalization_process(
     axes[0, 2].set_ylabel(r"detector axis$_1$")
 
     if where_in_ortho_space is None:
-        print(
-            "where_in_ortho_space parameter not provided, will plot the "
-            "data at the center"
-        )
+        # print(
+        #     "where_in_ortho_space parameter not provided, will plot the "
+        #     "data at the center"
+        # )
         where_in_ortho_space = tuple(
             e // 2 for e in orthogonalized_data.shape)
 
@@ -655,12 +684,12 @@ def plot_q_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[1, 0].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 0].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 1].set_xlabel(r"x$_{lab}/$z$_{cxi}$")
-    axes[1, 1].set_ylabel(r"z$_{lab}/$y$_{cxi}$")
-    axes[1, 2].set_xlabel(r"y$_{lab}/$x$_{cxi}$")
-    axes[1, 2].set_ylabel(r"x$_{lab}/$z$_{cxi}$")
+    axes[1, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[1, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[1, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
+    axes[1, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[1, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[1, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
 
     # load the orthogonalized grid values
     x_array, y_array, z_array = q_lab_regular_grid
@@ -699,50 +728,37 @@ def plot_q_lab_orthogonalization_process(
         levels=100,
     )
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
-    # axes[2, 0].set_xlabel(
-    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 0].set_ylabel(
-    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 1].set_xlabel(
-    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 1].set_ylabel(
-    #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 2].set_xlabel(
-    #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-    # axes[2, 2].set_ylabel(
-    #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[2, 0].set_xlabel(
-        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 0].set_ylabel(
-        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_xlabel(
-        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 1].set_ylabel(
-        r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_xlabel(
-        r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
     axes[2, 2].set_ylabel(
-        r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+        r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
-    axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
-    axes[1, 1].set_title(r"Orthogonalized data in \textbf{index-of-q lab frame}")
-    axes[2, 1].set_title(r"Orthogonalized data in \textbf{q lab frame}")
+    axes[0, 1].set_title(r"Raw data in detector frame")
+    axes[1, 1].set_title(r"Orthogonalized data in index-of-q lab frame")
+    axes[2, 1].set_title(r"Orthogonalized data in q lab frame")
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        # ax.tick_params(axis="x", bottom=True, top=False, labeltop=False, labelbottom=True)
-        white_interior_ticks_labels(ax, -10, -20)
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
     for ax in axes[2].ravel():
         ax.set_aspect("equal")
 
     figure.suptitle(title)
-    text = (
-        "The white X marker shows the\nreference voxel used for the"
-        "\ntransformation"
-    )
-    figure.text(0.05, 0.92, text, transform=figure.transFigure)
-    figure.tight_layout()
+    # text = (
+    #     "The white X marker shows the\nreference voxel used for the"
+    #     "\ntransformation"
+    # )
+    # figure.text(0.05, 0.92, text, transform=figure.transFigure)
 
     return figure
 
@@ -783,10 +799,10 @@ def plot_direct_lab_orthogonalization_process(
         axes[0, 1].set_ylabel(r"detector axis$_0$")
         axes[0, 2].set_xlabel(r"detector axis$_0$")
         axes[0, 2].set_ylabel(r"detector axis$_1$")
-        axes[0, 1].set_title(r"Raw data in \textbf{detector frame}")
+        axes[0, 1].set_title(r"Raw data in detector frame")
 
     axes[ax_row_index, 1].set_title(
-        r"Orthogonalized data in \textbf{index-of-direct lab frame}"
+        r"Orthogonalized data in index-of-direct lab frame"
     )
 
     plot_at = tuple(e // 2 for e in direct_lab_data.shape)
@@ -810,12 +826,12 @@ def plot_direct_lab_orthogonalization_process(
         origin="lower"
     )
 
-    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$")
-    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$")
-    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$")
-    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$")
+    axes[ax_row_index, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[ax_row_index, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[ax_row_index, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
+    axes[ax_row_index, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$")
+    axes[ax_row_index, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$")
+    axes[ax_row_index, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$")
 
     ax_row_index += 1
 
@@ -848,14 +864,14 @@ def plot_direct_lab_orthogonalization_process(
         levels=100
     )
 
-    axes[ax_row_index, 0].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[ax_row_index, 0].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[ax_row_index, 1].set_xlabel(r"$x_{lab}/z_{cxi}$ (nm)")
-    axes[ax_row_index, 1].set_ylabel(r"$z_{lab}/y_{cxi}$ (nm)")
-    axes[ax_row_index, 2].set_xlabel(r"$y_{lab}/x_{cxi}$ (nm)")
-    axes[ax_row_index, 2].set_ylabel(r"$x_{lab}/z_{cxi}$ (nm)")
+    axes[ax_row_index, 0].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 0].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 1].set_xlabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 1].set_ylabel(r"$z_\mathrm{XU}/y_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 2].set_xlabel(r"$y_\mathrm{XU}/x_\mathrm{CXI}$ (nm)")
+    axes[ax_row_index, 2].set_ylabel(r"$x_\mathrm{XU}/z_\mathrm{CXI}$ (nm)")
     axes[ax_row_index, 1].set_title(
-        r"Orthogonalized data in \textbf{direct lab frame}"
+        r"Orthogonalized data in direct lab frame"
     )
 
     # for ax in axes[2, :].ravel():
@@ -865,7 +881,8 @@ def plot_direct_lab_orthogonalization_process(
 
     figure.canvas.draw()
     for ax in axes.ravel():
-        white_interior_ticks_labels(ax, -10, -18)
+        ax.locator_params(nbins=5)
+        white_interior_ticks_labels(ax, -10, -5)
 
     figure.suptitle(title)
     figure.tight_layout()
@@ -974,41 +991,29 @@ def plot_final_object_fft(
 
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
     for i in range(2):
-        # axes[i, 0].set_xlabel(
-        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 0].set_ylabel(
-        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 1].set_xlabel(
-        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 1].set_ylabel(
-        #     r"Q$_{\text{z}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 2].set_xlabel(
-        #     r"Q$_{\text{y}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        # axes[i, 2].set_ylabel(
-        #     r"Q$_{\text{x}_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
-        
         axes[i, 0].set_xlabel(
-            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 0].set_ylabel(
-            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_xlabel(
-            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 1].set_ylabel(
-            r"Q$_{z_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{z_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_xlabel(
-            r"Q$_{y_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{y_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
         axes[i, 2].set_ylabel(
-            r"Q$_{x_{lab}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
+            r"Q$_{x_\mathrm{XU}}$ " + f"({ANGSTROM_SYMBOL}" + r"$^{-1})$")
 
     axes[0, 1].set_title(
-        r"FFT of final object in \textbf{q lab frame}")
+        r"FFT of final object in q lab frame")
     axes[1, 1].set_title(
-        r"Orthogonalized experimental data in \textbf{q lab frame}")
+        r"Orthogonalized experimental data in q lab frame")
 
     figure.canvas.draw()
-    for ax in axes.ravel():
+    for ax in axes.flat:
+        ax.locator_params(nbins=5)
         ax.set_aspect("equal")
-        white_interior_ticks_labels(ax, -10, -20)
+        white_interior_ticks_labels(ax, -10, -5)
 
     figure.suptitle(title)
     figure.tight_layout()
