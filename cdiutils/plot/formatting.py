@@ -374,6 +374,7 @@ def update_plot_params(
             "lines.markersize": 1,
             "figure.titlesize": 8,
             "font.size": 7,
+            "svg.fonttype": "none",
             "axes.titlesize": 7,
             "axes.labelsize": 7,
             "xtick.labelsize": 6,
