@@ -1173,6 +1173,7 @@ def plot_2d_image(
 
     except TypeError:
         print("You probably took a slice on a detector gap ...")
+        return None
 
 
 def plot_3d_slices(
