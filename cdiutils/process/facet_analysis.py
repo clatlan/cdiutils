@@ -1408,11 +1408,11 @@ class FacetAnalysisProcessor:
 
                 if angle == 0:
                     if frame in [0, 10, 20, 30]:
-                        plt.savefig(f'{self.path_visu}/{c}_{angle}_{frame}.png',
+                        plt.savefig(f'{self.path_visu}/{c}_{angle}_{frame}.svg',
                                     bbox_inches='tight')
                 elif angle == 1:
                     if frame in [10, 30]:
-                        plt.savefig(f'{self.path_visu}/{c}_{angle}_{frame}.png',
+                        plt.savefig(f'{self.path_visu}/{c}_{angle}_{frame}.svg',
                                     bbox_inches='tight')
                     
 

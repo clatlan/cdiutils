@@ -590,7 +590,7 @@ class BcdiProcessor:
             f"{self.scan}"
         )
         self.figures["preprocessing"]["figure"].savefig(
-            f"{template_path}_{self.figures['preprocessing']['name']}.png",
+            f"{template_path}_{self.figures['preprocessing']['name']}.svg",
             bbox_inches="tight",
             dpi=200
         )
@@ -642,7 +642,7 @@ class BcdiProcessor:
                 fig_path = (
                     f"{debug_dir if fig['debug'] else self.dump_dir}"
                     f"cdiutils_S{self.scan}_"
-                    f"{fig['name']}.png"
+                    f"{fig['name']}.svg"
                 )
                 fig["figure"].savefig(
                     fig_path,

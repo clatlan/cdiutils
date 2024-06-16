@@ -348,7 +348,7 @@ class BcdiPipeline:
         if clear_former_results:
             print("[INFO] Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
-            files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
+            files += glob.glob(self.pynx_phasing_dir + "/*Run*.svg")
             for f in files:
                 os.remove(f)
             self.phasing_results = []
