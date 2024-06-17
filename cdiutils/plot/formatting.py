@@ -234,7 +234,7 @@ def get_extent(
     """
     if isinstance(voxel_size, (int, float)):
         voxel_size = np.repeat(voxel_size, len(shape))
-    absolute_extents = voxel_size * shape / (2 if zero_centred else 1)
+    absolute_extents = np.array(voxel_size) * shape / (2 if zero_centred else 1)
     if indexing == "xy":
         return (
             -absolute_extents[plane[0]] if zero_centred else 0,
