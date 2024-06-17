@@ -7,6 +7,7 @@ from .formatting import add_colorbar
 from .formatting import x_y_lim_from_support
 from .formatting import get_x_y_limits_extents
 from .formatting import add_labels
+from .interactive import Plotter
 from . import slice
 from . import volume
 
@@ -21,5 +22,6 @@ __all__ = [
     "get_x_y_limits_extents",
     "add_labels",
     "slice",
-    "volume"
+    "volume",
+    "Plotter"
 ]
