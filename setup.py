@@ -46,7 +46,7 @@ setuptools.setup(
             "silx>=1.0.0",
             "tabulate",
             "vtk>=9.0.1",
-            "xrayutilities>=1.7.3"
+            "xrayutilities>=1.7.3",
             "ipyvolume",
             "bokeh",
             "panel",
