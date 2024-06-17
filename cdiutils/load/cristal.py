@@ -120,9 +120,11 @@ class CristalLoader(Loader):
         rocking_values = h5file[key_path + "/scan_data/actuator_1_1"][()]
 
         # replace the value for the rocking angle by the array of values
-        for angle, name in Cristal.angle_names.items():
+        for angle, name in CristalLoader.angle_names.items():
             if name.endswith(rocking_motor):
                 angles[angle] = rocking_values
+        if binning_along_axis0:
+            raise ValueError("Not implemented yet.")
 
         return angles
 
