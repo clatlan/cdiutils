@@ -45,7 +45,7 @@ def plot_volume_slices(
     elif convention.lower() == "cxi":
         view_params = CXI_VIEW_PARAMETERS.copy()
         if views is None:
-            views = ("z-", "y+", "x+")
+            views = ("z+", "y-", "x+")
 
     slices = get_centred_slices(data.shape)
     # TODO: better handling of shape
@@ -65,10 +65,17 @@ def plot_volume_slices(
         to_plot = data[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
+
+        if view_params[v]["xaxis_points_left"]:
+            to_plot = to_plot[np.s_[:, ::-1]]
+
         axes[i].imshow(to_plot, **_plot_params)
         add_colorbar(axes[i], axes[i].images[0])
         if voxel_size is not None:
-            set_x_y_limits_extents(axes[i], extents, limits, plane)
+            set_x_y_limits_extents(
+                axes[i], extents, limits,
+                plane, view_params[v]["xaxis_points_left"]
+            )
 
     figure.suptitle(title)
     return figure, axes
