@@ -140,7 +140,7 @@ def plot_3d_surface_projections(
             view_parameters[v]["plane"]
         )
 
-        if view_parameters[v]["yaxis_points_left"]:
+        if view_parameters[v]["xaxis_points_left"]:
             # flip the horizontal extent, and the image horizontally
             extent = (extent[1], extent[0], *extent[2:])
             projection = projection[np.s_[:, ::-1]]
@@ -154,7 +154,7 @@ def plot_3d_surface_projections(
         ax.set_title(v, y=0.95)
 
         # Set a new boolean for whether y-axis should be right or left
-        yaxis_left = view_parameters[v]["yaxis_points_left"]
+        yaxis_left = view_parameters[v]["xaxis_points_left"]
 
         # Remove the useless spines
         ax.spines[
