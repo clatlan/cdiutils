@@ -80,14 +80,17 @@ class PyNXPhaser:
     def __init__(
             self,
             iobs: np.ndarray,
-            mask: np.ndarray,
+            mask: np.ndarray = None,
             params: dict = None,
             operators: dict = None,
     ) -> None:
         if not IS_PYNX_AVAILABLE:
             raise ModuleNotFoundError(PYNX_ERROR_TEXT)
         self.iobs = fftshift(iobs)
-        self.mask = fftshift(mask)
+
+        self.mask = None
+        if mask is not None:
+            self.mask = fftshift(mask)
 
         # get the pynx parameters from the default and update them with
         # those provided by the user
