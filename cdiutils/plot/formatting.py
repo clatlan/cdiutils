@@ -9,42 +9,42 @@ import colorcet
 # i.e. [n, m] -> x-axis = m, y-axis = n
 CXI_VIEW_PARAMETERS = {
    "z+": {
-       "axis": 0, "plane": [1, 2], "yaxis_points_left": True,
+       "axis": 0, "plane": [1, 2], "xaxis_points_left": True,
        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
     },
    "z-": {
-       "axis": 0, "plane": [1, 2], "yaxis_points_left": False,
+       "axis": 0, "plane": [1, 2], "xaxis_points_left": False,
        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
     },
    "y+": {
-       "axis": 1, "plane": [0, 2], "yaxis_points_left": False,
+       "axis": 1, "plane": [0, 2], "xaxis_points_left": False,
        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
     },
    "y-": {
-       "axis": 1, "plane": [0, 2], "yaxis_points_left": True,
+       "axis": 1, "plane": [0, 2], "xaxis_points_left": True,
        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
     },
    "x+": {
-       "axis": 2, "plane": [1, 0], "yaxis_points_left": False,
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
        "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
     },
    "x-": {
-       "axis": 2, "plane": [1, 0], "yaxis_points_left": True,
+       "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
        "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
        "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
@@ -73,29 +73,29 @@ XU_VIEW_PARAMETERS = {
        "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
        "xlabel": r"$x{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
     },
    "y-": {
        "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
     },
    "z+": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
        "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
     },
    "z-": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
        "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
     },
 }
 
@@ -157,11 +157,17 @@ def get_x_y_limits_extents(
     return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
 
 
-def set_x_y_limits_extents(ax, extents, limits, plane):
+def set_x_y_limits_extents(ax, extents, limits, plane, xaxis_points_left=False):
     image = ax.images[0]
     image.origin = "lower"
-    image.set_extent(extents[plane[1]] + extents[plane[0]])
-    ax.set_xlim(limits[plane[1]])
+    extent = extents[plane[1]] + extents[plane[0]]
+    if xaxis_points_left:
+        extent = (extent[1], extent[0], *extent[2:])
+    image.set_extent(extent)
+    if xaxis_points_left:
+        ax.set_xlim(limits[plane[1]][1], limits[plane[1]][0])
+    else:
+        ax.set_xlim(limits[plane[1]])
     ax.set_ylim(limits[plane[0]])
 
 
