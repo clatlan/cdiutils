@@ -13,13 +13,13 @@ class NanoMaxLoader(Loader):
     """
     A class to handle loading/reading .h5 files that were created at the
     NanoMax beamline.
+    This loader class does not need any of the 'sample_name' or 
+    'experiment_file_path' because NanoMAX data layering is rather
+    simple.
 
     Args:
-        experiment_file_path (str): path to the master file
-            used for the experiment.
+        experiment_file_path (str): path to the scan file.
         detector_name (str): name of the detector.
-        sample_name (str, optional): name of the sample. Defaults
-            to None.
         flat_field (np.ndarray | str, optional): flat field to
             account for the non homogeneous counting of the
             detector. Defaults to None.
@@ -31,7 +31,7 @@ class NanoMaxLoader(Loader):
         "sample_outofplane_angle": "gontheta",
         "sample_inplane_angle": "gonphi",
         "detector_outofplane_angle": "delta",
-        "detector_inplane_angle": "nu"
+        "detector_inplane_angle": "gamma"
     }
 
     def __init__(
@@ -48,8 +48,7 @@ class NanoMaxLoader(Loader):
         detector information.
 
         Args:
-            experiment_file_path (str): path to the master file
-                used for the experiment.
+            experiment_file_path (str): path to the scan file.
             detector_name (str): name of the detector.
             sample_name (str, optional): name of the sample. Defaults
                 to None.
@@ -67,39 +66,99 @@ class NanoMaxLoader(Loader):
     @h5_safe_load
     def load_detector_data(
             self,
-            scan: int,
-            sample_name: str = None,
             roi: tuple[slice] = None,
             binning_along_axis0: int = None,
-            binnig_method: str = "sum"
+            binning_method: str = "sum"
     ) -> np.ndarray:
         """
         Main method to load the detector data (collected intensity).
 
         Args:
-            scan (int): the scan number you want to load the data from.
-            sample_name (str, optional): the sample name for this scan.
-                Only used if self.sample_name is None. Defaults to None.
             roi (tuple[slice], optional): the region of interest of the
                 detector to load. Defaults to None.
             binning_along_axis0 (int, optional): whether to bin the data
                 along the rocking curve axis. Defaults to None.
-            binnig_method (str, optional): the method employed for the
+            binning_method (str, optional): the method employed for the
                 binning. It can be sum or "mean". Defaults to "sum".
 
         Returns:
             np.ndarray: the detector data.
         """
-        # # The self.h5file is initialised by the @safe decorator.
-        # h5file = self.h5file
-        # if sample_name is None:
-        #     sample_name = self.sample_name
+        # The self.h5file is initialised by the @safe decorator.
+        h5file = self.h5file
+        if sample_name is None:
+            sample_name = self.sample_name
 
-        # # Where to find the data.
-        # key_path = (
-        #     "_".join((sample_name, str(scan)))
-        #     + f"/entry/measurement/{self.detector_name}"
-        # )
+        # Where to find the data.
+        key_path = (
+            # "_".join((sample_name, str(scan)))
+            f"/entry/measurement/{self.detector_name}/frames"
+        )
 
-        # roi = self._check_roi(roi)
-        pass
+        roi = self._check_roi(roi)
+        try:
+            if binning_along_axis0:
+                data = h5file[key_path][()]
+            else:
+                data = h5file[key_path][roi]
+        except KeyError as exc:
+            raise KeyError(
+                f"key_path is wrong (key_path='{key_path}'). "
+                "Are sample_name, scan number or detector name correct?"
+            ) from exc
+
+        return self.bin_flat_mask(
+            data,
+            roi,
+            binning_along_axis0,
+            binning_method
+        )
+
+    @h5_safe_load
+    def load_motor_positions(
+            self,
+            roi: tuple[slice] = None,
+            binning_along_axis0: int = None,
+            binning_method: str = "mean"
+    ) -> dict:
+        h5file = self.h5file
+
+        key_path = (
+            "entry/snapshots/post_scan/"
+        )
+        angles = {key: None for key in NanoMaxLoader.angle_names}
+
+        for angle, name in NanoMaxLoader.angle_names.items():
+            angles[angle] = h5file[key_path + name][()]
+
+        # Take care of the rocking curve angle
+        for angle in ("gonphi", "gontheta"):
+            if angle in h5file["entry/measurement"].keys():
+                rocking_angle_name = angle
+                rocking_angle_values = h5file["entry/measurement"][angle][()]
+                # Find what generic angle (in-plane or out-of-plane) it
+                # corresponds to.
+                for angle, name in NanoMaxLoader.angle_names.items():
+                    if name == rocking_angle_name:
+                        rocking_angle = angle
+        angles[rocking_angle]= rocking_angle_values
+
+        # TODO: must implement a general method to handle this
+        if binning_along_axis0:
+            pass
+        return angles
+
+    @h5_safe_load
+    def load_energy(self) -> float:
+        """
+        Load and return the energy used during the experiment.
+
+        Args:
+            scan (int): the scan number of the file to load the energy
+                from.
+
+        Returns:
+            float: the energy value in keV.
+        """
+        h5file = self.h5file
+        return h5file["entry/snapshots/post_scan/energy"][0]
