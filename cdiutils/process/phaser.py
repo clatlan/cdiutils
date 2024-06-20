@@ -34,15 +34,15 @@ try:
 
 except ImportError:
     IS_PYNX_AVAILABLE = False
-    PYNX_ERROR_TEXT = (
-        "'pynx' is not installed, PyNXPhaser is not available."
-    )
     CDI_Type = None
 
 from cdiutils.plot import get_plot_configs, get_figure_size
 from cdiutils.utils import get_centred_slices, valid_args_only
 
 
+PYNX_ERROR_TEXT = (
+        "'pynx' is not installed, PyNXPhaser is not available."
+    )
 DEFAULT_PYNX_PARAMS = {
 
     # support-related params
@@ -76,6 +76,12 @@ DEFAULT_PYNX_PARAMS = {
 
 
 class PyNXPhaser:
+    """
+    A class to employ PyNX phasing algorithms whithout bothering
+    too much with the initialisation and parameters. This class will
+    use generic PyNX parameters but they can also be provided upon
+    instanciation.
+    """
 
     def __init__(
             self,
@@ -84,6 +90,24 @@ class PyNXPhaser:
             params: dict = None,
             operators: dict = None,
     ) -> None:
+        """
+        Initialisation method.
+
+        Args:
+            iobs (np.ndarray): the observed intensity.
+            mask (np.ndarray, optional): the mask, can include detector
+                gap mask/hot pixels/aliens. Defaults to None.
+            params (dict, optional): the PyNX parameters. If not
+                provided, will use some generic parameters. Defaults to
+                None.
+            operators (dict, optional): the operators you might want to
+                use. If not provided, ER, HIO and RAAR will be
+                initialised anyway. Defaults to None.
+
+        Raises:
+            ModuleNotFoundError: if PyNX is not installed, this class
+             is of no use.
+        """
         if not IS_PYNX_AVAILABLE:
             raise ModuleNotFoundError(PYNX_ERROR_TEXT)
         self.iobs = fftshift(iobs)
@@ -116,7 +140,17 @@ class PyNXPhaser:
 
         self.figure: matplotlib.figure.Figure = None
 
-    def _update_params(self, target, new_params) -> dict:
+    def _update_params(self, target: dict, new_params: dict) -> dict:
+        """
+        Update the parameter dictionary recursively.
+
+        Args:
+            target (dict): the target dictionary.
+            new_params (dict): the new parameters to update.
+
+        Returns:
+            dict: the updated parameter dictionary.
+        """
 
         for key, value in new_params.items():
             if (
@@ -132,6 +166,7 @@ class PyNXPhaser:
         return target
 
     def _init_operators(self) -> dict:
+        """Initialise generic PynX operators."""
         operator_parameters = {
             key: self.params[key]
             for key in [
@@ -150,6 +185,10 @@ class PyNXPhaser:
         }
 
     def _init_support_update(self) -> None:
+        """
+        Initialise the SupportUpdate class from pynx, depending on the
+        parameters of the instance.
+        """
         # Find which parameters are accepted using class inspection
         support_params = valid_args_only(self.params, SupportUpdate)
 
@@ -159,6 +198,10 @@ class PyNXPhaser:
             self.support_update = 1
 
     def _init_cdi(self, verbose=False) -> CDI_Type:
+        """
+        The private method that takes care of the actual
+        initialisation the CDI instance.
+        """
         cdi = CDI(
             self.iobs, self.params["support"], self.params["obj"], self.mask
         )
@@ -236,6 +279,29 @@ class PyNXPhaser:
             all_random: bool = False,
             scale_obj: str = "I"
     ) -> None:
+        """
+        Initialise the CDI object. This will first update the
+        self.params dicitonary and run the private method _init_cdi().
+
+
+        Args:
+            support (np.ndarray, optional): a support for the initial
+                guess. Defaults to None.
+            obj (np.ndarray, optional): an object for the initial guess.
+                Defaults to None.
+            phase_range (float | tuple | list | np.ndarray, optional):
+                the phase range used to initialise the guess random
+                phase. Defaults to np.pi.
+            amp_range (float | tuple | list | np.ndarray, optional):
+                the amplitude range used to initialise the guess
+                amplitude. Defaults to 100.
+            all_random (bool, optional): whether or not to make
+                the initial guess fully random (phase and amplitude).
+                Defaults to False.
+            scale_obj (str, optional): sclae the object amplitude so it
+                the calculated intensity matches the observed one. See
+                the associated PyNX parameter. Defaults to "I".
+        """
         # Store all method parameters into the self.params attribute
         local_parameters = locals()
         self.params.update(
@@ -260,6 +326,7 @@ class PyNXPhaser:
 
     @classmethod
     def read_instructions(cls, recipe: str) -> list[str]:
+        """Read the instructions given in the recipe."""
         recipe = recipe.replace(" ", "")
         instructions = recipe.split(",")
         if "=" in instructions:
@@ -267,10 +334,28 @@ class PyNXPhaser:
         return instructions
 
     def run(
-            self, recipe: str,
+            self,
+            recipe: str,
             cdi: CDI_Type = None,
             init_cdi: bool = True
     ) -> None:
+        """
+        Run the reconstruction algorithm.
+
+        Args:
+            recipe (str): the instruction to run, i.e. the sequence of 
+                projection algorithms (ex:
+                "ER**200, HIO**400, RAAR**800")
+            cdi (CDI_Type, optional): a cdi object you might to work on,
+                if not provided, will used the attribute self.cdi.
+                Defaults to None.
+            init_cdi (bool, optional): whether to initialise the cdi
+                object or not. Defaults to True.
+
+        Raises:
+            ValueError: if instruction is not authorised.
+            ValueError: if instruction is invalid
+        """
         if cdi is None:
             cdi = self.cdi
             if init_cdi:
@@ -334,11 +419,26 @@ class PyNXPhaser:
             recipe: str,
             init_cdi: bool = True
     ) -> None:
+        """
+        Run several reconstructions.
+
+        Args:
+            run_nb (int): the number of reconstructions
+            recipe (str): the instruction to run, i.e. the sequence of 
+                projection algorithms (ex:
+                "ER**200, HIO**400, RAAR**800")
+            init_cdi (bool, optional):  whether to initialise the cdi
+                object or not. Defaults to True.
+
+        Raises:
+            ValueError: if init_cdi is False but no initialisation was
+                done with the init_cdi() method beforehand.
+        """
         if init_cdi:
             for i in range(run_nb):
                 self.cdi_list.append(self._init_cdi())
         else:
-            if self.cdi_list is None or self.cdi_list == []:
+            if self.cdi_list is None or not self.cdi_list:
                 raise ValueError(
                     "CDI object are not itialised, init_cdi should be True."
 
@@ -355,6 +455,30 @@ class PyNXPhaser:
             selection_method: str = "sharpness",
             init_cdi: bool = True
     ):
+        """
+        Run 'genetic'-like phasing. It runs a number of reconstruction
+        independently (defined by the recipe). The support of the best
+        result based on the selection_method is used to replace other
+        reconstruction support. This is repeated  genetic_pass_nb number
+        of times. 
+
+        Args:
+            run_nb (int): the number of reconstructions.
+            genetic_pass_nb (int): the number of genetic pass, i.e. the
+                number of times the recipe is applied.
+            recipe (str): the instruction to run, i.e. the sequence of 
+                projection algorithms (ex:
+                "ER**200, HIO**400, RAAR**800")
+            selection_method (str, optional): The metric used to select
+                the best reconstrucion. Defaults to "sharpness".
+            init_cdi (bool, optional): whether to initialise the cdi
+                object or not. Defaults to True.
+
+        Raises:
+            ValueError: if init_cdi is False but no initialisation was
+                done with the init_cdi() method beforehand.
+            ValueError: selection method is unknown/invalid.
+        """
         if init_cdi:
             for i in range(run_nb):
                 self.cdi_list.append(self._init_cdi())
@@ -405,8 +529,17 @@ class PyNXPhaser:
             title: str = None
     ) -> None:
         """
+        A staticmethod to plot cdi object main quantity.
+        
         See ShowCDI operator to see how Vincent plots CDI objects.
         https://gitlab.esrf.fr/favre/PyNX/-/blob/master/pynx/cdi/cpu_operator.py?ref_type=heads
+
+        Args:
+            cdi (CDI_Type): the cdi object to plot the quantity from.
+            spaces (str, optional): Whether reciprocal or direct space.
+                Defaults to "both".
+            axis (int, optional): What slice to plot. Defaults to 0.
+            title (str, optional): A tite for the plot. Defaults to None.
         """
         # Check the dimension of the object, whether 2D or 3D
         if cdi.get_obj().ndim == 2:
