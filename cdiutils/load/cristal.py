@@ -109,7 +109,7 @@ class CristalLoader(Loader):
         key_path_template = key_path + "/CRISTAL/{}/position"
 
         angles = {}
-        for angle, name in Cristal.angle_names.items():
+        for angle, name in CristalLoader.angle_names.items():
             angles[angle] = h5file[key_path_template.format(name)][()]
 
         # Get the motor name used for the rocking curve
