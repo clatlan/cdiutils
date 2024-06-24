@@ -227,6 +227,9 @@ class Loader:
             mask[513:552, :] = 1
             mask[1064:1103, :] = 1
             mask[1615:1654, :] = 1
+        
+        elif detector_name.lower() == "eiger500k":
+            return None
 
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
