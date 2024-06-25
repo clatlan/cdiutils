@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import Normalize
 import numpy as np
 import warnings
 
@@ -13,6 +14,79 @@ from cdiutils.utils import (
     CroppingHandler,
     nan_to_zero
 )
+
+
+def plot_3d_voxels(
+        data: np.ndarray,
+        support: np.ndarray,
+        view: str = "y+",
+        convention: str = "cxi",
+        **plot_params
+) -> plt.Figure:
+    """
+    Plot a 3D volumetric representation of data. Voxel are plotted as
+    voxels! No triangulation/interpolation. The voxels to plot are based
+    on the provided support, while the colouring is generated from the
+    data variable.
+
+    Args:
+        data (np.ndarray): the quantity to plot.
+        support (np.ndarray): the support of the data to plot.
+        view (str, optional): the initial view of the 3D plot. Can be
+        "x+-/y+-/z+-". Defaults to "y+".
+        convention (str, optional): The convention the provided data
+        follow, eitheir XU or CXI. Defaults to "cxi".
+
+    Raises:
+        ValueError: if convention in invalid.
+
+    Returns:
+        plt.Figure: the matpltolib figure the data were drawn in.
+    """
+    _plot_params = {
+        "cmap": plt.get_cmap("turbo"),
+        "norm": Normalize(data.min(), data.max()),
+        "figsize": (6, 2)
+    }
+    if plot_params is not None:
+        _plot_params.update(plot_params)
+
+    if convention.lower() == "cxi":
+        data = np.swapaxes(data, axis1=0, axis2=2)
+        support = np.swapaxes(support, axis1=0, axis2=2)
+        views = {
+            "x+": (180, 0, 90),
+            "y+": (0, -90, 0),
+            "z+": (-90, 90, 0),
+            "x-": (-180, -180, -90),
+            "y-": (0, 90, 0),
+            "z-": (90, -90, 0),
+        }
+    elif convention.lower() == "xu":
+        raise ValueError("'XU' not implemented yet.")
+    else:
+        raise ValueError("Invalid convention, can be 'CXI' or 'XU'.")
+
+    if isinstance(_plot_params["cmap"], str):
+        _plot_params["cmap"] = plt.get_cmap(_plot_params["cmap"])
+
+    colors = _plot_params["cmap"](_plot_params["norm"](data))
+
+    figure = plt.figure(layout="tight", figsize=_plot_params["figsize"])
+    ax = figure.add_subplot(projection="3d")
+
+    ax.set_xlabel(r"$x_{\text{cxi}}$")
+    ax.set_ylabel(r"$y_{cxi}$")
+    ax.set_zlabel(r"$z_{cxi}$")
+    ax.view_init(elev=views[view][0], azim=views[view][1], roll=views[view][2])
+
+    ax.voxels(
+        support,
+        facecolors=colors,
+        edgecolors=np.clip(2*colors-0.85, 0, 1)
+    )
+    # ax.set_box_aspect(None, zoom=1.25)
+    return figure
 
 
 def hemisphere_projection(
@@ -95,6 +169,7 @@ def plot_3d_surface_projections(
     cbar_size, cbar_pad = 0.07, 0.4
     figure, axes = plt.subplots(
         2, 3,
+        layout="tight",
         figsize=figsize,
         gridspec_kw={'height_ratios': [1/(1-(cbar_pad+cbar_size)), 1]}
     )
@@ -186,20 +261,7 @@ def plot_3d_surface_projections(
         )
         xlabel = view_parameters[v]["xlabel"]
         ylabel = view_parameters[v]["ylabel"]
-        # xlabel = (
-        #     r"$z_{CXI}$"
-        #     if view_parameters[v]["plane_axes"][0] == 0
-        #     else r"$y_{CXI}$"
-        #     if view_parameters[v]["plane_axes"][0] == 1
-        #     else r"$x_{CXI}$"
-        # )
-        # ylabel = (
-        #     r"$z_{CXI}$"
-        #     if view_parameters[v]["plane_axes"][1] == 0
-        #     else r"$y_{CXI}$"
-        #     if view_parameters[v]["plane_axes"][1] == 1
-        #     else r"$x_{CXI}$"
-        # )
+
         ax.set_xlabel(xlabel, labelpad=1)
         ax.set_ylabel(ylabel, labelpad=1)
         ax.tick_params(axis='both', which='major', pad=1.5)
@@ -217,7 +279,6 @@ def plot_3d_surface_projections(
     cax.set_title(cbar_title)
 
     figure.suptitle(title)
-    figure.tight_layout()
     return figure
 
 
