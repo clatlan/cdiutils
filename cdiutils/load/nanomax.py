@@ -86,8 +86,6 @@ class NanoMaxLoader(Loader):
         """
         # The self.h5file is initialised by the @safe decorator.
         h5file = self.h5file
-        if sample_name is None:
-            sample_name = self.sample_name
 
         # Where to find the data.
         key_path = (
