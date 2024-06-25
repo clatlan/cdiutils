@@ -368,6 +368,35 @@ class BcdiPipeline:
                 "the current machine.\n"
             )
             if os.uname()[1].lower().startswith(("p9", "scisoft16")):
+                # import threading
+                # import signal
+                # import sys
+
+                # def signal_handler(sig, frame):
+                #     print(
+                #         "Keyboard interrupt received, exiting main program...")
+                #     sys.exit(0)
+
+                # # Function to read and print subprocess output
+                # def read_output(pipe):
+                #     try:
+                #         for line in iter(pipe.readline, ""):
+                #             print(line.decode("utf-8"), end="")
+                #     except KeyboardInterrupt:
+                #         pass  # Catch KeyboardInterrupt to exit the thread
+
+                # # Register signal handler for keyboard interrupt
+                # signal.signal(signal.SIGINT, signal_handler)
+                # process = subprocess.Popen(
+                #         # "source /sware/exp/pynx/activate_pynx.sh;"
+                #         f"cd {self.pynx_phasing_dir};"
+                #         # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
+                #         "pynx-cdi-id01 pynx-cdi-inputs.txt",
+                #         shell=True,
+                #         executable="/bin/bash",
+                #         stdout=subprocess.PIPE,
+                #         stderr=subprocess.PIPE,
+                # )
                 with subprocess.Popen(
                         # "source /sware/exp/pynx/activate_pynx.sh;"
                         f"cd {self.pynx_phasing_dir};"
@@ -388,6 +417,43 @@ class BcdiPipeline:
                             "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
                             stderr.decode("utf-8")
                         )
+
+                # # Start threads to read stdout and stderr
+                # stdout_thread = threading.Thread(
+                #     target=read_output, args=(process.stdout,)
+                # )
+                # stderr_thread = threading.Thread(
+                #     target=read_output, args=(process.stderr,)
+                # )
+
+                # stdout_thread.start()
+                # stderr_thread.start()
+
+                # try:
+                #     # Wait for the subprocess to complete
+                #     process.wait()
+                # except KeyboardInterrupt:
+                #     print(
+                #         "Keyboard interrupt received, terminating "
+                #         "subprocess..."
+                #     )
+                #     process.terminate()  # Send SIGTERM to the subprocess
+                #     process.wait()  # Wait for the subprocess to terminate
+                    
+                #     # Terminate the threads
+                #     stdout_thread.join(timeout=1)  # Wait for stdout_thread to terminate
+                #     if stdout_thread.is_alive():
+                #         print("Forcefully terminating stdout_thread...")
+                #         stdout_thread.cancel()
+                    
+                #     stderr_thread.join(timeout=1)  # Wait for stderr_thread to terminate
+                #     if stderr_thread.is_alive():
+                #         print("Forcefully terminating stderr_thread...")
+                #         stderr_thread.cancel()
+
+                # # Wait for the threads to complete
+                # stdout_thread.join()
+                # stderr_thread.join()
         else:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
@@ -525,6 +591,7 @@ class BcdiPipeline:
             sorting_criterion: str = "mean_to_max",
             plot_phasing_results: bool = True,
             plot_phase: bool = False,
+            init_analyser: bool = True
     ) -> None:
         """
         Wrapper for analyse_phasing_results method of
@@ -553,13 +620,16 @@ class BcdiPipeline:
                 plotted. If True, will the phase is plotted with 
                 amplitude as opacity. If False, amplitude is plotted
                 instead. Defaults to False.
+            init_analyser: (bool, optional): whether to force the
+                reinitialisation of the PhasingResultAnalyser instance
 
         Raises:
             ValueError: if sorting_criterion is unknown.
         """
-        self.result_analyser = PhasingResultAnalyser(
-            result_dir_path=self.pynx_phasing_dir
-        )
+        if self.result_analyser is None or init_analyser:
+            self.result_analyser = PhasingResultAnalyser(
+                result_dir_path=self.pynx_phasing_dir
+            )
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion,
