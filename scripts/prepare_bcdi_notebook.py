@@ -18,6 +18,10 @@ if __name__ == "__main__":
         os.path.dirname(cdiutils.__file__)
         + "/examples/analyse_bcdi_data.ipynb"
     )
+    step_by_step_notebook_path = os.path.abspath(
+        os.path.dirname(cdiutils.__file__)
+        + "examples/step_by_step_bcdi_analysis.ipynb"
+    )
     if len(sys.argv) < 2:
         sys.argv.append(".")
     elif len(sys.argv) > 2:
@@ -42,3 +46,4 @@ if __name__ == "__main__":
                 output_path = os.getcwd() + "/" + arg + ".ipynb"
 
         shutil.copy(notebook_path, output_path)
+        shutil.copy(step_by_step_notebook_path, output_path)
