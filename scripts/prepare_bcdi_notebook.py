@@ -20,7 +20,7 @@ if __name__ == "__main__":
     )
     step_by_step_notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
-        + "examples/step_by_step_bcdi_analysis.ipynb"
+        + "/examples/step_by_step_bcdi_analysis.ipynb"
     )
     if len(sys.argv) < 2:
         sys.argv.append(".")
