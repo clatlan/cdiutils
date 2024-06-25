@@ -133,9 +133,7 @@ class BlissLoader(Loader):
         if sample_name is None:
             sample_name = self.sample_name
 
-        key_path = "_".join(
-                (sample_name, str(scan))
-        ) + ".1/instrument/positioners/"
+        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
 
         if roi is None or len(roi) == 2:
             roi = slice(None)
@@ -194,6 +192,18 @@ class BlissLoader(Loader):
                     # note that it is not the same error as above
                     continue
         return angles
+
+    @h5_safe_load
+    def load_energy(
+            self,
+            scan: int,
+            sample_name: str = None
+    ) -> float:
+        if sample_name is None:
+            sample_name = self.sample_name
+
+        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+        return self.h5file[key_path + "nrj"][()]
 
     @h5_safe_load
     def load_measurement_parameters(
