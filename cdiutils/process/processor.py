@@ -416,7 +416,7 @@ class BcdiProcessor:
             + ", ".join(
                 [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
-            + ". If low-strain crystal, you can set PyNX rebin_factors to "
+            + ". If low-strain crystal, you can set PyNX 'rebin' parameter to "
             "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
         )
         # position of the max and com in the cropped detector frame
