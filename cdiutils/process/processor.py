@@ -323,8 +323,9 @@ class BcdiProcessor:
                     f"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2.\n"
                 )
             else:
-                self.load_data()
-            # self.load_data()
+                self.load_data(
+                    binning_along_axis0=self.params["binning_along_axis0"]
+                )
 
             # if the final_shape is 2D convert it in 3D
             if len(final_shape) == 2:
