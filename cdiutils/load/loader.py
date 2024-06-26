@@ -126,11 +126,13 @@ class Loader:
         )
         if roi is None:
             return tuple(slice(None) for _ in range(3))
-        if len(roi) == 2 or len(roi) == 3:
-            if all(isinstance(e, slice) for e in roi):
+        if all(isinstance(e, slice) for e in roi):
+            if len(roi) == 2:
                 return (slice(None), roi[0], roi[1])
+            elif len(roi) == 3:
+                return roi
         if len(roi) == 4 or len(roi) == 6:
-            if all(isinstance(e, int) for e in roi):
+            if all(isinstance(e, (int, np.integer)) for e in roi):
                 return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text.format(roi))
 
@@ -155,8 +157,8 @@ class Loader:
                     binned_data.append(np.sum(data[last_slices:], axis=0))
                 data = np.asarray(binned_data)
 
-        if binning_along_axis0 and roi:
-            data = data[roi]
+            if roi is not None:
+                data = data[roi]
 
         if self.flat_field is not None:
             data = data * self.flat_field[roi[1:]]
@@ -227,7 +229,7 @@ class Loader:
             mask[513:552, :] = 1
             mask[1064:1103, :] = 1
             mask[1615:1654, :] = 1
-        
+
         elif detector_name.lower() == "eiger500k":
             return None
 
