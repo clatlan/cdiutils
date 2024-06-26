@@ -52,7 +52,7 @@ class CristalLoader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(Cristal, self).__init__(flat_field, alien_mask)
+        super(CristalLoader, self).__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
 
     @h5_safe_load
@@ -78,7 +78,10 @@ class CristalLoader(Loader):
 
         try:
             if binning_along_axis0:
-                data = h5file[key_path][()]
+                # we first apply the roi for axis1 and axis2
+                data = h5file[key_path][(slice(None), roi[1], roi[2])]
+                # But then we'll keep only the roi for axis0
+                roi = (roi[0], slice(None), slice(None))
             else:
                 data = h5file[key_path][roi]
         except KeyError as exc:
