@@ -760,7 +760,7 @@ def extract_reduced_shape(
         limit = np.nonzero(support.sum(axis=i))[0][[0, -1]]
         limit += pad  # padding
         support_limits.append(limit)
-    shape = [limit.ptp() for limit in support_limits]
+    shape = [np.ptp(limit) for limit in support_limits]
     if symmetric:
         return tuple(np.repeat(np.max(shape), support.ndim))
     return shape

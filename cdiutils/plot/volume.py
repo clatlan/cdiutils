@@ -404,7 +404,7 @@ def plot_3d_vector_field(
     ax = fig.add_subplot(projection="3d")
     if arrow:
         colormap = plt.get_cmap(cmap)
-        colors = (norm.ravel() - norm.min()) / norm.ptp()
+        colors = (norm.ravel() - norm.min()) / np.ptp(norm)
         colors = np.concatenate((colors, np.repeat(colors, 2)))
         colors = colormap(colors)
 

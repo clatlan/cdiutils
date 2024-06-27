@@ -984,8 +984,8 @@ class BcdiProcessor:
             det_reference_voxel=self.params["det_reference_voxel"],
             averaged_dspacing=self.averaged_dspacing,
             averaged_lattice_parameter=self.averaged_lattice_parameter,
-            single_vmin=-self.structural_properties["het_strain"].ptp()/2,
-            single_vmax=self.structural_properties["het_strain"].ptp()/2,
+            single_vmin=-np.ptp(self.structural_properties["het_strain"])/2,
+            single_vmax=np.ptp(self.structural_properties["het_strain"])/2,
             **strain_plots
         )
 
