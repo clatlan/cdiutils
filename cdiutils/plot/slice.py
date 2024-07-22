@@ -30,7 +30,7 @@ def plot_volume_slices(
         title: str = None,
         equal_limits: bool = True,
         **plot_params
-) -> None:
+) -> tuple[plt.Figure, plt.Axes]:
     _plot_params = {
         "cmap": "turbo",
     }
