@@ -62,7 +62,7 @@ class PostProcessor:
             if final_shape is None:
                 final_shape = find_suitable_array_shape(
                     support,
-                    padding=np.repeat(6, support.ndim)
+                    padding=np.repeat(10, support.ndim)
                 )
             # center the arrays at the center of mass of the support
             com = CroppingHandler.get_position(support, "com")
