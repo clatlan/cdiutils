@@ -71,7 +71,7 @@ class Loader:
                 return P10Loader(hutch="EH2", **metadata)
             else:
                 return P10Loader(**metadata)
-        if beamline_setup.lower == "cristal":
+        if beamline_setup.lower() == "cristal":
             from . import CristalLoader
             return CristalLoader(**metadata)
         raise ValueError(f"Invalid beamline setup: {beamline_setup}")
