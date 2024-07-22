@@ -49,6 +49,7 @@ setuptools.setup(
             "vtk>=9.0.1",
             "xrayutilities>=1.7.3",
             "ipyvolume",
+            "ipython_genutils",
             "bokeh",
             "panel",
             "tornado",
