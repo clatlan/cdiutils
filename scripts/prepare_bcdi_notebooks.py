@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
-        + "/examples/analyse_bcdi_data.ipynb"
+        + "/examples/bcdi_pipeline.ipynb"
     )
     step_by_step_notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
