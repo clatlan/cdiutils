@@ -15,7 +15,6 @@ from cdiutils.utils import (
     make_support,
     symmetric_pad,
     CroppingHandler,
-    rebin,
     get_oversampling_ratios,
     oversampling_from_diffraction
 )
