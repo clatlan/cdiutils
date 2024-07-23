@@ -274,54 +274,11 @@ class BcdiProcessor:
             # Check if binning is required
             if tuple(self.params["binning_factors"]) != (1, 1, 1):
                 raise ValueError(
-                    "Parameter binning_factors is deprecated "
-                    f"(binning_factors = {self.params['binning_factors']})"
+                    "Parameter binning_factors is no longer supported "
+                    f"(binning_factors = {self.params['binning_factors']})."
                     "Please use parameter 'rebin' in PyNX parameter instead."
                 )
-                self.verbose_print(
-                    "[BINNING] Binning requested "
-                    f"(binning_factors = {self.params['binning_factors']})."
-                )
-                pixel_size_1 = (
-                    self.params["det_calib_parameters"]["pwidth1"]
-                    * self.params["binning_factors"][1]
-                )
-                pixel_size_2 = (
-                    self.params["det_calib_parameters"]["pwidth2"]
-                    * self.params["binning_factors"][2]
-                )
-                cch1 = (
-                    self.params["det_calib_parameters"]["cch1"]
-                    / self.params["binning_factors"][1]
-                )
-                cch2 = (
-                    self.params["det_calib_parameters"]["cch2"]
-                    / self.params["binning_factors"][2]
-                )
-                self.params["det_calib_parameters"].update(
-                    {
-                        "cch1": cch1,
-                        "cch2": cch2,
-                        "pwidth1": pixel_size_1,
-                        "pwidth2": pixel_size_2,
-                    }
-                )
-                self.load_data(
-                    binning_along_axis0=self.params["binning_factors"][0]
-                )
-                initial_shape = self.detector_data.shape
-                self.detector_data = rebin(
-                    self.detector_data,
-                    rebin_f=(1,) + tuple(self.params["binning_factors"][1:])
-                )
-                self.verbose_print(
-                    "[BINNING] Data shape has been reduced from "
-                    f"{initial_shape} to {self.detector_data.shape}.\n"
-                    "Direct beam position has been updated to "
-                    f"{cch1:.2f} (vertical) {cch2:.2f} (horizontal).\n"
-                    "Pixel size has been updated to "
-                    f"{pixel_size_1*1e6} x {pixel_size_2*1e6} um**2.\n"
-                )
+
             else:
                 self.load_data(
                     binning_along_axis0=self.params["binning_along_axis0"]
