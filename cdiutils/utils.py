@@ -1094,6 +1094,66 @@ def hot_pixel_filter(
     return cleaned_data, np.logical_not(mask)
 
 
+def kde_from_histogram(
+        counts: np.ndarray,
+        bin_edges: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the Kernel Density Estimate (KDE) from histogram counts and
+    bin edges provided by numpy.histogram function.
+
+    Args:
+        counts (np.ndarray): the number of elements in each bin.
+        bin_edges (np.ndarray): the limits of each bin.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: x values used to compute the KDE
+            estimate, the y value (KDE estimate)
+    """
+
+    # Check if the histogram is density or not by checking the sum of
+    # the counts
+    bin_widths = np.diff(bin_edges)
+    is_density = np.isclose(np.sum(counts * bin_widths), 1.0)
+
+    if is_density:
+        # When density=True, use the bin edges to reconstruct the data
+        # for KDE
+        data = []
+        for count, left_edge, right_edge in zip(
+                counts, bin_edges[:-1], bin_edges[1:]
+        ):
+            data.extend(
+                np.random.uniform(
+                    left_edge,
+                    right_edge,
+                    int(count * len(counts) * (right_edge - left_edge))
+                )
+            )
+        data = np.array(data)
+
+        kde = gaussian_kde(data)
+        x = np.linspace(min(bin_edges), max(bin_edges))
+        y = kde(x)
+
+    else:
+        # Reconstruct the data from histogram counts and bin edges
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        bin_width = (bin_edges[1] - bin_edges[0])
+        reconstructed_data = np.repeat(bin_centers, counts)
+
+        # Calculate KDE using the reconstructed data
+        kde = gaussian_kde(reconstructed_data)
+        # Evaluate KDE
+        x = np.linspace(bin_edges.min(), bin_edges.max())
+        y = kde.pdf(x)
+
+        # Scale the KDE values to match the original counts
+        y *= len(reconstructed_data) * bin_width
+
+    return x, y
+
+
 def valid_args_only(
         params: dict,
         function: callable
