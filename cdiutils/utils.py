@@ -68,24 +68,24 @@ def find_hull(
 
 def make_support(
         data: np.ndarray,
-        isosurface: float=0.5,
-        nan_values: bool=False
+        isosurface: float = 0.5,
+        nan_values: bool = False
 ) -> np.ndarray:
     """Create a support using the provided isosurface value."""
     data = normalize(data)
     return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
 
 
-def unit_vector(
-        vector: tuple or list or np.ndarray
-    )->  np.ndarray:
+def unit_vector(vector: tuple | list | np.ndarray) -> np.ndarray:
     """Return a unit vector."""
     return np.array(vector) / np.linalg.norm(vector)
 
 
 def angle(v1: np.ndarray, v2: np.ndarray) -> float:
     """Compute angle between two vectors."""
-    return np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+    return np.arccos(
+        np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    )
 
 
 def v1_to_v2_rotation_matrix(
@@ -547,8 +547,9 @@ class CroppingHandler:
         # for i in range(0, len(roi), 2):
         #     if roi[i] < 0:
         #         warnings.warn(
-        #             f"The calculated roi contains a negative value ({roi[i]}),"
-        #             " will set it to 0, this might give inconsistent results."
+        #             f"The calculated roi contains a negative value "
+        #             "({roi[i]}), will set it to 0, this might give "
+        #             "inconsistent results."
         #         )
         #         roi[i+1] -= roi[i]
         #         roi[i] = 0
@@ -607,8 +608,8 @@ class CroppingHandler:
         # ):
         #     warnings.warn(
         #         "\n"
-        #         "The center of the final box does not correspond to the com.\n"
-        #         "You might want to keep looking for it."
+        #         "The center of the final box does not correspond to the com."
+        #         "\nYou might want to keep looking for it."
         #     )
         # actual position along which the data are centered using roi
         position = tuple(
@@ -794,7 +795,9 @@ def find_isosurface(
     counts, bins = np.histogram(flattened_amplitude, bins=nbins)
 
     # remove the background
-    background_value = bins[np.where(counts == counts.max())[0]+1+ nbins//20]
+    background_value = bins[
+        np.where(counts == counts.max())[0] + 1 + nbins//20
+    ]
     filtered_amplitude = flattened_amplitude[
         flattened_amplitude > background_value
     ]
@@ -868,89 +871,6 @@ def find_isosurface(
             matplotlib.pyplot.show()
         return float(isosurface), fig
     return float(isosurface)
-
-
-def rebin(a, rebin_f, scale="sum", mask=None):
-    """
-     Rebin a 2 or 3-dimensional array. If its dimensions are not a
-     multiple of rebin_f, the array will be cropped.
-
-     The figure has been adapted from PyNX package, see:
-     https://gitlab.esrf.fr/favre/PyNX/-/blob/master/pynx/utils/array.py?ref_type=heads
-     
-    Args:
-        a: the array to resize, which can also be a masked array
-        rebin_f: the rebin factor - pixels will be summed by groups of rebin_f x rebin_f (x rebin_f). This can
-                 also be a tuple/list of rebin values along each axis, e.g. rebin_f=(4,1,2) for a 3D array
-                 Instead of summing/averaging the pixels over the rebin box, it is also possible to
-                 select a sub-pixel by giving the shift for each dimension, e.g. with "rebin=4,1,2,0,0,1",
-                 the extracted array will be a[0::4,0::1,1::2]
-        scale: if "sum" (the default), the array total will be kept.
-            If "average", the average pixel value will be kept.
-            If "square", the array is scaled so that (abs(a)**2).sum() is kept
-    Returns:
-        the array after rebinning. A masked array if mask is not None.
-    """
-
-    ndim = a.ndim
-    if isinstance(rebin_f, int) or isinstance(rebin_f, np.integer):
-        rebin_f = [rebin_f] * ndim
-    else:
-        assert ndim == len(rebin_f) or 2 * ndim == len(rebin_f), \
-            "Rebin: number of dimensions does not agree with number of rebin values:" + str(rebin_f)
-    if ndim == 3:
-        if len(rebin_f) == 2 * ndim:
-            rz, ry, rx, iz, iy, ix = rebin_f
-            return a[iz::rz, iy::ry, ix::rx]
-        nz, ny, nx = a.shape
-        a = a[:nz - (nz % rebin_f[0]), :ny - (ny % rebin_f[1]), :nx - (nx % rebin_f[2])]
-        sh = nz // rebin_f[0], rebin_f[0], ny // rebin_f[1], rebin_f[1], nx // rebin_f[2], rebin_f[2]
-        if scale.lower() == "average":
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh)
-                n = (mask == 0).reshape(sh)
-                return (b.sum(axis=(1, 3, 5)) / n.sum(axis=(1, 3, 5))).astype(a.dtype)
-            return a.reshape(sh).sum(axis=(1, 3, 5)) / np.prod(rebin_f)
-        elif "sq" in scale.lower():
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh).sum(axis=(1, 3, 5))
-            else:
-                b = a.reshape(sh).sum(axis=(1, 3, 5))
-            return b * np.sqrt((abs(a) ** 2).sum() / (abs(b) ** 2).sum())
-        else:
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh)
-                return b.sum(axis=(1, 3, 5))
-            return a.reshape(sh).sum(axis=(1, 3, 5))
-    elif ndim == 4:
-        if len(rebin_f) == 4 * ndim:
-            r3, rz, ry, rx, i3, iz, iy, ix = rebin_f
-            return a[i3::r3, iz::rz, iy::ry, ix::rx]
-        n3, nz, ny, nx = a.shape
-        a = a[:n3 - (n3 % rebin_f[0]), :nz - (nz % rebin_f[1]), :ny - (ny % rebin_f[2]), :nx - (nx % rebin_f[3])]
-        sh = n3 // rebin_f[0], rebin_f[0], nz // rebin_f[1], rebin_f[1], ny // rebin_f[2], rebin_f[2], \
-             nx // rebin_f[3], rebin_f[3]
-        a = a.reshape(sh)
-        # print("rebin(): a.shape=", a.shape)
-        if scale.lower() == "average":
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh)
-                n = (mask == 0).reshape(sh)
-                return (b.sum(axis=(1, 3, 5, 7)) / n.sum(axis=(1, 3, 5, 7))).astype(a.dtype)
-            return a.sum(axis=(1, 3, 5, 7)) / np.prod(rebin_f)
-        elif "sq" in scale.lower():
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh).sum(axis=(1, 3, 5, 7))
-            else:
-                b = a.reshape(sh).sum(axis=(1, 3, 5, 7))
-            return b * np.sqrt((abs(a) ** 2).sum() / (abs(b) ** 2).sum())
-        else:
-            if mask is not None:
-                b = np.ma.masked_array(a, mask).reshape(sh)
-                return b.sum(axis=(1, 3, 5, 7))
-            return a.sum(axis=(1, 3, 5, 7))
-    else:
-        raise Exception("Only accept arrays of dimensions 3 or 4")
 
 
 def get_oversampling_ratios(
