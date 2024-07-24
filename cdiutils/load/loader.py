@@ -99,11 +99,11 @@ class Loader:
                     for possible_key in (
                             "arr_0", "data", "mask", "flatfield", "flat_field"
                     ):
-                        if possible_key in file.keys():
+                        if possible_key in dict(file):
                             return file[possible_key]
-                        raise KeyError(
-                            f"Unvalid file provided containing {file.keys()}."
-                        )
+                    raise KeyError(
+                        f"Unvalid file provided containing {file.keys()}."
+                    )
         elif data_or_path is None or isinstance(data_or_path, np.ndarray):
             return data_or_path
         raise ValueError(
