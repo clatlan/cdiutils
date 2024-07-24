@@ -156,7 +156,7 @@ class BcdiProcessor:
         )
         if any(
                 data is None
-                for data in (self.detector_data, self.angles, self.mask)
+                for data in (self.detector_data, self.angles)
         ):
             raise ValueError("Something went wrong during data loading.")
 
