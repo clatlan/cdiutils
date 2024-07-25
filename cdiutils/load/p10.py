@@ -269,3 +269,20 @@ class P10Loader(Loader):
             angle: angles[name]
             for angle, name in self.angle_names.items()
         }
+
+    def load_energy(self, scan: int, sample_name: str = None) -> float:
+        if sample_name is None:
+            sample_name = self.sample_name
+
+        path = self._get_file_path(
+            scan,
+            sample_name,
+            data_type="motor_positions"
+        )
+        with open(path, encoding="utf8") as fio_file:
+            lines = fio_file.readlines()
+            for line in lines:
+                line = line.strip()
+                words = line.split()
+                if "fmbenergy" in words:
+                    return float(words[-1])
