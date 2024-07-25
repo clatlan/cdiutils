@@ -547,7 +547,7 @@ class BcdiProcessor:
             f"{self.scan}"
         )
         self.figures["preprocessing"]["figure"].savefig(
-            f"{template_path}_{self.figures['preprocessing']['name']}.svg",
+            f"{template_path}_{self.figures['preprocessing']['name']}.png",
             bbox_inches="tight",
             dpi=200
         )
