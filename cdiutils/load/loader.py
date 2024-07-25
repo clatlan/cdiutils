@@ -241,7 +241,9 @@ class Loader:
             mask[1615:1654, :] = 1
 
         elif detector_name.lower() == "eiger500k":
-            return None
+            return np.zeros(shape=(512, 1028))
+        elif detector_name.lower() == "merlin":
+            return np.zeros(shape=(512, 512))
 
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
