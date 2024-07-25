@@ -363,7 +363,7 @@ class PyNXPhaser:
 
         instructions = self.read_instructions(recipe)
         for i, instruction in enumerate(instructions):
-            print(f"Instruction #{i}: {instruction}")
+            print(f"Instruction #{i + 1}: {instruction}")
 
             if "**" in instruction:
                 algo_name, iteration = instruction.split("**")
@@ -393,7 +393,7 @@ class PyNXPhaser:
                     except SupportTooLarge:
                         print(
                             "Support is too large, reduce it. "
-                            f"Attempt #{attempt}"
+                            f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative /= (
                             self.support_threshold_auto_tune_factor
@@ -402,7 +402,7 @@ class PyNXPhaser:
                     except SupportTooSmall:
                         print(
                             "Support is too small, enlarge it. "
-                            f"Attempt #{attempt}"
+                            f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative *= (
                             self.support_threshold_auto_tune_factor
@@ -444,7 +444,7 @@ class PyNXPhaser:
 
                 )
         for i, cdi in enumerate(self.cdi_list):
-            print(f"Run #{i}")
+            print(f"Run #{i + 1}")
             self.run(recipe, cdi, init_cdi=False)
 
     def genetic_phasing(
@@ -498,10 +498,7 @@ class PyNXPhaser:
             if i == 0:
                 print("First reconstruction pass")
             else:
-                print(
-                    f"Genetic pass #{i}.\n"
-                    f"Updating cdi objects with best reconstruction ()."
-                )
+                print(f"\nGenetic pass #{i}.")
                 for i in range(run_nb):
                     metrics[i] = PhasingResultAnalyser.amplitude_based_metrics(
                         np.abs(self.cdi_list[i].get_obj(shift=True)),
@@ -509,6 +506,10 @@ class PyNXPhaser:
                     )[selection_method]
 
                 indice = np.argsort(metrics)[0]
+                print(
+                    "Updating cdi objects with the best reconstruction "
+                    f"(run # {indice + 1}).\n"
+                )
                 amplitude_reference = np.abs(self.cdi_list[indice].get_obj())
                 for i in range(run_nb):
                     if i == indice:
