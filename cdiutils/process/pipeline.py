@@ -593,6 +593,7 @@ class BcdiPipeline:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
+            plot: bool = True,
             plot_phasing_results: bool = True,
             plot_phase: bool = False,
             init_analyser: bool = True
@@ -618,6 +619,7 @@ class BcdiPipeline:
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
             plot_phase (bool, optional): whether the phase must be
@@ -636,9 +638,10 @@ class BcdiPipeline:
             )
 
         self.result_analyser.analyse_phasing_results(
-            sorting_criterion,
-            plot_phasing_results,
-            plot_phase
+            sorting_criterion=sorting_criterion,
+            plot=plot,
+            plot_phasing_results=plot_phasing_results,
+            plot_phase=plot_phase
         )
 
     def select_best_candidates(
@@ -648,11 +651,18 @@ class BcdiPipeline:
     ) -> None:
         """
         A function wrapper for
-        PhasingResultAnalyser.select_best_candidates 
+        PhasingResultAnalyser.select_best_candidates.
+        Select the best candidates, two methods are possible. Either
+        select a specific number of runs, provided they were alaysed and
+        sorted beforehand. Or simply provide a list of integers
+        corresponding to the digit numbers of the best runs.
 
         Args:
-            nb_of_best_sorted_runs (int, optional): _description_. Defaults to None.
-            best_runs (list, optional): _description_. Defaults to None.
+            nb_of_best_sorted_runs (int, optional): the number of best
+                runs to select, provided they were analysed beforehand.
+                Defaults to None.
+            best_runs (list[int], optional): the best runs to select.
+                Defaults to None.
 
         Raises:
             ValueError: _description_
