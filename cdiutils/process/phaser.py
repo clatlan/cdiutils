@@ -11,6 +11,8 @@ import numpy as np
 from numpy.fft import fftn, fftshift, ifftshift
 import shutil
 from scipy.stats import gaussian_kde
+from scipy.ndimage import fourier_shift
+from skimage.registration import phase_cross_correlation
 import silx.io
 
 try:
@@ -20,7 +22,9 @@ try:
         ScaleObj,
         SupportUpdate,
         HIO,
+        DetwinHIO,
         RAAR,
+        DetwinRAAR,
         ER,
         FourierApplyAmplitude,
         SupportTooLarge,
@@ -36,8 +40,9 @@ except ImportError:
     IS_PYNX_AVAILABLE = False
     CDI_Type = None
 
-from cdiutils.plot import get_plot_configs, get_figure_size
+from cdiutils.plot import get_plot_configs, get_figure_size, add_colorbar
 from cdiutils.utils import get_centred_slices, valid_args_only
+from cdiutils.process import PostProcessor
 
 
 PYNX_ERROR_TEXT = (
@@ -87,8 +92,8 @@ class PyNXPhaser:
             self,
             iobs: np.ndarray,
             mask: np.ndarray = None,
-            params: dict = None,
             operators: dict = None,
+            **params,
     ) -> None:
         """
         Initialisation method.
@@ -97,12 +102,11 @@ class PyNXPhaser:
             iobs (np.ndarray): the observed intensity.
             mask (np.ndarray, optional): the mask, can include detector
                 gap mask/hot pixels/aliens. Defaults to None.
-            params (dict, optional): the PyNX parameters. If not
-                provided, will use some generic parameters. Defaults to
-                None.
             operators (dict, optional): the operators you might want to
                 use. If not provided, ER, HIO and RAAR will be
                 initialised anyway. Defaults to None.
+            params (dict, optional): the PyNX parameters. If not
+                provided, will use some generic parameters.
 
         Raises:
             ModuleNotFoundError: if PyNX is not installed, this class
@@ -178,7 +182,9 @@ class PyNXPhaser:
         return {
             "er": ER(**operator_parameters),
             "hio": HIO(**operator_parameters),
+            "detwinhio": DetwinHIO(detwin_axis=1),
             "raar": RAAR(**operator_parameters),
+            "detwinraar": DetwinRAAR(detwin_axis=1),
             "fap": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)
             )
@@ -277,7 +283,7 @@ class PyNXPhaser:
             phase_range: float | tuple | list | np.ndarray = np.pi,
             amp_range: float | tuple | list | np.ndarray = 100,
             all_random: bool = False,
-            scale_obj: str = "I"
+            scale_obj: str = "I",
     ) -> None:
         """
         Initialise the CDI object. This will first update the
@@ -298,7 +304,7 @@ class PyNXPhaser:
             all_random (bool, optional): whether or not to make
                 the initial guess fully random (phase and amplitude).
                 Defaults to False.
-            scale_obj (str, optional): sclae the object amplitude so it
+            scale_obj (str, optional): scale the object amplitude so it
                 the calculated intensity matches the observed one. See
                 the associated PyNX parameter. Defaults to "I".
         """
@@ -435,6 +441,7 @@ class PyNXPhaser:
                 done with the init_cdi() method beforehand.
         """
         if init_cdi:
+            self.cdi_list = []
             for i in range(run_nb):
                 self.cdi_list.append(self._init_cdi())
         else:
@@ -460,7 +467,7 @@ class PyNXPhaser:
         independently (defined by the recipe). The support of the best
         result based on the selection_method is used to replace other
         reconstruction support. This is repeated  genetic_pass_nb number
-        of times. 
+        of times.
 
         Args:
             run_nb (int): the number of reconstructions.
@@ -480,6 +487,7 @@ class PyNXPhaser:
             ValueError: selection method is unknown/invalid.
         """
         if init_cdi:
+            self.cdi_list = []
             for i in range(run_nb):
                 self.cdi_list.append(self._init_cdi())
         else:
@@ -573,9 +581,10 @@ class PyNXPhaser:
             quantities["support"] = support
 
         elif spaces == "both":
-            quantities["calculated_intensity"] = np.log10(
-                np.abs(fftshift(fftn(cdi.get_obj().copy()))[the_slice])**2
-            )
+            quantities["calculated_intensity"] = np.abs(
+                fftshift(fftn(cdi.get_obj().copy()))[the_slice]
+            ) ** 2
+
             iobs = cdi.get_iobs(shift=True).copy()[the_slice]
             tmp = np.logical_and(iobs > -1e19, iobs < 0)
             if tmp.sum() > 0:
@@ -599,10 +608,7 @@ class PyNXPhaser:
             if key == "observed_intensity":
                 plot_params["title"] = "Observed Int. (a.u.)"
             if "intensity" in key:
-                plot_params["norm"] = LogNorm(
-                    vmin=0.5,
-                    vmax=quantities[key].max()
-                )
+                plot_params["norm"] = LogNorm()
                 plot_params.pop("vmin"), plot_params.pop("vmax")
 
             # Set the ax title and remove it from the plotting params
@@ -678,7 +684,7 @@ class PhasingResultAnalyser:
         self._metrics = None
         self._sorted_phasing_results = None
         self.result_paths = []
-        self.best_candidates = None
+        self.best_candidates = []
 
     def find_phasing_results(self) -> None:
         """
@@ -735,6 +741,7 @@ class PhasingResultAnalyser:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
+            plot: bool = True,
             plot_phasing_results: bool = True,
             plot_phase: bool = False,
     ) -> None:
@@ -756,6 +763,7 @@ class PhasingResultAnalyser:
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
             plot_phase (bool, optional): whether the phase must be
@@ -853,44 +861,48 @@ class PhasingResultAnalyser:
                 for file in self._sorted_phasing_results
             ]
 
-        figsize = get_figure_size(scale=0.75)
-        figure, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
-        colors = {
-            m: c for m, c in zip(
-                self._metrics,
-                ["lightcoral", "mediumslateblue",
-                 "dodgerblue", "plum", "teal", "crimson"]
+        if plot:
+            figsize = get_figure_size(scale=0.75)
+            figure, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
+            colors = {
+                m: c for m, c in zip(
+                    self._metrics,
+                    ["lightcoral", "mediumslateblue",
+                     "dodgerblue", "plum", "teal", "crimson"]
+                )
+            }
+            for m in self._metrics:
+                ax.plot(
+                    runs,
+                    [
+                        self._metrics[m][f]
+                        for f in self._sorted_phasing_results
+                    ],
+                    label=m,
+                    color=colors[m],
+                    marker='o',
+                    markersize=4,
+                    markerfacecolor=colors[m],
+                    markeredgewidth=0.5,
+                    markeredgecolor='k'
+                )
+            ax.set_ylabel("Normalised metric")
+            ax.set_xlabel("Run number")
+            figure.legend(
+                frameon=False,
+                loc="upper center",
+                bbox_to_anchor=(0.5, 0.915),
+                ncol=len(criteria)
             )
-        }
-        for m in self._metrics:
-            ax.plot(
-                runs,
-                [self._metrics[m][f] for f in self._sorted_phasing_results],
-                label=m,
-                color=colors[m],
-                marker='o',
-                markersize=4,
-                markerfacecolor=colors[m],
-                markeredgewidth=0.5,
-                markeredgecolor='k'
+            figure.suptitle(
+                "Phasing result analysis (the lower the better)\n"
             )
-        ax.set_ylabel("Normalised metric")
-        ax.set_xlabel("Run number")
-        figure.legend(
-            frameon=False,
-            loc="upper center",
-            bbox_to_anchor=(0.5, 0.915),
-            ncol=len(criteria)
-        )
-        figure.suptitle(
-            "Phasing result analysis (the lower the better)\n"
-        )
         print(
             "[INFO] the sorted list of runs using sorting_criterion "
             f"'{sorting_criterion}' is:\n{runs}"
         )
 
-        if plot_phasing_results:
+        if plot_phasing_results and plot:
             print("[INFO] Plotting phasing results...")
             for result in self._sorted_phasing_results:
                 if self.cdi_results:
@@ -942,6 +954,7 @@ class PhasingResultAnalyser:
                 self.best_candidates = [f'Run{r:04d}' for r in best_runs]
             else:
                 # This is the script/pipeline mode
+                self.best_candidates = []
                 if not self.result_paths:
                     self.find_phasing_results()
                 for path in self.result_paths:
@@ -958,24 +971,25 @@ class PhasingResultAnalyser:
             self.best_candidates = self.best_candidates[
                 :nb_of_best_sorted_runs
             ]
-            if not self.cdi_results:
-                # This is the script/pipeline mode
-                # Remove the previous candidate files
-                for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
-                    os.remove(f)
-                print(
-                    "[INFO] Best candidates selected:\n"
-                    f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
+
+        if not self.cdi_results:
+            # This is the script/pipeline mode
+            # Remove the previous candidate files
+            for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
+                os.remove(f)
+            print(
+                "[INFO] Best candidates selected:\n"
+                f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
+            )
+            for i, f in enumerate(self.best_candidates):
+                dir_name, file_name = os.path.split(f)
+                run_nb = file_name.split("Run")[1][2:4]
+                scan_nb = file_name.split("_")[0]
+                file_name = (
+                    f"/candidate_{i+1}-{len(self.best_candidates)}"
+                    f"_{scan_nb}_run_{run_nb}.cxi"
                 )
-                for i, f in enumerate(self.best_candidates):
-                    dir_name, file_name = os.path.split(f)
-                    run_nb = file_name.split("Run")[1][2:4]
-                    scan_nb = file_name.split("_")[0]
-                    file_name = (
-                        f"/candidate_{i+1}-{len(self.best_candidates)}"
-                        f"_{scan_nb}_run_{run_nb}.cxi"
-                    )
-                    shutil.copy(f, dir_name + file_name)
+                shutil.copy(f, dir_name + file_name)
 
     # Note: this method only works if PyNX is installed. If not, use
     # the BcdiPipeline method.
@@ -1069,7 +1083,7 @@ class PhasingResultAnalyser:
 
         if data.ndim == 3:
             figsize = get_figure_size(scale=0.75, subplots=(3, 3))
-            figure, axes = plt.subplots(2, 3, figsize=figsize)
+            figure, axes = plt.subplots(2, 3, figsize=figsize, layout="tight")
 
             slices = get_centred_slices(data.shape)
             for i in range(3):
@@ -1113,7 +1127,7 @@ class PhasingResultAnalyser:
 
         if data.ndim == 2:
             figsize = get_figure_size(scale=0.750, subplots=(1, 2))
-            figure, axes = plt.subplots(1, 2, figsize=figsize)
+            figure, axes = plt.subplots(1, 2, figsize=figsize, layout="tight")
 
             rcp_im = axes[0].matshow(
                 reciprocal_space_data,
@@ -1144,8 +1158,11 @@ class PhasingResultAnalyser:
                     np.nonzero(support.sum(axis=1))[0][[0, -1]]
                     + np.array([-5, 5])
                 )
-            figure.colorbar(rcp_im, ax=axes[0], extend="both")
-            figure.colorbar(direct_space_im, ax=axes[1], extend="both")
+            figure.colorbar(rcp_im, ax=axes[0])
+            figure.colorbar(
+                direct_space_im, ax=axes[1],
+                extend="both" if plot_phase else None
+            )
 
             axes[0].set_title("Intensity sum (a.u.)")
             axes[1].set_title(
@@ -1159,3 +1176,138 @@ class PhasingResultAnalyser:
         figure.suptitle(title)
         figure.tight_layout()
     plt.show()
+
+    @staticmethod
+    def twin_image_checkup(
+            ref: np.ndarray | str,
+            reconstruction: np.ndarray | str,
+            phase_unwrap: bool = True,
+            **plot_params
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Implementation of the check-up for the twin image problem as
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)
+        The function takes two reconstructions, one is considered a
+        reference. After the two reconstuctions being registered, their
+        phase in the Fourier space are compared (difference). The same
+        procedure is applied to the twin image of the second
+        reconstruction.
+        To cite the paper:
+        'The smoothness of the retrieved Fourier phase differences can
+        give an indication of the twin image problem. If either of the
+        Fourier phase differences is smooth everywhere, this would be an
+        indication that the reconstructions are free of the twin-image
+        problem. In this test, the twin-image problem would be
+        characterized by the appearance of smooth and random regions
+        that appear complementary when comparing upright with twin
+        images.'
+
+        Args:
+            ref (np.ndarray | str): the reconstruction considered as the
+                reference.
+            reconstruction (np.ndarray | str): the reconstruction that
+                will be twinned and compared to the reference.
+            phase_unwrap (bool, optional): whether to unwrap the phase
+                upon plotting. Defaults to True.
+
+        Returns:
+            tuple[plt.Figure, plt.Axes]: the matpltolib figure and axes
+                objects.
+        """
+
+        def check_load(data: str) -> np.ndarray:
+            if isinstance(data, str):
+                if data.endswith(".cxi"):
+                    with silx.io.h5py_utils.File(data) as file:
+                        return file["entry_1/data_1/data"][()]
+                if data.endswith(".npz"):
+                    with np.load(data) as file:
+                        return file["arr_0"][()]
+                raise NotImplementedError(
+                    "File extension handling not implemented."
+                )
+            if isinstance(data, np.ndarray):
+                return data
+            raise ValueError(
+                "ref and reconstruction must be either strings (path to file) "
+                f"or np.ndarrays, not {type(data)}."
+            )
+
+        ref = check_load(ref)
+        reconstruction = check_load(reconstruction)
+        if ref.shape != reconstruction.shape:
+            raise ValueError(
+                f"Shapes of reference (ref.shape = {ref.shape}) and "
+                "reconstruction (reconstruction.shape = "
+                f"{reconstruction.shape}) must be "
+                "identical."
+            )
+
+        # Register the two datasets
+        shift, _, _ = phase_cross_correlation(
+            np.abs(ref), np.abs(reconstruction), upsample_factor=100
+        )
+        print(
+            "The shift calculated from the "
+            f"phase_cross_correlation is: {shift}."
+        )
+
+        fourier_data = {
+            "ref": ifftshift(fftn(fftshift(ref))),
+            "reconstruction": ifftshift(
+                fourier_shift(fftn(fftshift(reconstruction)), shift)
+            ),
+        }
+        fourier_data["twin"] = np.conj(fourier_data["reconstruction"])
+
+        fourier_phases = {}
+        for k in fourier_data:
+            phase = np.angle(fourier_data[k])
+            centre_index = tuple(s // 2 for s in phase.shape)
+            fourier_phases[k] = phase - phase[centre_index]
+
+        phase_diffs = [
+            PostProcessor.unwrap_phase(
+                fourier_phases[k] - fourier_phases["ref"]
+            )
+            if phase_unwrap else fourier_phases[k] - fourier_phases["ref"]
+            for k in ("reconstruction", "twin")
+        ]
+
+        _plot_params = {"cmap": "cet_CET_C9s_r"}
+
+        if phase_unwrap:
+            _plot_params["vmax"] = np.max(np.abs(np.asarray(phase_diffs)))
+        else:
+            _plot_params["vmax"] = 2 * np.pi
+        _plot_params["vmin"] = -_plot_params["vmax"]
+        if plot_params:
+            _plot_params.update(plot_params)
+
+        if ref.ndim == 3:
+            figure, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 3))
+            slices = get_centred_slices(ref.shape)
+            for i in range(2):
+                for j, ax in enumerate(axes[i].flat):
+                    ax.imshow(phase_diffs[i][slices[j]], **_plot_params)
+            axes[0, 1].set_title(r"$\varphi - \varphi_{\text{ref}}$", y=1.1)
+            axes[1, 1].set_title(
+                r"$\varphi_{\text{twin}} - \varphi_{\text{ref}} "
+                r"= -\varphi - \varphi_{\text{ref}}$",
+                y=1.1
+            )
+        if ref.ndim == 2:
+            figure, axes = plt.subplots(1, 2, layout="tight")
+            axes[0].imshow(phase_diffs[0], **_plot_params)
+            axes[1].imshow(phase_diffs[1], **_plot_params)
+            axes[0].set_title(r"$\varphi - \varphi_{\text{ref}}$")
+            axes[1].set_title(
+                r"$\varphi_{\text{twin}} - \varphi_{\text{ref}} "
+                r"= -\varphi - \varphi_{\text{ref}}$",
+            )
+        for ax in axes.flat:
+            ax.set_xticks([])
+            ax.set_yticks([])
+            add_colorbar(ax, extend="both")
+
+        return figure, axes
