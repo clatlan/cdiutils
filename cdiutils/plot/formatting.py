@@ -494,7 +494,7 @@ def get_figure_size(
 
 def add_colorbar(
     ax: matplotlib.axes.Axes,
-    mappable: matplotlib.cm.ScalarMappable,
+    mappable: matplotlib.cm.ScalarMappable = None,
     loc: str = "right",
     size: str = "5%",
     pad: float = 0.05,
@@ -509,8 +509,9 @@ def add_colorbar(
     Args:
         ax (matplotlib.axes.Axes): the axes to which the colorbar will
             be added.
-        mappable (matplotlib.cm.ScalarMappable): the mappable object
-            that the colorbar will be based on.
+        mappable (matplotlib.cm.ScalarMappable, optional): the mappable
+            object that the colorbar will be based on. If None, will
+            take ax.images[0]. Defaults to None.
         loc (str, optional): the location where the colorbar will be
             placed. Defaults to "right".
         size (str, optional): the size of the colorbar. Defaults to
@@ -525,6 +526,14 @@ def add_colorbar(
     Returns:
         matplotlib.colorbar.Colorbar: the colorbar object.
     """
+    if mappable is None:
+        if ax.images == []:
+            raise ValueError(
+                "mappable is None and ax.images is empty! "
+                "Provide ax on which an image has beem drawn or provide a "
+                "mappable."
+            )
+        mappable = ax.images[0]
     fig = ax.get_figure()
     cax = make_axes_locatable(ax).append_axes(loc, size=size, pad=pad)
     cax.tick_params(labelsize=label_size)
