@@ -42,7 +42,7 @@ except ImportError:
 
 from cdiutils.plot import get_plot_configs, get_figure_size, add_colorbar
 from cdiutils.utils import get_centred_slices, valid_args_only
-from cdiutils.process import PostProcessor
+from cdiutils.process.postprocessor import PostProcessor
 
 
 PYNX_ERROR_TEXT = (
