@@ -599,7 +599,7 @@ class BcdiProcessor:
                 fig_path = (
                     f"{debug_dir if fig['debug'] else self.dump_dir}"
                     f"cdiutils_S{self.scan}_"
-                    f"{fig['name']}.svg"
+                    f"{fig['name']}.png"
                 )
                 fig["figure"].savefig(
                     fig_path,
