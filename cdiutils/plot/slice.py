@@ -541,7 +541,6 @@ def plot_support_contour(
                     linewidths=contour_linewidths,
                     colors=contour_colors[1],
                 )
-        
     return filtered_amp_fig
 
 
@@ -565,13 +564,13 @@ def plot_diffraction_patterns(
     if len(intensities) != len(gridders):
         print("lists intensities and gridders must have the same length")
         return None
-    
+
     no_title = True
     if titles is not None and len(titles) != len(intensities):
         print("lists intensities and titles must have the same length")
     elif titles is not None:
         no_title = False
-    
+
     if data_stacking not in ["vertical", "horizontal"]:
         print("data_stacking should be 'vertical' or 'horizontal'")
         return None
@@ -585,7 +584,7 @@ def plot_diffraction_patterns(
 
     for i, (intensity, (qx, qy, qz)) in enumerate(zip(intensities, gridders)):
         log_intensity = xu.maplog(intensity, maplog_min, 0)
-        
+
         if data_stacking == "vertical":
             ax_coord = (i, 0)
             increment = (0, 1)
