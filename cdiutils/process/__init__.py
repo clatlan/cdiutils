@@ -1,4 +1,3 @@
-from .pipeline import BcdiPipeline, PipelinePlotter
 from .processor import BcdiProcessor
 from .phaser import PyNXPhaser, PhasingResultAnalyser
 from .postprocessor import PostProcessor
@@ -7,8 +6,6 @@ from . import plot
 
 
 __all__ = [
-    "BcdiPipeline",
-    "PipelinePlotter",
     "BcdiProcessor",
     "PyNXPhaser",
     "PostProcessor",

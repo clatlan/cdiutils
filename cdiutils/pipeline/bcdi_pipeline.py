@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable
 from string import Template
 import glob
 import os
@@ -7,39 +7,36 @@ import subprocess
 import time
 import traceback
 
-import matplotlib.pyplot as plt
-from matplotlib.typing import ColorType
 import numpy as np
 import paramiko
 import ruamel.yaml
-from scipy.ndimage import binary_erosion
+import textwrap
 import yaml
 
 from cdiutils.plot.formatting import update_plot_params
-from cdiutils.utils import pretty_print, kde_from_histogram
-from .processor import BcdiProcessor
-from .phaser import PhasingResultAnalyser
+from cdiutils.process.processor import BcdiProcessor
+from cdiutils.process.phaser import PhasingResultAnalyser
 from .parameters import check_parameters, convert_np_arrays
 
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
-try:
-    from bcdi.preprocessing.preprocessing_runner import (
-        run as run_preprocessing
-    )
-    from bcdi.postprocessing.postprocessing_runner import (
-        run as run_postprocessing
-    )
-    from bcdi.utils.parser import ConfigParser
-    IS_BCDI_AVAILABLE = True
-except ModuleNotFoundError:
-    print("The bcdi package is not installed. bcdi backend won't be available")
-    IS_BCDI_AVAILABLE = False  # is_bcdi_available
 
-BCDI_ERROR_TEXT = (
-    "Cannot use 'bcdi' backend if bcdi package is not"
-    "installed."
-)
+def pretty_print(text: str, max_char_per_line: int = 79) -> None:
+    """Print text with a frame of stars."""
+
+    pretty_text = "\n".join(
+        [
+            "",
+            "*" * (max_char_per_line+4),
+            *[
+                f"* {w[::-1].center(max_char_per_line)[::-1]} *"
+                for w in textwrap.wrap(text, width=max_char_per_line)
+            ],
+            "*" * (max_char_per_line+4),
+            "",
+        ]
+    )
+    print(pretty_text)
 
 
 def make_scan_parameter_file(
@@ -90,44 +87,6 @@ def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
         yaml_file.dump(config, file)
 
 
-if IS_BCDI_AVAILABLE:
-    class BcdiPipelineParser(ConfigParser):
-        def __init__(self, file_path: str) -> None:
-            super().__init__(file_path)
-
-        def load_arguments(self) -> Dict:
-            raw_args = yaml.load(self.raw_config, Loader=yaml.SafeLoader)
-
-            raw_args["preprocessing"].update(raw_args["general"])
-            raw_args["postprocessing"].update(raw_args["general"])
-            raw_args["pynx"].update(
-                {"detector_distance":
-                    raw_args["general"]["detector_distance"]}
-            )
-
-            self.arguments = {
-                "preprocessing": self._check_args(raw_args["preprocessing"]),
-                "pynx": raw_args["pynx"],
-                "postprocessing": self._check_args(raw_args["postprocessing"]),
-            }
-            try:
-                self.arguments["cdiutils"] = raw_args["cdiutils"]
-            except KeyError:
-                print("No cdiutils arguments given")
-            return self.arguments
-
-        def load_bcdi_parameters(
-                self,
-                procedure: str = "preprocessing"
-        ) -> Dict:
-            raw_args = yaml.load(
-                self.raw_config,
-                Loader=yaml.SafeLoader
-            )[procedure]
-            raw_args.update(raw_args["general"])
-            return self._check_args(raw_args)
-
-
 def process(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         try:
@@ -144,19 +103,33 @@ def process(func: Callable) -> Callable:
 
 class BcdiPipeline:
     """
-    A class to handle the bcdi workflow, from pre-processing to
-    post-processing (bcdi package), including phase retrieval
-    (pynx package).
+    A class to handle the BCDI workflow, from pre-processing to
+    post-processing, including phase retrieval (using PyNX package).
+    Provide either a path to a parameter file or directly the parameter
+    dictionary.
 
-    :param parameter_file_path: the path (str) of the scan parameter
-    file that holds all the information related to the entire process.
+    Args:
+            parameter_file_path (str, optional): the path to the 
+                parameter file. Defaults to None.
+            parameters (dict, optional): the parameter dictionary.
+                Defaults to None.
+
     """
     def __init__(
             self,
             parameter_file_path: str = None,
             parameters: dict = None,
-            backend: str = "cdiutils"
     ):
+        """
+        Initialisation method.
+
+        Args:
+            parameter_file_path (str, optional): the path to the 
+                parameter file. Defaults to None.
+            parameters (dict, optional): the parameter dictionary.
+                Defaults to None.
+
+        """
 
         self.parameter_file_path = parameter_file_path
         self.params = parameters
@@ -166,42 +139,24 @@ class BcdiPipeline:
                 raise ValueError(
                     "parameter_file_path or parameters must be provided"
                 )
-            self.params = self.load_parameters(backend)
+            self.params = self.load_parameters()
         else:
             check_parameters(parameters)
 
-        self.backend = backend
+        self.dump_dir = (
+            self.params["cdiutils"]["metadata"]["dump_dir"]
+        )
+        self.scan = self.params["cdiutils"]["metadata"]["scan"]
+        self.sample_name = (
+            self.params["cdiutils"]["metadata"]["sample_name"]
+        )
+        self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
 
-        if backend == "cdiutils":
-            self.dump_dir = (
-                self.params["cdiutils"]["metadata"]["dump_dir"]
-            )
-            self.scan = self.params["cdiutils"]["metadata"]["scan"]
-            self.sample_name = (
-                self.params["cdiutils"]["metadata"]["sample_name"]
-            )
-            self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
-        elif backend == "bcdi":
-            if not IS_BCDI_AVAILABLE:
-                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
-            self.dump_dir = self.params["preprocessing"][
-                "save_dir"][0]
-            self.scan = self.params['preprocessing']['scans'][0]
-        else:
-            raise ValueError(
-                f"[ERROR] Unknown backend value ({backend}), it must be either"
-                " 'cdiutils' or 'bcdi'"
-            )
-
-        # the bcdi_processor attribute will be used only if backend
-        # is cdiutils
         self.bcdi_processor: BcdiProcessor = None
         self.result_analyser: PhasingResultAnalyser = None
 
         # update the plot parameters
         update_plot_params(
-            usetex=self.params["cdiutils"]["usetex"],
-            use_siunitx=self.params["cdiutils"]["usetex"],
             **{
                 "axes.labelsize": 7,
                 "xtick.labelsize": 6,
@@ -212,94 +167,55 @@ class BcdiPipeline:
 
     def load_parameters(
             self,
-            backend: str = None,
             file_path: str = None
     ) -> dict:
         """
         Load the parameters from the configuration files.
         """
-        if backend is None:
-            backend = self.backend
         if file_path is None:
             file_path = self.parameter_file_path
 
-        if backend == "bcdi":
-            return BcdiPipelineParser(
-                file_path
-            ).load_arguments()
-
-        if backend == "cdiutils":
-            with open(file_path, "r", encoding="utf8") as file:
-                parameters = yaml.load(
-                    file,
-                    Loader=yaml.FullLoader
-                )
-            check_parameters(parameters)
-            return parameters
-
-        raise ValueError(
-            f"[ERROR] Unknwon backend value ({backend}), it must be either"
-            " 'cdiutils' or 'bcdi'"
-        )
+        with open(file_path, "r", encoding="utf8") as file:
+            parameters = yaml.load(
+                file,
+                Loader=yaml.FullLoader
+            )
+        check_parameters(parameters)
+        return parameters
 
     @process
-    def preprocess(self, backend: str = None) -> None:
+    def preprocess(self) -> None:
 
-        if backend is None:
-            backend = self.backend
-
-        if backend == "bcdi":
-            if not IS_BCDI_AVAILABLE:
-                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
+        pretty_print(
+            "[INFO] Proceeding to preprocessing"
+            f" ({self.sample_name}, S{self.scan})"
+        )
+        dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
+        if os.path.isdir(dump_dir):
+            print(
+                "\n[INFO] Dump directory already exists, results will be "
+                f"saved in:\n{dump_dir}."
+            )
+        else:
+            print(
+                f"[INFO] Creating the dump directory at: {dump_dir}")
             os.makedirs(
-                self.params["preprocessing"]["save_dir"][0],
+                dump_dir,
                 exist_ok=True
             )
-            pretty_print(
-                "[INFO] Proceeding to bcdi preprocessing using the bcdi "
-                f"backend ({self.sample_name}, S{self.scan})"
-            )
-            run_preprocessing(prm=self.params["preprocessing"])
-            pynx_input_template = "S*_pynx_norm_*.npz"
-            pynx_mask_template = "S*_maskpynx_norm_*.npz"
-            self.save_parameter_file()
+        os.makedirs(self.pynx_phasing_dir, exist_ok=True)
+        self.bcdi_processor = BcdiProcessor(
+            parameters=self.params["cdiutils"]
+        )
+        self.bcdi_processor.preprocess_data()
+        self.bcdi_processor.save_preprocessed_data()
+        pynx_input_template = (
+            f"{self.pynx_phasing_dir}/S*_pynx_input_data.npz"
+        )
+        pynx_mask_template = (
+            f"{self.pynx_phasing_dir}/S*_pynx_input_mask.npz"
+        )
 
-        elif backend == "cdiutils":
-            pretty_print(
-                "[INFO] Proceeding to preprocessing"
-                f" ({self.sample_name}, S{self.scan})"
-            )
-            dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
-            if os.path.isdir(dump_dir):
-                print(
-                    "\n[INFO] Dump directory already exists, results will be "
-                    f"saved in:\n{dump_dir}."
-                )
-            else:
-                print(
-                    f"[INFO] Creating the dump directory at: {dump_dir}")
-                os.makedirs(
-                    dump_dir,
-                    exist_ok=True
-                )
-            os.makedirs(self.pynx_phasing_dir, exist_ok=True)
-            self.bcdi_processor = BcdiProcessor(
-                parameters=self.params["cdiutils"]
-            )
-            self.bcdi_processor.preprocess_data()
-            self.bcdi_processor.save_preprocessed_data()
-            pynx_input_template = (
-                f"{self.pynx_phasing_dir}/S*_pynx_input_data.npz"
-            )
-            pynx_mask_template = (
-                f"{self.pynx_phasing_dir}/S*_pynx_input_mask.npz"
-            )
-
-        else:
-            raise ValueError(
-                f"[ERROR] Unknown backend value ({backend}), it must be either"
-                " 'cdiutils' or 'bcdi'"
-            )
 
         try:
             data_path = glob.glob(pynx_input_template)[0]
@@ -326,7 +242,7 @@ class BcdiPipeline:
         self.params["pynx"].update({"data": data_path})
         self.params["pynx"].update({"mask": mask_path})
         self.save_parameter_file()
-        if self.params["cdiutils"]["show"] and backend == "cdiutils":
+        if self.params["cdiutils"]["show"]:
             self.bcdi_processor.show_figures()
 
     @process
@@ -579,7 +495,7 @@ class BcdiPipeline:
 
     def analyze_phasing_results(self, *args, **kwargs) -> None:
         """
-        Deprecated function, shoud use analyse_phasing_results instead.
+        Deprecated function, should use analyse_phasing_results instead.
         """
         from warnings import warn
         warn(
@@ -603,7 +519,7 @@ class BcdiPipeline:
         PhasingResultAnalyser class.
 
         Analyse the phase retrieval results by sorting them according to
-        the sorting_criteion, which must be selected in among:
+        the sorting_criterion, which must be selected in among:
         * mean_to_max the difference between the mean of the
             Gaussian fitting of the amplitude histogram and the maximum
             value of the amplitude. We consider the closest to the max
@@ -611,7 +527,7 @@ class BcdiPipeline:
             reconstruction, hence the best.
         * the sharpness the sum of the amplitude within support to
             the power of 4. For reconstruction with similar support,
-            lowest values means graeter amplitude homogeneity.
+            lowest values means greater amplitude homogeneity.
         * std the standard deviation of the amplitude.
         * llk the log-likelihood of the reconstruction.
         * llkf the free log-likelihood of the reconstruction.
@@ -653,7 +569,7 @@ class BcdiPipeline:
         A function wrapper for
         PhasingResultAnalyser.select_best_candidates.
         Select the best candidates, two methods are possible. Either
-        select a specific number of runs, provided they were alaysed and
+        select a specific number of runs, provided they were analysed and
         sorted beforehand. Or simply provide a list of integers
         corresponding to the digit numbers of the best runs.
 
@@ -670,7 +586,7 @@ class BcdiPipeline:
         if not self.result_analyser:
             raise ValueError(
                 "self.result_analyser not initialised yet. Run"
-                " self.analyse_pahsing_results() first."
+                " BcdiPipeline.analyse_phasing_results() first."
             )
         self.result_analyser.select_best_candidates(
             nb_of_best_sorted_runs,
@@ -765,93 +681,65 @@ class BcdiPipeline:
                     )
 
             if self.parameter_file_path is not None:
-                if self.backend == "bcdi":
-                    update_parameter_file(
-                        self.parameter_file_path,
-                        {"reconstruction_files":
-                            f"{self.pynx_phasing_dir}mode.h5"}
-                    )
-                else:
-                    update_parameter_file(
-                        self.parameter_file_path,
-                        {"reconstruction_file":
-                            f"{self.pynx_phasing_dir}mode.h5"}
-                    )
+                update_parameter_file(
+                    self.parameter_file_path,
+                    {"reconstruction_file":
+                        f"{self.pynx_phasing_dir}mode.h5"}
+                )
                 self.params = self.load_parameters()
 
     @process
-    def postprocess(self, backend: str = None) -> None:
+    def postprocess(self) -> None:
 
-        if backend is None:
-            backend = self.backend
+        pretty_print(
+            "[INFO] Running post-processing"
+            f"({self.sample_name}, S{self.scan})"
+        )
 
-        if backend == "bcdi":
-            if not IS_BCDI_AVAILABLE:
-                raise ModuleNotFoundError(BCDI_ERROR_TEXT)
-            pretty_print(
-                "[INFO] Running post-processing from bcdi_strain.py "
-                f"({self.sample_name}, S{self.scan})"
-            )
-
-            run_postprocessing(prm=self.params["postprocessing"])
-            self.save_parameter_file()
-
-        elif backend == "cdiutils":
-
-            pretty_print(
-                "[INFO] Running post-processing"
-                f"({self.sample_name}, S{self.scan})"
-            )
-
-            if self.bcdi_processor is None:
-                print("BCDI processor is not instantiated yet.")
-                if any(
-                        p not in self.params["cdiutils"].keys()
-                        or self.params["cdiutils"][p] is None
-                        for p in (
-                            "q_lab_reference", "q_lab_max",
-                            "q_lab_com", "det_reference_voxel",
-                            "preprocessing_output_shape"
-                        )
-                ):
-                    file_path = (
-                            f"{self.dump_dir}"
-                            f"S{self.scan}_parameter_file.yml"
+        if self.bcdi_processor is None:
+            print("BCDI processor is not instantiated yet.")
+            if any(
+                    p not in self.params["cdiutils"].keys()
+                    or self.params["cdiutils"][p] is None
+                    for p in (
+                        "q_lab_reference", "q_lab_max",
+                        "q_lab_com", "det_reference_voxel",
+                        "preprocessing_output_shape"
                     )
-                    print(f"Loading parameters from:\n{file_path}")
-                    preprocessing_params = self.load_parameters(
-                        file_path=file_path)["cdiutils"]
-                    self.params["cdiutils"].update(
-                        {
-                            "preprocessing_output_shape": preprocessing_params[
-                                "preprocessing_output_shape"
-                            ],
-                            "det_reference_voxel": preprocessing_params[
-                                "det_reference_voxel"
-                            ],
-                            "q_lab_reference": preprocessing_params[
-                                "q_lab_reference"
-                            ],
-                            "q_lab_max": preprocessing_params["q_lab_max"],
-                            "q_lab_com": preprocessing_params["q_lab_com"]
-                        }
-                    )
-                self.bcdi_processor = BcdiProcessor(
-                    parameters=self.params["cdiutils"]
+            ):
+                file_path = (
+                        f"{self.dump_dir}"
+                        f"S{self.scan}_parameter_file.yml"
                 )
-
-            self.bcdi_processor.orthogonalize()
-            self.bcdi_processor.postprocess()
-            self.bcdi_processor.save_postprocessed_data()
-            self.save_parameter_file()
-            if self.params["cdiutils"]["show"]:
-                self.bcdi_processor.show_figures()
-
-        else:
-            raise ValueError(
-                f"[ERROR] Unknown backend value ({backend}), it must be either"
-                " 'cdiutils' or 'bcdi'"
+                print(f"Loading parameters from:\n{file_path}")
+                preprocessing_params = self.load_parameters(
+                    file_path=file_path)["cdiutils"]
+                self.params["cdiutils"].update(
+                    {
+                        "preprocessing_output_shape": preprocessing_params[
+                            "preprocessing_output_shape"
+                        ],
+                        "det_reference_voxel": preprocessing_params[
+                            "det_reference_voxel"
+                        ],
+                        "q_lab_reference": preprocessing_params[
+                            "q_lab_reference"
+                        ],
+                        "q_lab_max": preprocessing_params["q_lab_max"],
+                        "q_lab_com": preprocessing_params["q_lab_com"]
+                    }
+                )
+            self.bcdi_processor = BcdiProcessor(
+                parameters=self.params["cdiutils"]
             )
+
+        self.bcdi_processor.orthogonalize()
+        self.bcdi_processor.postprocess()
+        self.bcdi_processor.save_postprocessed_data()
+        self.save_parameter_file()
+        if self.params["cdiutils"]["show"]:
+            self.bcdi_processor.show_figures()
+
 
     def save_parameter_file(self) -> None:
         """
@@ -891,195 +779,3 @@ class BcdiPipeline:
         )
         facet_anlysis_processor.facet_analysis()
 
-
-class PipelinePlotter:
-    @staticmethod
-    def plot_histogram(
-            ax: plt.Axes,
-            counts: np.ndarray,
-            bin_edges: np.ndarray,
-            kde_x: np.ndarray = None,
-            kde_y: np.ndarray = None,
-            color: ColorType = "lightcoral",
-            fwhm: bool = True
-    ) -> None:
-        """
-        Plot the bars of a histogram as well as the kernel density
-        estimate.
-
-        Args:
-            ax (plt.Axes): the matplotlib ax to plot the histogram on.
-            counts (np.ndarray): the count in each bin from
-                np.histogram().
-            bin_edges (np.ndarray): the bin edge values from
-                np.histogram().
-            kde_x (np.ndarray, optional): the x values used to
-                calculate the kernel density estimate values.
-            kde_y (np.ndarray, optional): the (y) values of the kernel
-                density estimate.
-            color (ColorType, optional): the colour of the bar and line.
-                Defaults to "lightcoral".
-        """
-
-        # Resample the histogram to calculate the kernel density estimate
-        bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
-        bin_width = (bin_edges[1] - bin_edges[0])
-
-        # Plot the histogram bars
-        ax.bar(
-            bin_centres, counts, bin_width,
-            color=color,
-            alpha=0.4,
-            edgecolor=color,
-            linewidth=0.5,
-            label="data histogram"
-        )
-
-        # Find the x-axis limits
-        xmax = np.max(np.abs(bin_centres))
-        xmin = -xmax
-        ax.set_xlim(xmin, xmax)
-
-        if kde_x is not None and kde_y is not None:
-            # Plot the kernel density estimate
-            ax.plot(kde_x, kde_y, color=color, label="Kernel density estimate")
-
-            # Calculate the FWHM
-            if fwhm:
-                halfmax = kde_y.max() / 2
-                maxpos = kde_y.argmax()
-                leftpos = (np.abs(kde_y[:maxpos] - halfmax)).argmin()
-                rightpos = (np.abs(kde_y[maxpos:] - halfmax)).argmin() + maxpos
-                fwhm = kde_x[rightpos] - kde_x[leftpos]
-
-                # Plot the FWHM line
-                ax.axhline(
-                    y=halfmax,
-                    xmin=(kde_x[leftpos] - xmin) / (-2 * xmin),
-                    xmax=(kde_x[rightpos] + xmax) / (2 * xmax),
-                    label=f"FWHM = {fwhm:.4f}%",
-                    color=color, ls="--", linewidth=1
-                )
-
-    @classmethod
-    def strain_statistics(
-            cls,
-            strain: np.ndarray,
-            support: np.ndarray,
-            bins: np.ndarray | int = 50,
-            colors: dict = None
-    ) -> tuple[plt.Figure, plt.Axes]:
-        """
-        Plot a strain statistics graph displaying distribution of strain
-        for the overall object, the bulk or the surface of the object.
-
-        Args:
-            strain (np.ndarray): the strain data.
-            support (np.ndarray): the associated support.
-            bins (np.ndarray | int, optional): the bins as accepted in
-                numpy.histogram function. Defaults to 50.
-            colors (dict, optional): the dictionary of colours.
-                Defaults to None.
-
-        Returns:
-            tuple[plt.Figure, plt.Axes]: the figure and axes.
-        """
-
-        support = np.nan_to_num(support)
-        bulk = binary_erosion(support)
-        surface = support - bulk
-
-        sub_strains = {
-            "overall": strain[support == 1].ravel(),
-            "bulk": strain[bulk == 1].ravel(),
-            "surface": strain[surface == 1].ravel(),
-        }
-        histograms = {
-            k: np.histogram(v, bins=bins) for k, v in sub_strains.items()
-        }
-        histograms["bulk_density"] = np.histogram(
-            sub_strains["bulk"], bins=bins, density=True
-        )
-        histograms["surface_density"] = np.histogram(
-            sub_strains["surface"], bins=bins, density=True
-        )
-        means = {k: np.nanmean(v) for k, v in sub_strains.items()}
-        means["bulk_density"] = means["bulk"]
-        means["surface_density"] = means["surface"]
-
-        kdes = {k: kde_from_histogram(*v) for k, v in histograms.items()}
-
-        if colors is None:
-            colors = {
-                "overall": "lightcoral",
-                "bulk": "orange",
-                "bulk_density": "orange",
-                "surface": "dodgerblue",
-                "surface_density": "dodgerblue",
-            }
-        figure, axes = plt.subplots(1, 4, layout="tight", figsize=(8, 2))
-
-        # First plot the three histograms separately
-        for k, ax in zip(("overall", "bulk", "surface"), axes.flat[:-1]):
-            cls.plot_histogram(ax, *histograms[k], *kdes[k], color=colors[k])
-
-            # Plot the mean
-            ax.plot(
-                means[k], 0, color=colors[k], ms=4,
-                markeredgecolor="k", marker="o", mew=0.5,
-                label=f"Mean = {means[k]:.4f} %"
-            )
-
-        # Plot the density histograms for bulk and surface on the same subplot
-        for k in ("bulk_density", "surface_density"):
-            cls.plot_histogram(
-                axes[3], *histograms[k], *kdes[k], color=colors[k]
-            )
-
-            axes[3].plot(
-                means[k], 0, color=colors[k], ms=4,
-                markeredgecolor="k", marker="o", mew=0.5,
-                label=f"Mean = {means[k]:.4f} %"
-            )
-
-        for ax in axes.flat[:-1]:
-            ax.set_ylabel(r"Counts")
-            handles, labels = ax.get_legend_handles_labels()
-            handles = handles[1:-1]
-            labels = labels[1:-1]
-            ax.legend(
-                handles, labels,
-                frameon=False,
-                loc="upper center",  bbox_to_anchor=(0.25, 0.75, 0.5, 0.5),
-                fontsize=6, markerscale=0.7,
-                ncols=1
-            )
-
-        axes[3].set_ylabel(r"Normalised counts")
-        handles, labels = axes[3].get_legend_handles_labels()
-        handles = [handles[i] for i in [1, 2, 4, 5]]
-        labels = [labels[i] for i in [1, 2, 4, 5]]
-        axes[3].legend(
-            handles, labels,
-            frameon=False,
-            loc="right", bbox_to_anchor=(1.5, 0.25, 0.5, 0.5),
-            fontsize=6, markerscale=0.7
-        )
-        axes[3].set_title("Density distributions")
-
-        axes[0].set_xlabel(
-            r"Overall strain, $\varepsilon$ (%)", color=colors["overall"]
-        )
-        axes[1].set_xlabel(
-            r"Bulk strain, $\varepsilon_{\text{bulk}}$ (%)",
-            color=colors["bulk"]
-        )
-        axes[2].set_xlabel(
-            r"Surface strain, $\varepsilon_{\text{surface}}$ (%)",
-            color=colors["surface"]
-        )
-        axes[3].set_xlabel(
-            r"$\varepsilon_{\text{bulk}}$, $\varepsilon_{\text{surface}}$ (%)"
-        )
-
-        return figure, axes
