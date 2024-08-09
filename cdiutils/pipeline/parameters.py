@@ -2,6 +2,8 @@ import warnings
 
 import numpy as np
 
+from cdiutils.utils import energy_to_wavelength
+
 AUTHORIZED_KEYS = {
     "cdiutils": {
         "metadata": "REQUIRED",
@@ -73,11 +75,11 @@ AUTHORIZED_KEYS = {
         "crop_output": 0,
         "positivity": False,
         "beta": 0.9,
-        "detwin": False,
+        "detwin": True,
         "rebin": "1, 1, 1",
-        "detector_distance": "REQUIRED",
-        "pixel_size_detector": "REQUIRED",
-        "wavelength": "REQUIRED",
+        "detector_distance": None,
+        "pixel_size_detector": None,
+        "wavelength": None,
         "verbose": 100,
         "output_format": "cxi",
         "live_plot": False,
@@ -129,7 +131,7 @@ def check_parameters(parameters: dict) -> None:
         for name, value in AUTHORIZED_KEYS[e].items():
             if name not in parameters[e].keys() or parameters[e][name] is None:
                 if value == "REQUIRED":
-                    raise ValueError(f"Arguement '{name}' is required")
+                    raise ValueError(f"Parameter '{name}' is required.")
                 parameters[e].update({name: value})
         for name in parameters[e].keys():
             if not isparameter(name):
@@ -141,15 +143,15 @@ def check_parameters(parameters: dict) -> None:
                 f"Parameter '{name}' is unknown, will not be used."
             )
 
-    if (
-        float(parameters["cdiutils"]["det_calib_parameters"]["pwidth1"])
-        !=
-        float(parameters["pynx"]["pixel_size_detector"])
-    ):
-        raise ValueError(
-            "pixel size in det_calib_parameters and pynx should be identical."
-        )
-    # if (parameters["cdiutils"]["energy"] != parameters["pynx"][])
+    parameters["pynx"]["pixel_size_detector"] = (
+        parameters["cdiutils"]["det_calib_parameters"]["pwidth1"]
+    )
+    parameters["pynx"]["detector_distance"] = (
+        parameters["cdiutils"]["det_calib_parameters"]["distance"]
+    )
+    parameters["pynx"]["wavelength"] = energy_to_wavelength(
+        parameters["cdiutils"]["energy"]
+    )
 
 
 def isparameter(string: str):
