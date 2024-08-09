@@ -6,10 +6,25 @@ import numpy as np
 from numpy.fft import fftn, fftshift, ifftshift
 import matplotlib
 import seaborn as sns
+import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
 import textwrap
 import xrayutilities as xu
+
+
+def energy_to_wavelength(energy: float) -> float:
+    """
+    Find the wavelength in metre (not angstrom!) that energy (in eV)
+    corresponds to.
+
+    Args:
+        energy (float): the energy to convert.
+
+    Returns:
+        float: the wavelength in metre.
+    """
+    return (cts.c * cts.h) / (cts.e * energy)
 
 
 def pretty_print(text: str, max_char_per_line: int = 79) -> None:
