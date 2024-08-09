@@ -1,5 +1,3 @@
-# cdiutils/__init__.py
-
 """
 cdiutils - A Python package for (Bragg) Coherent X-ray Diffraction
 Imaging processing, analysis and visualisation workflows.
