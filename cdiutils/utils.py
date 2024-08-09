@@ -1,5 +1,4 @@
 import inspect
-from typing import Optional
 import warnings
 
 import numpy as np
@@ -9,7 +8,6 @@ import seaborn as sns
 import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
-import textwrap
 import xrayutilities as xu
 
 
@@ -25,24 +23,6 @@ def energy_to_wavelength(energy: float) -> float:
         float: the wavelength in metre.
     """
     return (cts.c * cts.h) / (cts.e * energy)
-
-
-def pretty_print(text: str, max_char_per_line: int = 79) -> None:
-    """Print text with a frame of stars."""
-
-    pretty_text = "\n".join(
-        [
-            "",
-            "*" * (max_char_per_line+4),
-            *[
-                f"* {w[::-1].center(max_char_per_line)[::-1]} *"
-                for w in textwrap.wrap(text, width=max_char_per_line)
-            ],
-            "*" * (max_char_per_line+4),
-            "",
-        ]
-    )
-    print(pretty_text)
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
@@ -159,7 +139,7 @@ def find_max_pos(data: np.ndarray) -> tuple:
 def shape_for_safe_centered_cropping(
         data_shape: tuple or np.ndarray or list,
         position: tuple or np.ndarray or list,
-        final_shape: Optional[tuple] = None
+        final_shape: tuple = None
 ) -> tuple:
     """
     Utility function that finds the smallest shape that allows a safe
@@ -794,10 +774,10 @@ def find_isosurface(
 
     :param amplitude: the 3D amplitude volume (np.array)
     :param nbins: the number of bins to considerate when making the
-    histogram (Optional, int)
+    histogram (optional, int)
     :param sigma_criterion: the factor to compute the isosurface which is
     calculated as: mu - sigma_criterion * sigma. By default set to 3.
-    (Optional, float)
+    (optional, float)
     :param show: whether or not to show the the figure
 
     :return: the isosurface value and the figure in which the histogram
