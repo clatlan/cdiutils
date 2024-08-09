@@ -19,12 +19,6 @@ from .utils import (
     CroppingHandler
 )
 
-from .pipeline import BcdiPipeline
-from . import load, plot, process
-from .geometry import Geometry
-from .converter import SpaceConverter
-
-
 __submodules__ = {
     "utils",
     "geometry",
@@ -35,17 +29,29 @@ __submodules__ = {
     "plot"
 }
 
+__class_submodules__ = {
+    "Geometry": "geometry",
+    "SpaceConverter": "converter",
+    "BcdiPipeline": "pipeline"
+}
 
-__all__ = list(
-    __submodules__ |
-    {
-        "Geometry", "SpaceConverter", "energy_to_wavelength", "make_support",
-        "get_centred_slices", "CroppingHandler", "BcdiPipeline"
-    }
-)
+
+__all__ = [
+    "energy_to_wavelength", "make_support",
+    "get_centred_slices", "CroppingHandler"
+] + list(__submodules__) + list(__class_submodules__)
 
 
 def __getattr__(name):
+    # Lazy load submodules
     if name in __submodules__:
-        return importlib.import_module(f'{__name__}.{name}')
+        return importlib.import_module(f"{__name__}.{name}")
+
+    # Lazy load specific classes
+    if name in __class_submodules__:
+        submodule = importlib.import_module(
+            f"{__name__}.{__class_submodules__[name]}"
+        )
+        return getattr(submodule, name)
+
     raise AttributeError(f"module {__name__} has no attribute {name}.")
