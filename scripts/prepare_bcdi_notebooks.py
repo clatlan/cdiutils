@@ -4,11 +4,6 @@
 """
 This is a simple script to handle the creation of the Jupyter
 notebooks required for BCDI analysis using cdiutils package.
-
-Raises:
-    FileNotFoundError: If the provided directory does not exist.
-    FileExistsError: If one of the file already exists and the
-    --force option is not provided.
 """
 
 import argparse
