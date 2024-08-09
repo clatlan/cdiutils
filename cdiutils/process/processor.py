@@ -588,9 +588,7 @@ class BcdiProcessor:
                 debug_dir,
                 exist_ok=True
             )
-            if os.path.isdir(debug_dir):
-                self.verbose_print(f"[INFO] Debug directory is:\n{debug_dir}")
-            else:
+            if not os.path.isdir(debug_dir):
                 raise FileNotFoundError(
                     "Could not create the directory:\n{debug_dir}"
                 )
