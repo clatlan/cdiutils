@@ -155,6 +155,9 @@ class BcdiPipeline:
         self.bcdi_processor: BcdiProcessor = None
         self.result_analyser: PhasingResultAnalyser = None
 
+        # Set the printoptions legacy to 1.21, otherwise types are printed.
+        np.set_printoptions(legacy="1.21")
+
         # update the plot parameters
         update_plot_params(
             **{
