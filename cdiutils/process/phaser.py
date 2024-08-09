@@ -535,11 +535,12 @@ class PyNXPhaser:
             cdi: CDI_Type,
             spaces: str = "both",
             axis: int = 0,
-            title: str = None
+            title: str = None,
+            axes: plt.Axes = None
     ) -> None:
         """
         A staticmethod to plot cdi object main quantity.
-        
+
         See ShowCDI operator to see how Vincent plots CDI objects.
         https://gitlab.esrf.fr/favre/PyNX/-/blob/master/pynx/cdi/cpu_operator.py?ref_type=heads
 
@@ -595,8 +596,17 @@ class PyNXPhaser:
             quantities["observed_intensity"] = iobs
 
         nrows, ncols = (1, 3) if spaces == "direct" else (2, 2)
-        fig, axes = plt.subplots(nrows, ncols, figsize=(3, 3))
-        for ax, key in zip(axes.ravel(), quantities.keys()):
+        update = False
+        if axes is None:
+            fig, axes = plt.subplots(nrows, ncols, figsize=(3, 3))
+        else:
+            update = True
+            if len(axes) != nrows * ncols:
+                raise ValueError(
+                    "Provided axes should have shape (1, 3) or (2, 2)."
+                )
+
+        for ax, key in zip(axes.flat, quantities):
             plot_params = get_plot_configs(key)
 
             # Refine the generic plot configs
@@ -613,8 +623,12 @@ class PyNXPhaser:
 
             # Set the ax title and remove it from the plotting params
             ax.set_title(plot_params.pop("title"))
-
-            image = ax.matshow(quantities[key], origin="lower", **plot_params)
+            if update:
+                ax.images[0].set_data(quantities[key])
+            else:
+                image = ax.matshow(
+                    quantities[key], origin="lower", **plot_params
+                )
 
             # if key in ("support", "phase") and support.sum() > 0:
             if key in ("amplitude", "support", "phase") and support.sum() > 0:
@@ -638,6 +652,7 @@ class PyNXPhaser:
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
         fig.tight_layout()
+        return axes
 
 
 class PhasingResultAnalyser:
