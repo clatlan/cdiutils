@@ -423,8 +423,8 @@ class CroppingHandler:
 
     @staticmethod
     def get_position(
-            data: np.ndarray, method: str | tuple[int, ...]
-    ) -> tuple[int, ...]:
+            data: np.ndarray, method: str | tuple[int]
+    ) -> tuple[int]:
         """
         Get the position of the reference voxel based on the centering
         method.
