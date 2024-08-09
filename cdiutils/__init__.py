@@ -11,7 +11,6 @@ __license__ = "MIT"
 
 import importlib
 
-from . import utils
 from .utils import (
     energy_to_wavelength,
     make_support,
