@@ -1,19 +1,33 @@
-# pyproject.toml
-
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cdiutils"
 version = "0.2.0"
 description = "A Python package for (Bragg) Coherent X-ray Diffraction Imaging processing, analysis and visualisation workflows."
+
 authors = [
-    { name = "Clement Atlan", email = "c.atlan@outlook.com" }
+    { name = "Clement Atlan", email = "clement.atlan@esrf.fr" },
+    { name = "Corentin Chatelier" },
+    { name = "David Simonne" },
+    { name = "Matthieu Deschamps" },
+    { name = "Kyle Olson" },
 ]
-urls = { "Homepage" = "https://github.com/clatlan/cdiutils" }
+maintainers = [
+    {name = "Clement Atlan", email = "clement.atlan@esrf.fr"}
+]
 requires-python = ">=3.10"
 readme = "README.md"
+keywords = [
+    "reconstruction",
+    "coherent X-ray imaging",
+    "Bragg",
+    "pipeline",
+    "synchrotron radiation",
+    "quantitative analysis",
+]
+license = {file = "LICENSE"}
 
 dependencies = [
     "colorcet>=3.0.0",
@@ -41,8 +55,14 @@ dependencies = [
     "tornado",
 ]
 
-[tool.setuptools]
-packages = { find = {} }
+[project.urls]
+Homepage = "https://github.com/clatlan/cdiutils"
+
+
+[tool.setuptools.packages.find]
+where = ["."]  # list of folders that contain the packages (["."] by default)
+exclude = ["images"]
+
 
 [tool.setuptools.package-data]
 "cdiutils" = [
@@ -51,7 +71,8 @@ packages = { find = {} }
     "examples/step_by_step_bcdi_analysis.ipynb"
 ]
 
-[tool.setuptools.scripts]
-scripts = [
-    "scripts/prepare_bcdi_notebooks.py"
-]
+
+[project.scripts]
+prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"
+
+

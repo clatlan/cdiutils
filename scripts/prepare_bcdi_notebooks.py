@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 
+
+"""
+This is a simple script to handle the creation of the Jupyter
+notebooks required for BCDI analysis using cdiutils package.
+
+Raises:
+    FileNotFoundError: If the provided directory does not exist.
+    FileExistsError: If one of the file already exists and the
+    --force option is not provided.
+"""
+
 import argparse
 import os
 import shutil
@@ -7,18 +18,7 @@ import shutil
 import cdiutils
 
 
-"""
-    This is a simple script to handle the creation of the Jupyter
-    notebooks required for BCDI analysis using cdiutils package.
-
-    Raises:
-        FileNotFoundError: If the provided directory does not exist.
-        FileExistsError: If one of the file already exists and the
-        --force option is not provided.
-"""
-
-
-if __name__ == "__main__":
+def main() -> None:
     helptext = "try -h or --help to see usage."
 
     parser = argparse.ArgumentParser(
@@ -41,7 +41,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    print(args)
 
     notebook_path = os.path.abspath(
         os.path.dirname(cdiutils.__file__)
@@ -86,3 +85,7 @@ if __name__ == "__main__":
                 )
         else:
             shutil.copy(source, dest)
+
+
+if __name__ == "__main__":
+    main()
