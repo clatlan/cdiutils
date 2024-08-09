@@ -26,7 +26,6 @@ AUTHORIZED_KEYS = {
         "apodize": "blackman",
         "flip": False,
         "isosurface": None,
-        "usetex": False,  # deprecrated
         "show": False,
         "verbose": True,
         "debug": True,
