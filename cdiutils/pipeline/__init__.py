@@ -19,6 +19,7 @@ __class_func_submodules__ = {
 
 __all__ = list(__class_func_submodules__)
 
+
 def __getattr__(name):
     if name in __class_func_submodules__:
         submodule = importlib.import_module(

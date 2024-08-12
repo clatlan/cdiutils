@@ -109,7 +109,7 @@ class BcdiPipeline:
     dictionary.
 
     Args:
-            parameter_file_path (str, optional): the path to the 
+            parameter_file_path (str, optional): the path to the
                 parameter file. Defaults to None.
             parameters (dict, optional): the parameter dictionary.
                 Defaults to None.
@@ -218,7 +218,6 @@ class BcdiPipeline:
         pynx_mask_template = (
             f"{self.pynx_phasing_dir}/S*_pynx_input_mask.npz"
         )
-
 
         try:
             data_path = glob.glob(pynx_input_template)[0]
