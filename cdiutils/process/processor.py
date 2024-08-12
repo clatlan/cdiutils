@@ -29,6 +29,7 @@ from cdiutils.process.plot import (
     plot_q_lab_orthogonalization_process,
     plot_final_object_fft
 )
+from cdiutils.pipeline.pipeline_plotter import PipelinePlotter
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 
@@ -73,6 +74,10 @@ class BcdiProcessor:
             },
             "postprocessing": {
                 "name": "summary_slice_plot",
+                "debug": False
+            },
+            "strain_stats": {
+                "name": "strain_statistics",
                 "debug": False
             },
             "strain": {
@@ -609,9 +614,13 @@ class BcdiProcessor:
         """
         Orthogonalize detector data to the lab frame.
         """
-        reconstruction_file_path = (
-            self.params["metadata"]["reconstruction_file"]
-        )
+        # Default reconstruction_file_path
+        reconstruction_file_path = "mode.h5"
+        if "reconstruction_file" in self.params["metadata"]:
+            reconstruction_file_path = (
+                self.params["metadata"]["reconstruction_file"]
+            )
+
         if not os.path.isabs(reconstruction_file_path):
             reconstruction_file_path = (
                 self.dump_dir + "pynx_phasing/"
@@ -943,30 +952,27 @@ class BcdiProcessor:
             **strain_plots
         )
 
+        self.figures["strain_stats"]["figure"], _ = (
+            PipelinePlotter.strain_statistics(
+                self.structural_properties["het_strain_from_dspacing"],
+                self.structural_properties["support"],
+            )
+        )
+        self.figures["strain_stats"]["figure"].suptitle("Strain statistics")
+
         # take care of the axis names for the displacement gradient
         # plots
         axis_names = [
             r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"
         ]
-        if self.params["usetex"]:
-            axis_title_template = (
-                r"$\frac{\partial u_" + "{"
-                + f"{''.join([str(e) for e in self.params['hkl']])}"
-                + "}}"
-            )
-            titles = [
-                axis_title_template + r"{\partial " + axis_names[i] + "}$"
-                for i in range(3)
-            ]
-        else:
-            axis_title_template = (
-                "du_" + "{"
-                + f"{''.join([str(e) for e in self.params['hkl']])}" + "}"
-            )
-            titles = [
-                fr"${axis_title_template}/d{axis_names[i]}$"
-                for i in range(3)
-            ]
+
+        axis_title_template = (
+            "du_{" + f"{''.join([str(e) for e in self.params['hkl']])}" + "}"
+        )
+        titles = [
+            fr"${axis_title_template}/d{axis_names[i]}$"
+            for i in range(3)
+        ]
 
         displacement_gradient_plots = {
             titles[i]: (
@@ -1054,28 +1060,11 @@ class BcdiProcessor:
             )
         )
 
-        # find the position in the cropped detector frame
-        # roi = CroppingHandler.get_roi(
-        #     self.params["preprocessing_output_shape"],
-        #     self.params["det_reference_voxel"]
-        # )
-        # cropped_det_ref = tuple(
-        #         p - r if r else p  # if r is None, p-r must be p
-        #         for p, r in zip(
-        #             self.params["det_reference_voxel"], roi[::2])
-        # )
-        # where_in_ortho_space = (
-        #     self.space_converter.index_det_to_index_of_q_lab(
-        #         cropped_det_ref
-        #     )
-        # )
-
         self.figures["final_object_fft"]["figure"] = plot_final_object_fft(
             final_object_fft,
             orthogonalized_intensity,
             final_object_q_lab_grid,
             exp_data_q_lab_grid,
-            # where_in_ortho_space=where_in_ortho_space,
             where_in_ortho_space=None,
             title=(
                 r"FFT of final object vs. experimental data"
