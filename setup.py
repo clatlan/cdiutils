@@ -21,7 +21,8 @@ setuptools.setup(
       packages=setuptools.find_packages(),
       package_data={
         'cdiutils': [
-            'process/pynx-id01cdi_template.slurm',
+            'process/pynx-id01cdi_template_perlmutter.slurm',
+            'process/pynx-id01cdi_template_slurm-nice-devel.slurm',
             'examples/bcdi_pipeline.ipynb',
             'examples/step_by_step_bcdi_analysis.ipynb'
         ],

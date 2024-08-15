@@ -372,39 +372,9 @@ class BcdiPipeline:
                 "the current machine.\n"
             )
             if os.uname()[1].lower().startswith(("p9", "scisoft16")):
-                # import threading
-                # import signal
-                # import sys
-
-                # def signal_handler(sig, frame):
-                #     print(
-                #         "Keyboard interrupt received, exiting main program...")
-                #     sys.exit(0)
-
-                # # Function to read and print subprocess output
-                # def read_output(pipe):
-                #     try:
-                #         for line in iter(pipe.readline, ""):
-                #             print(line.decode("utf-8"), end="")
-                #     except KeyboardInterrupt:
-                #         pass  # Catch KeyboardInterrupt to exit the thread
-
-                # # Register signal handler for keyboard interrupt
-                # signal.signal(signal.SIGINT, signal_handler)
-                # process = subprocess.Popen(
-                #         # "source /sware/exp/pynx/activate_pynx.sh;"
-                #         f"cd {self.pynx_phasing_dir};"
-                #         # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
-                #         "pynx-cdi-id01 pynx-cdi-inputs.txt",
-                #         shell=True,
-                #         executable="/bin/bash",
-                #         stdout=subprocess.PIPE,
-                #         stderr=subprocess.PIPE,
-                # )
+                print("[INFO] Using local machines on ESRF cluster.\n")
                 with subprocess.Popen(
-                        # "source /sware/exp/pynx/activate_pynx.sh;"
                         f"cd {self.pynx_phasing_dir};"
-                        # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
                         "pynx-cdi-id01 pynx-cdi-inputs.txt",
                         shell=True,
                         executable="/bin/bash",
@@ -421,48 +391,18 @@ class BcdiPipeline:
                             "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
                             stderr.decode("utf-8")
                         )
+                        
+            elif os.uname()[1].lower().startswith(("login", "nid")):
+                print("[INFO] Using local machines on perlmutter cluster.\n")
+                # login: using login nodes at nersc, those still have one
+                # GPU, Nvidia A100 (40GB).
+                # Working like may result in problems since the login nodes 
+                # are not suited to that kind of intensive computations
+                # This is bad practive because login is kind of generic name
+                # See comments in linked issue
+                # nid: exclusive computational nodes with one GPU node 
+                # on perlmutter, or shared GPU on one node
 
-                # # Start threads to read stdout and stderr
-                # stdout_thread = threading.Thread(
-                #     target=read_output, args=(process.stdout,)
-                # )
-                # stderr_thread = threading.Thread(
-                #     target=read_output, args=(process.stderr,)
-                # )
-
-                # stdout_thread.start()
-                # stderr_thread.start()
-
-                # try:
-                #     # Wait for the subprocess to complete
-                #     process.wait()
-                # except KeyboardInterrupt:
-                #     print(
-                #         "Keyboard interrupt received, terminating "
-                #         "subprocess..."
-                #     )
-                #     process.terminate()  # Send SIGTERM to the subprocess
-                #     process.wait()  # Wait for the subprocess to terminate
-                    
-                #     # Terminate the threads
-                #     stdout_thread.join(timeout=1)  # Wait for stdout_thread to terminate
-                #     if stdout_thread.is_alive():
-                #         print("Forcefully terminating stdout_thread...")
-                #         stdout_thread.cancel()
-                    
-                #     stderr_thread.join(timeout=1)  # Wait for stderr_thread to terminate
-                #     if stderr_thread.is_alive():
-                #         print("Forcefully terminating stderr_thread...")
-                #         stderr_thread.cancel()
-
-                # # Wait for the threads to complete
-                # stdout_thread.join()
-                # stderr_thread.join()
-
-            elif os.uname()[1].lower().startswith(("login")): 
-                # when using login nodes at nersc, that still have a GPU idk why ?
-                # proper way to function is to use the perlmutter nodes
-                # pynx env installed in common/software managed by dsimonne
                 with subprocess.Popen(
                         f"cd {self.pynx_phasing_dir};"
                         "/global/common/software/m4639/pynx-env/bin/pynx-cdi-id01 pynx-cdi-inputs.txt",
@@ -482,6 +422,123 @@ class BcdiPipeline:
                             stderr.decode("utf-8")
                         )
 
+        elif machine == "perlmutter":
+            # There are different ways to connect with Jupyter notebook
+            # at NERSC when using perlmutter.
+            # See https://docs.nersc.gov/systems/perlmutter/architecture/
+            # You can be on a login node, a shared GPU node, an exclusive 
+            # CPU node or an exclusive GPU node.
+            # The proper way to function is to submit a job using slurm 
+            # from the login node. But you may also take an exclusive or 
+            # shared GPU node and run the script without SLURM, or submit
+            # a job from the exclusive CPU node.
+            # The pynx env is installed in common/software, managed by 
+            # dsimonne (MIT).
+
+            # Make the pynx slurm file
+            if pynx_slurm_file_template is None:
+                pynx_slurm_file_template = (
+                    f"{os.path.dirname(__file__)}/"
+                    "pynx-id01cdi_template_perlmutter.slurm"
+                )
+                print(
+                    "Pynx slurm file template not provided, will take "
+                    f"the default: {pynx_slurm_file_template}")
+
+            with open(
+                    pynx_slurm_file_template, "r", encoding="utf8"
+            ) as file:
+                source = Template(file.read())
+                pynx_slurm_text = source.substitute(
+                    {
+                        "data_path": self.pynx_phasing_dir,
+                        "SLURM_JOBID": "$SLURM_JOBID",
+                        "SLURM_NTASKS": "$SLURM_NTASKS"
+                    }
+                )
+            with open(
+                    self.pynx_phasing_dir + "/pynx-id01cdi.slurm",
+                    "w",
+                    encoding="utf8"
+            ) as file:
+                file.write(pynx_slurm_text)
+
+            # submit job using sbatch slurm command
+            with subprocess.Popen(
+                    f"cd {self.pynx_phasing_dir};"
+                    "sbatch pynx-id01cdi.slurm",
+                    shell=True,
+                    executable="/bin/bash",
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+            ) as proc:
+                stdout, stderr = proc.communicate()
+                # read the standard output, decode it and print it
+                output = stdout.decode('utf-8').strip()
+                job_submitted = False
+                time.sleep(0.5)
+                # get the job id and remove '\n' and space characters
+                while not job_submitted:
+                    try:
+                        job_id = output.split(" ")[3].strip()
+                        job_submitted = True
+                        print(output)
+                    except IndexError:
+                        print("Job still not submitted...")
+                        time.sleep(3)
+                        print(output)
+                    except KeyboardInterrupt as err:
+                        print("User terminated job with KeyboardInterrupt.")
+                        client.close()
+                        raise err
+                if proc.returncode:
+                    print(
+                        "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
+                        stderr.decode("utf-8")
+                    )
+                
+            # while loop to check if job has terminated
+            process_status = "PENDING"
+            while process_status != "COMPLETED":
+                result = subprocess.run(
+                    f"sacct -j {job_id} -o state | head -n 3 | tail -n 1",
+                    capture_output=True, 
+                    text=True,
+                    shell=True
+                )
+
+                # python process needs to sleep here, otherwise it gets in
+                # trouble with standard output management. Anyway, we need
+                # to sleep in the while loop in order to wait for the
+                # remote process to terminate.
+                time.sleep(10)
+                process_status = result.stdout.strip()
+                print(f"[INFO] process status: {process_status}")
+
+                if process_status == "RUNNING":
+                    result = subprocess.run(
+                        f"cd {self.pynx_phasing_dir};"
+                        f"cat pynx-id01cdi.slurm-{job_id}.out "
+                        "| grep 'CDI Run:'",
+                        capture_output=True, 
+                        text=True,
+                        shell=True
+                    )
+                    time.sleep(1)
+                    print(result.stdout.strip())
+
+                elif process_status == "CANCELLED+":
+                    raise RuntimeError("[INFO] Job has been cancelled")
+                elif process_status == "FAILED":
+                    raise RuntimeError(
+                        "[ERROR] Job has failed. Check out logs at: \n",
+                        f"{self.pynx_phasing_dir}/"
+                        f"pynx-id01cdi.slurm-{job_id}.out"
+                    )
+
+            if process_status == "COMPLETED":
+                print(f"[INFO] Job {job_id} is completed.")
+
         else:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
@@ -499,7 +556,7 @@ class BcdiPipeline:
                 if pynx_slurm_file_template is None:
                     pynx_slurm_file_template = (
                         f"{os.path.dirname(__file__)}/"
-                        "pynx-id01cdi_template.slurm"
+                        "pynx-id01cdi_template_slurm-nice-devel.slurm"
                     )
                     print(
                         "Pynx slurm file template not provided, will take "
@@ -730,8 +787,8 @@ class BcdiPipeline:
         if run_command is None:
             run_command = (
                 f"cd {self.pynx_phasing_dir};"
-                f"{pynx_analysis_script} candidate_*.cxi --modes 1 "
-                "--modes_output mode.h5 2>&1 | tee mode_decomposition.log"
+                f"{pynx_analysis_script} candidate_*.cxi --modes=1 "
+                "--modes_output=mode.h5 2>&1 | tee mode_decomposition.log"
             )
 
         if machine:
