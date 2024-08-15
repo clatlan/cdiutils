@@ -458,6 +458,30 @@ class BcdiPipeline:
                 # # Wait for the threads to complete
                 # stdout_thread.join()
                 # stderr_thread.join()
+
+            elif os.uname()[1].lower().startswith(("login")): 
+                # when using login nodes at nersc, that still have a GPU idk why ?
+                # proper way to function is to use the perlmutter nodes
+                # pynx env installed in common/software managed by dsimonne
+                with subprocess.Popen(
+                        f"cd {self.pynx_phasing_dir};"
+                        "/global/common/software/m4639/pynx-env/bin/pynx-cdi-id01 pynx-cdi-inputs.txt",
+                        shell=True,
+                        executable="/bin/bash",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                ) as proc:
+                    stdout, stderr = proc.communicate()
+                    print(
+                        "[STDOUT FROM SUBPROCESS RUNNING PYNX]\n",
+                        stdout.decode("utf-8")
+                    )
+                    if proc.returncode:
+                        print(
+                            "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
+                            stderr.decode("utf-8")
+                        )
+
         else:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
