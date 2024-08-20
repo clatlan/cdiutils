@@ -391,21 +391,22 @@ class BcdiPipeline:
                             "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
                             stderr.decode("utf-8")
                         )
-                        
+
             elif os.uname()[1].lower().startswith(("login", "nid")):
                 print("[INFO] Using local machines on perlmutter cluster.\n")
                 # login: using login nodes at nersc, those still have one
                 # GPU, Nvidia A100 (40GB).
-                # Working like may result in problems since the login nodes 
+                # Working like may result in problems since the login nodes
                 # are not suited to that kind of intensive computations
                 # This is bad practive because login is kind of generic name
                 # See comments in linked issue
-                # nid: exclusive computational nodes with one GPU node 
+                # nid: exclusive computational nodes with one GPU node
                 # on perlmutter, or shared GPU on one node
 
                 with subprocess.Popen(
                         f"cd {self.pynx_phasing_dir};"
-                        "/global/common/software/m4639/pynx-env/bin/pynx-cdi-id01 pynx-cdi-inputs.txt",
+                        "/global/common/software/m4639/"
+                        "pynx-env/bin/pynx-cdi-id01 pynx-cdi-inputs.txt",
                         shell=True,
                         executable="/bin/bash",
                         stdout=subprocess.PIPE,
@@ -426,13 +427,13 @@ class BcdiPipeline:
             # There are different ways to connect with Jupyter notebook
             # at NERSC when using perlmutter.
             # See https://docs.nersc.gov/systems/perlmutter/architecture/
-            # You can be on a login node, a shared GPU node, an exclusive 
+            # You can be on a login node, a shared GPU node, an exclusive
             # CPU node or an exclusive GPU node.
-            # The proper way to function is to submit a job using slurm 
-            # from the login node. But you may also take an exclusive or 
+            # The proper way to function is to submit a job using slurm
+            # from the login node. But you may also take an exclusive or
             # shared GPU node and run the script without SLURM, or submit
             # a job from the exclusive CPU node.
-            # The pynx env is installed in common/software, managed by 
+            # The pynx env is installed in common/software, managed by
             # dsimonne (MIT).
 
             # Make the pynx slurm file
@@ -489,20 +490,19 @@ class BcdiPipeline:
                         print(output)
                     except KeyboardInterrupt as err:
                         print("User terminated job with KeyboardInterrupt.")
-                        client.close()
                         raise err
                 if proc.returncode:
                     print(
                         "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
                         stderr.decode("utf-8")
                     )
-                
+
             # while loop to check if job has terminated
             process_status = "PENDING"
             while process_status != "COMPLETED":
                 result = subprocess.run(
                     f"sacct -j {job_id} -o state | head -n 3 | tail -n 1",
-                    capture_output=True, 
+                    capture_output=True,
                     text=True,
                     shell=True
                 )
@@ -520,7 +520,7 @@ class BcdiPipeline:
                         f"cd {self.pynx_phasing_dir};"
                         f"cat pynx-id01cdi.slurm-{job_id}.out "
                         "| grep 'CDI Run:'",
-                        capture_output=True, 
+                        capture_output=True,
                         text=True,
                         shell=True
                     )
@@ -704,7 +704,7 @@ class BcdiPipeline:
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
             plot_phase (bool, optional): whether the phase must be
-                plotted. If True, will the phase is plotted with 
+                plotted. If True, will the phase is plotted with
                 amplitude as opacity. If False, amplitude is plotted
                 instead. Defaults to False.
             init_analyser: (bool, optional): whether to force the
