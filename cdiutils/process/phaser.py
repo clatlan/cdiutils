@@ -82,9 +82,9 @@ DEFAULT_PYNX_PARAMS = {
 
 class PyNXPhaser:
     """
-    A class to employ PyNX phasing algorithms whithout bothering
-    too much with the initialisation and parameters. This class will
-    use generic PyNX parameters but they can also be provided upon
+    A class for using PyNX's phasing algorithms without worrying
+    too much about the initialisation and the parameters. This class
+    uses generic PyNX parameters but they can also be provided upon
     instanciation.
     """
 
@@ -120,7 +120,7 @@ class PyNXPhaser:
         if mask is not None:
             self.mask = fftshift(mask)
 
-        # get the pynx parameters from the default and update them with
+        # Get the pynx parameters from the default and update them with
         # those provided by the user
         # not elegant, but works...
         self.params = copy.deepcopy(DEFAULT_PYNX_PARAMS)
@@ -287,7 +287,7 @@ class PyNXPhaser:
     ) -> None:
         """
         Initialise the CDI object. This will first update the
-        self.params dicitonary and run the private method _init_cdi().
+        self.params dictionary and run the private method _init_cdi().
 
 
         Args:
@@ -349,7 +349,7 @@ class PyNXPhaser:
         Run the reconstruction algorithm.
 
         Args:
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             cdi (CDI_Type, optional): a cdi object you might to work on,
@@ -398,7 +398,7 @@ class PyNXPhaser:
 
                     except SupportTooLarge:
                         print(
-                            "Support is too large, reduce it. "
+                            "Support is too large, shrinking it. "
                             f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative /= (
@@ -407,7 +407,7 @@ class PyNXPhaser:
                         attempt += 1
                     except SupportTooSmall:
                         print(
-                            "Support is too small, enlarge it. "
+                            "Support is too small, making it bigger. "
                             f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative *= (
@@ -447,7 +447,7 @@ class PyNXPhaser:
         else:
             if self.cdi_list is None or not self.cdi_list:
                 raise ValueError(
-                    "CDI object are not itialised, init_cdi should be True."
+                    "CDI object are not initialised, init_cdi should be True."
 
                 )
         for i, cdi in enumerate(self.cdi_list):
@@ -477,7 +477,7 @@ class PyNXPhaser:
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             selection_method (str, optional): The metric used to select
-                the best reconstrucion. Defaults to "sharpness".
+                the best reconstruction. Defaults to "sharpness".
             init_cdi (bool, optional): whether to initialise the cdi
                 object or not. Defaults to True.
 
@@ -493,7 +493,7 @@ class PyNXPhaser:
         else:
             if self.cdi_list is None or self.cdi_list == []:
                 raise ValueError(
-                    "CDI object are not itialised, init_cdi should be True."
+                    "CDI object are not initialised, init_cdi should be True."
                 )
         if selection_method not in ("sharpness", "mean_to_max"):
             raise ValueError(
@@ -549,7 +549,7 @@ class PyNXPhaser:
             spaces (str, optional): Whether reciprocal or direct space.
                 Defaults to "both".
             axis (int, optional): What slice to plot. Defaults to 0.
-            title (str, optional): A tite for the plot. Defaults to None.
+            title (str, optional): A title for the plot. Defaults to None.
         """
         # Check the dimension of the object, whether 2D or 3D
         if cdi.get_obj().ndim == 2:
@@ -598,7 +598,9 @@ class PyNXPhaser:
         nrows, ncols = (1, 3) if spaces == "direct" else (2, 2)
         update = False
         if axes is None:
-            fig, axes = plt.subplots(nrows, ncols, figsize=(3, 3))
+            fig, axes = plt.subplots(
+                nrows, ncols, layout="tight", figsize=(3, 3)
+            )
         else:
             update = True
             if len(axes) != nrows * ncols:
@@ -651,7 +653,6 @@ class PyNXPhaser:
             ax.xaxis.set_ticks_position("bottom")
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
-        fig.tight_layout()
         return axes
 
 
