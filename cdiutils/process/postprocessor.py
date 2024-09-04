@@ -330,7 +330,8 @@ class PostProcessor:
             voxel_size: np.ndarray | tuple | list,
             phase_factor: int = -1,
             handle_defects: bool = False,
-            support_parameters: dict = None
+            support_parameters: dict = None,
+            final_shape: np.ndarray | tuple | list = None,
     ) -> dict:
         """
         Main method used in the post-processing workflow. The method
@@ -367,7 +368,7 @@ class PostProcessor:
             complex_object,
             support_parameters=support_parameters,
             isosurface=isosurface,
-            final_shape=None
+            final_shape=final_shape,
         )
         # extract phase and amplitude
         amplitude = np.abs(complex_object)

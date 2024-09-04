@@ -869,16 +869,17 @@ class BcdiProcessor:
         self.structural_properties = (
                 PostProcessor.get_structural_properties(
                     self.orthogonalized_object,
-                    support_parameters=(
-                        None if self.params["method_det_support"] is None
-                        else self.params
-                    ),
                     isosurface=self.params["isosurface"],
                     g_vector=g_vector,
                     hkl=self.params["hkl"],
                     voxel_size=self.voxel_size,
                     phase_factor=-1,  # it came out pynx
-                    handle_defects=self.params["handle_defects"]
+                    handle_defects=self.params["handle_defects"],
+                    support_parameters=(
+                        None if self.params["method_det_support"] is None
+                        else self.params
+                    ),
+                    final_shape=self.params["final_shape"],
                 )
         )
 
@@ -1154,8 +1155,8 @@ class BcdiProcessor:
             scalars = hf.create_group("scalars")
             for volume in [
                     "amplitude", "support", "surface",
-                    "phase", "displacement", "het_strain", 
-                    "het_strain_from_dspacing", "numpy_het_strain", 
+                    "phase", "displacement", "het_strain",
+                    "het_strain_from_dspacing", "numpy_het_strain",
                     "dspacing", "lattice_parameter"
             ]:
                 volumes.create_dataset(
