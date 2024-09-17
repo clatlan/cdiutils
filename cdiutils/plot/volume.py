@@ -173,7 +173,7 @@ def plot_3d_surface_projections(
         figsize=figsize,
         gridspec_kw={'height_ratios': [1/(1-(cbar_pad+cbar_size)), 1]}
     )
-    shape = find_suitable_array_shape(support, symmetrical_shape=False)
+    shape = find_suitable_array_shape(support, symmetrical=False)
 
     cropped_support,  _, _, roi = CroppingHandler.chain_centering(
         support,

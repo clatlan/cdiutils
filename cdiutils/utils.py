@@ -726,19 +726,43 @@ def compute_corrected_angles(
 
 def find_suitable_array_shape(
         support: np.ndarray,
-        padding: list = None,
-        symmetrical_shape: bool = True
-) -> np.array:
-    """Find a more suitable shape of an array"""
-    if padding is None:
-        padding = np.repeat(4, support.ndim)
-    hull = find_hull(support, boolean_values=True)
-    coordinates = np.where(hull == 1)
+        pad: list = None,
+        symmetrical: bool = True
+) -> np.ndarray:
+    """Find a smaller array shape of 2 or 3D array containing a support."""
+    if pad is None:
+        pad = np.repeat(4, support.ndim)
+    pad = np.array(pad)
+
+    if support.sum() <= 0:
+        raise ValueError("support must contain 0 and 1.")
+
+    def get_2d_shape(support_2d, pad):
+        shape = []
+        for k in range(2):
+            lim = np.nonzero(support_2d.sum(axis=1-k))[0][[0, -1]]
+            s = np.ptp(lim) + pad[k] * 2
+            shape.append(s)
+        return shape
 
     shape = []
-    for i in range(support.ndim):
-        shape.append(np.ptp(coordinates[i]) + padding[i])
-    if symmetrical_shape:
+    if support.ndim == 3:
+        shapes_2d = []
+        for i in range(3):
+            axes = tuple(k for k in range(3) if k != i)
+            shapes_2d.append(
+                get_2d_shape(support.sum(axis=i), np.squeeze(pad[[axes]]))
+            )
+        shape = (shapes_2d[1][0], shapes_2d[0][0], shapes_2d[0][1])
+    elif support.ndim == 2:
+        if len(pad) != 2:
+            raise ValueError(
+                f"Length of pad ({len(pad) = }) must be equal to support "
+                f"dimensions ({support.ndim = })"
+            )
+        shape = get_2d_shape(support, pad)
+
+    if symmetrical:
         return tuple(np.repeat(np.max(shape), support.ndim))
     return shape
 
@@ -954,7 +978,10 @@ def oversampling_from_diffraction(
     return oversampling_ratio
 
 
-def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
+def get_centred_slices(
+        shape: tuple | list | np.ndarray,
+        shift: tuple | list = None
+) -> list:
     """
     Compute the slices that enable selecting the centre of the axis. It
     returns a list of len(shape) tuples made of len(shape) slices.
@@ -970,14 +997,18 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
     Args:
         shape (tuple | list | np.ndarray): the shape of the np.ndarray
             you want to select the centre of.
+        shift (tuple | list): a shift in the slice selection with
+            respect to the centred 
 
     Returns:
         list: the list of tuples made of slices.
     """
+    if shift is None:
+        shift = (0, ) * len(shape)
     slices = []
     for i in range(len(shape)):
         s = [slice(None)] * len(shape)
-        s[i] = shape[i] // 2
+        s[i] = shape[i] // 2 + shift[i]
         slices.append(tuple(s))
     return slices
 

@@ -62,7 +62,7 @@ class PostProcessor:
             if final_shape is None:
                 final_shape = find_suitable_array_shape(
                     support,
-                    padding=np.repeat(10, support.ndim)
+                    pad=np.repeat(10, support.ndim)
                 )
             # center the arrays at the center of mass of the support
             com = CroppingHandler.get_position(support, "com")
@@ -86,7 +86,7 @@ class PostProcessor:
         if final_shape_pre_crop is None:
             final_shape_pre_crop = find_suitable_array_shape(
                 support_pre_crop,
-                padding=[6, 6, 6]
+                pad=[6, 6, 6]
             )
         com_pre_crop = CroppingHandler.get_position(support_pre_crop, "com")
         complex_object_pre_crop = CroppingHandler.force_centered_cropping(
@@ -104,7 +104,7 @@ class PostProcessor:
         support, surface = support_processor.support_calculation()
 
         if final_shape is None:
-            final_shape = find_suitable_array_shape(support, padding=[6, 6, 6])
+            final_shape = find_suitable_array_shape(support, pad=[6, 6, 6])
             print(f"[INFO] new array shape is {final_shape}")
         # center the arrays at the center of mass of the support
         com = CroppingHandler.get_position(support, "com")
