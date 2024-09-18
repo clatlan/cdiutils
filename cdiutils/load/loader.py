@@ -1,5 +1,6 @@
 """A generic class for loaders."""
 
+from abc import ABC, abstractmethod
 from typing import Callable
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -18,7 +19,7 @@ def h5_safe_load(func: Callable) -> Callable:
     return wrap
 
 
-class Loader:
+class Loader(ABC):
     """A generic class for loaders."""
 
     def __init__(
@@ -177,6 +178,14 @@ class Loader:
             data = data * self.alien_mask[roi[1:]]
 
         return data
+
+    @abstractmethod
+    def load_energy(self):
+        pass
+
+    @abstractmethod
+    def load_det_calib_params(self):
+        pass
 
     @staticmethod
     def get_mask(
