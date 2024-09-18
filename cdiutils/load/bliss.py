@@ -1,6 +1,7 @@
 import dateutil.parser
 import numpy as np
 import hdf5plugin
+import warnings
 
 from cdiutils.load import Loader, h5_safe_load
 
@@ -21,8 +22,8 @@ class BlissLoader(Loader):
     def __init__(
             self,
             experiment_file_path: str,
-            detector_name: str,
             sample_name: str = None,
+            detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
             **kwargs
@@ -45,8 +46,78 @@ class BlissLoader(Loader):
         """
         super(BlissLoader, self).__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
-        self.detector_name = detector_name
         self.sample_name = sample_name
+        if detector_name is None:
+            if sample_name is not None:
+                self.detector_name = self.get_detector_name()
+                print(
+                    "Detector name automatically found "
+                    f"('{self.detector_name}')."
+                )
+            else:
+                print(
+                    "detector_name is not provided, cannot automatically find "
+                    "it since sample_name is not provided either.\n"
+                    "Please set detector_name."
+                )
+        else:
+            self.detector_name = detector_name
+
+    @h5_safe_load
+    def get_detector_name(self) -> str:
+        h5file = self.h5file
+        key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
+        detector_names = []
+        authorised_names = ("mpxgaas", "mpx1x4", "eiger2M")
+        for key in h5file[key_path]:
+            if key in authorised_names:
+                detector_names.append(key)
+        if len(detector_names) == 0:
+            raise ValueError(f"No detector name found in {authorised_names}")
+        elif len(detector_names) > 1:
+            raise ValueError(
+                f"Several detector names found ({detector_names}).\n"
+                "Not handled yet."
+            )
+        return detector_names[0]
+
+    @h5_safe_load
+    def load_det_calib_params(
+            self,
+            scan: int,
+            sample_name: str = None
+    ) -> dict:
+        """
+        Load the detector calibration parameters from the scan directly.
+        Note that this will only provide the direct beam position, the
+        sample-to-detector distance, and the pixel size. To get the
+        tilt angles of the detector run the detector calibration
+        notebook.
+        """
+        h5file = self.h5file
+        if sample_name is None:
+            sample_name = self.sample_name
+        key_path = (
+            "_".join((sample_name, str(scan)))
+            + f".1/instrument/{self.detector_name}"
+        )
+        try:
+            return {
+                "cch1": h5file[key_path + "/beam_center_y"][()],
+                "cch2": h5file[key_path + "/beam_center_x"][()],
+                "pwidth1": h5file[key_path + "/y_pixel_size"][()],
+                "pwidth2": h5file[key_path + "/x_pixel_size"][()],
+                "distance": h5file[key_path + "/distance"][()],
+                "tiltazimuth": 0,
+                "tilt": 0,
+                "detrot": 0,
+                "outerangle_offset": 0.0
+            }
+        except KeyError as exc:
+            raise KeyError(
+                f"key_path is wrong (key_path='{key_path}'). "
+                "Are sample_name, scan number or detector name correct?"
+            ) from exc
 
     @h5_safe_load
     def load_detector_data(
@@ -202,9 +273,15 @@ class BlissLoader(Loader):
     ) -> float:
         if sample_name is None:
             sample_name = self.sample_name
-
-        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-        return self.h5file[key_path + "nrj"][()] * 1e3
+            key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+        try:
+            return self.h5file[key_path + "mononrj"][()] * 1e3
+        except KeyError:
+            warnings.warn(
+                f"Energy not found at {key_path + 'mononrj'}, you should "
+                "provide the energy."
+            )
+            return None
 
     @h5_safe_load
     def load_measurement_parameters(
