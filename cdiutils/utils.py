@@ -983,8 +983,9 @@ def get_centred_slices(
         shift: tuple | list = None
 ) -> list:
     """
-    Compute the slices that enable selecting the centre of the axis. It
-    returns a list of len(shape) tuples made of len(shape) slices.
+    Compute the slices that allows to select the centre of each axis. It
+    returns a list of len(shape) tuples made of len(shape) slices. The
+    shift allows to shift the centred the slices by the amount provided.
     Ex:
         * if shape = (25, 48), will return
     [(12, slice(None, None, None)), (slice(None, None, None), 24)]
@@ -996,9 +997,9 @@ def get_centred_slices(
 
     Args:
         shape (tuple | list | np.ndarray): the shape of the np.ndarray
-            you want to select the centre of.
+            of which you want to select the centre.
         shift (tuple | list): a shift in the slice selection with
-            respect to the centred 
+            respect to the centre.
 
     Returns:
         list: the list of tuples made of slices.
