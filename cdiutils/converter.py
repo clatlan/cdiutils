@@ -24,7 +24,7 @@ class SpaceConverter():
             self.geometry.cxi_to_xu()
 
         self.energy = energy
-        self.det_calib_parameters = {}
+        self.det_calib_params = {}
         self.hxrd = None
 
         self._q_space_transitions = None
@@ -74,26 +74,26 @@ class SpaceConverter():
     def init_q_space_area(
             self,
             roi: np.ndarray | list | tuple,
-            det_calib_parameters: dict = None
+            det_calib_params: dict = None
     ):
         """
         Initialize the xrayutilites XHRD instance with the detector
         calibration parameters.
         """
-        if det_calib_parameters is None:
-            det_calib_parameters = self.det_calib_parameters
-            if self.det_calib_parameters is None:
+        if det_calib_params is None:
+            det_calib_params = self.det_calib_params
+            if self.det_calib_params is None:
                 raise ValueError(
-                    "Provide det_calib_parameters or run"
+                    "Provide det_calib_params or run"
                     "the detector calibration"
                 )
         else:
-            self.det_calib_parameters = det_calib_parameters
+            self.det_calib_params = det_calib_params
 
         if np.all([
                 k in ["cch1", "cch2", "pwidth1", "pwidth2", "distance",
                       "tiltazimuth", "tilt", "detrot", "outerangle_offset"]
-                for k in det_calib_parameters.keys()
+                for k in det_calib_params.keys()
         ]):
             qconversion = xu.experiment.QConversion(
                 sampleAxis=self.geometry.sample_circles,
@@ -113,20 +113,20 @@ class SpaceConverter():
             self.hxrd.Ang2Q.init_area(
                 detectorDir1=self.geometry.detector_vertical_orientation,
                 detectorDir2=self.geometry.detector_horizontal_orientation,
-                cch1=det_calib_parameters["cch1"] - roi[0],
-                cch2=det_calib_parameters["cch2"] - roi[2],
+                cch1=det_calib_params["cch1"] - roi[0],
+                cch2=det_calib_params["cch2"] - roi[2],
                 Nch1=roi[1] - roi[0],
                 Nch2=roi[3] - roi[2],
-                pwidth1=det_calib_parameters["pwidth1"],
-                pwidth2=det_calib_parameters["pwidth2"],
-                distance=det_calib_parameters["distance"],
-                detrot=det_calib_parameters["detrot"],
-                tiltazimuth=det_calib_parameters["tiltazimuth"],
-                tilt=det_calib_parameters["tilt"],
+                pwidth1=det_calib_params["pwidth1"],
+                pwidth2=det_calib_params["pwidth2"],
+                distance=det_calib_params["distance"],
+                detrot=det_calib_params["detrot"],
+                tiltazimuth=det_calib_params["tiltazimuth"],
+                tilt=det_calib_params["tilt"],
             )
         else:
             raise ValueError(
-                "det_calib_parameters dict requires the "
+                "det_calib_params dict requires the "
                 "following keys\n"
                 "'cch1', 'cch2', 'pwidth1', 'pwidth2', 'distance',"
                 "'tiltazimuth', 'tilt', 'detrot', 'outerangle_offset'"

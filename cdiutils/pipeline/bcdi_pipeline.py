@@ -16,7 +16,7 @@ import yaml
 from cdiutils.plot.formatting import update_plot_params
 from cdiutils.process.processor import BcdiProcessor
 from cdiutils.process.phaser import PhasingResultAnalyser
-from .parameters import check_parameters, convert_np_arrays
+from .parameters import check_params, convert_np_arrays, fill_pynx_params
 
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
@@ -64,6 +64,7 @@ def update_parameter_file(file_path: str, updated_params: dict) -> None:
     the parameters (keys, values) to update.
     """
     convert_np_arrays(updated_params)
+    fill_pynx_params(updated_params)
     with open(file_path, "r", encoding="utf8") as file:
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
 
@@ -141,7 +142,7 @@ class BcdiPipeline:
                 )
             self.params = self.load_parameters()
         else:
-            check_parameters(params)
+            check_params(params)
 
         self.dump_dir = (
             self.params["cdiutils"]["metadata"]["dump_dir"]
@@ -179,12 +180,12 @@ class BcdiPipeline:
             file_path = self.param_file_path
 
         with open(file_path, "r", encoding="utf8") as file:
-            parameters = yaml.load(
+            params = yaml.load(
                 file,
                 Loader=yaml.FullLoader
             )
-        check_parameters(parameters)
-        return parameters
+        check_params(params)
+        return params
 
     @process
     def preprocess(self) -> None:
