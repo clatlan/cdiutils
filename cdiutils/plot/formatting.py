@@ -157,7 +157,13 @@ def get_x_y_limits_extents(
     return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
 
 
-def set_x_y_limits_extents(ax, extents, limits, plane, xaxis_points_left=False):
+def set_x_y_limits_extents(
+        ax: matplotlib.axes.Axes,
+        extents: list | tuple,
+        limits: list | tuple,
+        plane: list | tuple,
+        xaxis_points_left: bool = False
+) -> None:
     image = ax.images[0]
     image.origin = "lower"
     extent = extents[plane[1]] + extents[plane[0]]
