@@ -40,35 +40,35 @@ def pretty_print(text: str, max_char_per_line: int = 79) -> None:
 
 
 def make_scan_parameter_file(
-        output_parameter_file_path: str,
-        parameter_file_template_path: str,
-        updated_parameters: dict
+        output_param_file_path: str,
+        param_file_template_path: str,
+        updated_params: dict
 ) -> None:
     """
     Create a scan parameter file given a template and the parameters
     to update.
     """
 
-    with open(parameter_file_template_path, "r", encoding="utf8") as file:
+    with open(param_file_template_path, "r", encoding="utf8") as file:
         source = Template(file.read())
 
-    scan_parameter_file = source.substitute(updated_parameters)
+    scan_parameter_file = source.substitute(updated_params)
 
-    with open(output_parameter_file_path, "w", encoding="utf8") as file:
+    with open(output_param_file_path, "w", encoding="utf8") as file:
         file.write(scan_parameter_file)
 
 
-def update_parameter_file(file_path: str, updated_parameters: dict) -> None:
+def update_parameter_file(file_path: str, updated_params: dict) -> None:
     """
     Update a parameter file with the provided dictionary that contains
-    the parameters (keys, values) to uptade.
+    the parameters (keys, values) to update.
     """
-    convert_np_arrays(updated_parameters)
+    convert_np_arrays(updated_params)
     with open(file_path, "r", encoding="utf8") as file:
         config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
 
     for key in config.keys():
-        for updated_key, updated_value in updated_parameters.items():
+        for updated_key, updated_value in updated_params.items():
             if updated_key in config[key]:
                 config[key][updated_key] = updated_value
             elif updated_key == key:
@@ -109,7 +109,7 @@ class BcdiPipeline:
     dictionary.
 
     Args:
-            parameter_file_path (str, optional): the path to the
+            param_file_path (str, optional): the path to the
                 parameter file. Defaults to None.
             parameters (dict, optional): the parameter dictionary.
                 Defaults to None.
@@ -117,31 +117,31 @@ class BcdiPipeline:
     """
     def __init__(
             self,
-            parameter_file_path: str = None,
-            parameters: dict = None,
+            param_file_path: str = None,
+            params: dict = None,
     ):
         """
         Initialisation method.
 
         Args:
-            parameter_file_path (str, optional): the path to the 
+            param_file_path (str, optional): the path to the 
                 parameter file. Defaults to None.
             parameters (dict, optional): the parameter dictionary.
                 Defaults to None.
 
         """
 
-        self.parameter_file_path = parameter_file_path
-        self.params = parameters
+        self.param_file_path = param_file_path
+        self.params = params
 
-        if parameters is None:
-            if parameter_file_path is None:
+        if params is None:
+            if param_file_path is None:
                 raise ValueError(
-                    "parameter_file_path or parameters must be provided"
+                    "param_file_path or parameters must be provided"
                 )
             self.params = self.load_parameters()
         else:
-            check_parameters(parameters)
+            check_parameters(params)
 
         self.dump_dir = (
             self.params["cdiutils"]["metadata"]["dump_dir"]
@@ -176,7 +176,7 @@ class BcdiPipeline:
         Load the parameters from the configuration files.
         """
         if file_path is None:
-            file_path = self.parameter_file_path
+            file_path = self.param_file_path
 
         with open(file_path, "r", encoding="utf8") as file:
             parameters = yaml.load(
@@ -229,10 +229,10 @@ class BcdiPipeline:
             ) from exc
 
         # update the parameters
-        if self.parameter_file_path is not None:
+        if self.param_file_path is not None:
             pretty_print("[INFO] Updating scan parameter file")
             update_parameter_file(
-                self.parameter_file_path,
+                self.param_file_path,
                 {
                     "data": data_path,
                     "mask": mask_path,
@@ -250,7 +250,7 @@ class BcdiPipeline:
     @process
     def phase_retrieval(
             self,
-            machine: str = None,  #"slurm-nice-devel",
+            machine: str = None,  # "slurm-nice-devel",
             user: str = os.environ["USER"],
             number_of_nodes: int = 2,
             key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
@@ -682,9 +682,9 @@ class BcdiPipeline:
                         stderr.decode("utf-8")
                     )
 
-            if self.parameter_file_path is not None:
+            if self.param_file_path is not None:
                 update_parameter_file(
-                    self.parameter_file_path,
+                    self.param_file_path,
                     {"reconstruction_file":
                         f"{self.pynx_phasing_dir}mode.h5"}
                 )
@@ -750,13 +750,13 @@ class BcdiPipeline:
 
         output_file_path = (
             f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
-            # f"{os.path.basename(self.parameter_file_path)}"
+            # f"{os.path.basename(self.param_file_path)}"
         )
 
-        if self.parameter_file_path is not None:
+        if self.param_file_path is not None:
             try:
                 shutil.copy(
-                    self.parameter_file_path,
+                    self.param_file_path,
                     output_file_path
                 )
             except shutil.SameFileError:
