@@ -169,12 +169,19 @@ class BcdiProcessor:
 
         if self.params["energy"] is None:
             self.params["energy"] = self.loader.load_energy(self.scan)
+            self.space_converter.energy = self.params["energy"]
             if self.params["energy"] is None:
                 raise ValueError(
                     "The automatic loading of energy is not yet implemented"
                     f"for this setup ({self.params['metadata']['setup']} = )."
                 )
         if self.params["det_calib_params"] is None:
+            self.verbose_print(
+                "\n[INFO] "
+                "det_calib_params not provided, will try to find them. "
+                "However, for a more accurate calculation, you'd better "
+                "provide them."
+            )
             self.params["det_calib_params"] = (
                 self.loader.load_det_calib_params(self.scan)
             )
@@ -241,8 +248,8 @@ class BcdiProcessor:
                 roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
 
             self.verbose_print(
-                f"\n[INFO] Light loading requested, will use ROI {roi} and bin "
-                "along rocking curve direction by "
+                f"\n[INFO] Light loading requested, will use ROI {roi} and "
+                "bin along rocking curve direction by "
                 f"{self.params['binning_along_axis0']} during data loading."
             )
 
