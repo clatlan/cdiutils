@@ -8,7 +8,7 @@ AUTHORIZED_KEYS = {
     "cdiutils": {
         "metadata": "REQUIRED",
         "preprocessing_output_shape": "REQUIRED",
-        "energy": "REQUIRED",
+        "energy": None,
         "hkl": "REQUIRED",
         "det_reference_voxel_method": "REQUIRED",
         "light_loading": False,
@@ -23,7 +23,7 @@ AUTHORIZED_KEYS = {
         "lattice_parameter_reference": None,
         "lattice_parameter_max": None,
         "lattice_parameter_com": None,
-        "det_calib_parameters": "REQUIRED",
+        "det_calib_params": None,
         "voxel_size": None,
         "apodize": "blackman",
         "flip": False,
@@ -122,35 +122,37 @@ def convert_np_arrays(dictionary) -> None:
             convert_np_arrays(value)
 
 
-def check_parameters(parameters: dict) -> None:
+def check_params(params: dict) -> None:
     """
     Check parameters given by user, handle when parameters are
     required or not provided.
     """
     for e in ["cdiutils", "pynx"]:
         for name, value in AUTHORIZED_KEYS[e].items():
-            if name not in parameters[e].keys() or parameters[e][name] is None:
+            if name not in params[e].keys() or params[e][name] is None:
                 if value == "REQUIRED":
                     raise ValueError(f"Parameter '{name}' is required.")
-                parameters[e].update({name: value})
-        for name in parameters[e].keys():
+                params[e].update({name: value})
+        for name in params[e].keys():
             if not isparameter(name):
                 warnings.warn(
                     f"Parameter '{name}' is unknown, will not be used")
-    for name in parameters.keys():
+    for name in params.keys():
         if not isparameter(name):
             warnings.warn(
                 f"Parameter '{name}' is unknown, will not be used."
             )
 
-    parameters["pynx"]["pixel_size_detector"] = (
-        parameters["cdiutils"]["det_calib_parameters"]["pwidth1"]
+
+def fill_pynx_params(params: dict) -> None:
+    params["pynx"]["pixel_size_detector"] = (
+        params["cdiutils"]["det_calib_params"]["pwidth1"]
     )
-    parameters["pynx"]["detector_distance"] = (
-        parameters["cdiutils"]["det_calib_parameters"]["distance"]
+    params["pynx"]["detector_distance"] = (
+        params["cdiutils"]["det_calib_params"]["distance"]
     )
-    parameters["pynx"]["wavelength"] = energy_to_wavelength(
-        parameters["cdiutils"]["energy"]
+    params["pynx"]["wavelength"] = energy_to_wavelength(
+        params["cdiutils"]["energy"]
     )
 
 
@@ -158,11 +160,12 @@ def isparameter(string: str):
     """Return whether or not the given string is in AUTHORIZED_KEYS."""
     return (
         string in list(AUTHORIZED_KEYS["cdiutils"].keys())
-        +  list(AUTHORIZED_KEYS["pynx"].keys())
+        + list(AUTHORIZED_KEYS["pynx"].keys())
         + ["cdiutils", "pynx"]
     )
 
-def get_parameters_from_notebook_variables(
+
+def get_params_from_notebook_variables(
             dir_list: list,
             globals_dict: dict
 ) -> dict:
@@ -170,14 +173,14 @@ def get_parameters_from_notebook_variables(
     Return a dictionary of parameters whose keys are authorized by the 
     AUTHORIZED_KEYS list.
     """
-    parameters = {
+    params = {
         "cdiutils": {},
         "pynx": {}
     }
     for e in dir_list:
         if e in AUTHORIZED_KEYS["cdiutils"]:
-            parameters["cdiutils"][e] = globals_dict[e]
+            params["cdiutils"][e] = globals_dict[e]
         elif e in AUTHORIZED_KEYS["pynx"]:
-            parameters["pynx"][e] = globals_dict[e]
+            params["pynx"][e] = globals_dict[e]
 
-    return parameters
+    return params
