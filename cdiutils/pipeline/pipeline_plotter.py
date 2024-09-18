@@ -1,12 +1,200 @@
 import matplotlib.pyplot as plt
 from matplotlib.typing import ColorType
+from matplotlib.colors import LogNorm
 import numpy as np
 from scipy.ndimage import binary_erosion
 
 from cdiutils.utils import kde_from_histogram
+from cdiutils.plot import plot_volume_slices, add_colorbar, add_labels
 
 
 class PipelinePlotter:
+    """
+    A class to provide key plotting methods used in (Bcdi)Pipeline.
+    """
+
+    @classmethod
+    def detector_data(
+            self,
+            det_data: np.ndarray,
+            ref_voxels: dict = None,
+            max_voxels: dict = None,
+            com_voxels: dict = None,
+            full_det_data: np.ndarray = None,
+            integrate: bool = False,
+            title: str = "",
+    ) -> tuple[plt.Figure, plt.Axes]:
+        norm = LogNorm(np.max([np.min(det_data), 0.5]), np.max(det_data))
+
+        plot_params = {
+            "norm": norm, "slice_shift": (0, 0, 0),
+            "show": False, "views": ("z-", "y+", "x+"),  # natural views,
+            "integrate": integrate
+        }
+        if ref_voxels is not None:
+            plot_params["slice_shift"] = [
+                p - s // 2 for s, p in zip(
+                    det_data.shape, ref_voxels["cropped"]
+                )
+            ]
+        _, axes1 = plot_volume_slices(det_data, **plot_params)
+
+        if full_det_data is not None:
+            plot_params["slice_shift"] = (0, 0, 0)
+            if ref_voxels:
+                plot_params["slice_shift"] = [
+                    p - s // 2 for s, p in zip(
+                        full_det_data.shape, ref_voxels["full"]
+                    )
+                ]
+            _, axes2 = plot_volume_slices(full_det_data, **plot_params)
+            fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
+            old_axes = [axes1, axes2]
+            for i, frame in enumerate(("cropped", "full")):
+                for new_ax, old_ax in zip(axes[i].flat, old_axes[i].flat):
+                    im = old_ax.get_images()[0]
+                    new_ax.imshow(
+                        im.get_array(), cmap=im.get_cmap(), norm=norm,
+                    )
+
+                for ax, p in zip(axes[i].flat, ((2, 1), (2, 0), (0, 1))):
+                    self._plot_markers(ax, *[ref_voxels[frame][i] for i in p])
+                    if max_voxels is not None:
+                        self._plot_markers(
+                            ax, *[max_voxels[frame][i] for i in p], style="max"
+                        )
+                    if com_voxels is not None:
+                        self._plot_markers(
+                            ax, *[com_voxels[frame][i] for i in p], style="com"
+                        )
+
+            axes[0, 1].set_title("Cropped detector data")
+            axes[1, 1].set_title("Raw detector data")
+            for i in range(2):
+                axes[i, 0].set_xlabel(r"axis$_{2}$, det. horiz.")
+                axes[i, 0].set_ylabel(r"axis$_{1}$, det. vert.")
+
+                axes[i, 1].set_xlabel(r"axis$_{2}$, det. horiz.")
+                axes[i, 1].set_ylabel(r"axis$_{0}$, rocking curve")
+
+                axes[i, 2].set_xlabel(r"axis$_{0}$, rocking curve")
+                axes[i, 2].set_ylabel(r"axis$_{1}$, det. vert.")
+            axes[1, 1].legend(
+                loc="center", ncol=2, frameon=False,
+                bbox_to_anchor=(0.5, 0.5), bbox_transform=fig.transFigure
+            )
+
+        else:
+            fig, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
+            for new_ax, ax in zip(axes.flat, axes1.flat):
+                im = ax.get_images()[0]
+                new_ax.imshow(im.get_array(), cmap=im.get_cmap(), norm=norm)
+
+            for ax, p in zip(axes.flat, ((2, 1), (2, 0), (0, 1))):
+                self._plot_markers(ax, *[ref_voxels["cropped"][i] for i in p])
+                if max_voxels is not None:
+                    self._plot_markers(
+                        ax, *[max_voxels["cropped"][i] for i in p], style="max"
+                    )
+                if com_voxels is not None:
+                    self._plot_markers(
+                        ax, *[com_voxels["cropped"][i] for i in p], style="com"
+                    )
+
+            axes[0].set_xlabel(r"axis$_{2}$, det. horiz.")
+            axes[0].set_ylabel(r"axis$_{1}$, det. vert.")
+
+            axes[1].set_xlabel(r"axis$_{2}$, det. horiz.")
+            axes[1].set_ylabel(r"axis$_{0}$, rocking curve")
+
+            axes[2].set_xlabel(r"axis$_{0}$, rocking curve")
+            axes[2].set_ylabel(r"axis$_{1}$, det. vert.")
+            axes[1].legend(
+                loc="upper center", ncol=2, frameon=False,
+                bbox_to_anchor=(0.5, 1.05),
+            )
+        for ax in axes.flat:
+            add_colorbar(ax)
+        fig.suptitle(title)
+        return fig, axes
+
+    @staticmethod
+    def _plot_markers(
+            ax: plt.Axes, x: int, y: int, style: str = "ref"
+    ) -> None:
+        if style.lower() not in ("ref", "max", "com"):
+            raise ValueError("style must be in ('ref', 'max', 'com').")
+        if style == "ref":
+            shape = ax.get_images()[0].get_array().shape
+            ax.plot(
+                np.repeat(x, 2),
+                y + np.array([-0.1, 0.1]) * shape[0],
+                color="w", lw=0.5
+            )
+            ax.plot(
+                x + np.array([-0.1, 0.1]) * shape[1],
+                np.repeat(y, 2),
+                color="w", lw=0.5
+            )
+        else:
+            plot_params = {"marker": "x", "markersize": 4, "linestyle": "None"}
+            plot_params["color"] = "green"
+            plot_params["label"] = "com"
+            if style == "max":
+                plot_params["color"] = "red"
+                plot_params["label"] = "max"
+            ax.plot(x, y, **plot_params)
+
+    @staticmethod
+    def ortho_detector_data(
+            det_data: np.ndarray,
+            ortho_data: np.ndarray,
+            q_grid: np.ndarray,
+            title: str = ""
+    ) -> tuple[plt.Figure, plt.Axes]:
+        q_spacing = [q[1] - q[0] for q in q_grid]
+        q_centre = (q_grid[0].mean(), q_grid[1].mean(), q_grid[2].mean())
+
+        _, raw_axes = plot_volume_slices(
+            det_data,
+            views=("z-", "y+", "x+"),  # natural views,
+            norm=LogNorm(1),
+            show=False
+        )
+        _, ortho_axes = plot_volume_slices(
+            ortho_data,
+            voxel_size=q_spacing,
+            data_centre=q_centre,
+            norm=LogNorm(1),
+            convention="xu",
+            show=False
+        )
+        fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
+        for new_axes, old_axes in zip(axes, (raw_axes, ortho_axes)):
+            for new_ax, old_ax in zip(new_axes.flat, old_axes.flat):
+                # replot with same configuration
+                im = old_ax.get_images()[0]
+                new_ax.imshow(
+                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(1),
+                    extent=im.get_extent(), origin=im.origin
+                )
+                new_ax.axis(old_ax.axis())
+        axes[0, 0].set_xlabel(r"axis$_{2}$, det. horiz.")
+        axes[0, 0].set_ylabel(r"axis$_{1}$, det. vert.")
+
+        axes[0, 1].set_xlabel(r"axis$_{2}$, det. horiz.")
+        axes[0, 1].set_ylabel(r"axis$_{0}$, rocking curve")
+
+        axes[0, 2].set_xlabel(r"axis$_{0}$, rocking curve")
+        axes[0, 2].set_ylabel(r"axis$_{1}$, det. vert.")
+        add_labels(axes[1], space="rcp", convention="xu")
+
+        axes[0, 1].set_title("Raw data in detector frame")
+        axes[1, 1].set_title("Orthogonalised data in reciprocal lab frame")
+
+        fig.suptitle(title)
+        return fig, axes
+
     @staticmethod
     def plot_histogram(
             ax: plt.Axes,
