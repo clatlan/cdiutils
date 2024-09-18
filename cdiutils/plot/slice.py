@@ -23,12 +23,15 @@ from cdiutils.plot.formatting import (
 def plot_volume_slices(
         data: np.ndarray,
         support: np.ndarray = None,
-        voxel_size=None,
-        data_centre=None,
+        voxel_size: tuple | list = None,
+        data_centre: tuple | list = None,
         views: tuple[str] = None,
-        convention="cxi",
+        convention: str = "cxi",
         title: str = None,
         equal_limits: bool = True,
+        slice_shift: tuple | list = None,
+        show: bool = True,
+        integrate: bool = False,
         **plot_params
 ) -> tuple[plt.Figure, plt.Axes]:
     _plot_params = {
@@ -47,8 +50,8 @@ def plot_volume_slices(
         if views is None:
             views = ("z+", "y-", "x+")
 
-    slices = get_centred_slices(data.shape)
-    # TODO: better handling of shape
+    slices = get_centred_slices(data.shape, shift=slice_shift)
+
     shape = data.shape
     if support is not None:
         shape = extract_reduced_shape(support)
@@ -62,7 +65,7 @@ def plot_volume_slices(
     figure, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
-        to_plot = data[slices[i]]
+        to_plot = data.sum(axis=i) if integrate else data[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
 
@@ -78,6 +81,10 @@ def plot_volume_slices(
             )
 
     figure.suptitle(title)
+    if show:
+        plt.show()
+    else:
+        plt.close(figure)
     return figure, axes
 
 
