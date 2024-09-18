@@ -23,10 +23,8 @@ from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.plot import (
-    preprocessing_detector_data_plot,
     summary_slice_plot,
     plot_direct_lab_orthogonalization_process,
-    plot_q_lab_orthogonalization_process,
     plot_final_object_fft
 )
 from cdiutils.pipeline.pipeline_plotter import PipelinePlotter
@@ -68,8 +66,12 @@ class BcdiProcessor:
 
         # Initialise figures
         self.figures = {
-            "preprocessing": {
-                "name": "centering_cropping_detector_data_plot",
+            "cropping": {
+                "name": "data_cropping_plot",
+                "debug": False
+            },
+            "cropping_sum": {
+                "name": "data_cropping_sum_plot",
                 "debug": False
             },
             "postprocessing": {
@@ -165,6 +167,23 @@ class BcdiProcessor:
         ):
             raise ValueError("Something went wrong during data loading.")
 
+        if self.params["energy"] is None:
+            self.params["energy"] = self.loader.load_energy(self.scan)
+            if self.params["energy"] is None:
+                raise ValueError(
+                    "The automatic loading of energy is not yet implemented"
+                    f"for this setup ({self.params['metadata']['setup']} = )."
+                )
+        if self.params["det_calib_params"] is None:
+            self.params["det_calib_params"] = (
+                self.loader.load_det_calib_params(self.scan)
+            )
+            if self.params["det_calib_params"] is None:
+                raise ValueError(
+                    "The automatic loading of det_calib_params is not yet "
+                    "implemented for this setup "
+                    f"({self.params['metadata']['setup']} = ).")
+
     def verbose_print(self, text: str, wrap: bool = True, **kwargs) -> None:
         if self.params["verbose"]:
             if wrap:
@@ -192,6 +211,7 @@ class BcdiProcessor:
             where to crop the data at.
         """
         final_shape = tuple(self.params["preprocessing_output_shape"])
+        ref_voxels, max_voxels, com_voxels = {}, {}, {}
 
         if self.params["light_loading"]:
             if (
@@ -204,19 +224,19 @@ class BcdiProcessor:
                     "light loading."
                 )
 
-            det_ref = self.params["det_reference_voxel_method"][-1]
-            if isinstance(det_ref, str):
+            ref_voxels["full"] = self.params["det_reference_voxel_method"][-1]
+            if isinstance(ref_voxels["full"], str):
                 raise ValueError(
                     "When light loading, det_reference_voxel_method must "
                     "contain a tuple indicating the position of the voxel you "
                     "want to crop the data at. Ex: [(100, 200, 200)]"
                 )
-            if len(det_ref) == 2 and len(final_shape) == 3:
+            if len(ref_voxels["full"]) == 2 and len(final_shape) == 3:
                 final_shape = final_shape[1:]
-            elif len(det_ref) == 3 and len(final_shape) == 2:
-                det_ref = det_ref[1:]
+            elif len(ref_voxels["full"]) == 3 and len(final_shape) == 2:
+                ref_voxels["full"] = ref_voxels["full"][1:]
 
-            roi = CroppingHandler.get_roi(final_shape, det_ref)
+            roi = CroppingHandler.get_roi(final_shape, ref_voxels["full"])
             if len(roi) == 4:
                 roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
 
@@ -233,8 +253,8 @@ class BcdiProcessor:
             self.cropped_detector_data = self.detector_data
 
             # if user only specify position in 2D, extend it in 3D
-            if len(det_ref) == 2:
-                det_ref = (self.detector_data.shape[0] // 2, ) + tuple(det_ref)
+            if len(ref_voxels["full"]) == 2:
+                ref_voxels["full"] = (self.detector_data.shape[0] // 2, ) + tuple(ref_voxels["full"])
 
             # check if shape dimensions are even or if 2D
             if final_shape[0] in (0, 1):
@@ -251,18 +271,18 @@ class BcdiProcessor:
                     f"{final_shape} will be cropped to {checked_shape}."
                 )
                 final_shape = checked_shape
-                roi = CroppingHandler.get_roi(final_shape, det_ref)
+                roi = CroppingHandler.get_roi(final_shape, ref_voxels["full"])
                 self.cropped_detector_data = self.cropped_detector_data[
                     CroppingHandler.roi_list_to_slices(roi)
                 ]
                 self.verbose_print(f"New ROI is: {roi}.")
 
             # find the position in the cropped detector frame
-            cropped_det_ref = tuple(
+            ref_voxels["cropped"] = tuple(
                     p - r if r else p  # if r is None, p-r must be p
-                    for p, r in zip(det_ref, roi[::2])
+                    for p, r in zip(ref_voxels["full"], roi[::2])
             )
-            full_det_max, full_det_com = None, None
+            max_voxels["full"], com_voxels["full"] = None, None
 
             # we do not need a copy of self.cropped_detector_data
             self.detector_data = None
@@ -321,8 +341,8 @@ class BcdiProcessor:
 
             (
                 self.cropped_detector_data,
-                det_ref,
-                cropped_det_ref,
+                ref_voxels["full"],
+                ref_voxels["cropped"],
                 roi
             ) = CroppingHandler.chain_centering(
                 self.detector_data,
@@ -331,16 +351,16 @@ class BcdiProcessor:
                 verbose=True
             )
             # position of the max and com in the full detector frame
-            full_det_max = CroppingHandler.get_position(
+            max_voxels["full"] = CroppingHandler.get_position(
                 self.detector_data, "max")
-            full_det_com = CroppingHandler.get_position(
+            com_voxels["full"] = CroppingHandler.get_position(
                 self.detector_data, "com")
 
             # convert numpy.int64 to int to make them serializable and
             # store the det_reference_voxel in the parameters which will
             # be saved later
             self.params["det_reference_voxel"] = tuple(
-                int(e) for e in det_ref
+                int(e) for e in ref_voxels["full"]
             )
 
             # center and crop the mask
@@ -351,13 +371,13 @@ class BcdiProcessor:
             # Handle the data dimension. If 2D requested, remove axis0
             if final_shape[0] in (0, 1):
                 self.cropped_detector_data = self.cropped_detector_data[0]
-                cropped_det_ref = cropped_det_ref[1:]
+                ref_voxels["cropped"] = ref_voxels["cropped"][1:]
                 self.mask = self.mask[0]
                 final_shape = final_shape[1:]
 
             self.verbose_print(
                 "\n[SHAPE & CROPPING] The reference voxel was found at "
-                f"{det_ref} in the uncropped data frame\n"
+                f"{ref_voxels['full']} in the uncropped data frame\n"
                 f"The processing_out_put_shape being {final_shape}, the roi "
                 f"used to crop the data is {roi}.\n"
             )
@@ -382,15 +402,15 @@ class BcdiProcessor:
             "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
         )
         # position of the max and com in the cropped detector frame
-        cropped_det_max = CroppingHandler.get_position(
+        max_voxels["cropped"] = CroppingHandler.get_position(
             self.cropped_detector_data, "max")
-        cropped_det_com = CroppingHandler.get_position(
+        com_voxels["cropped"] = CroppingHandler.get_position(
             self.cropped_detector_data, "com")
 
         # self.init_space_converter(roi=roi[2:]) # we only need the 2D roi
         self.space_converter.init_q_space_area(
             roi=roi[2:],
-            det_calib_parameters=self.params["det_calib_parameters"]
+            det_calib_params=self.params["det_calib_params"]
         )
         self.space_converter.set_q_space_area(**self.angles)
 
@@ -408,8 +428,8 @@ class BcdiProcessor:
         )
         for key, det_voxel, cropped_det_voxel in zip(
                 ["q_lab_reference", "q_lab_max", "q_lab_com"],
-                [det_ref, full_det_max, full_det_com],
-                [cropped_det_ref, cropped_det_max, cropped_det_com]
+                [ref_voxels["full"], max_voxels["full"], com_voxels["full"]],
+                [ref_voxels["cropped"], max_voxels["cropped"], com_voxels["cropped"]]
         ):
             self.params[key] = self.space_converter.index_det_to_q_lab(
                 cropped_det_voxel
@@ -456,7 +476,7 @@ class BcdiProcessor:
             # Find where to plot slices in the reciprocal space
             where_in_ortho_space = (
                 self.space_converter.index_det_to_index_of_q_lab(
-                    cropped_det_ref,
+                    ref_voxels["cropped"],
                     interpolation_method="xrayutilities"
                 )
             )
@@ -489,47 +509,54 @@ class BcdiProcessor:
             # Find where to plot slices in the reciprocal space
             where_in_ortho_space = (
                 self.space_converter.index_det_to_index_of_q_lab(
-                    cropped_det_ref
+                    ref_voxels["cropped"]
                 )
             )
             q_lab_regular_grid = self.space_converter.get_q_lab_regular_grid()
 
-        # Plot the reciprocal space data in the detector and lab frames
-        self.figures["q_lab_orthogonalization"]["figure"] = (
-            plot_q_lab_orthogonalization_process(
-                self.cropped_detector_data.copy(),
-                self.orthogonalized_intensity.copy(),
-                q_lab_regular_grid,
-                cropped_det_ref,
-                where_in_ortho_space,
+        # Update the preprocessing_output_shape and the det_reference_voxel
+        self.params["preprocessing_output_shape"] = final_shape
+        self.params["det_reference_voxel"] = ref_voxels["full"]
+
+        # plot the detector data in the full detector frame and in the
+        # final frame
+        self.figures["cropping"]["figure"], _ = (
+            PipelinePlotter.detector_data(
+                self.cropped_detector_data,
+                full_det_data=self.detector_data,
+                ref_voxels=ref_voxels,
+                max_voxels=max_voxels,
+                com_voxels=com_voxels,
                 title=(
-                    r"From detector frame to q lab frame"
-                    f", {self.sample_name}, {self.scan}"
+                    "Detector data preprocessing (slices), "
+                    f"{self.sample_name}, S{self.scan}"
+                )
+            )
+        )
+        self.figures["cropping_sum"]["figure"], _ = (
+            PipelinePlotter.detector_data(
+                self.cropped_detector_data,
+                full_det_data=self.detector_data,
+                ref_voxels=ref_voxels,
+                max_voxels=max_voxels,
+                com_voxels=com_voxels,
+                integrate=True,
+                title=(
+                    "Detector data preprocessing (sum), "
+                    f"{self.sample_name}, S{self.scan}"
                 )
             )
         )
 
-        # Update the preprocessing_output_shape and the det_reference_voxel
-        self.params["preprocessing_output_shape"] = final_shape
-        self.params["det_reference_voxel"] = det_ref
-
-        # plot the detector data in the full detector frame and in the
-        # final frame
-        self.figures["preprocessing"]["figure"] = (
-            preprocessing_detector_data_plot(
-                cropped_data=self.cropped_detector_data.copy(),
-                detector_data=(
-                    None if self.detector_data is None
-                    else self.detector_data.copy()
-                ),
-                det_reference_voxel=det_ref,
-                det_max_voxel=full_det_max,
-                det_com_voxel=full_det_com,
-                cropped_max_voxel=cropped_det_max,
-                cropped_com_voxel=cropped_det_com,
+        # Plot the reciprocal space data in the detector and lab frames
+        self.figures["q_lab_orthogonalization"]["figure"], _ = (
+            PipelinePlotter.ortho_detector_data(
+                self.cropped_detector_data,
+                self.orthogonalized_intensity,
+                q_lab_regular_grid,
                 title=(
-                    "Detector data preprocessing, "
-                    f"{self.sample_name}, {self.scan}"
+                    r"From detector frame to q lab frame"
+                    f", {self.sample_name}, S{self.scan}"
                 )
             )
         )
@@ -551,8 +578,13 @@ class BcdiProcessor:
             f"{self.dump_dir}/cdiutils_S"
             f"{self.scan}"
         )
-        self.figures["preprocessing"]["figure"].savefig(
-            f"{template_path}_{self.figures['preprocessing']['name']}.png",
+        self.figures["cropping"]["figure"].savefig(
+            f"{template_path}_{self.figures['cropping']['name']}.png",
+            bbox_inches="tight",
+            dpi=200
+        )
+        self.figures["cropping_sum"]["figure"].savefig(
+            f"{template_path}_{self.figures['cropping_sum']['name']}.png",
             bbox_inches="tight",
             dpi=200
         )
