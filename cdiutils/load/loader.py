@@ -39,15 +39,15 @@ class Loader(ABC):
         """
         self.flat_field = self._check_load(flat_field)
         self.alien_mask = self._check_load(alien_mask)
+        self.detector_name = None
 
     @classmethod
-    def from_setup(cls, beamline_setup: str, metadata: dict) -> "Loader":
+    def from_setup(cls, metadata: dict) -> "Loader":
         """
         Instantiate a child loader class given a the setup name,
         following the Factory Pattern.
 
         Args:
-            beamline_setup (str): the name of the beamline setup.
             metadata (dict): the parameters defining the experimental
                 setup.
 
@@ -57,6 +57,11 @@ class Loader(ABC):
         Returns:
             Loader: the subclass loader according to the provided name.
         """
+        if metadata.get("beamline_setup") is None:
+            raise ValueError(
+                "beamline_setup key is required in the metadata dict."
+            )
+        beamline_setup = metadata.get("beamline_setup")
         if beamline_setup.lower() == "id01bliss":
             from . import BlissLoader
             return BlissLoader(**metadata)
@@ -187,10 +192,11 @@ class Loader(ABC):
     def load_det_calib_params(self):
         pass
 
-    @staticmethod
+    @classmethod
     def get_mask(
+            cls,
             channel: int = None,
-            detector_name: str = "Maxipix",
+            detector_name: str = None,
             roi: tuple[slice] = None
     ) -> np.ndarray:
         """
@@ -200,7 +206,7 @@ class Loader(ABC):
             channel (int, optional): the size of the third (axis0)
                 dimension. Defaults to None (2D in that case).
             detector_name (str, optional): The name of the detector.
-                Defaults to "Maxipix".
+                Defaults to None.
             roi (tuple, optional): the region of interest associated to
                 the data. Defaults to None.
 
@@ -211,6 +217,17 @@ class Loader(ABC):
         Returns:
             np.ndarray: the 2D or 3D mask.
         """
+        if detector_name is None:
+            # Handling the case whenever the method is called as
+            # a static method.
+            local_params = locals()
+            if isinstance(local_params[0], cls):
+                detector_name = cls.detector_name
+            else:
+                raise ValueError(
+                    "When called as a static method, detector_name must be "
+                    "provided."
+                )
         if roi is None:
             roi = tuple(slice(None) for i in range(3 if channel else 2))
 
