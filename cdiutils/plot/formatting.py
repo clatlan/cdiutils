@@ -100,6 +100,16 @@ XU_VIEW_PARAMETERS = {
 }
 
 
+def save_fig(fig: matplotlib.figure.Figure, path: str, **kwargs) -> None:
+    default_params = {
+        "bbox_inches": "tight",
+        "dpi": 200,
+        "transparent": True
+    }
+    default_params.update(kwargs)
+    fig.savefig(path, **default_params)
+
+
 def add_labels(
         axes: matplotlib.axes.Axes,
         views: tuple[str] = None,

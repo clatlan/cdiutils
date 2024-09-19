@@ -5,7 +5,12 @@ import numpy as np
 from scipy.ndimage import binary_erosion
 
 from cdiutils.utils import kde_from_histogram
-from cdiutils.plot import plot_volume_slices, add_colorbar, add_labels
+from cdiutils.plot import (
+    plot_volume_slices,
+    add_colorbar,
+    add_labels,
+    save_fig
+)
 
 
 class PipelinePlotter:
@@ -17,34 +22,50 @@ class PipelinePlotter:
     def detector_data(
             self,
             det_data: np.ndarray,
-            ref_voxels: dict = None,
-            max_voxels: dict = None,
-            com_voxels: dict = None,
+            voxels: dict = None,
             full_det_data: np.ndarray = None,
             integrate: bool = False,
             title: str = "",
+            save: str = None
     ) -> tuple[plt.Figure, plt.Axes]:
-        norm = LogNorm(np.max([np.min(det_data), 0.5]), np.max(det_data))
+
+        def sub_get(voxels, k1, k2):
+            """
+            Handle the voxels dictionary. Check whenever a value
+            of a sub-dictionary is provided and return it.
+            """
+            if voxels is None:
+                return None
+            if k1 not in voxels:
+                return None
+            sub = voxels.get(k1)
+            if sub is None:
+                return None
+            return sub.get(k2)
+
+        norm = LogNorm(1)
 
         plot_params = {
             "norm": norm, "slice_shift": (0, 0, 0),
             "show": False, "views": ("z-", "y+", "x+"),  # natural views,
             "integrate": integrate
         }
-        if ref_voxels is not None:
+        vox = sub_get(voxels, "cropped", "ref")
+        if vox is not None:
             plot_params["slice_shift"] = [
                 p - s // 2 for s, p in zip(
-                    det_data.shape, ref_voxels["cropped"]
+                    det_data.shape, vox
                 )
             ]
         _, axes1 = plot_volume_slices(det_data, **plot_params)
 
         if full_det_data is not None:
             plot_params["slice_shift"] = (0, 0, 0)
-            if ref_voxels:
+            vox = sub_get(voxels, "full", "ref")
+            if vox is not None:
                 plot_params["slice_shift"] = [
                     p - s // 2 for s, p in zip(
-                        full_det_data.shape, ref_voxels["full"]
+                        full_det_data.shape, vox
                     )
                 ]
             _, axes2 = plot_volume_slices(full_det_data, **plot_params)
@@ -58,15 +79,14 @@ class PipelinePlotter:
                     )
 
                 for ax, p in zip(axes[i].flat, ((2, 1), (2, 0), (0, 1))):
-                    self._plot_markers(ax, *[ref_voxels[frame][i] for i in p])
-                    if max_voxels is not None:
-                        self._plot_markers(
-                            ax, *[max_voxels[frame][i] for i in p], style="max"
-                        )
-                    if com_voxels is not None:
-                        self._plot_markers(
-                            ax, *[com_voxels[frame][i] for i in p], style="com"
-                        )
+                    self._plot_markers(ax, *[voxels[frame]["ref"][i] for i in p])
+                    for style in ("max", "com"):
+                        if voxels[frame][style] is not None:
+                            self._plot_markers(
+                                ax,
+                                *[voxels[frame][style][i] for i in p],
+                                style=style
+                            )
 
             axes[0, 1].set_title("Cropped detector data")
             axes[1, 1].set_title("Raw detector data")
@@ -116,6 +136,9 @@ class PipelinePlotter:
         for ax in axes.flat:
             add_colorbar(ax)
         fig.suptitle(title)
+
+        if save is not None:
+            save_fig(fig, save, transparent=False)
         return fig, axes
 
     @staticmethod
@@ -150,7 +173,8 @@ class PipelinePlotter:
             det_data: np.ndarray,
             ortho_data: np.ndarray,
             q_grid: np.ndarray,
-            title: str = ""
+            title: str = "",
+            save: str = None
     ) -> tuple[plt.Figure, plt.Axes]:
         q_spacing = [q[1] - q[0] for q in q_grid]
         q_centre = (q_grid[0].mean(), q_grid[1].mean(), q_grid[2].mean())
@@ -193,6 +217,8 @@ class PipelinePlotter:
         axes[1, 1].set_title("Orthogonalised data in reciprocal lab frame")
 
         fig.suptitle(title)
+        if save is not None:
+            save_fig(fig, save, transparent=False)
         return fig, axes
 
     @staticmethod
