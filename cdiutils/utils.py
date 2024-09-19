@@ -551,7 +551,7 @@ class CroppingHandler:
         return roi
 
     @classmethod
-    def chain_centering(
+    def chain_centring(
             cls,
             data: np.ndarray,
             output_shape: tuple[int, ...],
