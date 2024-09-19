@@ -5,51 +5,49 @@ import numpy as np
 from cdiutils.utils import energy_to_wavelength
 
 AUTHORIZED_KEYS = {
-    "cdiutils": {
-        "metadata": "REQUIRED",
-        "preprocessing_output_shape": "REQUIRED",
-        "energy": None,
-        "hkl": "REQUIRED",
-        "det_reference_voxel_method": "REQUIRED",
-        "light_loading": False,
-        "det_reference_voxel": None,
-        "binning_along_axis0": None,
-        "q_lab_reference": None,
-        "q_lab_max": None,
-        "q_lab_com": None,
-        "dspacing_reference": None,
-        "dspacing_max": None,
-        "dspacing_com": None,
-        "lattice_parameter_reference": None,
-        "lattice_parameter_max": None,
-        "lattice_parameter_com": None,
-        "det_calib_params": None,
-        "voxel_size": None,
-        "apodize": "blackman",
-        "flip": False,
-        "isosurface": None,
-        "show": False,
-        "verbose": True,
-        "debug": True,
-        "binning_factors": (1, 1, 1),
-        "handle_defects": False,
-        "orthogonalize_before_phasing": False,
-        "orientation_convention": "cxi",
-        "method_det_support": None,
-        "raw_process": True,
-        "support_path": None,
-        "remove_edges": True,
-        "nb_facets": None,
-        "order_of_derivative": None,
-        "derivative_threshold": None,
-        "amplitude_threshold": None,
-        "top_facet_reference_index": [1, 1, 1],
-        "authorized_index": 1,
-        "nb_nghbs_min": 0,
-        "index_to_display": None,
-        "display_f_e_c": 'facet',
-        "size": 10
-    },
+    "metadata": "REQUIRED",
+    "preprocessing_output_shape": "REQUIRED",
+    "energy": None,
+    "hkl": "REQUIRED",
+    "det_reference_voxel_method": "REQUIRED",
+    "light_loading": False,
+    "det_reference_voxel": None,
+    "binning_along_axis0": None,
+    "q_lab_reference": None,
+    "q_lab_max": None,
+    "q_lab_com": None,
+    "dspacing_reference": None,
+    "dspacing_max": None,
+    "dspacing_com": None,
+    "lattice_parameter_reference": None,
+    "lattice_parameter_max": None,
+    "lattice_parameter_com": None,
+    "det_calib_params": None,
+    "voxel_size": None,
+    "apodize": "blackman",
+    "flip": False,
+    "isosurface": None,
+    "show": False,
+    "verbose": True,
+    "debug": True,
+    "binning_factors": (1, 1, 1),
+    "handle_defects": False,
+    "orthogonalize_before_phasing": False,
+    "orientation_convention": "cxi",
+    "method_det_support": None,
+    "raw_process": True,
+    "support_path": None,
+    "remove_edges": True,
+    "nb_facets": None,
+    "order_of_derivative": None,
+    "derivative_threshold": None,
+    "amplitude_threshold": None,
+    "top_facet_reference_index": [1, 1, 1],
+    "authorized_index": 1,
+    "nb_nghbs_min": 0,
+    "index_to_display": None,
+    "display_f_e_c": 'facet',
+    "size": 10,
     "pynx": {
         "data": None,
         "mask": None,
@@ -127,16 +125,20 @@ def check_params(params: dict) -> None:
     Check parameters given by user, handle when parameters are
     required or not provided.
     """
-    for e in ["cdiutils", "pynx"]:
-        for name, value in AUTHORIZED_KEYS[e].items():
-            if name not in params[e].keys() or params[e][name] is None:
-                if value == "REQUIRED":
-                    raise ValueError(f"Parameter '{name}' is required.")
-                params[e].update({name: value})
-        for name in params[e].keys():
-            if not isparameter(name):
-                warnings.warn(
-                    f"Parameter '{name}' is unknown, will not be used")
+    for name, value in AUTHORIZED_KEYS.items():
+        if name not in params or params[name] is None:
+            if value == "REQUIRED":
+                raise ValueError(f"Parameter '{name}' is required.")
+            params.update({name: value})
+    for name, value in AUTHORIZED_KEYS["pynx"].items():
+        if name not in params["pynx"] or params["pynx"][name] is None:
+            if value == "REQUIRED":
+                raise ValueError(f"Parameter '{name}' is required.")
+            params["pynx"].update({name: value})
+    for name in params["pynx"]:
+        if not isparameter(name):
+            warnings.warn(
+                f"Parameter '{name}' is unknown, will not be used")
     for name in params.keys():
         if not isparameter(name):
             warnings.warn(
@@ -146,22 +148,22 @@ def check_params(params: dict) -> None:
 
 def fill_pynx_params(params: dict) -> None:
     params["pynx"]["pixel_size_detector"] = (
-        params["cdiutils"]["det_calib_params"]["pwidth1"]
+        params["det_calib_params"]["pwidth1"]
     )
     params["pynx"]["detector_distance"] = (
-        params["cdiutils"]["det_calib_params"]["distance"]
+        params["det_calib_params"]["distance"]
     )
     params["pynx"]["wavelength"] = energy_to_wavelength(
-        params["cdiutils"]["energy"]
+        params["energy"]
     )
 
 
 def isparameter(string: str):
     """Return whether or not the given string is in AUTHORIZED_KEYS."""
     return (
-        string in list(AUTHORIZED_KEYS["cdiutils"].keys())
+        string in list(AUTHORIZED_KEYS.keys())
         + list(AUTHORIZED_KEYS["pynx"].keys())
-        + ["cdiutils", "pynx"]
+        + ["pynx"]
     )
 
 
@@ -174,12 +176,11 @@ def get_params_from_notebook_variables(
     AUTHORIZED_KEYS list.
     """
     params = {
-        "cdiutils": {},
         "pynx": {}
     }
     for e in dir_list:
-        if e in AUTHORIZED_KEYS["cdiutils"]:
-            params["cdiutils"][e] = globals_dict[e]
+        if e in AUTHORIZED_KEYS:
+            params[e] = globals_dict[e]
         elif e in AUTHORIZED_KEYS["pynx"]:
             params["pynx"][e] = globals_dict[e]
 
