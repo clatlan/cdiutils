@@ -111,14 +111,18 @@ class PipelinePlotter:
                 new_ax.imshow(im.get_array(), cmap=im.get_cmap(), norm=norm)
 
             for ax, p in zip(axes.flat, ((2, 1), (2, 0), (0, 1))):
-                self._plot_markers(ax, *[ref_voxels["cropped"][i] for i in p])
-                if max_voxels is not None:
+                self._plot_markers(
+                    ax, *[voxels["cropped"]["ref"][i] for i in p]
+                )
+                vox = sub_get(voxels, "cropped", "max")
+                if vox is not None:
                     self._plot_markers(
-                        ax, *[max_voxels["cropped"][i] for i in p], style="max"
+                        ax, *[vox[i] for i in p], style="max"
                     )
-                if com_voxels is not None:
+                vox = sub_get(voxels, "cropped", "com")
+                if vox is not None:
                     self._plot_markers(
-                        ax, *[com_voxels["cropped"][i] for i in p], style="com"
+                        ax, *[vox[i] for i in p], style="com"
                     )
 
             axes[0].set_xlabel(r"axis$_{2}$, det. horiz.")
@@ -131,7 +135,7 @@ class PipelinePlotter:
             axes[2].set_ylabel(r"axis$_{1}$, det. vert.")
             axes[1].legend(
                 loc="upper center", ncol=2, frameon=False,
-                bbox_to_anchor=(0.5, 1.05),
+                bbox_to_anchor=(0.5, 1.2),
             )
         for ax in axes.flat:
             add_colorbar(ax)
