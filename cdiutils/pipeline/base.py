@@ -1,5 +1,5 @@
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from functools import wraps
 import logging
 import os
@@ -10,6 +10,8 @@ import textwrap
 
 
 import numpy as np
+import yaml
+
 from cdiutils.plot.formatting import update_plot_params
 
 
@@ -23,7 +25,7 @@ class LoggerWriter:
         self.level = level
 
     def write(self, message):
-        if message.strip(): 
+        if message.strip():
             # Only log if there's something to log
             # (ignores empty messages)
             self.logger.log(self.level, message.strip())
@@ -111,7 +113,7 @@ class Pipeline(ABC):
                 raise ValueError(
                     "param_file_path or parameters must be provided"
                 )
-            self.params = self.load_parameters()
+            # self.params = self.load_parameters()
 
         self.dump_dir = self.params["dump_dir"]
 
@@ -174,6 +176,19 @@ class Pipeline(ABC):
         self.logger.addHandler(file_handler)
         return file_handler
 
-    @abstractmethod
-    def load_parameter(self):
-        pass
+    def load_parameters(
+            self,
+            file_path: str = None
+    ) -> dict:
+        """
+        Load the parameters from the configuration files.
+        """
+        if file_path is None:
+            file_path = self.param_file_path
+
+        with open(file_path, "r", encoding="utf8") as file:
+            params = yaml.load(
+                file,
+                Loader=yaml.FullLoader
+            )
+        return params

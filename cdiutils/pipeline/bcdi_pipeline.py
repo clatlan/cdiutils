@@ -141,24 +141,6 @@ class BcdiPipeline(Pipeline):
 
         print("BcdiPipeline initialised.")
 
-    def load_parameters(
-            self,
-            file_path: str = None
-    ) -> dict:
-        """
-        Load the parameters from the configuration files.
-        """
-        if file_path is None:
-            file_path = self.param_file_path
-
-        with open(file_path, "r", encoding="utf8") as file:
-            params = yaml.load(
-                file,
-                Loader=yaml.FullLoader
-            )
-        check_params(params)
-        return params
-
     def _load(self, roi: tuple[slice] = None) -> None:
         """
         Load the raw detector data and motor positions.
