@@ -120,6 +120,22 @@ class BlissLoader(Loader):
             ) from exc
 
     @h5_safe_load
+    def load_detector_shape(
+            self,
+            scan: int,
+            sample_name: str = None,
+    ) -> tuple:
+        h5file = self.h5file
+        if sample_name is None:
+            sample_name = self.sample_name
+
+        key_path = (
+            "_".join((sample_name, str(scan)))
+            + f".1/instrument/{self.detector_name}"
+        )
+        return h5file[f"{key_path}/dim_j"][()], h5file[f"{key_path}/dim_i"][()]
+
+    @h5_safe_load
     def load_detector_data(
             self,
             scan: int,
