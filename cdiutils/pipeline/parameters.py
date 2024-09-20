@@ -5,7 +5,19 @@ import numpy as np
 from cdiutils.utils import energy_to_wavelength
 
 AUTHORIZED_KEYS = {
-    "metadata": "REQUIRED",
+    # Formerly the "metadata"
+    "beamline_setup": "REQUIRED",
+    "scan": "REQUIRED",
+    "experiment_file_path": "REQUIRED",
+    "dump_dir": "REQUIRED",
+    "sample_name": None,
+    "experiment_data_dir_path": None,
+    "detector_data_path": None,
+    "edf_file_template": None,
+    "detector_name": None,
+    "flat_field": None,
+    "alien_mask": None,
+
     "preprocessing_output_shape": "REQUIRED",
     "energy": None,
     "hkl": "REQUIRED",
