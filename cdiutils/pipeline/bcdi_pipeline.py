@@ -1,42 +1,42 @@
-from typing import Callable
-from string import Template
+"""
+Definition of the BcdiPipeline class.
+
+Authors:
+    * Clément Atlan, clement.atlan@esrf.fr - 09/2024
+"""
+
+
+# Built-in dependencies
 import glob
 import os
 import shutil
+from string import Template
 import subprocess
 import time
-import traceback
 
+# Dependencies
 import numpy as np
 import paramiko
 import ruamel.yaml
-import textwrap
+from tabulate import tabulate
 import yaml
 
-from cdiutils.plot.formatting import update_plot_params
-from cdiutils.process.processor import BcdiProcessor
+# General cdiutils classes, to handle loading, beamline geometry and
+# space conversion.
+from cdiutils.converter import SpaceConverter
+from cdiutils.geometry import Geometry
+from cdiutils.load import Loader
+
+# Plot function specifically made for the pipeline
+from .pipeline_plotter import PipelinePlotter
+
+# Utility functions
+from cdiutils.utils import CroppingHandler, oversampling_from_diffraction
 from cdiutils.process.phaser import PhasingResultAnalyser
 from .parameters import check_params, convert_np_arrays, fill_pynx_params
 
+from .base import Pipeline, process, pretty_print
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
-
-
-def pretty_print(text: str, max_char_per_line: int = 79) -> None:
-    """Print text with a frame of stars."""
-
-    pretty_text = "\n".join(
-        [
-            "",
-            "*" * (max_char_per_line+4),
-            *[
-                f"* {w[::-1].center(max_char_per_line)[::-1]} *"
-                for w in textwrap.wrap(text, width=max_char_per_line)
-            ],
-            "*" * (max_char_per_line+4),
-            "",
-        ]
-    )
-    print(pretty_text)
 
 
 def make_scan_parameter_file(
@@ -88,21 +88,7 @@ def update_parameter_file(file_path: str, updated_params: dict) -> None:
         yaml_file.dump(config, file)
 
 
-def process(func: Callable) -> Callable:
-    def wrapper(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as exc:
-            print(
-                "\n[ERROR] An error occured in the "
-                f"'{func.__name__}' method... here is the traceback:\n"
-            )
-            traceback.print_exception(exc)
-            raise
-    return wrapper
-
-
-class BcdiPipeline:
+class BcdiPipeline(Pipeline):
     """
     A class to handle the BCDI workflow, from pre-processing to
     post-processing, including phase retrieval (using PyNX package).
@@ -110,12 +96,14 @@ class BcdiPipeline:
     dictionary.
 
     Args:
-            param_file_path (str, optional): the path to the
-                parameter file. Defaults to None.
-            parameters (dict, optional): the parameter dictionary.
-                Defaults to None.
+        param_file_path (str, optional): the path to the
+            parameter file. Defaults to None.
+        parameters (dict, optional): the parameter dictionary.
+            Defaults to None.
 
     """
+    voxel_pos = ("ref", "max", "com")
+
     def __init__(
             self,
             param_file_path: str = None,
@@ -125,15 +113,13 @@ class BcdiPipeline:
         Initialisation method.
 
         Args:
-            param_file_path (str, optional): the path to the 
+            param_file_path (str, optional): the path to the
                 parameter file. Defaults to None.
             parameters (dict, optional): the parameter dictionary.
                 Defaults to None.
 
         """
-
-        self.param_file_path = param_file_path
-        self.params = params
+        super(BcdiPipeline, self).__init__(param_file_path, params)
 
         if params is None:
             if param_file_path is None:
@@ -141,33 +127,19 @@ class BcdiPipeline:
                     "param_file_path or parameters must be provided"
                 )
             self.params = self.load_parameters()
-        else:
-            check_params(params)
+        check_params(params)
 
-        self.dump_dir = (
-            self.params["cdiutils"]["metadata"]["dump_dir"]
-        )
-        self.scan = self.params["cdiutils"]["metadata"]["scan"]
-        self.sample_name = (
-            self.params["cdiutils"]["metadata"]["sample_name"]
-        )
         self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
+        os.makedirs(self.pynx_phasing_dir, exist_ok=True)
+        self.scan = self.params["scan"]
+        self.sample_name = self.params["sample_name"]
+        # The dictionary of the Voxels Of Interest, in both the "full"
+        # and "cropped" detector frame
+        self.voi = {"full": {}, "cropped": {}}
 
-        self.bcdi_processor: BcdiProcessor = None
         self.result_analyser: PhasingResultAnalyser = None
 
-        # Set the printoptions legacy to 1.21, otherwise types are printed.
-        np.set_printoptions(legacy="1.21")
-
-        # update the plot parameters
-        update_plot_params(
-            **{
-                "axes.labelsize": 7,
-                "xtick.labelsize": 6,
-                "ytick.labelsize": 6,
-                "figure.titlesize": 8,
-            }
-        )
+        print("BcdiPipeline initialised.")
 
     def load_parameters(
             self,
@@ -187,6 +159,408 @@ class BcdiPipeline:
         check_params(params)
         return params
 
+    def _load(self, roi: tuple[slice] = None) -> None:
+        """
+        Load the raw detector data and motor positions.
+
+        Args:
+            roi (tuple[slice], optional): the region of interest on the
+                detector frame. Defaults to None.
+
+        Raises:
+            ValueError: check whether detector data, motor positions and
+                mask have been correctly loaded.
+        """
+        # Make the loader using the factory method, only parse the
+        # parameters relevant to the Loader class, to make them explicit.
+        loader_keys = (
+            "beamline_setup", "scan", "sample_name", "experiment_file_path",
+            "experiment_data_dir_path", "detector_data_path",
+            "edf_file_template", "detector_name"
+        )
+        loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
+
+        if self.params.get("detector_name") is None:
+            self.params["detector_name"] = loader.detector_name
+            if self.params.get("detector_name") is None:
+                raise ValueError(
+                    "The automatic detection of the detector name is not"
+                    "yet implemented for this setup"
+                    f"({self.params['metadata']['setup']} = )."
+                )
+
+        shape = loader.load_detector_shape(self.scan)
+        if shape is not None:
+            print(f"Raw detector data shape is: {shape}.")
+
+        self.detector_data = loader.load_detector_data(
+            scan=self.scan,
+            roi=roi,
+            binning_along_axis0=self.params["binning_along_axis0"]
+        )
+        self.angles = loader.load_motor_positions(
+            scan=self.scan,
+            roi=roi,
+            binning_along_axis0=self.params["binning_along_axis0"]
+        )
+        self.mask = loader.get_mask(
+            channel=self.detector_data.shape[0],
+            detector_name=self.params["detector_name"],
+            roi=(slice(None), roi[1], roi[2]) if roi else None
+        )
+        if any(
+                data is None
+                for data in (self.detector_data, self.angles)
+        ):
+            raise ValueError("Something went wrong during data loading.")
+
+        if self.params["energy"] is None:
+            self.params["energy"] = loader.load_energy(
+                self.scan
+            )
+            if self.params["energy"] is None:
+                raise ValueError(
+                    "The automatic loading of energy is not yet implemented"
+                    f"for this setup ({self.params['metadata']['setup']} = )."
+                )
+        if self.params["det_calib_params"] is None:
+            print(
+                "\ndet_calib_params not provided, will try to find them. "
+                "However, for a more accurate calculation, you'd better "
+                "provide them."
+            )
+            self.params["det_calib_params"] = (
+                loader.load_det_calib_params(self.scan)
+            )
+            if self.params["det_calib_params"] is None:
+                raise ValueError(
+                    "The automatic loading of det_calib_params is not yet "
+                    "implemented for this setup "
+                    f"({self.params['metadata']['setup']} = )."
+                )
+
+        # Initialise SpaceConverter, later use for orthogonalisation
+        geometry = Geometry.from_setup(
+            self.params["beamline_setup"]
+        )
+        self.converter = SpaceConverter(geometry=geometry)
+
+    def _light_load(self) -> None:
+        """
+        Args:
+            roi (tuple[slice], optional): the region of interest on the
+                detector frame. Defaults to None.
+            binning_along_axis0 (int, optional): whether or not to bin
+                the data along the axis0, ie the rocking curve direction.
+                Defaults to None.
+
+        Raises:
+            ValueError: check whether detector data, motor positions and
+                mask have been correctly loaded.
+        """
+        final_shape = tuple(self.params["preprocessing_output_shape"])
+        if (
+                len(final_shape) != 3
+                and self.params["binning_along_axis0"] is None
+        ):
+            raise ValueError(
+                "final_shape must include 3 axis lengths or you must "
+                "provide binning_along_axis0 parameter if you want "
+                "light loading."
+            )
+        self.voi["full"]["ref"] = self.params["det_reference_voxel_method"][-1]
+        if isinstance(self.voi["full"]["ref"], str):
+            raise ValueError(
+                "When light loading, det_reference_voxel_method must "
+                "contain a tuple indicating the position of the voxel you "
+                "want to crop the data at. Ex: [(100, 200, 200)]."
+            )
+        if len(self.voi["full"]["ref"]) == 2 and len(final_shape) == 3:
+            final_shape = final_shape[1:]
+        elif len(self.voi["full"]["ref"]) == 3 and len(final_shape) == 2:
+            self.voi["full"]["ref"] = self.voi["full"]["ref"][1:]
+
+        roi = CroppingHandler.get_roi(final_shape, self.voi["full"]["ref"])
+        if len(roi) == 4:
+            roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
+
+        print(
+            f"\nLight loading requested, will use ROI {roi} and "
+            "bin along rocking curve direction by "
+            f"{self.params['binning_along_axis0']} during data loading."
+        )
+        self._load(roi=CroppingHandler.roi_list_to_slices(roi))
+
+        # if user only specify position in 2D, extend it in 3D
+        if len(self.voi["full"]["ref"]) == 2:
+            self.voi["full"]["ref"] = (
+                (self.detector_data.shape[0] // 2, )
+                + tuple(self.voi["full"]["ref"])
+            )
+
+            roi = CroppingHandler.get_roi(
+                final_shape, self.voi["full"]["ref"]
+            )
+            self.cropped_detector_data = self.cropped_detector_data[
+                CroppingHandler.roi_list_to_slices(roi)
+            ]
+            print(f"New ROI is: {roi}.")
+
+        # if the final_shape is 2D convert it in 3D
+        if len(final_shape) == 2:
+            final_shape = (
+                (self.cropped_detector_data.shape[0], )
+                + final_shape
+            )
+
+        # find the position in the cropped detector frame
+        self.voi["cropped"]["ref"] = tuple(
+                p - r if r else p  # if r is None, p-r must be p
+                for p, r in zip(self.voi["full"]["ref"], roi[::2])
+        )
+        self.voi["full"]["max"], self.voi["full"]["com"] = None, None
+
+        return final_shape, roi
+
+    @process
+    def _preprocess(self) -> None:
+        pretty_print(
+            "Proceeding to preprocessing"
+            f" ({self.sample_name}, S{self.scan})"
+        )
+        # Check whether the requested shape is permitted by pynx
+        self.ensure_pynx_shape()
+        final_shape = self.params["preprocessing_output_shape"]
+        if self.params["light_loading"]:
+            final_shape, roi = self._light_load()
+
+            self.cropped_detector_data = self.detector_data.copy()
+            self.detector_data = None
+
+        else:
+            self._load()
+            roi = self._crop_and_centre(final_shape)
+
+        # print out the oversampling ratio and rebin factor suggestion
+        ratios = oversampling_from_diffraction(
+            self.cropped_detector_data
+        )
+        print(
+            "\nOversampling ratios calculated from diffraction pattern "
+            "are: "
+            + ", ".join(
+                [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
+            )
+            + ". If low-strain crystal, you can set PyNX 'rebin' parameter to "
+            "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
+        )
+
+        # position of the max and com in the cropped detector frame
+        for pos in ("max", "com"):
+            self.voi["cropped"][pos] = CroppingHandler.get_position(
+                self.cropped_detector_data, pos
+            )
+
+        # initialise the space converter
+        self.converter.energy = self.params["energy"]
+        self.converter.init_q_space_area(
+            roi=roi[2:],
+            det_calib_params=self.params["det_calib_params"]
+        )
+        self.converter.set_q_space_area(**self.angles)
+
+        # Initialise the fancy table with the columns
+        table = [
+            ["voxel", "uncroped det. pos.", "cropped det. pos.",
+             "dspacing (A)", "lat. par. (A)"]
+        ]
+
+        # get the position of the reference, max and det voxels in the
+        # q lab space
+        print("\nSummary table:")
+        print(
+            "(max and com in the cropped frame are different to max and com in"
+            " the uncropped detector frame.)"
+        )
+        for pos in self.voxel_pos:
+            key = f"q_lab_{pos}"
+            det_voxel = self.voi["full"][pos]
+            cropped_det_voxel = self.voi["cropped"][pos]
+
+            self.params[key] = self.converter.index_det_to_q_lab(
+                cropped_det_voxel
+            )
+
+            # compute the corresponding dpsacing and lattice parameter
+            # for printing
+            dspacing = self.converter.dspacing(self.params[key])
+            lattice = self.converter.lattice_parameter(
+                    self.params[key], self.params["hkl"]
+            )
+            table.append(
+                [key.split('_')[-1], det_voxel, cropped_det_voxel,
+                 f"{dspacing:.5f}", f"{lattice:.5f}"]
+            )
+
+        print(
+            "\n" + tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
+            # wrap=False
+        )
+
+        if self.params["orthogonalize_before_phasing"]:
+            print(
+                "Orthogonalization required before phasing.\n"
+                "Will use xrayutilities Fuzzy Gridding without linear "
+                "approximation."
+            )
+            self.orthogonalized_intensity = (
+                self.converter.orthogonalize_to_q_lab(
+                     self.cropped_detector_data,
+                     method="xrayutilities"
+                )
+            )
+            # we must orthogonalize the mask and orthogonalized_intensity must
+            # be saved as the pynx input
+            self.mask = self.converter.orthogonalize_to_q_lab(
+                self.mask,
+                method="xrayutilities"
+            )
+            self.cropped_detector_data = self.orthogonalized_intensity
+            q_lab_regular_grid = self.converter.get_xu_q_lab_regular_grid()
+        else:
+            print(
+                "Will linearise the transformation between detector and"
+                " lab space."
+            )
+            # Initialise the interpolator so we won't need to reload raw
+            # data during the post processing. The converter will be saved.
+            self.converter.init_interpolator(
+                self.cropped_detector_data,
+                final_shape,
+                space="both",
+                direct_space_voxel_size=self.params["voxel_size"]
+            )
+
+            # Run the interpolation in the reciprocal space so we don't
+            # do it later
+            self.orthogonalized_intensity = (
+                self.converter.orthogonalize_to_q_lab(
+                    self.cropped_detector_data,
+                    method="cdiutils"
+                )
+            )
+
+            q_lab_regular_grid = self.converter.get_q_lab_regular_grid()
+
+        # Update the preprocessing_output_shape and the det_reference_voxel
+        self.params["preprocessing_output_shape"] = final_shape
+        self.params["det_reference_voxel"] = self.voi["full"]["ref"]
+
+        # plot and save the detector data in the full detector frame and
+        # final frame
+        dump_file_tmpl = (
+            f"{self.dump_dir}/S{self.scan}_" + "detector_data_{}.png"
+        )
+        PipelinePlotter.detector_data(
+            self.cropped_detector_data,
+            full_det_data=self.detector_data,
+            voxels=self.voi,
+            title=(
+                "Detector data preprocessing (slices), "
+                f"{self.sample_name}, S{self.scan}"
+            ),
+            save=dump_file_tmpl.format("slices")
+        )
+        PipelinePlotter.detector_data(
+            self.cropped_detector_data,
+            full_det_data=self.detector_data,
+            voxels=self.voi,
+            integrate=True,
+            title=(
+                "Detector data preprocessing (sum), "
+                f"{self.sample_name}, S{self.scan}"
+            ),
+            save=dump_file_tmpl.format("sum")
+        )
+
+        # Plot the reciprocal space data in the detector and lab frames
+        PipelinePlotter.ortho_detector_data(
+            self.cropped_detector_data,
+            self.orthogonalized_intensity,
+            q_lab_regular_grid,
+            title=(
+                r"From detector frame to q lab frame"
+                f", {self.sample_name}, S{self.scan}"
+            ),
+            save=dump_file_tmpl.format("orthogonalisation")
+        )
+
+    def _crop_and_centre(self, final_shape: tuple) -> list:
+        print(
+            "[SHAPE & CROPPING] Method(s) employed for the reference "
+            "voxel determination are "
+            f"{self.params['det_reference_voxel_method']}."
+        )
+        (
+            self.cropped_detector_data,
+            self.voi["full"]["ref"],
+            self.voi["cropped"]["ref"],
+            roi
+        ) = CroppingHandler.chain_centring(
+                self.detector_data,
+                final_shape,
+                methods=self.params["det_reference_voxel_method"],
+                verbose=True
+        )
+        # position of the max and com in the full detector frame
+        for pos in ("max", "com"):
+            self.voi["full"][pos] = CroppingHandler.get_position(
+                self.detector_data, pos
+            )
+        # convert numpy.int64 to int to make them serializable
+        self.params["det_reference_voxel"] = tuple(
+            int(e) for e in self.voi["full"]["ref"]
+        )
+
+        # center and crop the mask
+        self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
+
+        print(
+            "\n[SHAPE & CROPPING] The reference voxel was found at "
+            f"{self.voi['full']['ref']} in the uncropped data frame\n"
+            f"The processing_out_put_shape being {final_shape}, the roi "
+            f"used to crop the data is {roi}.\n"
+        )
+
+        # set the q space area with the sample and detector angles
+        # that correspond to the requested roi
+        for key, value in self.angles.items():
+            if isinstance(value, (list, np.ndarray)):
+                self.angles[key] = value[np.s_[roi[0]:roi[1]]]
+
+        return roi
+
+    def ensure_pynx_shape(self) -> tuple:
+        shape = tuple(self.params["preprocessing_output_shape"])
+        # if the final_shape is 2D convert it in 3D
+        if len(shape) == 2:
+            shape = (self.detector_data.shape[0], ) + shape
+        checked_shape = tuple(
+            s-1 if s % 2 == 1 else s for s in shape
+        )
+        if checked_shape != shape:
+            print(
+                f"[SHAPE & CROPPING] PyNX needs even input dimensions, "
+                f"requested shape {shape} will be cropped to "
+                f"{checked_shape}."
+            )
+
+        print(
+            "[SHAPE & CROPPING] The preprocessing output shape is: "
+            f"{checked_shape} and will be used for ROI dimensions."
+        )
+        self.params["preprocessing_output_shape"] = checked_shape
+
     @process
     def preprocess(self) -> None:
 
@@ -194,7 +568,7 @@ class BcdiPipeline:
             "[INFO] Proceeding to preprocessing"
             f" ({self.sample_name}, S{self.scan})"
         )
-        dump_dir = self.params["cdiutils"]["metadata"]["dump_dir"]
+        dump_dir = self.params["dump_dir"]
         if os.path.isdir(dump_dir):
             print(
                 "\n[INFO] Dump directory already exists, results will be "
@@ -209,7 +583,7 @@ class BcdiPipeline:
             )
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
         self.bcdi_processor = BcdiProcessor(
-            parameters=self.params["cdiutils"]
+            parameters=self.params
         )
         self.bcdi_processor.preprocess_data()
         self.bcdi_processor.save_preprocessed_data()
@@ -241,12 +615,11 @@ class BcdiPipeline:
                 }
             )
 
-        self.params["cdiutils"].update(self.bcdi_processor.params)
+        self.params.update(self.bcdi_processor.params)
         self.params["pynx"].update({"data": data_path})
         self.params["pynx"].update({"mask": mask_path})
         self.save_parameter_file()
-        if self.params["cdiutils"]["show"]:
-            self.bcdi_processor.show_figures()
+
 
     @process
     def phase_retrieval(
@@ -496,19 +869,6 @@ class BcdiPipeline:
                     print(line, end="")
             client.close()
 
-    def analyze_phasing_results(self, *args, **kwargs) -> None:
-        """
-        Deprecated function, should use analyse_phasing_results instead.
-        """
-        from warnings import warn
-        warn(
-            "analyze_phasing_results is deprecated; use "
-            "analyse_phasing_results instead",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        return self.analyse_phasing_results(*args, **kwargs)
-
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
@@ -702,8 +1062,8 @@ class BcdiPipeline:
         if self.bcdi_processor is None:
             print("BCDI processor is not instantiated yet.")
             if any(
-                    p not in self.params["cdiutils"].keys()
-                    or self.params["cdiutils"][p] is None
+                    p not in self.params
+                    or self.params[p] is None
                     for p in (
                         "q_lab_reference", "q_lab_max",
                         "q_lab_com", "det_reference_voxel",
@@ -717,7 +1077,7 @@ class BcdiPipeline:
                 print(f"Loading parameters from:\n{file_path}")
                 preprocessing_params = self.load_parameters(
                     file_path=file_path)["cdiutils"]
-                self.params["cdiutils"].update(
+                self.params.update(
                     {
                         "preprocessing_output_shape": preprocessing_params[
                             "preprocessing_output_shape"
@@ -733,14 +1093,14 @@ class BcdiPipeline:
                     }
                 )
             self.bcdi_processor = BcdiProcessor(
-                parameters=self.params["cdiutils"]
+                parameters=self.params
             )
 
         self.bcdi_processor.orthogonalize()
         self.bcdi_processor.postprocess()
         self.bcdi_processor.save_postprocessed_data()
         self.save_parameter_file()
-        if self.params["cdiutils"]["show"]:
+        if self.params["show"]:
             self.bcdi_processor.show_figures()
 
 
