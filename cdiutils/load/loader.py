@@ -42,12 +42,13 @@ class Loader(ABC):
         self.detector_name = None
 
     @classmethod
-    def from_setup(cls, metadata: dict) -> "Loader":
+    def from_setup(cls, beamline_setup: str, **metadata) -> "Loader":
         """
         Instantiate a child loader class given a the setup name,
         following the Factory Pattern.
 
         Args:
+            beamline_setup (str): the name of the beamline setup.
             metadata (dict): the parameters defining the experimental
                 setup.
 
@@ -57,11 +58,6 @@ class Loader(ABC):
         Returns:
             Loader: the subclass loader according to the provided name.
         """
-        if metadata.get("beamline_setup") is None:
-            raise ValueError(
-                "beamline_setup key is required in the metadata dict."
-            )
-        beamline_setup = metadata.get("beamline_setup")
         if beamline_setup.lower() == "id01bliss":
             from . import BlissLoader
             return BlissLoader(**metadata)
@@ -80,7 +76,7 @@ class Loader(ABC):
         if beamline_setup.lower() == "cristal":
             from . import CristalLoader
             return CristalLoader(**metadata)
-        raise ValueError(f"Invalid beamline setup: {beamline_setup}")
+        raise ValueError(f"Invalid beamline setup: {beamline_setup = }")
 
     @staticmethod
     def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
@@ -190,6 +186,10 @@ class Loader(ABC):
 
     @abstractmethod
     def load_det_calib_params(self):
+        pass
+
+    @abstractmethod
+    def load_detector_shape(self):
         pass
 
     @classmethod
