@@ -179,7 +179,7 @@ def isparameter(string: str):
     )
 
 
-def get_params_from_notebook_variables(
+def get_params_from_variables(
             dir_list: list,
             globals_dict: dict
 ) -> dict:
