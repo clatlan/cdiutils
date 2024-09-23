@@ -315,14 +315,14 @@ class SpaceConverter():
         self.q_space_shift = q_space_shift
         return q_space_transitions
 
-    def orthogonalize_to_q_lab(
+    def orthogonalise_to_q_lab(
             self,
             data: np.ndarray,
             method: str = "cdiutils",
             shift_voxel: tuple = None
     ) -> np.ndarray:
         """
-        Orthogonalize detector data of the reciprocal space to the lab
+        orthogonalise detector data of the reciprocal space to the lab
         (xu) frame.
         """
 
@@ -356,7 +356,7 @@ class SpaceConverter():
                 and self._reference_voxel is None
         ):
             raise ValueError(
-                "The shape of the data to orthogonalize should be similar "
+                "The shape of the data to orthogonalise should be similar "
                 "to that of the raw data "
                 f"({self._q_space_transitions[0].shape} vs. {shape})."
                 "\n Or you must set the reference_voxel which is the center "
@@ -540,15 +540,15 @@ class SpaceConverter():
         )
         return direct_space_voxel_size
 
-    def orthogonalize_to_direct_lab(
+    def orthogonalise_to_direct_lab(
             self,
             direct_space_data: np.ndarray,
             detector_data: np.ndarray = None,
             direct_space_voxel_size: tuple | np.ndarray | list | float = None,
     ) -> np.ndarray:
         """
-        Orthogonalize the direct space data (reconstructed object) to
-        orthogonalized direct space.
+        orthogonalise the direct space data (reconstructed object) to
+        orthogonalised direct space.
         """
 
         if self.direct_lab_interpolator is None:

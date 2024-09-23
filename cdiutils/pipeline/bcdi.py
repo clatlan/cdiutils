@@ -126,8 +126,6 @@ class BcdiPipeline(Pipeline):
 
         check_params(self.params)
 
-        self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
-        os.makedirs(self.pynx_phasing_dir, exist_ok=True)
         self.scan = self.params["scan"]
         self.sample_name = self.params["sample_name"]
         # The dictionary of the Voxels Of Interest, in both the "full"
@@ -381,25 +379,25 @@ class BcdiPipeline(Pipeline):
         )
         self._wrap_logs()  # Turn wrapping back on for regular logs
 
-        if self.params["orthogonalize_before_phasing"]:
+        if self.params["orthogonalise_before_phasing"]:
             print(
                 "Orthogonalization required before phasing.\n"
                 "Will use xrayutilities Fuzzy Gridding without linear "
                 "approximation."
             )
-            self.orthogonalized_intensity = (
-                self.converter.orthogonalize_to_q_lab(
+            self.orthogonalised_intensity = (
+                self.converter.orthogonalise_to_q_lab(
                      self.cropped_detector_data,
                      method="xrayutilities"
                 )
             )
-            # we must orthogonalize the mask and orthogonalized_intensity must
+            # we must orthogonalise the mask and orthogonalised_intensity must
             # be saved as the pynx input
-            self.mask = self.converter.orthogonalize_to_q_lab(
+            self.mask = self.converter.orthogonalise_to_q_lab(
                 self.mask,
                 method="xrayutilities"
             )
-            self.cropped_detector_data = self.orthogonalized_intensity
+            self.cropped_detector_data = self.orthogonalised_intensity
             q_lab_regular_grid = self.converter.get_xu_q_lab_regular_grid()
         else:
             print(
@@ -417,8 +415,8 @@ class BcdiPipeline(Pipeline):
 
             # Run the interpolation in the reciprocal space so we don't
             # do it later
-            self.orthogonalized_intensity = (
-                self.converter.orthogonalize_to_q_lab(
+            self.orthogonalised_intensity = (
+                self.converter.orthogonalise_to_q_lab(
                     self.cropped_detector_data,
                     method="cdiutils"
                 )
@@ -460,7 +458,7 @@ class BcdiPipeline(Pipeline):
         # Plot the reciprocal space data in the detector and lab frames
         PipelinePlotter.ortho_detector_data(
             self.cropped_detector_data,
-            self.orthogonalized_intensity,
+            self.orthogonalised_intensity,
             q_lab_regular_grid,
             title=(
                 r"From detector frame to q lab frame"
@@ -468,6 +466,9 @@ class BcdiPipeline(Pipeline):
             ),
             save=dump_file_tmpl.format("orthogonalisation")
         )
+        
+        # Save the data in the dump directory
+        self._save_preprocess_data()
 
     def _crop_and_centre(self, final_shape: tuple) -> list:
         print(
@@ -515,6 +516,37 @@ class BcdiPipeline(Pipeline):
                 self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
         return roi
+
+    def _save_preprocess_data(self) -> None:
+        """Save the data generated during the preprocessing."""
+        # Prepare dir where pynx phasing results will be saved.
+        self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
+        os.makedirs(self.pynx_phasing_dir, exist_ok=True)
+
+        np.savez(
+            f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_data.npz",
+            data=self.cropped_detector_data
+        )
+        np.savez(
+            f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_mask.npz",
+            mask=self.mask
+        )
+        
+        if self.params["orthogonalise_before_phasing"]:
+            regular_grid_func = self.space_converter.get_xu_q_lab_regular_grid
+        else:
+            regulard_grid_func = self.space_converter.get_q_lab_regular_grid
+            self.space_converter.save_interpolation_parameters(
+                f"{self.dump_dir}/S{self.scan}_interpolation_parameters.npz"
+            )
+        np.savez(
+            f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
+            q_xlab=regulard_grid_func()[0],
+            q_ylab=regulard_grid_func()[1],
+            q_zlab=regulard_grid_func()[2],
+            orthogonalised_intensity=self.orthogonalised_intensity
+        )
+
 
     def ensure_pynx_shape(self) -> tuple:
         shape = tuple(self.params["preprocessing_output_shape"])
@@ -1054,7 +1086,7 @@ class BcdiPipeline(Pipeline):
                 parameters=self.params
             )
 
-        self.bcdi_processor.orthogonalize()
+        self.bcdi_processor.orthogonalise()
         self.bcdi_processor.postprocess()
         self.bcdi_processor.save_postprocessed_data()
         self.save_parameter_file()

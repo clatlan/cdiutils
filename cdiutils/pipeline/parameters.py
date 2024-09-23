@@ -44,7 +44,7 @@ AUTHORIZED_KEYS = {
     "debug": True,
     "binning_factors": (1, 1, 1),
     "handle_defects": False,
-    "orthogonalize_before_phasing": False,
+    "orthogonalise_before_phasing": False,
     "orientation_convention": "cxi",
     "method_det_support": None,
     "raw_process": True,
