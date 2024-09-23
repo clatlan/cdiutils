@@ -307,6 +307,7 @@ class BcdiPipeline(Pipeline):
         # Check whether the requested shape is permitted by pynx
         self.ensure_pynx_shape()
         final_shape = self.params["preprocessing_output_shape"]
+
         if self.params["light_loading"]:
             final_shape, roi = self._light_load()
 
@@ -373,15 +374,12 @@ class BcdiPipeline(Pipeline):
                  f"{dspacing:.5f}", f"{lattice:.5f}"]
             )
 
-        # Temporarily bypass wrapping to print a table
-        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=False)
+        self._unwrap_logs()  # Turn off wrapping for structured output
         print(
             "\nSummary table:\n"
             + tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
-            # wrap=False
         )
-        # Re-enable wrapping
-        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
+        self._wrap_logs()  # Turn wrapping back on for regular logs
 
         if self.params["orthogonalize_before_phasing"]:
             print(
@@ -477,6 +475,7 @@ class BcdiPipeline(Pipeline):
             "voxel determination are "
             f"{self.params['det_reference_voxel_method']}."
         )
+        self._unwrap_logs()  # Turn off wrapping for structured output
         (
             self.cropped_detector_data,
             self.voi["full"]["ref"],
@@ -488,6 +487,7 @@ class BcdiPipeline(Pipeline):
                 methods=self.params["det_reference_voxel_method"],
                 verbose=True
         )
+        self._wrap_logs()  # Turn wrapping back on for regular logs
         # position of the max and com in the full detector frame
         for pos in ("max", "com"):
             self.voi["full"][pos] = CroppingHandler.get_position(

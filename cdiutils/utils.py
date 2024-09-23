@@ -559,14 +559,14 @@ class CroppingHandler:
             verbose: bool = False
     ) -> tuple[np.ndarray, tuple[int, ...]]:
         """
-        Apply sequential centering methods to the input data and return
-        the cropped and centered data along with the position of the
+        Apply sequential centring methods to the input data and return
+        the cropped and centred data along with the position of the
         reference voxel in the newly cropped data frame.
 
         Args:
             data: Input data array.
             output_shape: Desired output shape after cropping.
-            methods: list of sequential centering methods. Each method
+            methods: list of sequential centring methods. Each method
                 can be "max" for maximum intensity, "com" for center of
                 mass, or a tuple of coordinates representing the voxel
                 position.
@@ -584,28 +584,20 @@ class CroppingHandler:
         # For the first method the data are not masked
         masked_data = data
         position = None
-        if verbose:
-            print("Chain centering:")
+        msg = ""
         for method in methods:
             # position is found in the masked data
             position = cls.get_position(masked_data, method)
-            if verbose:
-                print(f"\t- {method}: {position}, value: {data[position]}")
+            msg += f"\t- {method}: {position}, value: {data[position]}\n"
 
             # get the roi
             roi = cls.get_roi(output_shape, position, data.shape)
 
             # mask the data values which are outside roi
             masked_data = cls.get_masked_data(data, roi=roi)
-        # if (
-        #         methods[-1] == "com"
-        #         and (position != cls.get_position(masked_data, "com"))
-        # ):
-        #     warnings.warn(
-        #         "\n"
-        #         "The center of the final box does not correspond to the com."
-        #         "\nYou might want to keep looking for it."
-        #     )
+        if verbose:
+            print("Chain centring:\n" + msg)
+
         # actual position along which the data are centered using roi
         position = tuple(
             (start + stop) // 2

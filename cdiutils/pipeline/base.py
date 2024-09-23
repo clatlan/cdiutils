@@ -146,6 +146,14 @@ class Pipeline(ABC):
                 file_handler.close()
         return wrapper
 
+    def _unwrap_logs(self) -> None:
+        """Temporarily bypass wrapping when printing logs."""
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=False)
+
+    def _wrap_logs(self) -> None:
+        """Enable wrapping."""
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
+
     def _make_dump_dir(self) -> None:
         dump_dir = self.params["dump_dir"]
         if os.path.isdir(dump_dir):
