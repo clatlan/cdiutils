@@ -103,14 +103,14 @@ class BlissLoader(Loader):
         )
         try:
             return {
-                "cch1": h5file[key_path + "/beam_center_y"][()],
-                "cch2": h5file[key_path + "/beam_center_x"][()],
-                "pwidth1": h5file[key_path + "/y_pixel_size"][()],
-                "pwidth2": h5file[key_path + "/x_pixel_size"][()],
-                "distance": h5file[key_path + "/distance"][()],
-                "tiltazimuth": 0,
-                "tilt": 0,
-                "detrot": 0,
+                "cch1": float(h5file[key_path + "/beam_center_y"][()]),
+                "cch2": float(h5file[key_path + "/beam_center_x"][()]),
+                "pwidth1": float(h5file[key_path + "/y_pixel_size"][()]),
+                "pwidth2": float(h5file[key_path + "/x_pixel_size"][()]),
+                "distance": float(h5file[key_path + "/distance"][()]),
+                "tiltazimuth": 0.,
+                "tilt": 0.,
+                "detrot": 0.,
                 "outerangle_offset": 0.0
             }
         except KeyError as exc:
@@ -291,7 +291,7 @@ class BlissLoader(Loader):
             sample_name = self.sample_name
             key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
         try:
-            return self.h5file[key_path + "mononrj"][()] * 1e3
+            return float(self.h5file[key_path + "mononrj"][()] * 1e3)
         except KeyError:
             warnings.warn(
                 f"Energy not found at {key_path + 'mononrj'}, you should "
