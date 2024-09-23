@@ -466,9 +466,10 @@ class BcdiPipeline(Pipeline):
             ),
             save=dump_file_tmpl.format("orthogonalisation")
         )
-        
-        # Save the data in the dump directory
+
+        # Save the data and the parameters in the dump directory
         self._save_preprocess_data()
+        self._save_parameter_file()
 
     def _crop_and_centre(self, final_shape: tuple) -> list:
         print(
@@ -519,34 +520,32 @@ class BcdiPipeline(Pipeline):
 
     def _save_preprocess_data(self) -> None:
         """Save the data generated during the preprocessing."""
-        # Prepare dir where pynx phasing results will be saved.
+        # Prepare dir in which pynx phasing results will be saved.
         self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
 
-        np.savez(
-            f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_data.npz",
-            data=self.cropped_detector_data
-        )
-        np.savez(
-            f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_mask.npz",
-            mask=self.mask
-        )
-        
+        for name, data in zip(
+                ("data", "mask"),
+                (self.cropped_detector_data, self.mask)
+        ):
+            path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
+            np.savez(path, data=data)
+            self.params["pynx"][name] = path
+
         if self.params["orthogonalise_before_phasing"]:
-            regular_grid_func = self.space_converter.get_xu_q_lab_regular_grid
+            regular_grid_func = self.converter.get_xu_q_lab_regular_grid
         else:
-            regulard_grid_func = self.space_converter.get_q_lab_regular_grid
-            self.space_converter.save_interpolation_parameters(
+            regular_grid_func = self.converter.get_q_lab_regular_grid
+            self.converter.save_interpolation_parameters(
                 f"{self.dump_dir}/S{self.scan}_interpolation_parameters.npz"
             )
         np.savez(
             f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
-            q_xlab=regulard_grid_func()[0],
-            q_ylab=regulard_grid_func()[1],
-            q_zlab=regulard_grid_func()[2],
+            q_xlab=regular_grid_func()[0],
+            q_ylab=regular_grid_func()[1],
+            q_zlab=regular_grid_func()[2],
             orthogonalised_intensity=self.orthogonalised_intensity
         )
-
 
     def ensure_pynx_shape(self) -> tuple:
         shape = tuple(self.params["preprocessing_output_shape"])
@@ -622,7 +621,7 @@ class BcdiPipeline(Pipeline):
         self.params.update(self.bcdi_processor.params)
         self.params["pynx"].update({"data": data_path})
         self.params["pynx"].update({"mask": mask_path})
-        self.save_parameter_file()
+        self._save_parameter_file()
 
 
     @Pipeline.process
@@ -1089,20 +1088,15 @@ class BcdiPipeline(Pipeline):
         self.bcdi_processor.orthogonalise()
         self.bcdi_processor.postprocess()
         self.bcdi_processor.save_postprocessed_data()
-        self.save_parameter_file()
+        self._save_parameter_file()
         if self.params["show"]:
             self.bcdi_processor.show_figures()
 
-
-    def save_parameter_file(self) -> None:
+    def _save_parameter_file(self) -> None:
         """
         Save the parameter file used during the analysis.
         """
-
-        output_file_path = (
-            f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
-            # f"{os.path.basename(self.param_file_path)}"
-        )
+        output_file_path = f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
 
         if self.param_file_path is not None:
             try:
@@ -1120,7 +1114,6 @@ class BcdiPipeline(Pipeline):
             convert_np_arrays(self.params)
             with open(output_file_path, "w", encoding="utf8") as file:
                 yaml.dump(self.params, file)
-
             print(
                 "\nScan parameter file saved at:\n"
                 f"{output_file_path}"
@@ -1131,4 +1124,3 @@ class BcdiPipeline(Pipeline):
             parameters=self.params
         )
         facet_anlysis_processor.facet_analysis()
-
