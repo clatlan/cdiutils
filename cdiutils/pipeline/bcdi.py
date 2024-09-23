@@ -6,15 +6,17 @@ Authors:
 """
 
 
-# Built-in dependencies
+# Built-in dependencies.
 import glob
+import logging
 import os
 import shutil
 from string import Template
 import subprocess
+import sys
 import time
 
-# Dependencies
+# Dependencies.
 import numpy as np
 import paramiko
 import ruamel.yaml
@@ -27,16 +29,17 @@ from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.load import Loader
 
-# Plot function specifically made for the pipeline
+# Plot function specifically made for the pipeline.
 from .pipeline_plotter import PipelinePlotter
 
 # Utility functions
 from cdiutils.utils import CroppingHandler, oversampling_from_diffraction
 from cdiutils.process.phaser import PhasingResultAnalyser
-from .parameters import check_params, convert_np_arrays, fill_pynx_params
-
-from .base import Pipeline, process, pretty_print
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
+
+# Base Pipeline class and pipeline-related functions.
+from .base import Pipeline, LoggerWriter
+from .parameters import check_params, convert_np_arrays, fill_pynx_params
 
 
 def make_scan_parameter_file(
@@ -121,13 +124,7 @@ class BcdiPipeline(Pipeline):
         """
         super(BcdiPipeline, self).__init__(param_file_path, params)
 
-        if params is None:
-            if param_file_path is None:
-                raise ValueError(
-                    "param_file_path or parameters must be provided"
-                )
-            self.params = self.load_parameters()
-        check_params(params)
+        check_params(self.params)
 
         self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
@@ -304,12 +301,9 @@ class BcdiPipeline(Pipeline):
 
         return final_shape, roi
 
-    @process
+    @Pipeline.process
     def _preprocess(self) -> None:
-        pretty_print(
-            "Proceeding to preprocessing"
-            f" ({self.sample_name}, S{self.scan})"
-        )
+
         # Check whether the requested shape is permitted by pynx
         self.ensure_pynx_shape()
         final_shape = self.params["preprocessing_output_shape"]
@@ -353,17 +347,12 @@ class BcdiPipeline(Pipeline):
 
         # Initialise the fancy table with the columns
         table = [
-            ["voxel", "uncroped det. pos.", "cropped det. pos.",
+            ["voxel", "uncrop. det. pos.", "crop. det. pos.",
              "dspacing (A)", "lat. par. (A)"]
         ]
 
         # get the position of the reference, max and det voxels in the
         # q lab space
-        print("\nSummary table:")
-        print(
-            "(max and com in the cropped frame are different to max and com in"
-            " the uncropped detector frame.)"
-        )
         for pos in self.voxel_pos:
             key = f"q_lab_{pos}"
             det_voxel = self.voi["full"][pos]
@@ -384,10 +373,15 @@ class BcdiPipeline(Pipeline):
                  f"{dspacing:.5f}", f"{lattice:.5f}"]
             )
 
+        # Temporarily bypass wrapping to print a table
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=False)
         print(
-            "\n" + tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
+            "\nSummary table:\n"
+            + tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
             # wrap=False
         )
+        # Re-enable wrapping
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
 
         if self.params["orthogonalize_before_phasing"]:
             print(
@@ -543,13 +537,10 @@ class BcdiPipeline(Pipeline):
         )
         self.params["preprocessing_output_shape"] = checked_shape
 
-    @process
+    @Pipeline.process
     def preprocess(self) -> None:
 
-        pretty_print(
-            "[INFO] Proceeding to preprocessing"
-            f" ({self.sample_name}, S{self.scan})"
-        )
+
         dump_dir = self.params["dump_dir"]
         if os.path.isdir(dump_dir):
             print(
@@ -587,7 +578,6 @@ class BcdiPipeline(Pipeline):
 
         # update the parameters
         if self.param_file_path is not None:
-            pretty_print("[INFO] Updating scan parameter file")
             update_parameter_file(
                 self.param_file_path,
                 {
@@ -603,7 +593,7 @@ class BcdiPipeline(Pipeline):
         self.save_parameter_file()
 
 
-    @process
+    @Pipeline.process
     def phase_retrieval(
             self,
             machine: str = None,  # "slurm-nice-devel",
@@ -617,11 +607,6 @@ class BcdiPipeline(Pipeline):
         Run the phase retrieval using pynx through ssh connection to a
         gpu machine.
         """
-
-        pretty_print(
-            "[INFO] Proceeding to PyNX phase retrieval "
-            f"({self.sample_name}, S{self.scan})"
-        )
 
         if clear_former_results:
             print("[INFO] Removing former results.\n")
@@ -938,7 +923,7 @@ class BcdiPipeline(Pipeline):
             best_runs
         )
 
-    @process
+    @Pipeline.process
     def mode_decomposition(
             self,
             pynx_analysis_script: str = (
@@ -982,10 +967,6 @@ class BcdiPipeline(Pipeline):
                     f"key_file_path not provided, will use '{key_file_path}'."
                 )
 
-            pretty_print(
-                f"[INFO] Running mode decomposition on machine '{machine}'"
-                f"({self.sample_name}, S{self.scan})"
-            )
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             client.connect(
@@ -1033,13 +1014,8 @@ class BcdiPipeline(Pipeline):
                 )
                 self.params = self.load_parameters()
 
-    @process
+    @Pipeline.process
     def postprocess(self) -> None:
-
-        pretty_print(
-            "[INFO] Running post-processing"
-            f"({self.sample_name}, S{self.scan})"
-        )
 
         if self.bcdi_processor is None:
             print("BCDI processor is not instantiated yet.")
