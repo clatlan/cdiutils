@@ -42,7 +42,6 @@ AUTHORIZED_KEYS = {
     "show": False,
     "verbose": True,
     "debug": True,
-    "binning_factors": (1, 1, 1),
     "handle_defects": False,
     "orthogonalise_before_phasing": False,
     "orientation_convention": "cxi",
