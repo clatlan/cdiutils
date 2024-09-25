@@ -13,7 +13,7 @@ class NanoMaxLoader(Loader):
     """
     A class to handle loading/reading .h5 files that were created at the
     NanoMax beamline.
-    This loader class does not need any of the 'sample_name' or 
+    This loader class does not need any of the 'sample_name' or
     'experiment_file_path' because NanoMAX data layering is rather
     simple.
 
@@ -67,7 +67,7 @@ class NanoMaxLoader(Loader):
     def load_detector_data(
             self,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
+            rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ) -> np.ndarray:
         """
@@ -76,7 +76,7 @@ class NanoMaxLoader(Loader):
         Args:
             roi (tuple[slice], optional): the region of interest of the
                 detector to load. Defaults to None.
-            binning_along_axis0 (int, optional): whether to bin the data
+            rocking_angle_binning (int, optional): whether to bin the data
                 along the rocking curve axis. Defaults to None.
             binning_method (str, optional): the method employed for the
                 binning. It can be sum or "mean". Defaults to "sum".
@@ -94,7 +94,7 @@ class NanoMaxLoader(Loader):
         )
         roi = self._check_roi(roi)
         try:
-            if binning_along_axis0:
+            if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
                 data = h5file[key_path][(slice(None), roi[1], roi[2])]
                 # But then we'll keep only the roi for axis0
@@ -110,7 +110,9 @@ class NanoMaxLoader(Loader):
         return self.bin_flat_mask(
             data,
             roi,
-            binning_along_axis0,
+            self.flat_field,
+            self.alien_mask,
+            rocking_angle_binning,
             binning_method
         )
 
@@ -118,14 +120,16 @@ class NanoMaxLoader(Loader):
     def load_motor_positions(
             self,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
-            binning_method: str = "mean"
+            rocking_angle_binning: int = None,
     ) -> dict:
         h5file = self.h5file
 
-        key_path = (
-            "entry/snapshots/post_scan/"
-        )
+        if roi is None or len(roi) == 2:
+            roi = slice(None)
+        elif len(roi) == 3:
+            roi = roi[0]
+
+        key_path = "entry/snapshots/post_scan/"
         angles = {key: None for key in NanoMaxLoader.angle_names}
 
         for angle, name in NanoMaxLoader.angle_names.items():
@@ -135,17 +139,28 @@ class NanoMaxLoader(Loader):
         for angle in ("gonphi", "gontheta"):
             if angle in h5file["entry/measurement"].keys():
                 rocking_angle_name = angle
-                rocking_angle_values = h5file["entry/measurement"][angle][()]
+                if rocking_angle_binning:
+                    rocking_angle_values = h5file["entry/measurement"][angle][
+                        ()
+                    ]
+                else:
+                    rocking_angle_values = h5file["entry/measurement"][angle][
+                        roi
+                    ]
                 # Find what generic angle (in-plane or out-of-plane) it
                 # corresponds to.
                 for angle, name in NanoMaxLoader.angle_names.items():
                     if name == rocking_angle_name:
                         rocking_angle = angle
-        angles[rocking_angle]= rocking_angle_values
 
-        # TODO: must implement a general method to handle this
-        if binning_along_axis0:
-            pass
+        self.rocking_angle = rocking_angle
+        angles[rocking_angle] = rocking_angle_values
+
+        angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            angles[self.rocking_angle]
+        )
+        if roi and rocking_angle_binning:
+            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles
 
     @h5_safe_load

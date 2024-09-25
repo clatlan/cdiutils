@@ -1,4 +1,3 @@
-import hdf5plugin
 import numpy as np
 import silx.io.h5py_utils
 
@@ -81,25 +80,24 @@ class SIXS2022Loader(Loader):
             scan: int,
             sample_name: str = None,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
+            rocking_angle_binning: int = None,
             binning_method: str = "sum"
-    ) -> None:
+    ) -> np.ndarray:
         """
         Load detector data for a given scan and sample.
 
         Args:
             scan (int): Scan number.
             sample_name (str, optional): Name of the sample. Defaults to
-                                         None.
+                None.
             roi (tuple, optional): Region of interest. Defaults to None.
-            binning_along_axis0 (int, optional): Binning factor along
-                                                 axis 0. Defaults to
-                                                 None.
+            rocking_angle_binning (int, optional): Binning factor along
+                axis 0. Defaults to None.
             binning_method (str, optional): Binning method. Defaults to
-                                            "sum".
+                "sum".
 
         Returns:
-            numpy.ndarray: Loaded detector data.
+            np.ndarray: Loaded detector data.
         """
         if sample_name is None:
             sample_name = self.sample_name
@@ -110,7 +108,7 @@ class SIXS2022Loader(Loader):
         roi = self._check_roi(roi)
 
         with silx.io.h5py_utils.File(path) as h5file:
-            if binning_along_axis0:
+            if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
                 data = h5file[key_path][(slice(None), roi[1], roi[2])]
                 # But then we'll keep only the roi for axis0
@@ -121,7 +119,9 @@ class SIXS2022Loader(Loader):
         return self.bin_flat_mask(
             data,
             roi,
-            binning_along_axis0,
+            self.flat_field,
+            self.alien_mask,
+            rocking_angle_binning,
             binning_method
         )
 
@@ -130,23 +130,27 @@ class SIXS2022Loader(Loader):
             scan: int,
             sample_name: str = None,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
-            binning_method: str = "mean"
+            rocking_angle_binning: int = None,
     ) -> dict:
         """
-        Load the motor positions and return it as a dict of:
-        - sample out of plane angle
-        - sample in plane angle
-        - detector out of plane angle
-        - detector in plane angle
+        Load the motor positions, i.e diffractometer angles associated
+        with a scan.
+
+        Args:
+            scan (int): the scan number
+            sample_name (str, optional): the sample name.
+                Defaults to None.
+            roi (tuple[slice], optional): the region of interest.
+                Defaults to None.
+            rocking_angle_binning (int, optional): the factor for the
+                binning along the rocking curve axis. Defaults to None.
+
+        Returns:
+            dict: the four diffractometer angles.
         """
 
         if sample_name is None:
             sample_name = self.sample_name
-
-        # key_path = "_".join(
-        #         (sample_name, str(scan))
-        # ) + ".1/instrument/positioners/"
 
         path = self._get_file_path(scan, sample_name)
         key_path = "com/scan_data/"
@@ -160,7 +164,7 @@ class SIXS2022Loader(Loader):
 
         with silx.io.h5py_utils.File(path) as h5file:
             for angle, name in SIXS2022Loader.angle_names.items():
-                if binning_along_axis0:
+                if rocking_angle_binning:
                     angles[angle] = h5file[key_path + name][()]
                 else:
                     try:
@@ -168,44 +172,10 @@ class SIXS2022Loader(Loader):
                     except ValueError:
                         angles[angle] = h5file[key_path + name][()]
 
-        if binning_along_axis0:
-            original_dim0 = angles["sample_outofplane_angle"].shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-            if binning_method == "mean":
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                                angles["sample_outofplane_angle"][
-                                    :first_slices
-                                ],
-                                nb_of_bins
-                            )
-                    ]
-                    binned_sample_outofplane_angle.append(
-                        np.mean(
-                            angles["sample_outofplane_angle"][last_slices-1:],
-                            axis=0
-                        )
-                    )
-                else:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                                angles["sample_outofplane_angle"],
-                                nb_of_bins
-                            )
-                    ]
-                angles["sample_outofplane_angle"] = np.asarray(
-                    binned_sample_outofplane_angle
-                )
-        if binning_along_axis0 and roi:
-            for name, value in angles.items():
-                try:
-                    angles[name] = value[roi]
-                except IndexError:
-                    # note that it is not the same error as above
-                    continue
+        self.rocking_angle_name = self.get_rocking_angle_axis(angles)
+        angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            angles[self.rocking_angle]
+        )
+        if roi and rocking_angle_binning:
+            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles

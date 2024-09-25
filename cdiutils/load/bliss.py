@@ -44,7 +44,7 @@ class BlissLoader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(BlissLoader, self).__init__(flat_field, alien_mask)
+        super().__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
         self.sample_name = sample_name
         if detector_name is None:
@@ -141,11 +141,29 @@ class BlissLoader(Loader):
             scan: int,
             sample_name: str = None,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
+            rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ) -> np.ndarray:
-        """Load the detector data of a given scan number."""
+        """
+        Load the detector data.
 
+        Args:
+            scan (int): the scan number
+            sample_name (str, optional): the sample name.
+                Defaults to None.
+            roi (tuple[slice], optional): the region of interest to
+                light load the data. Defaults to None.
+            rocking_angle_binning (int, optional): the factor for the
+                binning along the rocking curve axis. Defaults to None.
+            binning_method (str, optional): the method for the binning
+                along the rocking curve axis. Defaults to "sum".
+
+        Raises:
+            KeyError: if the key path is incorrect.
+
+        Returns:
+            np.ndarray: the detector data.
+        """
         h5file = self.h5file
         if sample_name is None:
             sample_name = self.sample_name
@@ -156,7 +174,7 @@ class BlissLoader(Loader):
         )
         roi = self._check_roi(roi)
         try:
-            if binning_along_axis0:
+            if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
                 data = h5file[key_path][(slice(None), roi[1], roi[2])]
                 # But then we'll keep only the roi for axis0
@@ -172,9 +190,87 @@ class BlissLoader(Loader):
         return self.bin_flat_mask(
             data,
             roi,
-            binning_along_axis0,
+            self.flat_field,
+            self.alien_mask,
+            rocking_angle_binning,
             binning_method
         )
+
+    @h5_safe_load
+    def load_motor_positions(
+            self,
+            scan: int,
+            sample_name: str = None,
+            roi: tuple[slice] = None,
+            rocking_angle_binning: int = None,
+            binning_method: str = "mean"
+    ) -> dict:
+        """
+        Load the motor positions, i.e diffractometer angles associated
+        with a scan.
+
+        Args:
+            scan (int): the scan number
+            sample_name (str, optional): the sample name.
+                Defaults to None.
+            roi (tuple[slice], optional): the region of interest.
+                Defaults to None.
+            rocking_angle_binning (int, optional): the factor for the
+                binning along the rocking curve axis. Defaults to None.
+            binning_method (str, optional): the method for the binning
+                along the rocking curve axis. Defaults to "mean".
+
+        Returns:
+            dict: the four diffractometer angles.
+        """
+        if sample_name is None:
+            sample_name = self.sample_name
+
+        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+
+        if roi is None or len(roi) == 2:
+            roi = slice(None)
+        elif len(roi) == 3:
+            roi = roi[0]
+
+        angles = {key: None for key in BlissLoader.angle_names.keys()}
+
+        for angle, name in BlissLoader.angle_names.items():
+            if rocking_angle_binning:
+                angles[angle] = self.h5file[key_path + name][()]
+            else:
+                try:
+                    angles[angle] = self.h5file[key_path + name][roi]
+                except ValueError:
+                    angles[angle] = self.h5file[key_path + name][()]
+
+        self.rocking_angle_name = self.get_rocking_angle_axis(angles)
+
+        angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            angles[self.rocking_angle], rocking_angle_binning
+        )
+        if roi and rocking_angle_binning:
+            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
+
+        return angles
+
+    @h5_safe_load
+    def load_energy(
+            self,
+            scan: int,
+            sample_name: str = None
+    ) -> float:
+        if sample_name is None:
+            sample_name = self.sample_name
+            key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+        try:
+            return float(self.h5file[key_path + "mononrj"][()] * 1e3)
+        except KeyError:
+            warnings.warn(
+                f"Energy not found at {key_path + 'mononrj'}, you should "
+                "provide the energy."
+            )
+            return None
 
     @h5_safe_load
     def get_array_shape(self, scan: int, sample_name: str = None) -> tuple:
@@ -200,104 +296,6 @@ class BlissLoader(Loader):
             sample_name = self.sample_name
         key_path = "_".join((sample_name, str(scan))) + ".1"
         print(h5file[key_path].keys())
-
-    @h5_safe_load
-    def load_motor_positions(
-            self,
-            scan: int,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
-            binning_method: str = "mean"
-    ) -> dict:
-        """
-        Load the motor positions and return it as a dict of:
-        - sample out of plane angle
-        - sample in plane angle
-        - detector out of plane angle
-        - detector in plane angle
-        """
-
-        if sample_name is None:
-            sample_name = self.sample_name
-
-        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-
-        if roi is None or len(roi) == 2:
-            roi = slice(None)
-        elif len(roi) == 3:
-            roi = roi[0]
-
-        angles = {key: None for key in BlissLoader.angle_names.keys()}
-
-        for angle, name in BlissLoader.angle_names.items():
-            if binning_along_axis0:
-                angles[angle] = self.h5file[key_path + name][()]
-            else:
-                try:
-                    angles[angle] = self.h5file[key_path + name][roi]
-                except ValueError:
-                    angles[angle] = self.h5file[key_path + name][()]
-
-        if binning_along_axis0:
-            original_dim0 = angles["sample_outofplane_angle"].shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-            if binning_method == "mean":
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                                angles["sample_outofplane_angle"][
-                                    :first_slices
-                                ],
-                                nb_of_bins
-                            )
-                    ]
-                    binned_sample_outofplane_angle.append(
-                        np.mean(
-                            angles["sample_outofplane_angle"][last_slices-1:],
-                            axis=0
-                        )
-                    )
-                else:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                                angles["sample_outofplane_angle"],
-                                nb_of_bins
-                            )
-                    ]
-                angles["sample_outofplane_angle"] = np.asarray(
-                    binned_sample_outofplane_angle
-                )
-        if binning_along_axis0 and roi:
-            for name, value in angles.items():
-                try:
-                    angles[name] = value[roi]
-                except IndexError:
-                    # note that it is not the same error as above
-                    continue
-        return angles
-
-    @h5_safe_load
-    def load_energy(
-            self,
-            scan: int,
-            sample_name: str = None
-    ) -> float:
-        if sample_name is None:
-            sample_name = self.sample_name
-            key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-        try:
-            return float(self.h5file[key_path + "mononrj"][()] * 1e3)
-        except KeyError:
-            warnings.warn(
-                f"Energy not found at {key_path + 'mononrj'}, you should "
-                "provide the energy."
-            )
-            return None
 
     @h5_safe_load
     def load_measurement_parameters(

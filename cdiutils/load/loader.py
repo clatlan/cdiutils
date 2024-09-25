@@ -7,7 +7,11 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.utils import CroppingHandler, get_centred_slices
+from cdiutils.utils import (
+    CroppingHandler,
+    get_centred_slices,
+    bin_along_axis
+)
 from cdiutils.plot import add_colorbar
 
 
@@ -40,6 +44,7 @@ class Loader(ABC):
         self.flat_field = self._check_load(flat_field)
         self.alien_mask = self._check_load(alien_mask)
         self.detector_name = None
+        self.rocking_angle = "sample_outofplane_angle"
 
     @classmethod
     def from_setup(cls, beamline_setup: str, **metadata) -> "Loader":
@@ -104,7 +109,7 @@ class Loader(ABC):
                         if possible_key in dict(file):
                             return file[possible_key]
                     raise KeyError(
-                        f"Unvalid file provided containing {file.keys()}."
+                        f"Invalid file provided containing {file.keys()}."
                     )
         elif data_or_path is None or isinstance(data_or_path, np.ndarray):
             return data_or_path
@@ -132,7 +137,7 @@ class Loader(ABC):
             tuple[slice]: the prepared roi.
         """
         usage_text = (
-            "Wrong value for roi (roi={}), roi should be:\n"
+            f"Wrong value for roi ({roi = }), roi should be:\n"
             "\t - either a tuple of slices with len = 2 or len = 3"
             "\t - either a tuple of int with len = 4 or len = 6"
         )
@@ -146,39 +151,72 @@ class Loader(ABC):
         if len(roi) == 4 or len(roi) == 6:
             if all(isinstance(e, (int, np.integer)) for e in roi):
                 return CroppingHandler.roi_list_to_slices(roi)
-        raise ValueError(usage_text.format(roi))
+        raise ValueError(usage_text)
 
+    @staticmethod
     def bin_flat_mask(
-            self,
             data: np.ndarray,
             roi: list = None,
-            binning_along_axis0: int = None,
+            flat_field: np.ndarray = None,
+            alien_mask: np.ndarray = None,
+            rocking_angle_binning: int = None,
             binning_method: str = "sum",
     ) -> np.ndarray:
-        if binning_along_axis0:
-            original_dim0 = data.shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-            if binning_method == "sum":
-                binned_data = [
-                    np.sum(e, axis=0)
-                    for e in np.array_split(data[:first_slices], nb_of_bins)
-                ]
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_data.append(np.sum(data[last_slices:], axis=0))
-                data = np.asarray(binned_data)
+        """
+        A generic method that takes care of binning, applying flat_field
+        and alien mask to detector data.
 
+        Args:
+            data (np.ndarray): the data to bin, apply flat_field and
+                mask.
+            roi (list, optional): the region of interest to select.
+                Defaults to None.
+            flat_field (np.ndarray, optional): the flat field to apply.
+                Defaults to None.
+            alien_mask (np.ndarray, optional): the alien mask to apply.
+                Defaults to None.
+            rocking_angle_binning (int, optional): the binning factor
+                along to rocking curve axis. Defaults to None.
+            binning_method (str, optional): the method for the binning.
+                Defaults to "sum".
+
+        Returns:
+            np.ndarray: the new data
+        """
+        if rocking_angle_binning:
+            data = bin_along_axis(
+                data, rocking_angle_binning, binning_method, axis=0
+            )
             if roi is not None:
                 data = data[roi]
 
-        if self.flat_field is not None:
-            data = data * self.flat_field[roi[1:]]
+        if flat_field is not None:
+            data = data * flat_field[roi[1:]]
 
-        if self.alien_mask is not None:
-            data = data * self.alien_mask[roi[1:]]
-
+        if alien_mask is not None:
+            data = data * alien_mask[roi[1:]]
         return data
+
+    @staticmethod
+    def bin_rocking_angle_values(
+            self,
+            values: list | np.ndarray,
+            binning_factor: int = None
+    ) -> np.ndarray:
+        """
+        Bins the data along the rocking angle axis using the
+        bin_along_axis function.
+
+        Args:
+            values (list | np.ndarray): the rocking angle values to be
+                binned.
+            binning_factor (int, optional): the number of data points to
+                bin along the rocking angle axis. Defaults to None.
+
+        Returns:
+            np.ndarray: the binned values.
+        """
+        return bin_along_axis(values, binning_factor, binning_method="mean")
 
     @abstractmethod
     def load_energy(self):
@@ -191,6 +229,28 @@ class Loader(ABC):
     @abstractmethod
     def load_detector_shape(self):
         pass
+
+    @staticmethod
+    def get_rocking_angle_name(**angles) -> str:
+        outofplane = angles.get("sample_outofplane_angle")
+        inplane = angles.get("sample_inplane_angle")
+
+        if outofplane is not None and inplane is not None:
+            if (
+                    isinstance(outofplane, (np.ndarray, list))
+                    and len(outofplane) > 1
+            ):
+                return "sample_outofplane_angle"
+            if isinstance(inplane, ((np.ndarray, list))) and len(inplane) > 1:
+                return "sample_inplane_angle"
+            raise ValueError(
+                "Could not find a rocking angle "
+                f"({outofplane = }, {inplane = })"
+            )
+        raise ValueError(
+            "sample_outofplane_angle and/or sample_inplane_angle missing in "
+            "the provided angles dictionary."
+        )
 
     @classmethod
     def get_mask(

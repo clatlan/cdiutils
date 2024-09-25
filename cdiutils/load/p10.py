@@ -1,4 +1,3 @@
-import hdf5plugin
 import numpy as np
 import silx.io.h5py_utils
 
@@ -101,7 +100,7 @@ class P10Loader(Loader):
             scan: int,
             sample_name: str = None,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
+            rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ) -> None:
         """
@@ -112,7 +111,7 @@ class P10Loader(Loader):
             sample_name (str, optional): Name of the sample. Defaults to
                                          None.
             roi (tuple, optional): Region of interest. Defaults to None.
-            binning_along_axis0 (int, optional): Binning factor along
+            rocking_angle_binning (int, optional): Binning factor along
                                                  axis 0. Defaults to
                                                  None.
             binning_method (str, optional): Binning method. Defaults to
@@ -130,7 +129,7 @@ class P10Loader(Loader):
         roi = self._check_roi(roi)
 
         with silx.io.h5py_utils.File(path) as h5file:
-            if binning_along_axis0:
+            if rocking_angle_binning:
                 data = h5file[key_path][()]
             else:
                 data = h5file[key_path][roi]
@@ -138,8 +137,10 @@ class P10Loader(Loader):
         data = self.bin_flat_mask(
             data,
             roi,
-            binning_along_axis0,
-            binning_method,
+            self.flat_field,
+            self.alien_mask,
+            rocking_angle_binning,
+            binning_method
         )
 
         # Must apply mask on P10 Eiger data
@@ -157,8 +158,7 @@ class P10Loader(Loader):
             scan: int,
             sample_name: str = None,
             roi: tuple[slice] = None,
-            binning_along_axis0: int = None,
-            binning_method: str = "mean"
+            rocking_angle_binning: int = None,
     ) -> None:
         """
         Load motor positions for a given scan and sample.
@@ -166,13 +166,10 @@ class P10Loader(Loader):
         Args:
             scan (int): Scan number.
             sample_name (str, optional): Name of the sample. Defaults
-                                         to None.
+                to None.
             roi (tuple, optional): Region of interest. Defaults to None.
-            binning_along_axis0 (int, optional): Binning factor along
-                                                 axis 0. Defaults to
-                                                 None.
-            binning_method (str, optional): Binning method. Defaults to
-                                            "mean".
+            rocking_angle_binning (int, optional): Binning factor along
+                axis 0. Defaults to None.
 
         Returns:
             dict: Dictionary containing motor positions.
@@ -225,43 +222,15 @@ class P10Loader(Loader):
                         # This means that 'e2_t02' must be used as the
                         # detector out-of-plane angle.
                         angles["e2_t02"] = float(words[1])
-
+        self.rocking_angle = rocking_angle
         angles[rocking_angle] = np.array(rocking_angle_values)
         for name in angles:
             if angles[name] is None:
                 angles[name] = 0
 
-        if binning_along_axis0:
-            original_dim0 = angles[rocking_angle].shape[0]
-            nb_of_bins = original_dim0 // binning_along_axis0
-            first_slices = nb_of_bins * binning_along_axis0
-            last_slices = first_slices + original_dim0 % binning_along_axis0
-            if binning_method == "mean":
-                if original_dim0 % binning_along_axis0 != 0:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                            angles[rocking_angle][:first_slices],
-                            nb_of_bins
-                        )
-                    ]
-                    binned_sample_outofplane_angle.append(
-                        np.mean(
-                            angles[rocking_angle][last_slices-1:],
-                            axis=0
-                        )
-                    )
-                else:
-                    binned_sample_outofplane_angle = [
-                        np.mean(e, axis=0)
-                        for e in np.split(
-                            angles[rocking_angle],
-                            nb_of_bins
-                        )
-                    ]
-                angles[rocking_angle] = np.asarray(
-                    binned_sample_outofplane_angle
-                )
+        angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            angles[self.rocking_angle], rocking_angle_binning
+        )
         if roi:
             angles[rocking_angle] = angles[rocking_angle][roi]
 

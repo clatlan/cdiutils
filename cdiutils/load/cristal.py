@@ -93,6 +93,8 @@ class CristalLoader(Loader):
         return self.bin_flat_mask(
             data,
             roi,
+            self.flat_field,
+            self.alien_mask,
             binning_along_axis0,
             binning_method
         )
