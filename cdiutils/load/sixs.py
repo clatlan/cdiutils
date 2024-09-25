@@ -172,7 +172,7 @@ class SIXS2022Loader(Loader):
                     except ValueError:
                         angles[angle] = h5file[key_path + name][()]
 
-        self.rocking_angle_name = self.get_rocking_angle_axis(angles)
+        self.rocking_angle = self.get_rocking_angle(angles)
         angles[self.rocking_angle] = self.bin_rocking_angle_values(
             angles[self.rocking_angle]
         )

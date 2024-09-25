@@ -1,6 +1,5 @@
 import dateutil.parser
 import numpy as np
-import hdf5plugin
 import warnings
 
 from cdiutils.load import Loader, h5_safe_load
@@ -203,7 +202,6 @@ class BlissLoader(Loader):
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
-            binning_method: str = "mean"
     ) -> dict:
         """
         Load the motor positions, i.e diffractometer angles associated
@@ -217,8 +215,6 @@ class BlissLoader(Loader):
                 Defaults to None.
             rocking_angle_binning (int, optional): the factor for the
                 binning along the rocking curve axis. Defaults to None.
-            binning_method (str, optional): the method for the binning
-                along the rocking curve axis. Defaults to "mean".
 
         Returns:
             dict: the four diffractometer angles.
@@ -244,11 +240,12 @@ class BlissLoader(Loader):
                 except ValueError:
                     angles[angle] = self.h5file[key_path + name][()]
 
-        self.rocking_angle_name = self.get_rocking_angle_axis(angles)
+        self.rocking_angle = self.get_rocking_angle(angles)
 
         angles[self.rocking_angle] = self.bin_rocking_angle_values(
             angles[self.rocking_angle], rocking_angle_binning
         )
+
         if roi and rocking_angle_binning:
             angles[self.rocking_angle] = angles[self.rocking_angle][roi]
 

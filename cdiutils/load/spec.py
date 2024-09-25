@@ -14,7 +14,7 @@ def safe(func):
     return wrap
 
 
-# TODO: Impelement roi parameter for detector, motors and mask methods
+# TODO: Implement roi parameter for detector, motors and mask methods
 class SpecLoader(Loader):
 
     angle_names = {
@@ -64,22 +64,29 @@ class SpecLoader(Loader):
             specfile: silx.io.specfile.SpecFile,
             scan: int,
             roi: tuple[slice] = None,
-            binning_along_axis0=None
+            rocking_angle_binning: int = None,
+            binning_method: str = "sum"
     ):
         roi = self._check_roi(roi)
 
-        # TODO: implement flat_field consideration and binning_along_axis0
         frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
 
-        detector_data = []
+        data = []
 
         template = self.detector_data_path + self.edf_file_template
 
         for frame_id in frame_ids:
             with fabio.open(template % frame_id) as edf_data:
-                detector_data.append(edf_data.data)
+                data.append(edf_data.data)
 
-        return np.array(detector_data)[roi]
+        return self.bin_flat_mask(
+            np.asarray(data),
+            roi,
+            self.flat_field,
+            self.alien_mask,
+            rocking_angle_binning,
+            binning_method
+        )
 
     @safe
     def load_motor_positions(
@@ -87,7 +94,7 @@ class SpecLoader(Loader):
             specfile: silx.io.specfile.SpecFile,
             scan: int,
             roi: tuple[slice] = None,
-            binning_along_axis0=None
+            rocking_angle_binning: int = None,
     ):
 
         if roi is None or len(roi) == 2:
@@ -103,6 +110,14 @@ class SpecLoader(Loader):
                 angles[angle] = positioners[name][roi]
             except ValueError:
                 angles[angle] = angles[angle] = positioners[name][()]
+
+        self.rocking_angle = self.get_rocking_angle(angles)
+
+        angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            angles[self.rocking_angle], rocking_angle_binning
+        )
+        if roi and rocking_angle_binning:
+            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles
 
 
