@@ -11,6 +11,97 @@ from scipy.stats import gaussian_kde
 import xrayutilities as xu
 
 
+def bin_along_axis(
+        data: np.ndarray | list,
+        binning_factor: int,
+        binning_method: str = "sum",
+        axis: int = 0
+) -> np.ndarray:
+    """
+    Bin n-dimensional data along a specified axis using the specified
+    method (mean, sum, median, max).
+
+    Args:
+        data (np.ndarray | list): n-dimensional data to be binned.
+        binning_factor (int): the number of elements per bin.
+        binning_method (str, optional): the binning method, either
+            "mean", "sum", "median", or "max". Defaults to "sum".
+        axis (int, optional): the axis along which to perform binning.
+            Defaults to 0.
+
+    Raises:
+        ValueError: if the binning_method is unknown.
+
+    Returns:
+        np.ndarray: binned data.
+    """
+
+    if binning_factor == 1 or binning_factor is None:
+        return data  # No binning required
+
+    if isinstance(data, list):
+        data = np.array(data)
+        axis = 0
+
+    original_dim = data.shape[axis]
+    nb_of_bins = original_dim // binning_factor
+    remaining = original_dim % binning_factor
+
+    # Reshape data for easy binning, ignore leftover data for now.
+    # Move the axis to the front for easier manipulation.
+    reshaped_data = np.moveaxis(data, axis, 0)
+    full_bins_data = reshaped_data[:nb_of_bins * binning_factor].reshape(
+        nb_of_bins, binning_factor, *reshaped_data.shape[1:]
+    )
+
+    # Get the binning operation
+    if binning_method == "mean":
+        operation = np.mean
+        binned_data = np.mean(full_bins_data, axis=1)
+    elif binning_method == "sum":
+        operation = np.sum
+        binned_data = np.sum(full_bins_data, axis=1)
+    elif binning_method == "max":
+        operation = np.max
+    elif binning_method == "median":
+        operation = np.median
+    else:
+        raise ValueError(f"Unsupported binning method: {binning_method}")
+
+    binned_data = operation(full_bins_data, axis=1)
+
+    # Handle the remaining (leftover data that doesn't fit perfectly
+    # into a bin)
+    if remaining > 0:
+        remaining_data = reshaped_data[-remaining:]
+        remaining_bin = operation(remaining_data, axis=0)
+        binned_data = np.concatenate(
+            [binned_data, np.expand_dims(remaining_bin, axis=0)], axis=0
+        )
+
+    # Move the axis back to its original position
+    return np.moveaxis(binned_data, 0, axis)
+
+
+def ensure_pynx_shape(
+        shape: tuple | list | np.ndarray,
+        verbose=False
+) -> tuple:
+    checked_shape = tuple(
+        s-1 if s % 2 == 1 else s for s in shape
+    )
+    if verbose:
+        if checked_shape != shape:
+            print(
+                f"PyNX needs even input dimensions, "
+                f"requested shape {shape} will be cropped to "
+                f"{checked_shape}."
+            )
+        else:
+            print("Shape already in agreement with pynx shape conventions.")
+    return checked_shape
+
+
 def energy_to_wavelength(energy: float) -> float:
     """
     Find the wavelength in metre (not angstrom!) that energy (in eV)
