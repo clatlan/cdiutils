@@ -199,7 +199,6 @@ class Loader(ABC):
 
     @staticmethod
     def bin_rocking_angle_values(
-            self,
             values: list | np.ndarray,
             binning_factor: int = None
     ) -> np.ndarray:
@@ -231,7 +230,7 @@ class Loader(ABC):
         pass
 
     @staticmethod
-    def get_rocking_angle_name(**angles) -> str:
+    def get_rocking_angle(angles) -> str:
         outofplane = angles.get("sample_outofplane_angle")
         inplane = angles.get("sample_inplane_angle")
 
