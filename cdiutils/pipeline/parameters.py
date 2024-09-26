@@ -18,13 +18,13 @@ AUTHORIZED_KEYS = {
     "flat_field": None,
     "alien_mask": None,
 
-    "preprocessing_output_shape": "REQUIRED",
+    "preprocess_shape": (150, 150),
     "energy": None,
-    "hkl": "REQUIRED",
-    "det_reference_voxel_method": "REQUIRED",
+    "hkl": [1, 1, 1],
+    "voxel_reference_methods": ["max", "com", "com"],
     "light_loading": False,
     "det_reference_voxel": None,
-    "binning_along_axis0": None,
+    "rocking_angle_binning": None,
     "q_lab_reference": None,
     "q_lab_max": None,
     "q_lab_com": None,
@@ -183,7 +183,7 @@ def get_params_from_variables(
             globals_dict: dict
 ) -> dict:
     """
-    Return a dictionary of parameters whose keys are authorized by the 
+    Return a dictionary of parameters whose keys are authorized by the
     AUTHORIZED_KEYS list.
     """
     params = {
