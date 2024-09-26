@@ -79,7 +79,9 @@ class PipelinePlotter:
                     )
 
                 for ax, p in zip(axes[i].flat, ((2, 1), (2, 0), (0, 1))):
-                    self._plot_markers(ax, *[voxels[frame]["ref"][i] for i in p])
+                    self._plot_markers(
+                        ax, *[voxels[frame]["ref"][i] for i in p]
+                    )
                     for style in ("max", "com"):
                         if voxels[frame][style] is not None:
                             self._plot_markers(
@@ -135,7 +137,7 @@ class PipelinePlotter:
             axes[2].set_ylabel(r"axis$_{1}$, det. vert.")
             axes[1].legend(
                 loc="upper center", ncol=2, frameon=False,
-                bbox_to_anchor=(0.5, 1.2),
+                bbox_to_anchor=(0.5, 1.3),
             )
         for ax in axes.flat:
             add_colorbar(ax)
