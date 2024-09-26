@@ -18,9 +18,11 @@ AUTHORIZED_KEYS = {
     "flat_field": None,
     "alien_mask": None,
 
+    "background_level": None,
     "preprocess_shape": (150, 150),
     "energy": None,
     "hkl": [1, 1, 1],
+    "hot_pixel_filter": False,
     "voxel_reference_methods": ["max", "com", "com"],
     "light_loading": False,
     "det_reference_voxel": None,
