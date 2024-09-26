@@ -8,17 +8,14 @@ Authors:
 
 # Built-in dependencies.
 import glob
-import logging
 import os
 import shutil
 from string import Template
 import subprocess
-import sys
 import time
 
 # Dependencies.
 import numpy as np
-import paramiko
 import ruamel.yaml
 from tabulate import tabulate
 import yaml
@@ -33,32 +30,17 @@ from cdiutils.load import Loader
 from .pipeline_plotter import PipelinePlotter
 
 # Utility functions
-from cdiutils.utils import CroppingHandler, oversampling_from_diffraction
+from cdiutils.utils import (
+    CroppingHandler,
+    oversampling_from_diffraction,
+    ensure_pynx_shape
+)
 from cdiutils.process.phaser import PhasingResultAnalyser
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
-from .base import Pipeline, LoggerWriter
+from .base import Pipeline
 from .parameters import check_params, convert_np_arrays, fill_pynx_params
-
-
-def make_scan_parameter_file(
-        output_param_file_path: str,
-        param_file_template_path: str,
-        updated_params: dict
-) -> None:
-    """
-    Create a scan parameter file given a template and the parameters
-    to update.
-    """
-
-    with open(param_file_template_path, "r", encoding="utf8") as file:
-        source = Template(file.read())
-
-    scan_parameter_file = source.substitute(updated_params)
-
-    with open(output_param_file_path, "w", encoding="utf8") as file:
-        file.write(scan_parameter_file)
 
 
 def update_parameter_file(file_path: str, updated_params: dict) -> None:
@@ -109,8 +91,8 @@ class BcdiPipeline(Pipeline):
 
     def __init__(
             self,
-            param_file_path: str = None,
             params: dict = None,
+            param_file_path: str = None,
     ):
         """
         Initialisation method.
@@ -122,199 +104,48 @@ class BcdiPipeline(Pipeline):
                 Defaults to None.
 
         """
-        super(BcdiPipeline, self).__init__(param_file_path, params)
+        super().__init__(params, param_file_path)
 
         check_params(self.params)
 
         self.scan = self.params["scan"]
         self.sample_name = self.params["sample_name"]
+        self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
+
         # The dictionary of the Voxels Of Interest, in both the "full"
         # and "cropped" detector frame
         self.voi = {"full": {}, "cropped": {}}
+
+        # Define base attributes
+        self.detector_data: np.ndarray = None
+        self.cropped_detector_data: np.ndarray = None
+        self.mask: np.ndarray = None
+        self.angles: dict = None
 
         self.result_analyser: PhasingResultAnalyser = None
 
         print("BcdiPipeline initialised.")
 
-    def _load(self, roi: tuple[slice] = None) -> None:
-        """
-        Load the raw detector data and motor positions.
-
-        Args:
-            roi (tuple[slice], optional): the region of interest on the
-                detector frame. Defaults to None.
-
-        Raises:
-            ValueError: check whether detector data, motor positions and
-                mask have been correctly loaded.
-        """
-        # Make the loader using the factory method, only parse the
-        # parameters relevant to the Loader class, to make them explicit.
-        loader_keys = (
-            "beamline_setup", "scan", "sample_name", "experiment_file_path",
-            "experiment_data_dir_path", "detector_data_path",
-            "edf_file_template", "detector_name"
-        )
-        loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
-
-        if self.params.get("detector_name") is None:
-            self.params["detector_name"] = loader.detector_name
-            if self.params.get("detector_name") is None:
-                raise ValueError(
-                    "The automatic detection of the detector name is not"
-                    "yet implemented for this setup"
-                    f"({self.params['metadata']['setup']} = )."
-                )
-
-        shape = loader.load_detector_shape(self.scan)
-        if shape is not None:
-            print(f"Raw detector data shape is: {shape}.")
-
-        self.detector_data = loader.load_detector_data(
-            scan=self.scan,
-            roi=roi,
-            binning_along_axis0=self.params["binning_along_axis0"]
-        )
-        self.angles = loader.load_motor_positions(
-            scan=self.scan,
-            roi=roi,
-            binning_along_axis0=self.params["binning_along_axis0"]
-        )
-        self.mask = loader.get_mask(
-            channel=self.detector_data.shape[0],
-            detector_name=self.params["detector_name"],
-            roi=(slice(None), roi[1], roi[2]) if roi else None
-        )
-        if any(
-                data is None
-                for data in (self.detector_data, self.angles)
-        ):
-            raise ValueError("Something went wrong during data loading.")
-
-        if self.params["energy"] is None:
-            self.params["energy"] = loader.load_energy(
-                self.scan
-            )
-            if self.params["energy"] is None:
-                raise ValueError(
-                    "The automatic loading of energy is not yet implemented"
-                    f"for this setup ({self.params['metadata']['setup']} = )."
-                )
-        if self.params["det_calib_params"] is None:
-            print(
-                "\ndet_calib_params not provided, will try to find them. "
-                "However, for a more accurate calculation, you'd better "
-                "provide them."
-            )
-            self.params["det_calib_params"] = (
-                loader.load_det_calib_params(self.scan)
-            )
-            if self.params["det_calib_params"] is None:
-                raise ValueError(
-                    "The automatic loading of det_calib_params is not yet "
-                    "implemented for this setup "
-                    f"({self.params['metadata']['setup']} = )."
-                )
-
-        # Initialise SpaceConverter, later use for orthogonalisation
-        geometry = Geometry.from_setup(
-            self.params["beamline_setup"]
-        )
-        self.converter = SpaceConverter(geometry=geometry)
-
-    def _light_load(self) -> None:
-        """
-        Args:
-            roi (tuple[slice], optional): the region of interest on the
-                detector frame. Defaults to None.
-            binning_along_axis0 (int, optional): whether or not to bin
-                the data along the axis0, ie the rocking curve direction.
-                Defaults to None.
-
-        Raises:
-            ValueError: check whether detector data, motor positions and
-                mask have been correctly loaded.
-        """
-        final_shape = tuple(self.params["preprocessing_output_shape"])
-        if (
-                len(final_shape) != 3
-                and self.params["binning_along_axis0"] is None
-        ):
-            raise ValueError(
-                "final_shape must include 3 axis lengths or you must "
-                "provide binning_along_axis0 parameter if you want "
-                "light loading."
-            )
-        self.voi["full"]["ref"] = self.params["det_reference_voxel_method"][-1]
-        if isinstance(self.voi["full"]["ref"], str):
-            raise ValueError(
-                "When light loading, det_reference_voxel_method must "
-                "contain a tuple indicating the position of the voxel you "
-                "want to crop the data at. Ex: [(100, 200, 200)]."
-            )
-        if len(self.voi["full"]["ref"]) == 2 and len(final_shape) == 3:
-            final_shape = final_shape[1:]
-        elif len(self.voi["full"]["ref"]) == 3 and len(final_shape) == 2:
-            self.voi["full"]["ref"] = self.voi["full"]["ref"][1:]
-
-        roi = CroppingHandler.get_roi(final_shape, self.voi["full"]["ref"])
-        if len(roi) == 4:
-            roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
-
-        print(
-            f"\nLight loading requested, will use ROI {roi} and "
-            "bin along rocking curve direction by "
-            f"{self.params['binning_along_axis0']} during data loading."
-        )
-        self._load(roi=CroppingHandler.roi_list_to_slices(roi))
-
-        # if user only specify position in 2D, extend it in 3D
-        if len(self.voi["full"]["ref"]) == 2:
-            self.voi["full"]["ref"] = (
-                (self.detector_data.shape[0] // 2, )
-                + tuple(self.voi["full"]["ref"])
-            )
-
-            roi = CroppingHandler.get_roi(
-                final_shape, self.voi["full"]["ref"]
-            )
-            self.cropped_detector_data = self.cropped_detector_data[
-                CroppingHandler.roi_list_to_slices(roi)
-            ]
-            print(f"New ROI is: {roi}.")
-
-        # if the final_shape is 2D convert it in 3D
-        if len(final_shape) == 2:
-            final_shape = (
-                (self.cropped_detector_data.shape[0], )
-                + final_shape
-            )
-
-        # find the position in the cropped detector frame
-        self.voi["cropped"]["ref"] = tuple(
-                p - r if r else p  # if r is None, p-r must be p
-                for p, r in zip(self.voi["full"]["ref"], roi[::2])
-        )
-        self.voi["full"]["max"], self.voi["full"]["com"] = None, None
-
-        return final_shape, roi
-
     @Pipeline.process
-    def _preprocess(self) -> None:
+    def preprocess(self) -> None:
 
         # Check whether the requested shape is permitted by pynx
-        self.ensure_pynx_shape()
-        final_shape = self.params["preprocessing_output_shape"]
+        self.params["preprocess_shape"] = ensure_pynx_shape(
+            self.params["preprocess_shape"], verbose=True
+        )
 
         if self.params["light_loading"]:
-            final_shape, roi = self._light_load()
-
-            self.cropped_detector_data = self.detector_data.copy()
-            self.detector_data = None
+            roi = self._light_load()
 
         else:
             self._load()
-            roi = self._crop_and_centre(final_shape)
+            self._from_2d_to_3d_shape()
+            print(
+                "The preprocessing output shape is: and "
+                f"{self.params['preprocess_shape']} will be used for "
+                "determining the ROI dimensions."
+            )
+            roi = self._crop_and_centre()
 
         # print out the oversampling ratio and rebin factor suggestion
         ratios = oversampling_from_diffraction(
@@ -408,7 +239,7 @@ class BcdiPipeline(Pipeline):
             # data during the post processing. The converter will be saved.
             self.converter.init_interpolator(
                 self.cropped_detector_data,
-                final_shape,
+                self.params["preprocess_shape"],
                 space="both",
                 direct_space_voxel_size=self.params["voxel_size"]
             )
@@ -424,8 +255,7 @@ class BcdiPipeline(Pipeline):
 
             q_lab_regular_grid = self.converter.get_q_lab_regular_grid()
 
-        # Update the preprocessing_output_shape and the det_reference_voxel
-        self.params["preprocessing_output_shape"] = final_shape
+        # Update the preprocess_shape and the det_reference_voxel
         self.params["det_reference_voxel"] = self.voi["full"]["ref"]
 
         # plot and save the detector data in the full detector frame and
@@ -471,11 +301,230 @@ class BcdiPipeline(Pipeline):
         self._save_preprocess_data()
         self._save_parameter_file()
 
-    def _crop_and_centre(self, final_shape: tuple) -> list:
+    def _save_parameter_file(self) -> None:
+        """
+        Save the parameter file used during the analysis.
+        """
+        output_file_path = f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
+
+        if self.param_file_path is not None:
+            try:
+                shutil.copy(
+                    self.param_file_path,
+                    output_file_path
+                )
+            except shutil.SameFileError:
+                print(
+                    "\nScan parameter file saved at:\n"
+                    f"{output_file_path}"
+                )
+
+        else:
+            convert_np_arrays(self.params)
+            with open(output_file_path, "w", encoding="utf8") as file:
+                yaml.dump(self.params, file)
+            print(
+                "\nScan parameter file saved at:\n"
+                f"{output_file_path}"
+            )
+
+    def _from_2d_to_3d_shape(self) -> tuple:
+        if len(self.params["preprocess_shape"]) == 2:
+            self.params["preprocess_shape"] = (
+                (self.detector_data.shape[0], )
+                + self.params["preprocess_shape"]
+            )
+
+    def _load(self, roi: tuple[slice] = None) -> None:
+        """
+        Load the raw detector data and motor positions.
+
+        Args:
+            roi (tuple[slice], optional): the region of interest on the
+                detector frame. Defaults to None.
+
+        Raises:
+            ValueError: check whether detector data, motor positions and
+                mask have been correctly loaded.
+        """
+        # Make the loader using the factory method, only parse the
+        # parameters relevant to the Loader class, to make them explicit.
+        loader_keys = (
+            "beamline_setup", "scan", "sample_name", "experiment_file_path",
+            "experiment_data_dir_path", "detector_data_path",
+            "edf_file_template", "detector_name"
+        )
+        loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
+
+        if self.params.get("detector_name") is None:
+            self.params["detector_name"] = loader.detector_name
+            if self.params.get("detector_name") is None:
+                raise ValueError(
+                    "The automatic detection of the detector name is not"
+                    "yet implemented for this setup"
+                    f"({self.params['metadata']['setup']} = )."
+                )
+
+        shape = loader.load_detector_shape(self.scan)
+        if shape is not None:
+            print(f"Raw detector data shape is: {shape}.")
+
+        self.detector_data = loader.load_detector_data(
+            scan=self.scan,
+            roi=roi,
+            rocking_angle_binning=self.params["rocking_angle_binning"]
+        )
+        self.angles = loader.load_motor_positions(
+            scan=self.scan,
+            roi=roi,
+            rocking_angle_binning=self.params["rocking_angle_binning"]
+        )
+        self.mask = loader.get_mask(
+            channel=self.detector_data.shape[0],
+            detector_name=self.params["detector_name"],
+            roi=(slice(None), roi[1], roi[2]) if roi else None
+        )
+        if any(
+                data is None
+                for data in (self.detector_data, self.angles)
+        ):
+            raise ValueError("Something went wrong during data loading.")
+
+        if self.params["energy"] is None:
+            self.params["energy"] = loader.load_energy(
+                self.scan
+            )
+            if self.params["energy"] is None:
+                raise ValueError(
+                    "The automatic loading of energy is not yet implemented"
+                    f"for this setup ({self.params['metadata']['setup']} = )."
+                )
+        if self.params["det_calib_params"] is None:
+            print(
+                "\ndet_calib_params not provided, will try to find them. "
+                "However, for a more accurate calculation, you'd better "
+                "provide them."
+            )
+            self.params["det_calib_params"] = (
+                loader.load_det_calib_params(self.scan)
+            )
+            if self.params["det_calib_params"] is None:
+                raise ValueError(
+                    "The automatic loading of det_calib_params is not yet "
+                    "implemented for this setup "
+                    f"({self.params['metadata']['setup']} = )."
+                )
+
+        # Initialise SpaceConverter, later use for orthogonalisation
+        geometry = Geometry.from_setup(
+            self.params["beamline_setup"]
+        )
+        self.converter = SpaceConverter(geometry=geometry)
+
+    def _light_load(self) -> list:
+        """
+        Light load the detector data according to the provided
+        preprocess_shape and voxel_reference_methods
+        position. This allows to load only the region of interest
+        determined by these two parameters.
+
+        Raises:
+            ValueError: When final_shape length is not 3 and
+                 rocking_angle_binning are not provided.
+            ValueError: If voxel_reference_methods is not provided.
+
+        Returns:
+            list: the roi associated to the cropped_detector_data.
+        """
+        if (
+                len(self.params["preprocess_shape"]) != 3
+                and self.params["rocking_angle_binning"] is None
+        ):
+            self.params["rocking_angle_binning"] = 1
+            self.logger.warning(
+                "When light loading is requested, preprocess_shape must "
+                "include 3 axis lengths or rocking_angle_binning must be "
+                "provided. Will set rocking_angle_binning to 1, but this might"
+                " not be very efficient."
+            )
+        self.voi["full"]["ref"] = self.params["voxel_reference_methods"][-1]
+        if isinstance(self.voi["full"]["ref"], str):
+            raise ValueError(
+                "When light loading, voxel_reference_methods must "
+                "contain a tuple indicating the position of the voxel you "
+                "want to crop the data at. Ex: [(100, 200, 200)]."
+            )
+        if (
+                len(self.voi["full"]["ref"]) == 2
+                and len(self.params["preprocess_shape"]) == 3
+        ):
+            self.params["preprocess_shape"] = (
+                self.params["preprocess_shape"][1:]
+            )
+        elif (
+                len(self.voi["full"]["ref"]) == 3
+                and len(self.params["preprocess_shape"]) == 2
+        ):
+            self.voi["full"]["ref"] = self.voi["full"]["ref"][1:]
+
+        roi = CroppingHandler.get_roi(
+            self.params["preprocess_shape"], self.voi["full"]["ref"]
+        )
+        if len(roi) == 4:
+            roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
+
         print(
-            "[SHAPE & CROPPING] Method(s) employed for the reference "
-            "voxel determination are "
-            f"{self.params['det_reference_voxel_method']}."
+            f"\nLight loading requested, will use ROI {roi} and "
+            "bin along rocking curve direction by "
+            f"{self.params['rocking_angle_binning']} during data loading."
+        )
+        self._load(roi=CroppingHandler.roi_list_to_slices(roi))
+
+        # If user only specified position in 2D or provided a 2D
+        # preprocess_shape, we must extend it to 3D and check the first
+        # dimension length.
+        if len(self.voi["full"]["ref"]) == 2:  # covers both cases
+            self.voi["full"]["ref"] = (
+                (self.detector_data.shape[0] // 2, )
+                + tuple(self.voi["full"]["ref"])
+            )
+            self._from_2d_to_3d_shape()
+            shape = ensure_pynx_shape(self.params["preprocess_shape"])
+            roi = CroppingHandler.get_roi(shape, self.voi["full"]["ref"])
+
+            # If the shape has changed due to PyNX conventions, then
+            # only crop the data along the first axis direction.
+            if shape != self.params["preprocess_shape"]:
+                roi_1d = CroppingHandler.roi_list_to_slices(roi[:2])
+                self.detector_data = self.detector_data[roi_1d]
+                self.mask = self.mask[roi_1d]
+                rocking_angle = Loader.get_rocking_angle(self.angles)
+                self.angles[rocking_angle] = self.angles[rocking_angle][roi_1d]
+
+            self.params["preprocess_shape"] = shape
+            print(f"New ROI is: {roi}.")
+
+        # find the position in the cropped detector frame
+        self.voi["cropped"]["ref"] = tuple(
+                p - r if r else p  # if r is None, p-r must be p
+                for p, r in zip(self.voi["full"]["ref"], roi[::2])
+        )
+        self.voi["full"]["max"], self.voi["full"]["com"] = None, None
+
+        # Since we light load the data, the full detector data do not exist
+        self.cropped_detector_data = self.detector_data.copy()
+        self.detector_data = None
+
+        return roi
+
+    def _crop_and_centre(self) -> list:
+        """
+        Crop and centre the self.detector data and return the associated
+        roi.
+        """
+        print(
+            "Method(s) employed for the voxel reference determination are "
+            f"{self.params['voxel_reference_methods']}."
         )
         self._unwrap_logs()  # Turn off wrapping for structured output
         (
@@ -485,11 +534,12 @@ class BcdiPipeline(Pipeline):
             roi
         ) = CroppingHandler.chain_centring(
                 self.detector_data,
-                final_shape,
-                methods=self.params["det_reference_voxel_method"],
+                self.params["preprocess_shape"],
+                methods=self.params["voxel_reference_methods"],
                 verbose=True
         )
         self._wrap_logs()  # Turn wrapping back on for regular logs
+
         # position of the max and com in the full detector frame
         for pos in ("max", "com"):
             self.voi["full"][pos] = CroppingHandler.get_position(
@@ -504,10 +554,11 @@ class BcdiPipeline(Pipeline):
         self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
         print(
-            "\n[SHAPE & CROPPING] The reference voxel was found at "
-            f"{self.voi['full']['ref']} in the uncropped data frame\n"
-            f"The processing_out_put_shape being {final_shape}, the roi "
-            f"used to crop the data is {roi}.\n"
+            "The reference voxel was found at "
+            f"{self.voi['full']['ref']} in the uncropped data frame.\n"
+            "The processing_out_put_shape being "
+            f"{self.params['preprocess_shape']}, the roi used to crop "
+            f"the data is {roi}.\n"
         )
 
         # set the q space area with the sample and detector angles
@@ -521,7 +572,6 @@ class BcdiPipeline(Pipeline):
     def _save_preprocess_data(self) -> None:
         """Save the data generated during the preprocessing."""
         # Prepare dir in which pynx phasing results will be saved.
-        self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
 
         for name, data in zip(
@@ -530,7 +580,6 @@ class BcdiPipeline(Pipeline):
         ):
             path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
             np.savez(path, data=data)
-            self.params["pynx"][name] = path
 
         if self.params["orthogonalise_before_phasing"]:
             regular_grid_func = self.converter.get_xu_q_lab_regular_grid
@@ -547,92 +596,50 @@ class BcdiPipeline(Pipeline):
             orthogonalised_intensity=self.orthogonalised_intensity
         )
 
-    def ensure_pynx_shape(self) -> tuple:
-        shape = tuple(self.params["preprocessing_output_shape"])
-        # if the final_shape is 2D convert it in 3D
-        if len(shape) == 2:
-            shape = (self.detector_data.shape[0], ) + shape
-        checked_shape = tuple(
-            s-1 if s % 2 == 1 else s for s in shape
-        )
-        if checked_shape != shape:
-            print(
-                f"[SHAPE & CROPPING] PyNX needs even input dimensions, "
-                f"requested shape {shape} will be cropped to "
-                f"{checked_shape}."
+    def _make_slurm_file(self, template: str = None) -> None:
+        # Make the pynx slurm file
+        if template is None:
+            template = (
+                f"{os.path.dirname(__file__)}/pynx-id01-cdi_template.slurm"
             )
-
-        print(
-            "[SHAPE & CROPPING] The preprocessing output shape is: "
-            f"{checked_shape} and will be used for ROI dimensions."
-        )
-        self.params["preprocessing_output_shape"] = checked_shape
-
-    @Pipeline.process
-    def preprocess(self) -> None:
-
-
-        dump_dir = self.params["dump_dir"]
-        if os.path.isdir(dump_dir):
-            print(
-                "\n[INFO] Dump directory already exists, results will be "
-                f"saved in:\n{dump_dir}."
+            self.logger.info(
+                "Pynx slurm file template not provided, will take "
+                f"the default: {template}"
             )
         else:
-            print(
-                f"[INFO] Creating the dump directory at: {dump_dir}")
-            os.makedirs(
-                dump_dir,
-                exist_ok=True
+            self.logger.info(
+                "Pynx slurm file template provided"
+                f"{template = }."
             )
-        os.makedirs(self.pynx_phasing_dir, exist_ok=True)
-        self.bcdi_processor = BcdiProcessor(
-            parameters=self.params
-        )
-        self.bcdi_processor.preprocess_data()
-        self.bcdi_processor.save_preprocessed_data()
-        pynx_input_template = (
-            f"{self.pynx_phasing_dir}/S*_pynx_input_data.npz"
-        )
-        pynx_mask_template = (
-            f"{self.pynx_phasing_dir}/S*_pynx_input_mask.npz"
-        )
-
-        try:
-            data_path = glob.glob(pynx_input_template)[0]
-            mask_path = glob.glob(pynx_mask_template)[0]
-        except IndexError as exc:
-            raise FileNotFoundError(
-                "[ERROR] file missing, something went"
-                " wrong during preprocessing"
-            ) from exc
-
-        # update the parameters
-        if self.param_file_path is not None:
-            update_parameter_file(
-                self.param_file_path,
+        with open(
+                template, "r", encoding="utf8"
+        ) as file:
+            source = Template(file.read())
+            pynx_slurm_text = source.substitute(
                 {
-                    "data": data_path,
-                    "mask": mask_path,
-                    "cdiutils": self.bcdi_processor.params
+                    "number_of_nodes": 2,
+                    "data_path": self.pynx_phasing_dir,
+                    "SLURM_JOBID": "$SLURM_JOBID",
+                    "SLURM_NTASKS": "$SLURM_NTASKS"
                 }
             )
-
-        self.params.update(self.bcdi_processor.params)
-        self.params["pynx"].update({"data": data_path})
-        self.params["pynx"].update({"mask": mask_path})
-        self._save_parameter_file()
-
+        with open(
+                self.pynx_phasing_dir + "/pynx-id01-cdi.slurm",
+                "w",
+                encoding="utf8"
+        ) as file:
+            file.write(pynx_slurm_text)
 
     @Pipeline.process
     def phase_retrieval(
             self,
+            jump_to_cluster: bool = False,
+            pynx_slurm_file_template: str = None,
+            clear_former_results: bool = False,
             machine: str = None,  # "slurm-nice-devel",
             user: str = os.environ["USER"],
             number_of_nodes: int = 2,
             key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
-            pynx_slurm_file_template: str = None,
-            clear_former_results: bool = False
     ) -> None:
         """
         Run the phase retrieval using pynx through ssh connection to a
@@ -640,28 +647,50 @@ class BcdiPipeline(Pipeline):
         """
 
         if clear_former_results:
-            print("[INFO] Removing former results.\n")
+            print("Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
                 os.remove(f)
             self.phasing_results = []
 
-        pynx_input_file_path = (
+        pynx_input_path = (
             self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
         )
 
-        # Make the pynx input file
-        with open(pynx_input_file_path, "w", encoding="utf8") as file:
+        # Update the data and mask paths in self.params.
+        for name in ("data", "mask"):
+            path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
+            self.params["pynx"][name] = path
+
+        # Make the pynx input file.
+        with open(pynx_input_path, "w", encoding="utf8") as file:
             for key, value in self.params["pynx"].items():
                 file.write(f"{key} = {value}\n")
 
-        if machine is None:
+        if jump_to_cluster:
+            self.logger.info("Jumping to cluster requested.")
+            self._make_slurm_file(pynx_slurm_file_template)
+            job_id, output_file = self.submit_job(
+                job_file="pynx-id01-cdi.slurm",
+                working_dir=self.pynx_phasing_dir
+            )
+            self.monitor_job(job_id, output_file)
+
+        else:
+            self.logger.info("Assuming the current machine is running PyNX.")
+
+        if False:
             print(
                 "[INFO] No machine provided, assuming PyNX is installed on "
                 "the current machine.\n"
             )
-            if os.uname()[1].lower().startswith(("p9", "scisoft16")):
+            cmd = f"""
+            cd {self.pynx_phasing_dir}
+            module load pynx
+            pynx-cdi-id01 pynx-cdi-inputs.txt
+            """
+            if os.uname()[1].lower().startswith(("p9", "gpu", "scisoft16")):
                 # import threading
                 # import signal
                 # import sys
@@ -692,7 +721,6 @@ class BcdiPipeline(Pipeline):
                 #         stderr=subprocess.PIPE,
                 # )
                 with subprocess.Popen(
-                        # "source /sware/exp/pynx/activate_pynx.sh;"
                         f"cd {self.pynx_phasing_dir};"
                         # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
                         "pynx-cdi-id01 pynx-cdi-inputs.txt",
@@ -748,7 +776,7 @@ class BcdiPipeline(Pipeline):
                 # # Wait for the threads to complete
                 # stdout_thread.join()
                 # stderr_thread.join()
-        else:
+        elif False:
             # ssh to the machine and run phase retrieval
             client = paramiko.SSHClient()
             client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -1056,7 +1084,7 @@ class BcdiPipeline(Pipeline):
                     for p in (
                         "q_lab_reference", "q_lab_max",
                         "q_lab_com", "det_reference_voxel",
-                        "preprocessing_output_shape"
+                        "preprocess_shape"
                     )
             ):
                 file_path = (
@@ -1068,8 +1096,8 @@ class BcdiPipeline(Pipeline):
                     file_path=file_path)["cdiutils"]
                 self.params.update(
                     {
-                        "preprocessing_output_shape": preprocessing_params[
-                            "preprocessing_output_shape"
+                        "preprocess_shape": preprocessing_params[
+                            "preprocess_shape"
                         ],
                         "det_reference_voxel": preprocessing_params[
                             "det_reference_voxel"
@@ -1092,32 +1120,6 @@ class BcdiPipeline(Pipeline):
         if self.params["show"]:
             self.bcdi_processor.show_figures()
 
-    def _save_parameter_file(self) -> None:
-        """
-        Save the parameter file used during the analysis.
-        """
-        output_file_path = f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
-
-        if self.param_file_path is not None:
-            try:
-                shutil.copy(
-                    self.param_file_path,
-                    output_file_path
-                )
-            except shutil.SameFileError:
-                print(
-                    "\nScan parameter file saved at:\n"
-                    f"{output_file_path}"
-                )
-
-        else:
-            convert_np_arrays(self.params)
-            with open(output_file_path, "w", encoding="utf8") as file:
-                yaml.dump(self.params, file)
-            print(
-                "\nScan parameter file saved at:\n"
-                f"{output_file_path}"
-            )
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
