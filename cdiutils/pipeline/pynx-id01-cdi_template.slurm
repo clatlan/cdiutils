@@ -7,13 +7,13 @@
 #SBATCH --time=00:10:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-gpu=4G
-#SBATCH --output=%x-%j.out
-
-module purge
+#SBATCH --output=slurm-%j.out
 
 scontrol --details show jobs $SLURM_JOBID | grep RES
 
+module purge
+module load pynx
+
 cd $data_path
 
-module load pynx
 mpiexec -n $SLURM_NTASKS pynx-cdi-id01 pynx-cdi-inputs.txt
