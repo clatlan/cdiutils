@@ -178,7 +178,7 @@ def v1_to_v2_rotation_matrix(
         v1: np.ndarray,
         v2: np.ndarray
 ) -> np.ndarray:
-    """ 
+    """
     Rotation matrix around axis v1xv2
     """
     vec_rot_axis = np.cross(v1, v2)
@@ -1109,10 +1109,10 @@ def hot_pixel_filter(
         data (np.ndarray): the input data.
         threshold (float, optional): the threshold to determine the
             mask. Mask pixels that are threshold times higher than
-            neighboring pixels. Defaults to 1e2.
+            neighbouring pixels. Defaults to 1e2.
         kernel_size (int, optional): the size of the kernel to compute
             the median filter. It corresponds to the size parameter of
-            scipy.ndimage.median_filter function .Defaults to 3.
+            scipy.ndimage.median_filter function. Defaults to 3.
 
     Returns:
         tuple[np.ndarray, np.ndarray]: the cleaned data, hot pixel are
