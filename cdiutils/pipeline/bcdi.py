@@ -12,7 +12,6 @@ import os
 import shutil
 from string import Template
 import subprocess
-import time
 
 # Dependencies.
 import numpy as np
@@ -33,7 +32,8 @@ from .pipeline_plotter import PipelinePlotter
 from cdiutils.utils import (
     CroppingHandler,
     oversampling_from_diffraction,
-    ensure_pynx_shape
+    ensure_pynx_shape,
+    hot_pixel_filter
 )
 from cdiutils.process.phaser import PhasingResultAnalyser
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
@@ -41,6 +41,11 @@ from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
 from .parameters import check_params, convert_np_arrays, fill_pynx_params
+
+
+class PynxScriptError(Exception):
+    """Custom exception to handle pynx script failure."""
+    pass
 
 
 def update_parameter_file(file_path: str, updated_params: dict) -> None:
@@ -124,7 +129,7 @@ class BcdiPipeline(Pipeline):
 
         self.result_analyser: PhasingResultAnalyser = None
 
-        print("BcdiPipeline initialised.")
+        self.logger.info("BcdiPipeline initialised.")
 
     @Pipeline.process
     def preprocess(self) -> None:
@@ -136,22 +141,35 @@ class BcdiPipeline(Pipeline):
 
         if self.params["light_loading"]:
             roi = self._light_load()
+            # Filter the data
+            self.cropped_detector_data = self._filter(
+                self.cropped_detector_data
+            )
 
         else:
             self._load()
             self._from_2d_to_3d_shape()
-            print(
+            self.logger.info(
                 "The preprocessing output shape is: and "
                 f"{self.params['preprocess_shape']} will be used for "
                 "determining the ROI dimensions."
             )
-            roi = self._crop_and_centre()
-
+            # Filter, crop and centre the detector data.
+            self.cropped_detector_data, roi = self._crop_centre(
+                self._filter(self.detector_data)
+            )
+        for r in roi:
+            if r < 0:
+                raise ValueError(
+                    "The preprocess_shape and the detector voxel reference are"
+                    f" not compatible: {self.params['preprocess_shape'] = }, "
+                    f"{self.voi['full']['ref'] = }."
+                )
         # print out the oversampling ratio and rebin factor suggestion
         ratios = oversampling_from_diffraction(
             self.cropped_detector_data
         )
-        print(
+        self.logger.info(
             "\nOversampling ratios calculated from diffraction pattern "
             "are: "
             + ", ".join(
@@ -204,14 +222,14 @@ class BcdiPipeline(Pipeline):
             )
 
         self._unwrap_logs()  # Turn off wrapping for structured output
-        print(
+        self.logger.info(
             "\nSummary table:\n"
             + tabulate(table, headers="firstrow", tablefmt="fancy_grid"),
         )
         self._wrap_logs()  # Turn wrapping back on for regular logs
 
         if self.params["orthogonalise_before_phasing"]:
-            print(
+            self.logger.info(
                 "Orthogonalization required before phasing.\n"
                 "Will use xrayutilities Fuzzy Gridding without linear "
                 "approximation."
@@ -231,7 +249,7 @@ class BcdiPipeline(Pipeline):
             self.cropped_detector_data = self.orthogonalised_intensity
             q_lab_regular_grid = self.converter.get_xu_q_lab_regular_grid()
         else:
-            print(
+            self.logger.info(
                 "Will linearise the transformation between detector and"
                 " lab space."
             )
@@ -314,7 +332,7 @@ class BcdiPipeline(Pipeline):
                     output_file_path
                 )
             except shutil.SameFileError:
-                print(
+                self.logger.info(
                     "\nScan parameter file saved at:\n"
                     f"{output_file_path}"
                 )
@@ -323,7 +341,7 @@ class BcdiPipeline(Pipeline):
             convert_np_arrays(self.params)
             with open(output_file_path, "w", encoding="utf8") as file:
                 yaml.dump(self.params, file)
-            print(
+            self.logger.info(
                 "\nScan parameter file saved at:\n"
                 f"{output_file_path}"
             )
@@ -367,7 +385,7 @@ class BcdiPipeline(Pipeline):
 
         shape = loader.load_detector_shape(self.scan)
         if shape is not None:
-            print(f"Raw detector data shape is: {shape}.")
+            self.logger.info(f"Raw detector data shape is: {shape}.")
 
         self.detector_data = loader.load_detector_data(
             scan=self.scan,
@@ -400,7 +418,7 @@ class BcdiPipeline(Pipeline):
                     f"for this setup ({self.params['metadata']['setup']} = )."
                 )
         if self.params["det_calib_params"] is None:
-            print(
+            self.logger.info(
                 "\ndet_calib_params not provided, will try to find them. "
                 "However, for a more accurate calculation, you'd better "
                 "provide them."
@@ -473,7 +491,7 @@ class BcdiPipeline(Pipeline):
         if len(roi) == 4:
             roi = [None, None, roi[0], roi[1], roi[2], roi[3]]
 
-        print(
+        self.logger.info(
             f"\nLight loading requested, will use ROI {roi} and "
             "bin along rocking curve direction by "
             f"{self.params['rocking_angle_binning']} during data loading."
@@ -502,7 +520,7 @@ class BcdiPipeline(Pipeline):
                 self.angles[rocking_angle] = self.angles[rocking_angle][roi_1d]
 
             self.params["preprocess_shape"] = shape
-            print(f"New ROI is: {roi}.")
+            self.logger.info(f"New ROI is: {roi}.")
 
         # find the position in the cropped detector frame
         self.voi["cropped"]["ref"] = tuple(
@@ -517,23 +535,52 @@ class BcdiPipeline(Pipeline):
 
         return roi
 
-    def _crop_and_centre(self) -> list:
+    def _filter(self, data: np.ndarray) -> np.ndarray:
+        if self.params["hot_pixel_filter"]:
+            self.logger.info("hot_pixel_filter requested.")
+            if isinstance(self.params["hot_pixel_filter"], tuple):
+                self.logger.info(
+                    "Hot pixel filter parameters are : "
+                    f"{self.params['hot_pixel_filter']}"
+                )
+
+                data, hot_pixel_mask = hot_pixel_filter(
+                    data, *self.params["hot_pixel_filter"]
+                )
+            else:
+                self.logger.info(
+                    "Will use defaults parameters: threshold = 1e2, "
+                    "kernel_size = 3 "
+                )
+                data, hot_pixel_mask = hot_pixel_filter(data)
+            self.mask *= hot_pixel_mask
+
+        if self.params["background_level"]:
+            self.logger.info(
+                f"background_level set to {self.params['background_level']}, "
+                "will remove the background."
+            )
+            data -= self.params["background_level"]
+            data[data < 0] = 0
+        return data
+
+    def _crop_centre(self, detector_data) -> tuple[np.ndarray, list]:
         """
-        Crop and centre the self.detector data and return the associated
-        roi.
+        Crop and centre the self.detector data and return the cropped
+        detector data and the associated roi.
         """
-        print(
+        self.logger.info(
             "Method(s) employed for the voxel reference determination are "
             f"{self.params['voxel_reference_methods']}."
         )
         self._unwrap_logs()  # Turn off wrapping for structured output
         (
-            self.cropped_detector_data,
+            cropped_detector_data,
             self.voi["full"]["ref"],
             self.voi["cropped"]["ref"],
             roi
         ) = CroppingHandler.chain_centring(
-                self.detector_data,
+                detector_data,
                 self.params["preprocess_shape"],
                 methods=self.params["voxel_reference_methods"],
                 verbose=True
@@ -553,7 +600,7 @@ class BcdiPipeline(Pipeline):
         # center and crop the mask
         self.mask = self.mask[CroppingHandler.roi_list_to_slices(roi)]
 
-        print(
+        self.logger.info(
             "The reference voxel was found at "
             f"{self.voi['full']['ref']} in the uncropped data frame.\n"
             "The processing_out_put_shape being "
@@ -567,7 +614,7 @@ class BcdiPipeline(Pipeline):
             if isinstance(value, (list, np.ndarray)):
                 self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
-        return roi
+        return cropped_detector_data, roi
 
     def _save_preprocess_data(self) -> None:
         """Save the data generated during the preprocessing."""
@@ -636,18 +683,29 @@ class BcdiPipeline(Pipeline):
             jump_to_cluster: bool = False,
             pynx_slurm_file_template: str = None,
             clear_former_results: bool = False,
-            machine: str = None,  # "slurm-nice-devel",
-            user: str = os.environ["USER"],
-            number_of_nodes: int = 2,
-            key_file_path: str = os.environ["HOME"] + "/.ssh/id_rsa",
+            command: str = None,
     ) -> None:
         """
-        Run the phase retrieval using pynx through ssh connection to a
-        gpu machine.
-        """
+        Run the phase retrieval using pynx either by submitting a job to
+        a slurm cluster or by running pynx script directly on the
+        current machine.
 
+        Args:
+            jump_to_cluster (bool, optional): whether a job must be
+                submitted to the cluster. Defaults to False.
+            pynx_slurm_file_template (str, optional): the template for
+                the pynx slurm file. Defaults to None.
+            clear_former_results (bool, optional): whether ti clear the
+                former results. Defaults to False.
+            command (str, optional): the command to run when running
+                pynx on the current machine. Defaults to None.
+
+        Raises:
+            PynxScriptError: if the pynx script failes.
+            e: if the subprocess failes.
+        """
         if clear_former_results:
-            print("Removing former results.\n")
+            self.logger.info("Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
             files += glob.glob(self.pynx_phasing_dir + "/*Run*.png")
             for f in files:
@@ -679,221 +737,48 @@ class BcdiPipeline(Pipeline):
 
         else:
             self.logger.info("Assuming the current machine is running PyNX.")
-
-        if False:
-            print(
-                "[INFO] No machine provided, assuming PyNX is installed on "
-                "the current machine.\n"
-            )
-            cmd = f"""
-            cd {self.pynx_phasing_dir}
-            module load pynx
-            pynx-cdi-id01 pynx-cdi-inputs.txt
-            """
-            if os.uname()[1].lower().startswith(("p9", "gpu", "scisoft16")):
-                # import threading
-                # import signal
-                # import sys
-
-                # def signal_handler(sig, frame):
-                #     print(
-                #         "Keyboard interrupt received, exiting main program...")
-                #     sys.exit(0)
-
-                # # Function to read and print subprocess output
-                # def read_output(pipe):
-                #     try:
-                #         for line in iter(pipe.readline, ""):
-                #             print(line.decode("utf-8"), end="")
-                #     except KeyboardInterrupt:
-                #         pass  # Catch KeyboardInterrupt to exit the thread
-
-                # # Register signal handler for keyboard interrupt
-                # signal.signal(signal.SIGINT, signal_handler)
-                # process = subprocess.Popen(
-                #         # "source /sware/exp/pynx/activate_pynx.sh;"
-                #         f"cd {self.pynx_phasing_dir};"
-                #         # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
-                #         "pynx-cdi-id01 pynx-cdi-inputs.txt",
-                #         shell=True,
-                #         executable="/bin/bash",
-                #         stdout=subprocess.PIPE,
-                #         stderr=subprocess.PIPE,
-                # )
+            if command is None:
+                command = """
+                    module load pynx
+                    pynx-cdi-id01 pynx-cdi-inputs.txt
+                """
+            try:
                 with subprocess.Popen(
-                        f"cd {self.pynx_phasing_dir};"
-                        # "mpiexec -n 4 /sware/exp/pynx/devel.p9/bin/"
-                        "pynx-cdi-id01 pynx-cdi-inputs.txt",
-                        shell=True,
-                        executable="/bin/bash",
+                        ["bash", "-l", "-c", command],
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
+                        cwd=self.pynx_phasing_dir,  # Change to this directory
+                        text=True,  # Ensures stdout/stderr are str, not bytes
+                        # shell=True,
+                        env=os.environ.copy(),
+                        bufsize=1
                 ) as proc:
-                    stdout, stderr = proc.communicate()
-                    print(
-                        "[STDOUT FROM SUBPROCESS RUNNING PYNX]\n",
-                        stdout.decode("utf-8")
-                    )
-                    if proc.returncode:
-                        print(
-                            "[STDERR FROM SUBPROCESS RUNNING PYNX]\n",
-                            stderr.decode("utf-8")
+                    # Stream stdout
+                    for line in iter(proc.stdout.readline, ''):
+                        self.logger.info(line.strip())
+
+                    # Stream stderr
+                    for line in iter(proc.stderr.readline, ''):
+                        self.logger.error(line.strip())
+
+                    # Wait for the process to complete and check the
+                    # return code.
+                    proc.wait()
+                    if proc.returncode != 0:
+                        self.logger.error(
+                            "PyNX phasing process failed with return code "
+                            f"{proc.returncode}"
                         )
-
-                # # Start threads to read stdout and stderr
-                # stdout_thread = threading.Thread(
-                #     target=read_output, args=(process.stdout,)
-                # )
-                # stderr_thread = threading.Thread(
-                #     target=read_output, args=(process.stderr,)
-                # )
-
-                # stdout_thread.start()
-                # stderr_thread.start()
-
-                # try:
-                #     # Wait for the subprocess to complete
-                #     process.wait()
-                # except KeyboardInterrupt:
-                #     print(
-                #         "Keyboard interrupt received, terminating "
-                #         "subprocess..."
-                #     )
-                #     process.terminate()  # Send SIGTERM to the subprocess
-                #     process.wait()  # Wait for the subprocess to terminate
-                    
-                #     # Terminate the threads
-                #     stdout_thread.join(timeout=1)  # Wait for stdout_thread to terminate
-                #     if stdout_thread.is_alive():
-                #         print("Forcefully terminating stdout_thread...")
-                #         stdout_thread.cancel()
-                    
-                #     stderr_thread.join(timeout=1)  # Wait for stderr_thread to terminate
-                #     if stderr_thread.is_alive():
-                #         print("Forcefully terminating stderr_thread...")
-                #         stderr_thread.cancel()
-
-                # # Wait for the threads to complete
-                # stdout_thread.join()
-                # stderr_thread.join()
-        elif False:
-            # ssh to the machine and run phase retrieval
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(
-                hostname=machine,
-                username=user,
-                pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
-            )
-
-            print(f"[INFO] Connected to {machine}")
-            if machine == "slurm-nice-devel":
-
-                # Make the pynx slurm file
-                if pynx_slurm_file_template is None:
-                    pynx_slurm_file_template = (
-                        f"{os.path.dirname(__file__)}/"
-                        "pynx-id01cdi_template.slurm"
-                    )
-                    print(
-                        "Pynx slurm file template not provided, will take "
-                        f"the default: {pynx_slurm_file_template}")
-
-                with open(
-                        pynx_slurm_file_template, "r", encoding="utf8"
-                ) as file:
-                    source = Template(file.read())
-                    pynx_slurm_text = source.substitute(
-                        {
-                            "number_of_nodes": number_of_nodes,
-                            "data_path": self.pynx_phasing_dir,
-                            "SLURM_JOBID": "$SLURM_JOBID",
-                            "SLURM_NTASKS": "$SLURM_NTASKS"
-                        }
-                    )
-                with open(
-                        self.pynx_phasing_dir + "/pynx-id01cdi.slurm",
-                        "w",
-                        encoding="utf8"
-                ) as file:
-                    file.write(pynx_slurm_text)
-
-                # submit job using sbatch slurm command
-                _, stdout, _ = client.exec_command(
-                    f"cd {self.pynx_phasing_dir};"
-                    "sbatch pynx-id01cdi.slurm"
+                        raise PynxScriptError
+                    else:
+                        self.logger.info("Command completed successfully.")
+            except subprocess.CalledProcessError as e:
+                # Log the error if the job submission fails
+                self.logger.error(
+                    "Subprocess process failed with return code "
+                    f"{e.returncode}: {e.stderr}"
                 )
-                job_submitted = False
-                time.sleep(0.5)
-
-                # read the standard output, decode it and print it
-                output = stdout.read().decode("utf-8")
-
-                # get the job id and remove '\n' and space characters
-                while not job_submitted:
-                    try:
-                        job_id = output.split(" ")[3].strip()
-                        job_submitted = True
-                        print(output)
-                    except IndexError:
-                        print("Job still not submitted...")
-                        time.sleep(3)
-                        print(output)
-                    except KeyboardInterrupt as err:
-                        print("User terminated job with KeyboardInterrupt.")
-                        client.close()
-                        raise err
-
-                # while loop to check if job has terminated
-                process_status = "PENDING"
-                while process_status != "COMPLETED":
-                    _, stdout, _ = client.exec_command(
-                        f"sacct -j {job_id} -o state | head -n 3 | tail -n 1"
-                    )
-
-                    # python process needs to sleep here, otherwise it gets in
-                    # trouble with standard output management. Anyway, we need
-                    # to sleep in the while loop in order to wait for the
-                    # remote  process to terminate.
-                    time.sleep(2)
-                    process_status = stdout.read().decode("utf-8").strip()
-                    print(f"[INFO] process status: {process_status}")
-
-                    if process_status == "RUNNING":
-                        _, stdout, _ = client.exec_command(
-                            f"cd {self.pynx_phasing_dir};"
-                            f"cat pynx-id01cdi.slurm-{job_id}.out "
-                            "| grep 'CDI Run:'"
-                        )
-                        time.sleep(1)
-                        print(stdout.read().decode("utf-8"))
-
-                    elif process_status == "CANCELLED+":
-                        raise RuntimeError("[INFO] Job has been cancelled")
-                    elif process_status == "FAILED":
-                        raise RuntimeError(
-                            "[ERROR] Job has failed. Check out logs at: \n",
-                            f"{self.pynx_phasing_dir}/"
-                            f"pynx-id01cdi.slurm-{job_id}.out"
-                        )
-
-                if process_status == "COMPLETED":
-                    print(f"[INFO] Job {job_id} is completed.")
-
-            else:
-                _, stdout, stderr = client.exec_command(
-                    "source /sware/exp/pynx/activate_pynx.sh 2022.1;"
-                    f"cd {self.pynx_phasing_dir};"
-                    "pynx-id01cdi.py pynx-cdi-inputs.txt "
-                    f"2>&1 | tee phase_retrieval_{machine}.log"
-                )
-                if stdout.channel.recv_exit_status():
-                    raise RuntimeError(
-                        f"Error pulling the remote runtime {stderr.readline()}"
-                    )
-                for line in iter(lambda: stdout.readline(1024), ""):
-                    print(line, end="")
-            client.close()
+                raise e
 
     def analyse_phasing_results(
             self,
