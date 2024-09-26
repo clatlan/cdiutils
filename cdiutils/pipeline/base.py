@@ -110,53 +110,6 @@ class Pipeline(ABC):
         # update the plot parameters
         update_plot_params()
 
-    @staticmethod
-    def process(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(self, *args, **kwargs) -> None:
-
-            # Setup a new log file for this process
-            file_handler = self._init_process_logger(
-                f"{self.dump_dir}/{func.__name__}_output"
-            )
-            msg = self.pretty_print(
-                f"Starting process: {func.__name__}",
-                do_print=False,
-                return_text=True
-            )
-            self.logger.info(msg)
-
-            # Redirect stdout to capture print statements in real time
-            original_stdout = sys.stdout  # Save original stdout
-            sys.stdout = LoggerWriter(self.logger, logging.INFO)
-
-            try:
-                func(self, *args, **kwargs)
-                self.logger.info(
-                    f"Process {func.__name__} completed successfully."
-                )
-            except Exception as e:
-                self.logger.error(
-                    "\nError occurred in the "
-                    f"'{func.__name__}' process:\n{e}"
-                )
-                # traceback.print_exception(e)
-                raise
-            finally:
-                # Restore original stdout and remove file handler
-                sys.stdout = original_stdout
-                self.logger.removeHandler(file_handler)
-                file_handler.close()
-        return wrapper
-
-    def _unwrap_logs(self) -> None:
-        """Bypass wrapping when printing logs."""
-        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=False)
-
-    def _wrap_logs(self) -> None:
-        """Enable wrapping."""
-        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
-
     def make_dump_dir(self) -> None:
         dump_dir = self.params["dump_dir"]
         if os.path.isdir(dump_dir):
@@ -212,6 +165,53 @@ class Pipeline(ABC):
         self.logger.addHandler(file_handler)
         return file_handler
 
+    @staticmethod
+    def process(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs) -> None:
+
+            # Setup a new log file for this process
+            file_handler = self._init_process_logger(
+                f"{self.dump_dir}/{func.__name__}_output"
+            )
+            msg = self.pretty_print(
+                f"Starting process: {func.__name__}",
+                do_print=False,
+                return_text=True
+            )
+            self.logger.info(msg)
+
+            # Redirect stdout to capture print statements in real time
+            original_stdout = sys.stdout  # Save original stdout
+            sys.stdout = LoggerWriter(self.logger, logging.INFO)
+
+            try:
+                func(self, *args, **kwargs)
+                self.logger.info(
+                    f"Process {func.__name__} completed successfully."
+                )
+            except Exception as e:
+                self.logger.error(
+                    "\nError occurred in the "
+                    f"'{func.__name__}' process:\n{e}"
+                )
+                # traceback.print_exception(e)
+                raise
+            finally:
+                # Restore original stdout and remove file handler
+                sys.stdout = original_stdout
+                self.logger.removeHandler(file_handler)
+                file_handler.close()
+        return wrapper
+
+    def _unwrap_logs(self) -> None:
+        """Bypass wrapping when printing logs."""
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=False)
+
+    def _wrap_logs(self) -> None:
+        """Enable wrapping."""
+        sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
+
     def submit_job(self, job_file: str, working_dir: str) -> tuple[str, str]:
         """Submit a job to SLURM as a subprocess."""
 
@@ -265,7 +265,7 @@ class Pipeline(ABC):
                 f"Subprocess failed with return code {e.returncode}: "
                 f"{e.stderr}"
             )
-            raise
+            raise e
 
     def _get_job_id(self, stdout: str) -> str:
         """Extract the job ID from sbatch output."""
