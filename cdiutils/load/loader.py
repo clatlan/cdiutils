@@ -63,21 +63,27 @@ class Loader(ABC):
         Returns:
             Loader: the subclass loader according to the provided name.
         """
-        if beamline_setup.lower() == "id01bliss":
-            from . import BlissLoader
-            return BlissLoader(**metadata)
+        if "id01" in beamline_setup.lower():
+            if beamline_setup.lower() == "id01spec":
+                from . import SpecLoader
+                return SpecLoader(**metadata)
+            from . import ID01Loader
+            return ID01Loader(**metadata)
+
         if beamline_setup.lower() == "id01spec":
             from . import SpecLoader
             return SpecLoader(**metadata)
+
         if beamline_setup.lower() == "sixs2022":
             from . import SIXS2022Loader
             return SIXS2022Loader(**metadata)
+
         if "p10" in beamline_setup.lower():
             from . import P10Loader
             if beamline_setup.lower() == "p10eh2":
                 return P10Loader(hutch="EH2", **metadata)
-            else:
-                return P10Loader(**metadata)
+            return P10Loader(**metadata)
+
         if beamline_setup.lower() == "cristal":
             from . import CristalLoader
             return CristalLoader(**metadata)
