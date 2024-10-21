@@ -116,6 +116,20 @@ def energy_to_wavelength(energy: float) -> float:
     return (cts.c * cts.h) / (cts.e * energy)
 
 
+def wavelength_to_energy(wavelength: float) -> float:
+    """
+    Find the energy in eV that wavelength in metre (not angstrom!)
+    corresponds to.
+
+    Args:
+        wavelength (float): the wavelength in metre to convert.
+
+    Returns:
+        float: the energy in eV.
+    """
+    return (cts.c * cts.h) / (cts.e * wavelength)
+
+
 def size_up_support(support: np.ndarray) -> np.ndarray:
     kernel = np.ones(shape=(3, 3, 3))
     convolved_support = convolve(support, kernel, mode='constant', cval=0.0)
