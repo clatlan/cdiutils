@@ -15,6 +15,7 @@ from .utils import (
     energy_to_wavelength,
     make_support,
     get_centred_slices,
+    hot_pixel_filter,
     CroppingHandler
 )
 
@@ -38,7 +39,8 @@ __class_submodules__ = {
 
 __all__ = [
     "energy_to_wavelength", "make_support",
-    "get_centred_slices", "CroppingHandler"
+    "get_centred_slices", "CroppingHandler",
+    "hot_pixel_filter"
 ] + list(__submodules__) + list(__class_submodules__)
 
 
