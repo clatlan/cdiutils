@@ -254,8 +254,8 @@ class Loader(ABC):
     @classmethod
     def get_mask(
             cls,
-            channel: int = None,
             detector_name: str = None,
+            channel: int = None,
             roi: tuple[slice] = None
     ) -> np.ndarray:
         """
@@ -324,6 +324,23 @@ class Loader(ABC):
             mask[513:552, :] = 1
             mask[1064:1103, :] = 1
             mask[1615:1654, :] = 1
+
+        elif detector_name.lower() in ("eiger9m", "e9m"):
+            mask = np.zeros(shape=(3262, 3108))
+            mask[:, 0:1] = 1
+            mask[:, -1:] = 1
+            mask[0:1, :] = 1
+            mask[-1:, :] = 1
+            mask[:, 513:515] = 1
+            mask[:, 1028:1040] = 1
+            mask[:, 1553:1555] = 1
+            mask[:, 2068:2080] = 1
+            mask[:, 2593:2595] = 1
+            mask[512:550, :] = 1
+            mask[1062:1100, :] = 1
+            mask[1612:1650, :] = 1
+            mask[2162:2200, :] = 1
+            mask[2712:2750, :] = 1
 
         elif detector_name.lower() == "eiger500k":
             return np.zeros(shape=(512, 1028))
