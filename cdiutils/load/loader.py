@@ -87,10 +87,14 @@ class Loader(ABC):
         if beamline_setup.lower() == "cristal":
             from . import CristalLoader
             return CristalLoader(**metadata)
-        
+
         if beamline_setup.lower() == "nanomax":
             from . import NanoMAXLoader
             return NanoMAXLoader(**metadata)
+
+        if beamline_setup.lower() == "id27":
+            from . import ID27Loader
+            return ID27Loader(**metadata)
         raise ValueError(f"Invalid beamline setup: {beamline_setup = }")
 
     @staticmethod
