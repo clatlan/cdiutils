@@ -4,7 +4,7 @@ from .id27 import ID27Loader
 from .p10 import P10Loader
 from .sixs import SIXS2022Loader
 from .cristal import CristalLoader
-from .nanomax import NanoMaxLoader
+from .nanomax import NanoMAXLoader
 
 __all__ = [
     "Loader",
@@ -15,5 +15,5 @@ __all__ = [
     "SpecLoader",
     "SIXS2022Loader",
     "CristalLoader",
-    "NanoMaxLoader"
+    "NanoMAXLoader"
 ]
