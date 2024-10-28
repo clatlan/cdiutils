@@ -8,8 +8,10 @@ from .formatting import get_extent
 from .formatting import add_colorbar
 from .formatting import x_y_lim_from_support
 from .formatting import get_x_y_limits_extents
+from .formatting import set_x_y_limits_extents
 from .formatting import add_labels
 from .formatting import save_fig
+from .formatting import white_interior_ticks_labels
 
 
 __submodules__ = {
@@ -32,8 +34,10 @@ __all__ = [
     "add_colorbar",
     "x_y_lim_from_support",
     "get_x_y_limits_extents",
+    "set_x_y_limits_extents",
     "add_labels",
-    "save_fig"
+    "save_fig",
+    "white_interior_ticks_labels",
 ] + list(__submodules__) + list(__class_func_submodules__)
 
 
