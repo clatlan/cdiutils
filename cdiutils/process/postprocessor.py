@@ -17,7 +17,7 @@ from cdiutils.utils import (
     find_suitable_array_shape,
     zero_to_nan,
     nan_to_zero,
-    normalize,
+    normalise,
     make_support,
     hybrid_gradient
 )
@@ -55,7 +55,7 @@ class PostProcessor:
         """
         if support_parameters is None:
             support = make_support(
-                normalize(np.abs(complex_object)),
+                normalise(np.abs(complex_object)),
                 isosurface=isosurface,
                 nan_values=False
             )
@@ -79,7 +79,7 @@ class PostProcessor:
             return complex_object, support, None
 
         support_pre_crop = make_support(
-            normalize(np.abs(complex_object)),
+            normalise(np.abs(complex_object)),
             isosurface=0.2
         )
         final_shape_pre_crop = copy.copy(final_shape)
@@ -97,7 +97,7 @@ class PostProcessor:
 
         support_processor = SupportProcessor(
             parameters=support_parameters,
-            data=normalize(np.abs(complex_object_pre_crop)),
+            data=normalise(np.abs(complex_object_pre_crop)),
             isosurface=isosurface,
             nan_values=False
         )
@@ -450,7 +450,7 @@ class PostProcessor:
 
         # all strains are saved in percent
         return {
-            "amplitude": normalize(amplitude),
+            "amplitude": normalise(amplitude),
             "support": nan_to_zero(support),
             "surface": nan_to_zero(surface) if surface is not None else nan_to_zero(support),
             "phase": nan_to_zero(phase),

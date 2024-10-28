@@ -172,7 +172,7 @@ def make_support(
         nan_values: bool = False
 ) -> np.ndarray:
     """Create a support using the provided isosurface value."""
-    data = normalize(data)
+    data = normalise(data)
     return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
 
 
@@ -211,11 +211,11 @@ def v1_to_v2_rotation_matrix(
     return r
 
 
-def normalize(
+def normalise(
         data: np.ndarray,
         zero_centered: bool = False
 ) -> np.ndarray:
-    """Normalize a np.ndarray so the values are between 0 and 1."""
+    """Normalise a np.ndarray so the values are between 0 and 1."""
     if zero_centered:
         abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
         vmin, vmax = -abs_max, abs_max
@@ -226,12 +226,8 @@ def normalize(
     return (data - vmin) / ptp
 
 
-def basic_filter(data, maplog_min_value=3.5):
-    return np.power(xu.maplog(data, maplog_min_value, 0), 10)
-
-
-def normalize_complex_array(array: np.ndarray) -> np.ndarray:
-    """Normalize a array of complex numbers."""
+def normalise_complex_array(array: np.ndarray) -> np.ndarray:
+    """Normalise a array of complex numbers."""
     shifted_array = array - array.real.min() - 1j*array.imag.min()
     return shifted_array/np.abs(shifted_array).max()
 
@@ -241,9 +237,9 @@ def find_max_pos(data: np.ndarray) -> tuple:
     return np.unravel_index(data.argmax(), data.shape)
 
 
-def shape_for_safe_centered_cropping(
-        data_shape: tuple or np.ndarray or list,
-        position: tuple or np.ndarray or list,
+def shape_for_safe_centred_cropping(
+        data_shape: tuple | np.ndarray | list,
+        position: tuple | np.ndarray | list,
         final_shape: tuple = None
 ) -> tuple:
     """
@@ -416,6 +412,21 @@ def compute_distance_from_com(
         distance_matrix[x, y, z] = distance
 
     return distance_matrix
+
+
+def num_to_nan(data: np.ndarray, num: int | float = 0):
+    """
+    Replace all occurrences of 'num' in the array with np.nan.
+
+    Args:
+        data (np.ndarray): NumPy array.
+        num (int | float, optional): The number to replace with np.nan
+            Defaults to 0.
+
+    Returns:
+        A new NumPy array with 'num' replaced by np.nan.
+    """
+    return np.where(data == num, np.nan, data)
 
 
 def zero_to_nan(
@@ -713,10 +724,10 @@ class CroppingHandler:
         return cropped_data.copy(), position, cropped_position, roi
 
     @classmethod
-    def force_centered_cropping(
+    def force_centred_cropping(
             cls,
             data: np.ndarray,
-            where: str | tuple = "center",
+            where: str | tuple = "centre",
             output_shape: tuple = None,
             verbose: bool = False
     ) -> np.ndarray:
@@ -729,13 +740,13 @@ class CroppingHandler:
         if output_shape is None:
             output_shape = data.shape
 
-        if where == "center":
+        if where == "centre":
             where = tuple(e // 2 for e in data.shape)
 
         position = cls.get_position(data, where)
         shape = data.shape
         safe_shape = np.array(
-            shape_for_safe_centered_cropping(
+            shape_for_safe_centred_cropping(
                 shape,
                 position,
                 output_shape
@@ -747,7 +758,7 @@ class CroppingHandler:
             else:
                 print(
                     "Required shape for cropping at the center is"
-                    f"{safe_shape}"
+                    f"{safe_shape}."
                 )
         plus_one = np.where((safe_shape % 2 == 0), 0, 1)
         crop = [
@@ -905,8 +916,8 @@ def find_isosurface(
     was plotted
     """
 
-    # normalize and flatten the amplitude
-    flattened_amplitude = normalize(amplitude).ravel()
+    # normalise and flatten the amplitude
+    flattened_amplitude = normalise(amplitude).ravel()
 
     counts, bins = np.histogram(flattened_amplitude, bins=nbins)
 
@@ -1206,6 +1217,7 @@ def valid_args_only(
         k: v for k, v in params.items()
         if k in inspect.getfullargspec(function).args
     }
+
 
 def distance_voxel(a,b):
     return np.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)
