@@ -22,7 +22,8 @@ class Geometry:
             detector_vertical_orientation: str = "y-",
             detector_horizontal_orientation: str = "x+",
             beam_direction: list = None,
-            name: str = None
+            name: str = None,
+            is_cxi: bool = True
     ) -> None:
         self.sample_circles = sample_circles
         self.detector_circles = detector_circles
@@ -35,7 +36,18 @@ class Geometry:
 
         self.name = name
 
-        self.is_cxi = True
+        self.is_cxi = is_cxi
+
+    def to_dict(self) -> dict:
+        """
+        Return the attributes of the Geometry instance as a dictionary.
+        """
+        return self.__dict__.copy()
+
+    @classmethod
+    def from_dict(cls, data) -> "Geometry":
+        """Create a Geometry instance from a dictionary."""
+        return cls(**data)
 
     @classmethod
     def from_setup(cls, beamline_setup: str) -> None:
@@ -90,6 +102,8 @@ class Geometry:
 
         if beamline_setup.lower() == "id27":
             return cls(
+                sample_circles=["x-", "y-"],  # In plane rotation only
+                detector_circles=["y-", "x-"],  # There is no circle, these value are dummy
                 detector_vertical_orientation="y-",
                 detector_horizontal_orientation="x-",
                 beam_direction=[1, 0, 0],
