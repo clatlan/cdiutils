@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
 import shutil
+from scipy.fft import fftn, fftshift, ifftshift
 from scipy.stats import gaussian_kde
 from scipy.ndimage import fourier_shift
 from skimage.registration import phase_cross_correlation
@@ -45,9 +45,6 @@ from cdiutils.utils import get_centred_slices, valid_args_only
 from cdiutils.process.postprocessor import PostProcessor
 
 
-PYNX_ERROR_TEXT = (
-        "'pynx' is not installed, PyNXPhaser is not available."
-    )
 DEFAULT_PYNX_PARAMS = {
 
     # support-related params
@@ -78,6 +75,15 @@ DEFAULT_PYNX_PARAMS = {
     "confidence_interval_factor_mask_max": 1.2,
 
 }
+
+
+class PynNXImportError(Exception):
+    """Custom exception to handle Pynx import error."""
+    def __init__(self, msg: str = None) -> None:
+        _msg = "'PyNX' is not installed on the current machine."
+        if msg is not None:
+            _msg += "\n" + msg
+        super().__init__(_msg)
 
 
 class PyNXPhaser:
@@ -113,7 +119,7 @@ class PyNXPhaser:
              is of no use.
         """
         if not IS_PYNX_AVAILABLE:
-            raise ModuleNotFoundError(PYNX_ERROR_TEXT)
+            raise PynNXImportError
         self.iobs = fftshift(iobs)
 
         self.mask = None
@@ -1027,7 +1033,7 @@ class PhasingResultAnalyser:
             np.ndarray: the main mode.
         """
         if not IS_PYNX_AVAILABLE:
-            raise ValueError(PYNX_ERROR_TEXT)
+            raise PynNXImportError
 
         if self.best_candidates:
             result_keys = self.best_candidates
@@ -1068,7 +1074,7 @@ class PhasingResultAnalyser:
         )
         if verbose:
             print(f"First mode represents {mode_weights[0] * 100:6.3f} %")
-        return modes[0]
+        return modes, mode_weights
 
     @staticmethod
     def plot_phasing_result(
