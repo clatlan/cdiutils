@@ -260,9 +260,9 @@ class ID27Loader(Loader):
                 f"key_path is wrong (key_path='{key_path}'). "
                 "Are sample_name, scan number or detector name correct?"
             ) from e
-        params.update(
-            {"detrot": 0, "tiltazimuth": 0, "tilt": 0, "outerangle_offset": 0}
-        )
+        # params.update(
+        #     {"detrot": 0, "tiltazimuth": 0, "tilt": 0, "outerangle_offset": 0}
+        # )
         return params
 
     def load_detector_shape(

@@ -114,7 +114,6 @@ class ID01Loader(Loader):
                 "tiltazimuth": 0.,
                 "tilt": 0.,
                 "detrot": 0.,
-                "outerangle_offset": 0.0
             }
         except KeyError as exc:
             raise KeyError(

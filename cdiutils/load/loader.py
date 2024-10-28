@@ -339,7 +339,8 @@ class Loader(ABC):
             mask[1064:1103, :] = 1
             mask[1615:1654, :] = 1
 
-        elif detector_name.lower() in ("eiger9m", "e9m"):
+        # Having a name such as "eiger" is super bad, it's id27...
+        elif detector_name.lower() in ("eiger9m", "e9m", "eiger"):
             mask = np.zeros(shape=(3262, 3108))
             mask[:, 0:1] = 1
             mask[:, -1:] = 1
