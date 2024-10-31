@@ -35,6 +35,7 @@ __class_submodules__ = {
     "SpaceConverter": "converter",
     "BcdiPipeline": "pipeline",
     "Loader": "load",
+    "CXIFile": "cxi"
 }
 
 
