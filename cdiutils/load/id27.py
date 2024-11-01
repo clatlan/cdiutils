@@ -240,19 +240,19 @@ class ID27Loader(Loader):
                 float(c)
                 for c in center.decode("utf-8").strip("()").split(", ")
             )
-            params["cch1"], params["cch2"] = center
+            params["cch1"], params["cch2"] = -center[0], center[1]
 
             # Now correct the distance, cch1, cch2 with eigx, eigy, eigz
             key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
             params["cch1"] += (
-                float(self.h5file[key_path + "eigz"][()]) * 1e-3  # to m
+                (float(self.h5file[key_path + "eigz"][()]) -5.0647) * 1e-3  # to m
                 // 75e-6  # pixel size in metres
-            ) 
+            )
             params["cch2"] += (
                 float(self.h5file[key_path + "eigy"][()]) * 1e-3  # to m
                 // 75e-6  # pixel size in metres
             )
-            params["distance"] += float(self.h5file[key_path + "eigx"][()])
+            params["distance"] += float(self.h5file[key_path + "eigx"][()]) - 231.92
             params["distance"] *= 1e-3  # Convert from mm to metres
 
         except KeyError as e:
@@ -260,9 +260,7 @@ class ID27Loader(Loader):
                 f"key_path is wrong (key_path='{key_path}'). "
                 "Are sample_name, scan number or detector name correct?"
             ) from e
-        # params.update(
-        #     {"detrot": 0, "tiltazimuth": 0, "tilt": 0, "outerangle_offset": 0}
-        # )
+
         return params
 
     def load_detector_shape(
