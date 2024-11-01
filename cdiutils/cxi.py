@@ -37,9 +37,7 @@ class CXIFile:
         "dimensionality", "image_center", "image_size", "is_fft_shifter",
         "mask", "process_", "reciprocal_coordinates", "source_"
     )
-    DATA_MEMBERS = ("data", "errors")
-    # TODO: add other members + decide if it should go outside the class
-    # def or not.
+
 
     def __init__(self, file_path: str, mode: str = "a"):
         self.file_path = file_path
@@ -91,8 +89,7 @@ class CXIFile:
 
         if entry_name not in self.file:  # double check
             self.file.create_group(entry_name)
-            # Initialise counters for this entry
-            self._entry_counters[entry_name] = {}
+            self._entry_counters[entry_name] = {}  # Initialise counters
 
         self._current_entry = entry_name  # Set the current entry context
         return entry_name
@@ -106,16 +103,18 @@ class CXIFile:
             self._entry_counters[entry] = {}
 
         if group_type not in self._entry_counters[entry]:
-            # Start counting from 1 by checking existing groups
             return 1
         else:
             return self._entry_counters[entry][group_type] + 1
 
     def _increment_index(self, entry: str, group_type: str) -> int:
-        if group_type not in self._entry_counters[entry]:
-            self._entry_counters[entry][group_type] = 1
-        else:
-            self._entry_counters[entry][group_type] += 1
+        # if group_type not in self._entry_counters[entry]:
+        #     self._entry_counters[entry][group_type] = 1
+        # else:
+        #     self._entry_counters[entry][group_type] += 1
+        self._entry_counters[entry][group_type] = self._get_next_index(
+            entry, group_type
+        )
         return self._entry_counters[entry][group_type]
 
     def create_cxi_group(
@@ -166,7 +165,6 @@ class CXIFile:
             self.file[path].attrs["default"] = default
 
         self.create_cxi_dataset(path, data=kwargs)
-
         return path
 
     def _create_group(
@@ -191,9 +189,9 @@ class CXIFile:
             group = self.file.require_group(path)
             if nx_class:
                 group.attrs["NX_class"] = nx_class
-            group.attrs.update(attrs)
+            if attrs:
+                group.attrs.update(attrs)
             return True
-        # print(f"Path ({path} already present in file.)")
         return False
 
     def create_cxi_dataset(
@@ -236,7 +234,7 @@ class CXIFile:
         dataset.attrs.update(attrs)
         return dataset
 
-    def softlink(self, path: str, target: str) -> None:
+    def softlink(self, path: str, target: str, raise_on_error: bool = False) -> None:
         """
         Create a soft link at the specified path pointing to an existing
         target path.
@@ -250,13 +248,12 @@ class CXIFile:
         """
         if not target.startswith("/"):
             target = "/" + target
-        # Check if the target path exists in the file
         if target in self.file:
             self.file[path] = h5py.SoftLink(target)
+        elif raise_on_error:
+            raise ValueError(f"The target path '{target}' does not exist.")
         else:
-            print(
-                f"The target path '{target}' does not exist in the file."
-            )
+            print(f"Warning: The target path '{target}' does not exist.")
 
     def stamp(self):
         """
