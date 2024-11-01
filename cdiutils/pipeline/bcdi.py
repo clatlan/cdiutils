@@ -5,7 +5,6 @@ Authors:
     * Clément Atlan, clement.atlan@esrf.fr - 09/2024
 """
 
-
 # Built-in dependencies.
 import glob
 import os
@@ -14,6 +13,7 @@ from string import Template
 import subprocess
 
 # Dependencies.
+import h5py
 import numpy as np
 import ruamel.yaml
 from tabulate import tabulate
@@ -25,25 +25,32 @@ from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.load import Loader
 
-# Plot function specifically made for the pipeline.
-from .pipeline_plotter import PipelinePlotter
-
 # Utility functions
 from cdiutils.utils import (
     CroppingHandler,
     oversampling_from_diffraction,
     ensure_pynx_shape,
-    hot_pixel_filter
+    hot_pixel_filter,
+    get_oversampling_ratios,
+    find_isosurface,
 )
-from cdiutils.process.phaser import PhasingResultAnalyser
+
+# Plot function specifically made for the pipeline.
+from .pipeline_plotter import PipelinePlotter
+
+from cdiutils.process.phaser import PhasingResultAnalyser, PynNXImportError
+from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
 from .parameters import check_params, convert_np_arrays, fill_pynx_params
 
+# to save version in files:
+from cdiutils import __version__
 
-class PynxScriptError(Exception):
+
+class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
     pass
 
@@ -118,21 +125,44 @@ class BcdiPipeline(Pipeline):
         self.pynx_phasing_dir = self.dump_dir + "/pynx_phasing/"
 
         # The dictionary of the Voxels Of Interest, in both the "full"
-        # and "cropped" detector frame
+        # and "cropped" detector frames.
         self.voi = {"full": {}, "cropped": {}}
+
+        # The dictionary of the atomic parameters (d-spacing and lattice
+        # parameter) for the various voxel positions.
+        self.atomic_params = {
+            "dspacing": {k: None for k in self.voxel_pos},
+            "lattice_parameter": {k: None for k in self.voxel_pos},
+        }
 
         # Define base attributes
         self.detector_data: np.ndarray = None
         self.cropped_detector_data: np.ndarray = None
         self.mask: np.ndarray = None
         self.angles: dict = None
-
+        self.converter: SpaceConverter = None
         self.result_analyser: PhasingResultAnalyser = None
+        self.reconstruction: np.ndarray = None
+        self.structural_props: dict = None
 
         self.logger.info("BcdiPipeline initialised.")
 
     @Pipeline.process
     def preprocess(self) -> None:
+        """
+        Main method to handle the preprocessing of the BCDI data. It
+        takes care of the data loading, centring, cropping and gets the
+        orthogonalisation parameters.
+
+        Raises:
+            ValueError: if the requested shape and the voxel reference
+                are not compatible.
+        """
+        # If voxel_reference_methods is not a list, make it a list
+        if not isinstance(self.params["voxel_reference_methods"], list):
+            self.params["voxel_reference_methods"] = [
+                self.params["voxel_reference_methods"]
+            ]
 
         # Check whether the requested shape is permitted by pynx
         self.params["preprocess_shape"] = ensure_pynx_shape(
@@ -185,13 +215,15 @@ class BcdiPipeline(Pipeline):
                 self.cropped_detector_data, pos
             )
 
-        # initialise the space converter
-        self.converter.energy = self.params["energy"]
-        self.converter.init_q_space_area(
-            roi=roi[2:],
-            det_calib_params=self.params["det_calib_params"]
+        # Initialise SpaceConverter, later use for orthogonalisation
+        geometry = Geometry.from_setup(self.params["beamline_setup"])
+        self.converter = SpaceConverter(
+            geometry=geometry,
+            det_calib_params=self.params["det_calib_params"],
+            energy=self.params["energy"],
+            roi=roi[2:]
         )
-        self.converter.set_q_space_area(**self.angles)
+        self.converter.init_q_space(**self.angles)
 
         # Initialise the fancy table with the columns
         table = [
@@ -212,13 +244,18 @@ class BcdiPipeline(Pipeline):
 
             # compute the corresponding dpsacing and lattice parameter
             # for printing
-            dspacing = self.converter.dspacing(self.params[key])
-            lattice = self.converter.lattice_parameter(
+            self.atomic_params["dspacing"][pos] = self.converter.dspacing(
+                self.params[key]
+            )
+            self.atomic_params["lattice_parameter"][pos] = (
+                self.converter.lattice_parameter(
                     self.params[key], self.params["hkl"]
+                )
             )
             table.append(
                 [key.split('_')[-1], det_voxel, cropped_det_voxel,
-                 f"{dspacing:.5f}", f"{lattice:.5f}"]
+                 f"{self.atomic_params['dspacing'][pos]:.5f}",
+                 f"{self.atomic_params['lattice_parameter'][pos]:.5f}"]
             )
 
         self._unwrap_logs()  # Turn off wrapping for structured output
@@ -256,10 +293,13 @@ class BcdiPipeline(Pipeline):
             # Initialise the interpolator so we won't need to reload raw
             # data during the post processing. The converter will be saved.
             self.converter.init_interpolator(
-                self.cropped_detector_data,
                 self.params["preprocess_shape"],
                 space="both",
-                direct_space_voxel_size=self.params["voxel_size"]
+                direct_lab_voxel_size=self.params["voxel_size"]
+            )
+            self.logger.info(
+                "Voxel size calculated from the extent in the reciprocal "
+                f"space is {self.converter.direct_lab_voxel_size} nm."
             )
 
             # Run the interpolation in the reciprocal space so we don't
@@ -323,27 +363,21 @@ class BcdiPipeline(Pipeline):
         """
         Save the parameter file used during the analysis.
         """
-        output_file_path = f"{self.dump_dir}/S{self.scan}_parameter_file.yml"
+        output_file_path = f"{self.dump_dir}/S{self.scan}_parameters.yml"
 
         if self.param_file_path is not None:
             try:
-                shutil.copy(
-                    self.param_file_path,
-                    output_file_path
-                )
+                shutil.copy(self.param_file_path, output_file_path)
             except shutil.SameFileError:
                 self.logger.info(
-                    "\nScan parameter file saved at:\n"
-                    f"{output_file_path}"
+                    f"\nScan parameter file saved at:\n{output_file_path}"
                 )
-
         else:
             convert_np_arrays(self.params)
             with open(output_file_path, "w", encoding="utf8") as file:
                 yaml.dump(self.params, file)
             self.logger.info(
-                "\nScan parameter file saved at:\n"
-                f"{output_file_path}"
+                f"\nScan parameter file saved at:\n{output_file_path}"
             )
 
     def _from_2d_to_3d_shape(self) -> tuple:
@@ -417,6 +451,10 @@ class BcdiPipeline(Pipeline):
                     "The automatic loading of energy is not yet implemented"
                     f"for this setup ({self.params['metadata']['setup']} = )."
                 )
+            else:
+                self.logger.info(
+                    f"Energy successfully loaded ({self.params['energy']} eV)."
+                )
         if self.params["det_calib_params"] is None:
             self.logger.info(
                 "\ndet_calib_params not provided, will try to find them. "
@@ -432,12 +470,6 @@ class BcdiPipeline(Pipeline):
                     "implemented for this setup "
                     f"({self.params['metadata']['setup']} = )."
                 )
-
-        # Initialise SpaceConverter, later use for orthogonalisation
-        geometry = Geometry.from_setup(
-            self.params["beamline_setup"]
-        )
-        self.converter = SpaceConverter(geometry=geometry)
 
     def _light_load(self) -> list:
         """
@@ -632,8 +664,8 @@ class BcdiPipeline(Pipeline):
             regular_grid_func = self.converter.get_xu_q_lab_regular_grid
         else:
             regular_grid_func = self.converter.get_q_lab_regular_grid
-            self.converter.save_interpolation_parameters(
-                f"{self.dump_dir}/S{self.scan}_interpolation_parameters.npz"
+            self.converter.to_file(
+                f"{self.dump_dir}/S{self.scan}_space_converter_parameters.h5"
             )
         np.savez(
             f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
@@ -683,7 +715,7 @@ class BcdiPipeline(Pipeline):
             jump_to_cluster: bool = False,
             pynx_slurm_file_template: str = None,
             clear_former_results: bool = False,
-            command: str = None,
+            cmd: str = None,
     ) -> None:
         """
         Run the phase retrieval using pynx either by submitting a job to
@@ -697,12 +729,12 @@ class BcdiPipeline(Pipeline):
                 the pynx slurm file. Defaults to None.
             clear_former_results (bool, optional): whether ti clear the
                 former results. Defaults to False.
-            command (str, optional): the command to run when running
+            cmd (str, optional): the command to run when running
                 pynx on the current machine. Defaults to None.
 
         Raises:
-            PynxScriptError: if the pynx script failes.
-            e: if the subprocess failes.
+            PyNXScriptError: if the pynx script fails.
+            e: if the subprocess fails.
         """
         if clear_former_results:
             self.logger.info("Removing former results.\n")
@@ -736,49 +768,54 @@ class BcdiPipeline(Pipeline):
             self.monitor_job(job_id, output_file)
 
         else:
-            self.logger.info("Assuming the current machine is running PyNX.")
-            if command is None:
-                command = """
+            self.logger.info(
+                "Assuming the current machine is running PyNX. Will run the "
+                "provided command."
+            )
+            if cmd is None:
+                self.logger.info("No command provided. Will use the default.")
+                cmd = """
                     module load pynx
                     pynx-cdi-id01 pynx-cdi-inputs.txt
                 """
-            try:
-                with subprocess.Popen(
-                        ["bash", "-l", "-c", command],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        cwd=self.pynx_phasing_dir,  # Change to this directory
-                        text=True,  # Ensures stdout/stderr are str, not bytes
-                        # shell=True,
-                        env=os.environ.copy(),
-                        bufsize=1
-                ) as proc:
-                    # Stream stdout
-                    for line in iter(proc.stdout.readline, ''):
-                        self.logger.info(line.strip())
+            self._run_cmd(cmd)
 
-                    # Stream stderr
-                    for line in iter(proc.stderr.readline, ''):
-                        self.logger.error(line.strip())
+    def _run_cmd(self, cmd: str) -> None:
+        try:
+            with subprocess.Popen(
+                    ["bash", "-l", "-c", cmd],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    cwd=self.pynx_phasing_dir,  # Change to this directory
+                    text=True,  # Ensures stdout/stderr are str, not bytes
+                    # shell=True,
+                    env=os.environ.copy(),
+                    bufsize=1
+            ) as proc:
+                # Stream stdout
+                for line in iter(proc.stdout.readline, ""):
+                    self.logger.info(line.strip())
 
-                    # Wait for the process to complete and check the
-                    # return code.
-                    proc.wait()
-                    if proc.returncode != 0:
-                        self.logger.error(
-                            "PyNX phasing process failed with return code "
-                            f"{proc.returncode}"
-                        )
-                        raise PynxScriptError
-                    else:
-                        self.logger.info("Command completed successfully.")
-            except subprocess.CalledProcessError as e:
-                # Log the error if the job submission fails
-                self.logger.error(
-                    "Subprocess process failed with return code "
-                    f"{e.returncode}: {e.stderr}"
-                )
-                raise e
+                # Stream stderr
+                for line in iter(proc.stderr.readline, ""):
+                    self.logger.error(line.strip())
+
+                # Wait for the process to complete and check the
+                # return code.
+                proc.wait()
+                if proc.returncode != 0:
+                    self.logger.error(
+                        "PyNX phasing process failed with return code "
+                        f"{proc.returncode}"
+                    )
+                    raise PyNXScriptError
+        except subprocess.CalledProcessError as e:
+            # Log the error if the job submission fails
+            self.logger.error(
+                "Subprocess process failed with return code "
+                f"{e.returncode}: {e.stderr}"
+            )
+            raise e
 
     def analyse_phasing_results(
             self,
@@ -855,7 +892,7 @@ class BcdiPipeline(Pipeline):
                 Defaults to None.
 
         Raises:
-            ValueError: _description_
+            ValueError: If the results have not been analysed yet.
         """
         if not self.result_analyser:
             raise ValueError(
@@ -870,141 +907,335 @@ class BcdiPipeline(Pipeline):
     @Pipeline.process
     def mode_decomposition(
             self,
-            pynx_analysis_script: str = (
-                "/cvmfs/hpc.esrf.fr/software/packages/"
-                "ubuntu20.04/x86_64/pynx/2024.1/bin/pynx-cdi-analysis"
-            ),
-            run_command: str = None,
-            machine: str = None,
-            user: str = None,
-            key_file_path: str = None
+            cmd: str = None,
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
         script as a subprocess.
 
         Args:
-            pynx_analysis_script (str, optional): Version of PyNX to
-                use. Defaults to "2024.1".
-            machine (str, optional): Remote machine to run the mode
-                decomposition on. Defaults to None.
-            user (str, optional): User for the remote machine. Defaults
-                to None.
-            key_file_path (str, optional): Path to the key file for SSH
-                authentication. Defaults to None.
+            cmd
         """
-        if run_command is None:
-            run_command = (
-                f"cd {self.pynx_phasing_dir};"
-                f"{pynx_analysis_script} candidate_*.cxi --modes 1 "
-                "--modes_output mode.h5 2>&1 | tee mode_decomposition.log"
+        try:
+            modes, mode_weights = self.result_analyser.mode_decomposition()
+            self._save_mode_as_h5(
+                modes,
+                mode_weights,
+                candidates=self.result_analyser.best_candidates
             )
-
-        if machine:
-            print(f"[INFO] Remote connection to machine '{machine}'requested.")
-            if user is None:
-                user = os.environ["USER"]
-                print(f"user not provided, will use '{user}'.")
-            if key_file_path is None:
-                key_file_path = os.environ["HOME"] + "/.ssh/id_rsa"
-                print(
-                    f"key_file_path not provided, will use '{key_file_path}'."
-                )
-
-            client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(
-                hostname=machine,
-                username=user,
-                pkey=paramiko.RSAKey.from_private_key_file(key_file_path)
+        except PynNXImportError:
+            self.logger.info(
+                "PyNX is not installed on the current machine. Will try to "
+                "run the provided command instead."
             )
+            if cmd is None:
+                cmd = """
+                module load pynx
+                pynx-cdi-analysis candidate_*.cxi --modes 1 --modes_output \
+                mode.h5
+                """
+                self.logger.info("No command provided will use the default.")
+            self._run_cmd(cmd)
 
-            _, stdout, stderr = client.exec_command(run_command)
-            # read the standard output, decode it and print it
-            formatted_stdout = stdout.read().decode("utf-8")
-            formatted_stderr = stderr.read().decode("utf-8")
-            print("[STDOUT FROM SSH PROCESS]\n")
-            print(formatted_stdout)
-            print("[STDERR FROM SSH PROCESS]\n")
-            print(formatted_stderr)
+    def _save_mode_as_h5(
+            self,
+            mode: np.ndarray,
+            mode_weights: float,
+            candidates: list[str]
+    ) -> None:
+        path = self.pynx_phasing_dir + "mode.h5"
+        self.logger.info(f"Saving mode analysis to {path}")
 
-            if stdout.channel.recv_exit_status():
-                raise RuntimeError(
-                    f"Error pulling the remote runtime {stderr.readline()}")
-            client.close()
+        with h5py.File(path, "w") as file:
+            # NeXus
+            file.attrs["default"] = "entry_1"
+            file.attrs["creator"] = "cdiutils"
+            file.attrs["HDF5_Version"] = h5py.version.hdf5_version
+            file.attrs["h5py_version"] = h5py.version.version
 
-        # if no machine provided, run the mode decomposition as a subprocess
-        else:
-            with subprocess.Popen(
-                    run_command,
-                    shell=True,
-                    executable="/usr/bin/bash",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-            ) as proc:
-                stdout, stderr = proc.communicate()
-                print("[STDOUT FROM SUBPROCESS]\n", stdout.decode("utf-8"))
-                if proc.returncode:
-                    print(
-                        "[STDERR FROM SUBPROCESS]\n",
-                        stderr.decode("utf-8")
-                    )
+            entry_1 = file.create_group("entry_1")
+            entry_1.create_dataset(
+                "program_name", data=f"cdiutils {__version__}"
+            )
+            entry_1.attrs["NX_class"] = "NXentry"
+            entry_1.attrs["default"] = "data_1"
 
-            if self.param_file_path is not None:
-                update_parameter_file(
-                    self.param_file_path,
-                    {"reconstruction_file":
-                        f"{self.pynx_phasing_dir}mode.h5"}
-                )
-                self.params = self.load_parameters()
+            image_1 = entry_1.create_group("image_1")
+            image_1.create_dataset(
+                "data",
+                data=mode,
+                chunks=True,
+                shuffle=True,
+                compression="gzip"
+            )
+            image_1.attrs["NX_class"] = "NXdata"
+            image_1.attrs["interpretation"] = "image"
+            image_1["title"] = "Solutions modes"
+
+            data_1 = file["/entry_1/image_1"]
+            process_1 = data_1.create_group("process_1")
+            process_1.attrs["NX_class"] = "NXprocess"
+            process_1.attrs["label"] = "Mode decomposition information"
+            process_1.create_dataset("program", data="cdiutils")
+            process_1.create_dataset("version", data=f"{__version__}")
+            process_1.create_dataset("candidates", data=candidates)
+            if candidates[0].endswith(".cxi"):
+                # Try to copy the original pynx process information
+                with h5py.File(candidates[0]["file_name"], "r") as h0:
+                    if "/entry_last/image_1/process_1" in h0:
+                        h0.copy(
+                            "/entry_last/image_1/process_1",
+                            data_1, name="process_2"
+                        )
+                        data_1["process_2"].attrs["label"] = (
+                            "Process information for the Original CDI "
+                            "reconstruction (best solution)"
+                        )
+
+            # Add shortcut to the main data
+            data_1 = entry_1.create_group("data_1")
+            data_1["data"] = h5py.SoftLink("/entry_1/image_1/data")
+            data_1.attrs["NX_class"] = "NXdata"
+            data_1.attrs["signal"] = "data"
+            data_1.attrs["interpretation"] = "image"
+            data_1.attrs["label"] = "modes"
+            data_1["title"] = "Solutions modes"
+
+            # Add weights
+            data_2 = entry_1.create_group("data_2")
+            ds = data_2.create_dataset("data", data=mode_weights)
+            ds.attrs["long_name"] = "Relative weights of modes"
+            data_2.attrs["NX_class"] = "NXdata"
+            data_2.attrs["signal"] = "data"
+            data_2.attrs["interpretation"] = "spectrum"
+            data_2.attrs["label"] = "modes relative weights"
+            data_2["title"] = "Modes relative weights"
 
     @Pipeline.process
-    def postprocess(self) -> None:
+    def postprocess(
+            self, reload_params_file: bool | str = None,
+            **params
+    ) -> None:
 
-        if self.bcdi_processor is None:
-            print("BCDI processor is not instantiated yet.")
-            if any(
-                    p not in self.params
-                    or self.params[p] is None
-                    for p in (
-                        "q_lab_reference", "q_lab_max",
-                        "q_lab_com", "det_reference_voxel",
-                        "preprocess_shape"
+        if reload_params_file is not None:
+            if isinstance(reload_params_file, str):
+                self.logger.info(
+                    "Parameters file provided, will load the parameters and "
+                    "update the current ones."
+                )
+                self.params.update(self.load_parameters(reload_params_file))
+            elif reload_params_file:
+                params_path = f"{self.dump_dir}S{self.scan}_parameters.yml"
+                self.logger.info(f"Loading parameters from:\n{params_path}")
+                self.params.update(self.load_parameters(params_path))
+        if params:
+            self.logger.info(
+                "Additional parameters provided, will update the current "
+                "parameter dictionary."
+            )
+            self.params.update(params)
+
+        if self.reconstruction is None:
+            with h5py.File(self.pynx_phasing_dir + "mode.h5") as file:
+                self.reconstruction = file["entry_1/data_1/data"][0]
+
+        self._get_oversampling_ratios(self.reconstruction)
+
+        # If self.converter is None, we should build it from file
+        if self.converter is None:
+            path = f"{self.dump_dir}S{self.scan}_space_converter_parameters.h5"
+            if self.params["orthogonalise_before_phasing"]:
+                pass
+            else:
+                if os.path.exists(path):
+                    self.converter = SpaceConverter.from_file(path)
+                else:
+                    raise ValueError(
+                        f"Space converter parameters not found at {path}."
                     )
-            ):
-                file_path = (
-                        f"{self.dump_dir}"
-                        f"S{self.scan}_parameter_file.yml"
-                )
-                print(f"Loading parameters from:\n{file_path}")
-                preprocessing_params = self.load_parameters(
-                    file_path=file_path)["cdiutils"]
-                self.params.update(
-                    {
-                        "preprocess_shape": preprocessing_params[
-                            "preprocess_shape"
-                        ],
-                        "det_reference_voxel": preprocessing_params[
-                            "det_reference_voxel"
-                        ],
-                        "q_lab_reference": preprocessing_params[
-                            "q_lab_reference"
-                        ],
-                        "q_lab_max": preprocessing_params["q_lab_max"],
-                        "q_lab_com": preprocessing_params["q_lab_com"]
-                    }
-                )
-            self.bcdi_processor = BcdiProcessor(
-                parameters=self.params
+
+        # Handle the voxel size
+        self._check_voxel_size()
+
+        if not self.params["orthogonalise_before_phasing"]:
+            self.reconstruction = self.converter.orthogonalise_to_direct_lab(
+                self.reconstruction
+            )
+        self._check_orientation_convention()
+        self.logger.info(
+            f"Voxel size finally used is: {self.params['voxel_size']} nm in "
+            f"the {self.params['orientation_convention'].upper()} convention."
+        )
+
+        # Handle flipping and apodization
+        if self.params["flip"]:
+            self.reconstruction = PostProcessor.flip_reconstruction(
+                self.reconstruction
             )
 
-        self.bcdi_processor.orthogonalise()
+        if self.params["apodize"]:
+            self.logger.info(
+                "Apodizing the complex array using "
+                f"{self.params['apodize']} filter."
+            )
+            self.reconstruction = PostProcessor.apodize(
+                self.reconstruction,
+                window_type=self.params["apodize"]
+            )
+
+        # First compute the histogram of the amplitude to get an
+        # isosurface estimate
+        self.logger.info(
+            "Finding an isosurface estimate based on the "
+            "reconstructed Bragg electron density histogram:",
+            end=" "
+        )
+        isosurface, amp_hist_fig = find_isosurface(
+            np.abs(self.reconstruction),
+            nbins=100,
+            sigma_criterion=3,
+            plot=True  # plot and return the figure
+        )
+        self.logger.info(f"isosurface estimated at {isosurface}.")
+
+        if self.params["isosurface"] is not None:
+            self.logger.info(
+                "Isosurface provided by user will be used: "
+                f"{self.params['isosurface']}."
+            )
+
+        elif isosurface < 0 or isosurface > 1:
+            self.params["isosurface"] = 0.3
+            self.logger.info(
+                f"isosurface estimate has a wrong value ({isosurface}) and "
+                "will be set set to 0.3."
+            )
+        else:
+            self.params["isosurface"] = isosurface
+
+        self.logger.info(
+            "Computing the structural properties:"
+            "\n\t- phase \n\t- displacement\n\t- het. (heterogeneous) strain"
+            "\n\t- d-spacing\n\t- lattice parameter."
+            "\nhet. strain maps are computed using various methods, either"
+            " phase ramp removal or d-spacing method.\n",
+            f"The theoretical Bragg peak is {self.params['hkl']}."
+        )
+        if self.params["handle_defects"]:
+            self.logger.info("Defect handling requested.")
+
+        if self.params["orientation_convention"].lower() == "cxi":
+            g_vector = SpaceConverter.xu_to_cxi(self.params["q_lab_reference"])
+        else:
+            g_vector = self.params["q_lab_reference"]
+
+        self.structural_props = PostProcessor.get_structural_properties(
+            self.reconstruction,
+            support_parameters=(
+                None if self.params["method_det_support"] is None
+                else self.params
+            ),
+            isosurface=self.params["isosurface"],
+            g_vector=g_vector,
+            hkl=self.params["hkl"],
+            voxel_size=self.params["voxel_size"],
+            phase_factor=-1,  # it came out of pynx.cdi
+            handle_defects=self.params["handle_defects"]
+        )
+
+        to_plot = {
+            k: self.structural_props[k]
+            for k in ["amplitude", "phase", "displacement",
+                      "het_strain", "lattice_parameter"]
+        }
+        # plot and save the detector data in the full detector frame and
+        # final frame
+        dump_file_tmpl = (
+            f"{self.dump_dir}/S{self.scan}_" + "{}.png"
+        )
+
+        table_info = {
+            "Isosurface": self.params["isosurface"],
+            r"Averaged Lat. Par. ($\AA$)": np.nanmean(
+                self.structural_props["lattice_parameter"]
+            ),
+            r"Averaged d-spacing ($\AA$)": np.nanmean(
+                self.structural_props["dspacing"]
+            )
+        }
+        PipelinePlotter.summary_plot(
+            title=f"Summary figure, {self.sample_name}, S{self.scan}",
+            support=self.structural_props["support"],
+            table_info=table_info,
+            voxel_size=self.params["voxel_size"],
+            save=dump_file_tmpl.format("summary_plot"),
+            convention=self.params["orientation_convention"],
+            **to_plot
+        )
+        PipelinePlotter.summary_plot(
+            title=f"Strain check figure, {self.sample_name}, S{self.scan}",
+            support=self.structural_props["support"],
+            voxel_size=self.params["voxel_size"],
+            save=dump_file_tmpl.format("strain_methods"),
+            convention=self.params["orientation_convention"],
+            **{
+                k: self.structural_props[k]
+                for k in [
+                    "het_strain", "het_strain_from_dspacing",
+                    "het_strain_from_dspacing", "het_strain_with_ramp"
+                ]
+            }
+        )
+        # TODO: surface strain projections, strain statistics, shear
+        # displacement and fft of final object
+
         self.bcdi_processor.postprocess()
         self.bcdi_processor.save_postprocessed_data()
         self._save_parameter_file()
-        if self.params["show"]:
-            self.bcdi_processor.show_figures()
 
+    def _get_oversampling_ratios(self, data: np.ndarray) -> np.ndarray:
+        amp = np.abs(data) / np.max(np.abs(data))
+
+        isosurface = self.params["isosurface"]
+        # if not provided, isosurface is hardcoded at this stage
+        if isosurface is None:
+            isosurface = 0.3
+        support = np.where(amp >= isosurface, 1, 0)
+        # Print the oversampling ratio
+        ratios = get_oversampling_ratios(support)
+        self.verbose_print(
+            "[INFO] The oversampling ratios in each direction are "
+            + ", ".join(
+                [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
+            )
+        )
+
+        if support.shape != self.params["preprocess_shape"]:
+            self.logger.warning(
+                f"Shapes before {self.params['preprocess_shape']} "
+                f"and after {support.shape} Phase Retrieval are different.\n"
+                "Check out PyNX parameters (ex.: auto_center_resize)."
+            )
+
+    def _check_voxel_size(self) -> None:
+        if self.params["voxel_size"] is None:
+            self.params["voxel_size"] = self.converter.direct_lab_voxel_size
+        else:
+            # if 1D, make it 3D
+            if isinstance(self.params["voxel_size"], (float, int)):
+                self.params["voxel_size"] = tuple(np.repeat(
+                    self.params["voxel_size"], self.reconstruction.ndim
+                ))
+            # This sets the direct space interpolator voxel size
+            self.converter.direct_lab_voxel_size = self.params["voxel_size"]
+
+    def _check_orientation_convention(self) -> None:
+        # After orthogonalisation, convention is XU.
+        if self.params["orientation_convention"].lower() == "cxi":
+            self.reconstruction = self.converter.xu_to_cxi(self.reconstruction)
+            self.params["voxel_size"] = self.converter.xu_to_cxi(
+                self.params["voxel_size"]
+            )
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
