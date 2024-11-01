@@ -4,13 +4,17 @@ from matplotlib.colors import LogNorm
 import numpy as np
 from scipy.ndimage import binary_erosion
 
-from cdiutils.utils import kde_from_histogram
-from cdiutils.plot import (
-    plot_volume_slices,
+from cdiutils.utils import kde_from_histogram, num_to_nan
+from cdiutils.plot.formatting import (
     add_colorbar,
     add_labels,
-    save_fig
+    save_fig,
+    get_x_y_limits_extents,
+    set_x_y_limits_extents,
+    set_plot_configs,
+    white_interior_ticks_labels
 )
+from cdiutils.plot.slice import plot_contour, plot_volume_slices
 
 
 class PipelinePlotter:
@@ -417,3 +421,207 @@ class PipelinePlotter:
         )
 
         return figure, axes
+
+    @staticmethod
+    def summary_plot(
+            title: str = None,
+            support: np.ndarray = None,
+            table_info: dict = None,
+            voxel_size: tuple = None,
+            save: str = None,
+            unique_vmin: float = None,
+            unique_vmax: float = None,
+            cmap: str = None,
+            figsize: tuple = (6, 4),
+            convention: str = "CXI",
+            **to_plot
+    ) -> tuple[plt.Figure, plt.Axes]:
+
+        _, _, PLOT_CONFIGS = set_plot_configs()
+
+        # take care of the aspect ratios:
+        if voxel_size is not None:
+            extents = get_x_y_limits_extents(
+                support.shape,
+                voxel_size,
+                data_centre=(0, 0, 0)
+            )
+            limits = get_x_y_limits_extents(
+                support.shape,
+                voxel_size,
+                data_centre=(0, 0, 0),
+                equal_limits=True
+            )
+
+        fig, axes = plt.subplots(3, len(to_plot), figsize=figsize)
+        if convention.lower() == "cxi":
+            slice_names = (
+                r"(xy)$_\mathrm{CXI}$ slice",
+                r"(xz)$_\mathrm{CXI}$ slice",
+                r"(zy)$_\mathrm{CXI}$ slice",
+            )
+        else:
+            slice_names = (
+                r"(yz)$_\mathrm{XU}$ slice",
+                r"(xz)$_\mathrm{XU}$ slice",
+                r"(xy)$_\mathrm{XU}$ slice",
+            )
+        for i in range(3):
+            axes[i, 0].annotate(
+                slice_names[i],
+                xy=(0.2, 0.5),
+                xytext=(-axes[i, 0].yaxis.labelpad - 2, 0),
+                xycoords=axes[i, 0].yaxis.label,
+                textcoords="offset points",
+                ha="right",
+                va="center",
+            )
+        mappables = {}
+        support = num_to_nan(support)
+        for i, (key, array) in enumerate(to_plot.items()):
+            if support is not None and key != "amplitude":
+                array = support * array
+
+            if key in PLOT_CONFIGS.keys():
+                cmap = PLOT_CONFIGS[key]["cmap"]
+                # check if vmin and vmax are given | not
+                if unique_vmin is None or unique_vmax is None:
+                    if support is not None:
+                        if key in ("dspacing", "lattice_parameter"):
+                            vmin = np.nanmin(array)
+                            vmax = np.nanmax(array)
+                        elif key == "amplitude":
+                            vmin = 0
+                            vmax = np.nanmax(array)
+                        else:
+                            vmax = np.nanmax(np.abs(array))
+                            vmin = -vmax
+                    else:
+                        vmin = PLOT_CONFIGS[key]["vmin"]
+                        vmax = PLOT_CONFIGS[key]["vmax"]
+                else:
+                    vmin = unique_vmin
+                    vmax = unique_vmax
+            else:
+                vmin = unique_vmin
+                vmax = unique_vmax
+                cmap = cmap if cmap else "turbo"
+
+            shape = array.shape
+
+            axes[0, i].matshow(
+                array[shape[0] // 2],
+                vmin=vmin,
+                vmax=vmax,
+                cmap=cmap,
+                origin="lower",
+                # extent=extents[2] + extents[1]
+            )
+            axes[1, i].matshow(
+                array[:, shape[1] // 2, :],
+                vmin=vmin,
+                vmax=vmax,
+                cmap=cmap,
+                origin="lower",
+                # extent=extents[2] + extents[0]
+            )
+            mappables[key] = axes[2, i].matshow(
+                np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
+                vmin=vmin,
+                vmax=vmax,
+                cmap=cmap,
+                origin="lower",
+                # extent=extents[0] + extents[1]
+            )
+            for ax, plane in zip(
+                    (axes[0, i], axes[1, i], axes[2, i]),
+                    ((1, 2), (0, 2), (1, 0))
+            ):
+                set_x_y_limits_extents(ax, extents, limits, plane)
+
+            if key == "amplitude":
+                if convention.lower == "cxi":
+                    plot_contour(
+                        axes[0, i],
+                        support[shape[0] // 2],
+                        color="k",
+                        pixel_size=(voxel_size[1], voxel_size[2]),
+                        data_centre=(0, 0)
+                    )
+                    plot_contour(
+                        axes[1, i],
+                        support[:, shape[1] // 2, :],
+                        color="k",
+                        pixel_size=(voxel_size[0], voxel_size[2]),
+                        data_centre=(0, 0)
+                    )
+                    plot_contour(
+                        axes[2, i],
+                        np.swapaxes(support[..., shape[2] // 2], 0, 1),
+                        color="k",
+                        pixel_size=(voxel_size[1], voxel_size[0]),
+                        data_centre=(0, 0)
+                    )
+                else:
+                    # TODO: XU case, to be implemented.
+                    pass
+
+        if table_info:
+            table_ax = fig.add_axes([0.25, -0.05, 0.5, 0.15])
+            table_ax.axis("tight")
+            table_ax.axis("off")
+
+            for k in table_info:
+                table_info[k] = round(table_info[k], 4)
+            cell_text = [
+                np.array2string(
+                    np.array(voxel_size),
+                    formatter={"float_kind": lambda x: "%.2f" % x, }
+                )
+            ] + [[v] for v in table_info]
+            n_cols = len(list(table_info.keys())) + 1
+            table = table_ax.table(
+                cellText=np.transpose(cell_text),
+                colLabels=["Voxel size (nm)"] + list(table_info.keys()),
+                colWidths=[1 / n_cols] * n_cols,
+                loc="center",
+                cellLoc="center"
+            )
+            table.scale(1.5, 1.5)
+            table.set_fontsize(10)
+
+        fig.subplots_adjust(hspace=0.01, wspace=0.02)
+
+        for i, key in enumerate(to_plot.keys()):
+            l, _, w, _ = axes[0, i].get_position().bounds
+            cax = fig.add_axes([l+0.01, 0.93, w-0.02, .02])
+            try:
+                cax.set_title(PLOT_CONFIGS[key]["title"])
+            except KeyError:
+                cax.set_title(key)
+            fig.colorbar(
+                mappables[key], cax=cax, extend="both",
+                orientation="horizontal"
+            )
+            cax.tick_params(axis='x', which='major', pad=1)
+
+        fig.canvas.draw()
+        for i, ax in enumerate(axes.ravel()):
+            ax.set_aspect("equal")
+            if (
+                    i % len(to_plot) == 0
+                    and list(to_plot.keys())[i % len(to_plot)] == "amplitude"
+            ):
+                ax.locator_params(nbins=5)
+                white_interior_ticks_labels(ax, -10, -5)
+
+            else:
+                ax.axes.xaxis.set_ticks([])
+                ax.axes.yaxis.set_ticks([])
+
+        fig.suptitle(title, y=1.050)
+
+        # save the figure
+        if save:
+            save_fig(fig, save, transparent=False)
+        return fig
