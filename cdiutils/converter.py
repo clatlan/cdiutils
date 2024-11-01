@@ -1,3 +1,5 @@
+import copy
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -60,6 +62,26 @@ class SpaceConverter():
             self.direct_lab_interpolator.target_voxel_size = size
         self._direct_lab_voxel_size = size
 
+    def to_dict(self) -> dict:
+        d = {
+                k: self.__dict__[k] for k in (
+                    "energy", "roi", "q_space_shift", "shape", "angles",
+                    "det_calib_params"
+                )
+        }
+        d["geometry"] = self.geometry.to_dict()
+        if self.q_lab_interpolator is not None:
+            d["transformation_matrices"] = {
+                "q_space": self.q_lab_interpolator.original_to_target_matrix,
+            }
+        if self.direct_lab_interpolator is not None:
+            d["transformation_matrices"]["direct_space"] = (
+                self.direct_lab_interpolator.original_to_target_matrix
+            )
+            d["direct_lab_voxel_size"] = self.direct_lab_voxel_size
+
+        return copy.deepcopy(d)
+
     def to_file(self, dump_path: str) -> None:
         """
         Save all necessary attributes to an hdf5 file using silx.
@@ -68,6 +90,8 @@ class SpaceConverter():
             dump_path (str): the path where to dump the file.
         """
         dump_path += ".h5" if not dump_path.endswith(".h5") else ""
+
+        attributes = self.to_dict()
 
         with h5py.File(dump_path, "w") as file:
             file.attrs["creator"] = "cdiutils"
@@ -78,35 +102,28 @@ class SpaceConverter():
             )
             # Store basic attributes as datasets
             for key in ("energy", "roi", "q_space_shift", "shape"):
-                file.create_dataset(key, data=self.__dict__[key])
+                if attributes.get(key) is None:
+                    attributes[key] = np.nan
+                file.create_dataset(key, data=attributes[key])
 
             # Handle dictionaries
-            det_calib_group = file.create_group("det_calib_params")
-            for k, v in self.det_calib_params.items():
-                det_calib_group.create_dataset(k, data=v)
-            angles_group = file.create_group("angles")
-            for k, v in self.angles.items():
-                angles_group.create_dataset(k, data=v)
-            geometry_group = file.create_group("geometry")
-            for k, v in self.geometry.to_dict().items():
-                geometry_group.create_dataset(k, data=v)
+            for key in ("det_calib_params", "angles", "geometry"):
+                group = file.create_group(key)
+                for k, v in attributes[key].items():
+                    group.create_dataset(k, data=v)
 
             # Save additional interpolator parameters if they exist
-            matrice_group = file.create_group("transformation_matrices")
-            if self.q_lab_interpolator is not None:
-                matrice_group.create_dataset(
-                    "q_space",
-                    data=self.q_lab_interpolator.original_to_target_matrix
-                )
-            if self.direct_lab_interpolator is not None:
-                matrice_group.create_dataset(
-                    "direct_space",
-                    data=self.direct_lab_interpolator.original_to_target_matrix
-                )
+            if attributes.get("transformation_matrices") is not None:
                 file.create_dataset(
                     "direct_lab_voxel_size",
-                    data=self.direct_lab_interpolator.target_voxel_size
+                    data=attributes["direct_lab_voxel_size"]
                 )
+                matrice_group = file.create_group("transformation_matrices")
+                for key in ("q_space", "direct_space"):
+                    matrice_group.create_dataset(
+                        key, data=attributes["transformation_matrices"][key]
+                    )
+                
 
     @classmethod
     def from_file(cls, path: str) -> "SpaceConverter":
