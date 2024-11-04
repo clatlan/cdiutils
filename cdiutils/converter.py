@@ -54,7 +54,7 @@ class SpaceConverter():
 
     @property
     def direct_lab_voxel_size(self):
-        return self._direct_lab_voxel_size
+        return tuple(float(e) for e in self._direct_lab_voxel_size)
 
     @direct_lab_voxel_size.setter
     def direct_lab_voxel_size(self, size: tuple):
@@ -123,7 +123,6 @@ class SpaceConverter():
                     matrice_group.create_dataset(
                         key, data=attributes["transformation_matrices"][key]
                     )
-                
 
     @classmethod
     def from_file(cls, path: str) -> "SpaceConverter":
@@ -174,7 +173,7 @@ class SpaceConverter():
                 attributes["direct_lab_interpolator"] = Interpolator3D(
                     attributes["shape"],
                     file["transformation_matrices/direct_space"][()],
-                    target_voxel_size=file["direct_lab_voxel_size"]
+                    target_voxel_size=file["direct_lab_voxel_size"][()]
                 )
 
         # build the Geometry instance
