@@ -263,6 +263,7 @@ class ID27Loader(Loader):
 
         return params
 
+    @h5_safe_load
     def load_detector_shape(
             self,
             scan: int,
