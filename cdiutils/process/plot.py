@@ -895,98 +895,59 @@ def plot_final_object_fft(
         experimental_ortho_data: np.ndarray,
         final_object_q_lab_regular_grid: np.ndarray,
         exp_data_q_lab_regular_grid: np.ndarray,
-        where_in_ortho_space: tuple = None,
         title: str = None
-) -> matplotlib.figure.Figure:
+) -> plt.Figure:
 
-    subplots = (2+1, 3)
-    figsize = get_figure_size(subplots=subplots)
-    figure, axes = plt.subplots(subplots[0]-1, subplots[1], figsize=figsize)
+    figure, axes = plt.subplots(2, 3, layout="constrained", figsize=(6, 4))
+    plot_params = {"cmap": "turbo", "levels": 100, "norm": LogNorm}
 
-    plot_at = tuple(e // 2 for e in final_object_fft.shape)
-
-    # load the orthogonalized grid values
     x_array, y_array, z_array = final_object_q_lab_regular_grid
+    plot_at = tuple(e // 2 for e in final_object_fft.shape)
 
     # careful here, in contourf it is not the matrix convention !
     axes[0, 0].contourf(
         y_array,  # must be the matplotlib xaxis array / numpy axis1
         z_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            np.swapaxes(
-                final_object_fft[plot_at[0]]+1,
-                axis1=0,
-                axis2=1
-            )
-        ),
-        levels=100,
+        np.swapaxes(final_object_fft[plot_at[0]], axis1=0, axis2=1),
+        **plot_params
     )
 
     axes[0, 1].contourf(
         x_array,  # must be the matplotlib xaxis array / numpy axis1
         z_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            np.swapaxes(
-                final_object_fft[:, plot_at[1]]+1,
-                axis1=0,
-                axis2=1
-            )
-        ),
-        levels=100,
+        np.swapaxes(final_object_fft[:, plot_at[1]], axis1=0, axis2=1),
+        **plot_params
     )
 
     axes[0, 2].contourf(
         y_array,  # must be the matplotlib xaxis array / numpy axis1
         x_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            final_object_fft[:, :, plot_at[2]]
-            + 1  # add 1 to avoid log(0)
-        ),
-        levels=100,
+        final_object_fft[:, :, plot_at[2]],
+        **plot_params
     )
 
-    if where_in_ortho_space is None:
-        where_in_ortho_space = tuple(
-            e // 2 for e in experimental_ortho_data.shape)
-
-    # load the orthogonalized grid values
+    plot_at = tuple(
+        e // 2 for e in experimental_ortho_data.shape
+    )
     x_array, y_array, z_array = exp_data_q_lab_regular_grid
 
-    # careful here, in contourf it is not the matrix convention !
     axes[1, 0].contourf(
         y_array,  # must be the matplotlib xaxis array / numpy axis1
         z_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            np.swapaxes(
-                experimental_ortho_data[where_in_ortho_space[0]]+1,
-                axis1=0,
-                axis2=1
-            )
-        ),
-        levels=100,
+        np.swapaxes(experimental_ortho_data[plot_at[0]], axis1=0, axis2=1),
+        **plot_params
     )
-
     axes[1, 1].contourf(
         x_array,  # must be the matplotlib xaxis array / numpy axis1
         z_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            np.swapaxes(
-                experimental_ortho_data[:, where_in_ortho_space[1]]+1,
-                axis1=0,
-                axis2=1
-            )
-        ),
-        levels=100,
+        np.swapaxes(experimental_ortho_data[:, plot_at[1]], 0, 1),
+        **plot_params
     )
-
     axes[1, 2].contourf(
         y_array,  # must be the matplotlib xaxis array / numpy axis1
         x_array,  # must be the matplotlib yaxis array / numpy axis0
-        np.log(
-            experimental_ortho_data[:, :, where_in_ortho_space[2]]
-            + 1  # add 1 to avoid log(0)
-        ),
-        levels=100,
+        experimental_ortho_data[:, :, plot_at[2]],
+        **plot_params,
     )
 
     ANGSTROM_SYMBOL, _, _ = set_plot_configs()
