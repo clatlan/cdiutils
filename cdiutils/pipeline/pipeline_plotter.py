@@ -636,11 +636,7 @@ class PipelinePlotter:
         obj_fft **= 2  # We want to plot the intensity
 
         q_spacing = [q[1] - q[0] for q in obj_q_grid]
-        q_centre = (
-            obj_q_grid[0].mean(),
-            obj_q_grid[1].mean(),
-            obj_q_grid[2].mean()
-        )
+        q_centre = tuple(obj_q_grid[i].mean() for i in range(3))
 
         _, object_fft_axes = plot_volume_slices(
             obj_fft,
@@ -652,12 +648,8 @@ class PipelinePlotter:
         )
 
         q_spacing = [q[1] - q[0] for q in exp_data_q_grid]
-        q_centre = (
-            exp_data_q_grid[0].mean(),
-            exp_data_q_grid[1].mean(),
-            exp_data_q_grid[2].mean()
-        )
-
+        q_centre = tuple(exp_data_q_grid[i].mean() for i in range(3))
+        
         _, exp_axes = plot_volume_slices(
             exp_ortho_data,
             voxel_size=q_spacing,
