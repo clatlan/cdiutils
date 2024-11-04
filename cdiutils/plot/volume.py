@@ -175,7 +175,7 @@ def plot_3d_surface_projections(
     )
     shape = find_suitable_array_shape(support, symmetrical=False)
 
-    cropped_support,  _, _, roi = CroppingHandler.chain_centering(
+    cropped_support,  _, _, roi = CroppingHandler.chain_centring(
         support,
         output_shape=shape,
         methods=["com"],
