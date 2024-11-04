@@ -1,12 +1,7 @@
 """
-A submodule for cxi file handling. It provides
-
-Raises:
-    ValueError: _description_
-
-Returns:
-    _type_: _description_
-    """
+A submodule for cxi file handling. The CXIFile class provides methods to
+make CXI-compliant HDF5 files.
+"""
 
 import h5py
 import numpy as np
@@ -19,6 +14,9 @@ from cdiutils import __version__
 __cxi_version__ = 150
 
 
+# The group attributes as defined by the CXI conventions. The 'default'
+# key corresponds to the hdf5 attribute 'default' and are here set to
+# some values for each CXI group.
 GROUP_ATTRIBUTES = {
     "image": {"default": "data", "nx_class": "NXdata"},
     "geometry": {"default": "name", "nx_class": "NXgeometry"},
@@ -27,7 +25,7 @@ GROUP_ATTRIBUTES = {
     "detector": {"default": "description", "nx_class": "NXdetector"},
     "sample": {"default": "sample_name", "nx_class": "NXsample"},
     "parameters": {"default": None, "nx_class": "NXparameters"},
-    "result": {"default": None, "nx_class": "NXresult"},
+    "result": {"default": "description", "nx_class": "NXresult"},
 }
 
 
@@ -37,7 +35,6 @@ class CXIFile:
         "dimensionality", "image_center", "image_size", "is_fft_shifter",
         "mask", "process_", "reciprocal_coordinates", "source_"
     )
-
 
     def __init__(self, file_path: str, mode: str = "a"):
         self.file_path = file_path
@@ -89,6 +86,7 @@ class CXIFile:
 
         if entry_name not in self.file:  # double check
             self.file.create_group(entry_name)
+            self.file[entry_name].attrs["NX_class"] = "NXentry"
             self._entry_counters[entry_name] = {}  # Initialise counters
 
         self._current_entry = entry_name  # Set the current entry context
@@ -104,8 +102,8 @@ class CXIFile:
 
         if group_type not in self._entry_counters[entry]:
             return 1
-        else:
-            return self._entry_counters[entry][group_type] + 1
+
+        return self._entry_counters[entry][group_type] + 1
 
     def _increment_index(self, entry: str, group_type: str) -> int:
         # if group_type not in self._entry_counters[entry]:
@@ -120,6 +118,7 @@ class CXIFile:
     def create_cxi_group(
             self,
             group_type: str,
+            default: str = None,
             index: int = None,
             attrs: dict = None,
             **kwargs,
@@ -128,8 +127,11 @@ class CXIFile:
         Create a CXI-compliant group with optional NeXus class.
 
         Args:
-            group_type (str): The type of group (e.g., 'image',
+            group_type (str): the type of group (e.g., 'image',
                 'process').
+            default (str, optional): the default hdf5 attribute. If not
+                provided will use the one stored in GROUP_ATTRIBUTES.
+                Defaults to None.   
             index (int, optional): explicit index. If None, the next
                 available index is used. Defaults to None.
             attrs: Additional attributes for the group.
@@ -157,7 +159,7 @@ class CXIFile:
         group_name = f"{group_type}_{index}"
         path = f"{self._current_entry}/{group_name}"
 
-        increment = self._create_group(path, nx_class, attrs)
+        increment = self.create_group(path, nx_class, attrs)
         if increment:
             self._increment_index(self._current_entry, group_type)
 
@@ -167,14 +169,14 @@ class CXIFile:
         self.create_cxi_dataset(path, data=kwargs)
         return path
 
-    def _create_group(
+    def create_group(
             self,
             path: str,
             nx_class: str = None,
             attrs: dict = None
     ) -> bool:
         """
-        Private method to handle the creation of groups in the context
+        Method to handle the creation of groups in the context
         of H5 files, not in the context of CXI.
 
         Args:
@@ -183,7 +185,8 @@ class CXIFile:
                 Defaults to None.
             attrs (dict, optional): Additional attributes for the group.
 
-        returns: True if the group was created else False.
+        returns: True if the group was created else False (i.e. if
+            group already exists).
         """
         if path not in self.file:
             group = self.file.require_group(path)
@@ -219,7 +222,7 @@ class CXIFile:
         # Handle nested dictionary by creating a group and populating it
         # recursively.
         if isinstance(data, dict):
-            group = self._create_group(path, nx_class, **attrs)
+            group = self.create_group(path, nx_class, **attrs)
             for key, value in data.items():
                 # Create a nested group or dataset depending on the
                 # value type.
@@ -285,7 +288,6 @@ class CXIFile:
         soft links.
 
         Args:
-            path (str): the path to the image entry.
             data (np.ndarray): the image data.
             link_data (bool, optional): whether to link to a data_N
                 group. Defaults to True.
@@ -296,11 +298,7 @@ class CXIFile:
             str: The full path of the created group.
         """
         # Minimal CXI image entry.
-        path = self.create_cxi_group(
-            "image", nx_class="NXdata", default="data"
-        )
-        self.create_cxi_dataset(f"{path}/data", data)
-        self.create_cxi_dataset(f"{path}/image_size", data.shape)
+        path = self.create_cxi_group("image", data=data, image_size=data.shape)
 
         for k, v in members.items():
             # Match the member base and any trailing digit
