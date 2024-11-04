@@ -19,6 +19,7 @@ __cxi_version__ = 150
 # some values for each CXI group.
 GROUP_ATTRIBUTES = {
     "image": {"default": "data", "nx_class": "NXdata"},
+    "data": {"default": "data", "nx_class": "NXdata"},
     "geometry": {"default": "name", "nx_class": "NXgeometry"},
     "source": {"default": "energy", "nx_class": "NXsource"},
     "process": {"default": "comment", "nx_class": "NXprocess"},
@@ -72,6 +73,26 @@ class CXIFile:
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit the runtime context related to this object."""
         self.close()
+
+    def __getitem__(self, entry: str):
+        """Allow direct access to entries with cxi[entry]."""
+        if entry in self.file:
+            return self.file[entry]
+        else:
+            raise KeyError(f"Entry '{entry}' does not exist in the CXI file.")
+
+    def __setitem__(self, entry: str, data):
+        """Allow adding data to an entry with cxi[entry] = data."""
+        if entry in self.file:
+            raise KeyError(f"Entry '{entry}' already exists.")
+        self.create_cxi_dataset(entry, data=data)
+
+    def __delitem__(self, entry: str):
+        """Allow deletion of an entry with del cxi[entry]."""
+        if entry in self.file:
+            del self.file[entry]
+        else:
+            raise KeyError(f"Entry '{entry}' does not exist, cannot delete.")
 
     def set_entry(self, index: int = None) -> str:
         """
@@ -226,7 +247,7 @@ class CXIFile:
             for key, value in data.items():
                 # Create a nested group or dataset depending on the
                 # value type.
-                self.create_cxi_dataset(f"{path}/{key}", value)
+                self.create_cxi_dataset(f"{path}/{key}", data=value)
             return group
 
         # Otherwise, simply create a standard dataset.
@@ -237,7 +258,12 @@ class CXIFile:
         dataset.attrs.update(attrs)
         return dataset
 
-    def softlink(self, path: str, target: str, raise_on_error: bool = False) -> None:
+    def softlink(
+            self,
+            path: str,
+            target: str,
+            raise_on_error: bool = False
+    ) -> None:
         """
         Create a soft link at the specified path pointing to an existing
         target path.
@@ -299,6 +325,8 @@ class CXIFile:
         """
         # Minimal CXI image entry.
         path = self.create_cxi_group("image", data=data, image_size=data.shape)
+        self.file[f"{path}"].attrs["interpretation"] = "image"
+        self.file[f"{path}"].attrs["signal"] = "data"
 
         for k, v in members.items():
             # Match the member base and any trailing digit
@@ -309,22 +337,33 @@ class CXIFile:
             if member_base in self.IMAGE_MEMBERS:
                 # Construct the full member name, adding the index if present
                 if index:
-                    self.softlink(f"{path}/{member_base}{index}", v)
+                    self.softlink(
+                        f"{path}/{member_base}{index}",
+                        f"{self._current_entry}/{v}"
+                    )
                 else:
                     self.create_cxi_dataset(f"{path}/{k}", v)
             else:
                 print(
                     f"Warning: '{k}' is not allowed in CXI image convention."
                 )
-        # if this is the first image, it should be default attribute
-        # of the parent entry_
-        if self._entry_counters[self._current_entry]["image"] == 1:
-            self.file[self._current_entry].attrs["default"] = "image_1"
 
         # link the image to a data entry
         if link_data:
-            index = self._get_next_index(self._current_entry, "data")
-            self.softlink(f"{self._current_entry}/data_{index}", path)
-            self._increment_index(self._current_entry, "data")
+            data_path = self.create_cxi_group("data")
+            self.softlink(f"{data_path}/data", f"{path}/data")
+            self.file[f"{data_path}"].attrs["signal"] = "data"
+            self.file[f"{data_path}"].attrs["interpretation"] = "image"
+
+        # Handle the default attribute of the current_entry. If this is
+        # the first image, it should be default attribute of the parent
+        # entry_.
+        if "default_entry" not in self._entry_counters[self._current_entry]:
+            self._entry_counters[
+                self._current_entry
+            ]["default_entry"] = "data_1" if link_data else "image_1"
+            self.file[
+                self._current_entry
+            ].attrs["default"] = "data_1" if link_data else "image_1"
 
         return path
