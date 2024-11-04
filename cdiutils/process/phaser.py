@@ -708,6 +708,29 @@ class PhasingResultAnalyser:
         self.result_paths = []
         self.best_candidates = []
 
+    @property
+    def metrics(self) -> dict:
+        metrics = {m: {} for m in self._metrics}
+        for m in self._metrics:
+            for path in self._metrics[m]:
+                if os.path.exists(path):
+                    run = path.split("/")[-1]
+                    metrics[m][run] = self._metrics[m][path]
+                else:
+                    metrics[m][path] = self._metrics[m][path]
+        return metrics
+
+    @property
+    def sorted_phasing_results(self) -> dict:
+        sorted_results = {}
+        for path in self._sorted_phasing_results:
+            if os.path.exists(path):
+                run = path.split("/")[-1]
+                sorted_results[run] = self._sorted_phasing_results[path]
+            else:
+                sorted_results[path] = self._sorted_phasing_results[path]
+        return sorted_results
+
     def find_phasing_results(self) -> None:
         """
         Find the last phasing results (.cxi files) and add them to the
