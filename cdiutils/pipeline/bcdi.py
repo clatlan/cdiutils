@@ -24,6 +24,7 @@ import yaml
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
 from cdiutils.load import Loader
+from cdiutils.cxi import CXIFile
 
 # Utility functions
 from cdiutils.utils import (
@@ -653,6 +654,7 @@ class BcdiPipeline(Pipeline):
         # Prepare dir in which pynx phasing results will be saved.
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
 
+        # Save the cropped detector data and mask in pynx phasing dir
         for name, data in zip(
                 ("data", "mask"),
                 (self.cropped_detector_data, self.mask)
@@ -660,20 +662,97 @@ class BcdiPipeline(Pipeline):
             path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
             np.savez(path, data=data)
 
-        if self.params["orthogonalise_before_phasing"]:
-            regular_grid_func = self.converter.get_xu_q_lab_regular_grid
-        else:
-            regular_grid_func = self.converter.get_q_lab_regular_grid
-            self.converter.to_file(
-                f"{self.dump_dir}/S{self.scan}_space_converter_parameters.h5"
+        # Save all outputs of the preprocessing stage in a .cxi file
+        with CXIFile("new_cxi_file.cxi", "w") as cxi:
+            cxi.stamp()
+            cxi.set_entry()
+
+            path = cxi.create_cxi_group(
+                "process",
+                command="cdiutils.pipeline.BcdiPipeline.preprocess()",
+                comment="Pipeline preprocessing step"
             )
-        np.savez(
-            f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
-            q_xlab=regular_grid_func()[0],
-            q_ylab=regular_grid_func()[1],
-            q_zlab=regular_grid_func()[2],
-            orthogonalised_intensity=self.orthogonalised_intensity
-        )
+            cxi.softlink(f"{path}/program", "/creator")
+            cxi.softlink(f"{path}/version", "/version")
+
+            geometry_to_parse = self.converter.geometry.to_dict()
+            geometry_to_parse.update({"angles": self.angles})
+            geo_path = cxi.create_cxi_group("geometry", **geometry_to_parse)
+
+            detector = {
+                "description": self.params["detector_name"],
+                "mask": self.mask[0],
+                "calibration": self.params["det_calib_params"]
+            }
+            path = cxi.create_cxi_group("detector", **detector)
+            cxi.softlink(f"{path}/distance", f"{path}/calibration/distance")
+            cxi.softlink(f"{path}/x_pixel_size", f"{path}/calibration/pwidth2")
+            cxi.softlink(f"{path}/y_pixel_size", f"{path}/calibration/pwidth1")
+            cxi.softlink(f"{path}/geometry_1", geo_path)
+
+            msg = """Raw detector data centring and cropping. The Region of
+Interet is given by the roi entry. The Voxels of interest are given by the voi
+entry."""
+            cxi.create_cxi_group(
+                "result", voi=self.voi, roi=self.converter.roi, description=msg
+            )
+            msg = """The orthogonalisation allows to make table of
+correspondence between the detector pixels and their associated positions in
+the reciprocal space. From this, the average d-spacing and lattice parameter
+are computed. The matrix to orthogonalise the reconstructed object after phase
+retrieval is also computed and will be used in the post-processing stage."""
+            results = self.converter.to_dict()
+            results = {k: results[k] for k in (
+                "q_space_shift", "transformation_matrices",
+                "direct_lab_voxel_size"
+            )}
+            atomic_params = self.atomic_params
+            atomic_params["units"] = "angstrom"
+            if self.params["orthogonalise_before_phasing"]:
+                qx, qy, qz = self.converter.get_xu_q_lab_regular_grid()
+            else:
+                qx, qy, qz = self.converter.get_q_lab_regular_grid()
+            results.update({
+                "atomic_parameters": atomic_params, "description": msg,
+                "qx_xu": qx, "qy_xu": qy, "qz_xu": qz
+            })
+            cxi.create_cxi_group("result", **results)
+            exp_path = self.params["experiment_file_path"]
+            cxi.create_cxi_group(
+                "sample",
+                "sample_name",
+                sample_name=self.sample_name,
+                experiment_file_path=exp_path,
+                experiment_identifier=exp_path.split("/")[-1].split(".")[0]
+            )
+            cxi.create_cxi_group("parameters", **self.params)
+            cxi.create_cxi_image(
+                self.cropped_detector_data,
+                data_type="cropped detector data",
+                data_space="reciprocal",
+                process_1="process_1"
+            )
+            cxi.create_cxi_image(
+                self.orthogonalised_intensity,
+                data_type="orthogonalised detector data",
+                data_space="reciprocal",
+                process_1="process_1"
+            )
+
+        # if self.params["orthogonalise_before_phasing"]:
+        #     regular_grid_func = self.converter.get_xu_q_lab_regular_grid
+        # else:
+        #     regular_grid_func = self.converter.get_q_lab_regular_grid
+        #     self.converter.to_file(
+        #         f"{self.dump_dir}/S{self.scan}_space_converter_parameters.h5"
+        #     )
+        # np.savez(
+        #     f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
+        #     q_xlab=regular_grid_func()[0],
+        #     q_ylab=regular_grid_func()[1],
+        #     q_zlab=regular_grid_func()[2],
+        #     orthogonalised_intensity=self.orthogonalised_intensity
+        # )
 
     def _make_slurm_file(self, template: str = None) -> None:
         # Make the pynx slurm file
@@ -880,8 +959,8 @@ class BcdiPipeline(Pipeline):
         A function wrapper for
         PhasingResultAnalyser.select_best_candidates.
         Select the best candidates, two methods are possible. Either
-        select a specific number of runs, provided they were analysed and
-        sorted beforehand. Or simply provide a list of integers
+        select a specific number of runs, provided they were analysed
+        and sorted beforehand. Or simply provide a list of integers
         corresponding to the digit numbers of the best runs.
 
         Args:
@@ -918,6 +997,7 @@ class BcdiPipeline(Pipeline):
         """
         try:
             modes, mode_weights = self.result_analyser.mode_decomposition()
+            self._save_pynx_results(modes=modes, mode_weights=mode_weights)
             self._save_mode_as_h5(
                 modes,
                 mode_weights,
@@ -936,6 +1016,29 @@ class BcdiPipeline(Pipeline):
                 """
                 self.logger.info("No command provided will use the default.")
             self._run_cmd(cmd)
+        self._save_pynx_results()
+    
+    def _save_pynx_results(
+            self,
+            mode_path: str = None,
+            modes: list = None,
+            mode_weights: list = None
+    ) -> None:
+        if mode_path is not None:
+            with h5py.File(mode_path) as file:
+                modes = file["entry_1/image_1/data"][()]
+                mode_weights = file["entry_1/data_2/data"][()]
+        else:
+            if modes is None:
+                raise ValueError("mode_path or modes required.")
+        
+        path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
+        with CXIFile(path, "w") as cxi:
+            cxi.stamp()
+            cxi.set_entry()
+            path = cxi.create_cxi_image(data=modes)
+            cxi[path].attrs["description"] = "Mode decomposition"
+        
 
     def _save_mode_as_h5(
             self,
