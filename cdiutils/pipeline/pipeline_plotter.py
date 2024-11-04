@@ -4,7 +4,7 @@ from matplotlib.colors import LogNorm
 import numpy as np
 from scipy.ndimage import binary_erosion
 
-from cdiutils.utils import kde_from_histogram, num_to_nan
+from cdiutils.utils import kde_from_histogram, num_to_nan, symmetric_pad
 from cdiutils.plot.formatting import (
     add_colorbar,
     add_labels,
@@ -506,32 +506,18 @@ class PipelinePlotter:
                 vmin = unique_vmin
                 vmax = unique_vmax
                 cmap = cmap if cmap else "turbo"
-
+            # if key == "amplitude":
+            #     cmap = plt.get_cmap(cmap)
+            #     cmap.set_bad("#30123bff")
             shape = array.shape
-
-            axes[0, i].matshow(
-                array[shape[0] // 2],
-                vmin=vmin,
-                vmax=vmax,
-                cmap=cmap,
-                origin="lower",
-                # extent=extents[2] + extents[1]
-            )
-            axes[1, i].matshow(
-                array[:, shape[1] // 2, :],
-                vmin=vmin,
-                vmax=vmax,
-                cmap=cmap,
-                origin="lower",
-                # extent=extents[2] + extents[0]
-            )
+            plot_params = {
+                "vmin": vmin, "vmax": vmax, "origin": "lower", "cmap": cmap,
+            }
+            axes[0, i].matshow(array[shape[0] // 2], **plot_params)
+            axes[1, i].matshow(array[:, shape[1] // 2, :], **plot_params)
             mappables[key] = axes[2, i].matshow(
                 np.swapaxes(array[..., shape[2] // 2], axis1=0, axis2=1),
-                vmin=vmin,
-                vmax=vmax,
-                cmap=cmap,
-                origin="lower",
-                # extent=extents[0] + extents[1]
+                **plot_params
             )
             for ax, plane in zip(
                     (axes[0, i], axes[1, i], axes[2, i]),
@@ -540,6 +526,7 @@ class PipelinePlotter:
                 set_x_y_limits_extents(ax, extents, limits, plane)
 
             if key == "amplitude":
+                print("THATS IT", convention)
                 if convention.lower == "cxi":
                     plot_contour(
                         axes[0, i],
@@ -570,15 +557,14 @@ class PipelinePlotter:
             table_ax = fig.add_axes([0.25, -0.05, 0.5, 0.15])
             table_ax.axis("tight")
             table_ax.axis("off")
-
             for k in table_info:
                 table_info[k] = round(table_info[k], 4)
-            cell_text = [
+            cell_text = [[
                 np.array2string(
                     np.array(voxel_size),
                     formatter={"float_kind": lambda x: "%.2f" % x, }
-                )
-            ] + [[v] for v in table_info]
+                )]
+            ] + [[v] for v in table_info.values()]
             n_cols = len(list(table_info.keys())) + 1
             table = table_ax.table(
                 cellText=np.transpose(cell_text),
@@ -625,3 +611,79 @@ class PipelinePlotter:
         if save:
             save_fig(fig, save, transparent=False)
         return fig
+
+    def plot_final_object_fft(
+            obj: np.ndarray,
+            voxel_size: tuple,
+            q_space_shift: tuple,
+            exp_ortho_data: np.ndarray,
+            exp_data_q_grid: np.ndarray,
+            title: str = None,
+            save: str = None
+    ) -> tuple[plt.Figure, plt.Axes]:
+
+        # Prepare the object fft
+        shape = exp_ortho_data.shape
+        q_voxel_size = 2 * np.pi / (10 * np.multiply(voxel_size, shape))
+        obj_q_grid = [
+            np.arange(-shape[i]//2, shape[i]//2) * q_voxel_size[i]
+            + q_space_shift[i]
+            for i in range(3)
+        ]
+
+        obj = symmetric_pad(obj, output_shape=shape)
+        obj_fft = np.abs(np.fft.ifftshift(np.fft.fftn(np.fft.fftshift(obj))))
+        obj_fft **= 2  # We want to plot the intensity
+
+        q_spacing = [q[1] - q[0] for q in obj_q_grid]
+        q_centre = (
+            obj_q_grid[0].mean(),
+            obj_q_grid[1].mean(),
+            obj_q_grid[2].mean()
+        )
+
+        _, object_fft_axes = plot_volume_slices(
+            obj_fft,
+            voxel_size=q_spacing,
+            data_centre=q_centre,
+            norm=LogNorm(1),
+            convention="xu",
+            show=False
+        )
+
+        q_spacing = [q[1] - q[0] for q in exp_data_q_grid]
+        q_centre = (
+            exp_data_q_grid[0].mean(),
+            exp_data_q_grid[1].mean(),
+            exp_data_q_grid[2].mean()
+        )
+
+        _, exp_axes = plot_volume_slices(
+            exp_ortho_data,
+            voxel_size=q_spacing,
+            data_centre=q_centre,
+            norm=LogNorm(1),
+            convention="xu",
+            show=False
+        )
+        fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
+        for new_axes, old_axes in zip(axes, (object_fft_axes, exp_axes)):
+            for new_ax, old_ax in zip(new_axes.flat, old_axes.flat):
+                # replot with same configuration
+                im = old_ax.get_images()[0]
+                new_ax.imshow(
+                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(1),
+                    extent=im.get_extent(), origin=im.origin
+                )
+                new_ax.axis(old_ax.axis())
+
+        add_labels(axes[0], space="rcp", convention="xu")
+        add_labels(axes[1], space="rcp", convention="xu")
+
+        axes[0, 1].set_title("FFT of the final object")
+        axes[1, 1].set_title("Orthogonalised experimental data")
+
+        fig.suptitle(title)
+        if save is not None:
+            save_fig(fig, save, transparent=False)
+        return fig, axes
