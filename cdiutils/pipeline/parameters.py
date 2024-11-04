@@ -27,7 +27,7 @@ AUTHORIZED_KEYS = {
     "light_loading": False,
     "det_reference_voxel": None,
     "rocking_angle_binning": None,
-    "q_lab_reference": None,
+    "q_lab_ref": None,
     "q_lab_max": None,
     "q_lab_com": None,
     "dspacing_reference": None,
