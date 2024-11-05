@@ -24,8 +24,9 @@ class SpaceConverter():
             roi: list = None,
             shape: tuple = None,
             q_space_shift: tuple = None,
-            q_lab_interpolator: "Interpolator3D" = None,
-            direct_lab_interpolator: "Interpolator3D" = None
+            q_lab_matrix: np.ndarray = None,
+            direct_lab_matrix: np.ndarray = None,
+            direct_lab_voxel_size: tuple = None
     ):
         self.geometry = geometry
         self.det_calib_params = det_calib_params
@@ -34,8 +35,16 @@ class SpaceConverter():
         self.shape = shape
         self.angles: dict = None
         self.q_space_shift = q_space_shift
-        self.q_lab_interpolator = q_lab_interpolator
-        self.direct_lab_interpolator = direct_lab_interpolator
+
+        self.q_lab_interpolator: Interpolator3D = None
+        if shape is not None and q_lab_matrix is not None:
+            self.q_lab_interpolator = Interpolator3D(shape, q_lab_matrix)
+
+        self.direct_lab_interpolator: Interpolator3D = None
+        if shape is not None and direct_lab_matrix is not None:
+            self.direct_lab_interpolator = Interpolator3D(
+                shape, direct_lab_matrix, direct_lab_voxel_size
+            )
 
         # convert the geometry to xrayutilities coordinate system
         if self.geometry.is_cxi:
@@ -165,16 +174,17 @@ class SpaceConverter():
             angles = {k: v[()] for k, v in file["angles"].items()}
 
             if "q_space" in file["transformation_matrices"]:
-                attributes["q_lab_interpolator"] = Interpolator3D(
-                    attributes["shape"],
-                    file["transformation_matrices/q_space"][()]
-                )
+                attributes["q_lab_matrix"] = file[
+                    "transformation_matrices/q_space"
+                ][()]
+
             if "q_space" in file["transformation_matrices"]:
-                attributes["direct_lab_interpolator"] = Interpolator3D(
-                    attributes["shape"],
-                    file["transformation_matrices/direct_space"][()],
-                    target_voxel_size=file["direct_lab_voxel_size"][()]
-                )
+                attributes["direct_lab_matrix"] = file[
+                    "transformation_matrices/direct_space"
+                ][()]
+                attributes["direct_lab_voxel_size"] = file[
+                    "direct_lab_voxel_size"
+                ][()]
 
         # build the Geometry instance
         attributes["geometry"] = Geometry.from_dict(attributes["geometry"])

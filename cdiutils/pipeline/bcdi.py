@@ -153,6 +153,42 @@ class BcdiPipeline(Pipeline):
 
         self.logger.info("BcdiPipeline initialised.")
 
+    @classmethod
+    def from_file(self, path: str) -> "BcdiPipeline":
+        if path.endswith(".cxi"):
+            with CXIFile(path, "r") as cxi:
+                instance = BcdiPipeline(cxi["entry_1/parameters_1"][()])
+
+                # Load the space converter related parameters
+                converter_params = {"geometry": Geometry.from_setup(
+                    cxi["entry_1/geometry_1/name"][()]
+                )}
+                converter_params["det_calib_params"] = cxi[
+                    "entry_1/detector_1/calibration"
+                ][()]
+                converter_params["roi"] = cxi["entry_1/result_1/roi"][()]
+                converter_params["energy"] = cxi["entry_1/source_1/energy"][()]
+                converter_params["shape"] = cxi["entry_1/image_1/size"][()]
+                converter_params["q_space_shift"] = cxi[
+                    "entry_1/result_2/q_space_shift"
+                ][()]
+                converter_params["q_lab_matrix"] = cxi[
+                    "entry_1/result_2/transformation_matrices/q_lab"
+                ][()]
+                converter_params["dreict_lab_matrix"] = cxi[
+                    "entry_1/result_2/transformation_matrices/direct_lab"
+                ][()]
+                converter_params["angles"] = cxi[
+                    "entry_1/geometry_1/angles"
+                ][()]
+                converter_params["is_cxi"]
+
+                instance.converter = SpaceConverter(**converter_params)
+            return instance
+        if path.endswith(".yml") or path.endswith(".yaml"):
+            raise ValueError("Loading from yaml files not yet implemented.")
+        raise ValueError("File not supported.")
+
     @Pipeline.process
     def preprocess(self) -> None:
         """
@@ -735,6 +771,9 @@ retrieval is also computed and will be used in the post-processing stage."""
                 experiment_identifier=exp_path.split("/")[-1].split(".")[0]
             )
             cxi.create_cxi_group("parameters", **self.params)
+            cxi.create_cxi_group(
+                "source", energy=self.params["energy"], units="eV"
+            )
             cxi.create_cxi_image(
                 self.cropped_detector_data,
                 data_type="cropped detector data",
@@ -1528,7 +1567,9 @@ reconstruction (best solution)."""
             prep_path = f"{self.dump_dir}/S{self.scan}_preprocessed_data.cxi"
             if os.path.isfile(prep_path):
                 with CXIFile(prep_path, "r") as f:
-                    for group in ("detector_1", "geometry_1", "sample_1"):
+                    for group in (
+                            "detector_1", "geometry_1", "sample_1", "source_1"
+                    ):
                         try:
                             f.copy(
                                 f"/entry_1/{group}",
