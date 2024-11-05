@@ -13,6 +13,7 @@ import time
 
 import numpy as np
 import yaml
+import vtk
 
 from cdiutils.plot.formatting import update_plot_params
 
@@ -487,3 +488,50 @@ class Pipeline(ABC):
         if return_text:
             return pretty_text
         return None
+
+    @staticmethod
+    def save_to_vti(
+            output_path: str,
+            voxel_size: tuple | list | np.ndarray,
+            cxi_convention: bool = False,
+            origin: tuple = (0, 0, 0),
+            **np_arrays: dict[np.ndarray]
+    ) -> None:
+        """
+        Save numpy arrays to .vti file.
+        """
+        voxel_size = tuple(voxel_size)
+        nb_arrays = len(np_arrays)
+
+        if not nb_arrays:
+            raise ValueError(
+                "np_arrays is empty, please provide a dictionary of "
+                "(fieldnames: np.ndarray) you want to save."
+            )
+        is_init = False
+        for i, (key, array) in enumerate(np_arrays.items()):
+            if not is_init:
+                shape = array.shape
+                if cxi_convention:
+                    voxel_size = (voxel_size[2], voxel_size[1], voxel_size[0])
+                    shape = (shape[2], shape[1], shape[0])
+                image_data = vtk.vtkImageData()
+                image_data.SetOrigin(origin)
+                image_data.SetSpacing(voxel_size)
+                image_data.SetExtent(
+                    0, shape[0] - 1,
+                    0, shape[1] - 1,
+                    0, shape[2] - 1
+                )
+                point_data = image_data.GetPointData()
+                is_init = True
+
+            vtk_array = vtk.util.numpy_support.numpy_to_vtk(array.ravel())
+            point_data.AddArray(vtk_array)
+            point_data.GetArray(i).SetName(key)
+            point_data.Update()
+
+        writer = vtk.vtkXMLImageDataWriter()
+        writer.SetFileName(output_path)
+        writer.SetInputData(image_data)
+        writer.Write()
