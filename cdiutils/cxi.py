@@ -4,6 +4,7 @@ make CXI-compliant HDF5 files.
 """
 
 import h5py
+import json
 import numpy as np
 import re
 
@@ -287,12 +288,25 @@ class CXIFile:
         # Handle nested dictionary by creating a group and populating it
         # recursively.
         if isinstance(data, dict):
-            group = self.create_group(path, nx_class, **attrs)
+            self.create_group(path, nx_class, **attrs)
             for key, value in data.items():
                 # Create a nested group or dataset depending on the
                 # value type.
                 self.create_cxi_dataset(f"{path}/{key}", data=value)
-            return group
+            return self[path]
+
+        # Handle the case where data is a list with mixed types
+        if isinstance(data, list):
+            if any(type(item) is not type(data[0]) for item in data):
+                self.create_group(path, nx_class, **attrs)
+                for i, item in enumerate(data):
+                    self.create_cxi_dataset(f"{path}/{i}", data=item)
+                self[path].attrs["original_type"] = "inhomogeneous_list"
+                return self[path]
+
+        # Check if data contains tuples, which need to be handled
+        elif isinstance(data, tuple):
+            data = np.array(data)  # Convert tuples to a numpy array
 
         # Otherwise, simply create a standard dataset.
         data = np.nan if data is None else data
@@ -301,6 +315,33 @@ class CXIFile:
             dataset.attrs["NX_class"] = nx_class
         dataset.attrs.update(attrs)
         return dataset
+
+    def read_cxi_dataset(self, path: str):
+        """
+        Read a dataset or group and handle inhomogeneous lists.
+
+        Args:
+            path (str): Path to the dataset or group.
+
+        Returns:
+            The reassembled data, either as the original inhomogeneous
+            list or a standard dataset.
+        """
+        node = self.file[path]
+
+        # Check if this is a group representing an inhomogeneous list
+        if node.attrs.get("original_type") == "inhomogeneous_list":
+            # Reconstruct the list by iterating over each dataset in the group
+            data = []
+            for idx in sorted(node.keys(), key=int):  # Sort by index order
+                item = node[idx][()]
+                data.append(
+                    item.tolist() if isinstance(item, np.ndarray) else item
+                )
+            return data
+
+        # Return the standard dataset directly
+        return node[()]
 
     def softlink(
             self,
