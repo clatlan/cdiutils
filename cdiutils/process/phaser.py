@@ -907,8 +907,7 @@ class PhasingResultAnalyser:
             ]
 
         if plot:
-            figsize = get_figure_size(scale=0.75)
-            figure, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
+            figure, ax = plt.subplots(1, 1, layout="tight", figsize=(6, 3))
             colors = {
                 m: c for m, c in zip(
                     self._metrics,
@@ -933,11 +932,13 @@ class PhasingResultAnalyser:
                 )
             ax.set_ylabel("Normalised metric")
             ax.set_xlabel("Run number")
-            figure.legend(
-                frameon=False,
-                loc="upper center",
-                bbox_to_anchor=(0.5, 0.915),
-                ncol=len(criteria)
+
+            # Shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+            # Put a legend to the right of the current axis
+            ax.legend(
+                loc="center left", bbox_to_anchor=(1, 0.5), frameon=False
             )
             figure.suptitle(
                 "Phasing result analysis (the lower the better)\n"
@@ -1127,8 +1128,9 @@ class PhasingResultAnalyser:
         direct_space_phase = np.angle(data)
 
         if data.ndim == 3:
-            figsize = get_figure_size(scale=0.75, subplots=(3, 3))
-            figure, axes = plt.subplots(2, 3, figsize=figsize, layout="tight")
+            figure, axes = plt.subplots(
+                2, 3, figsize=(6, 4), layout="constrained"
+            )
 
             slices = get_centred_slices(data.shape)
             for i in range(3):
@@ -1171,8 +1173,7 @@ class PhasingResultAnalyser:
             )
 
         if data.ndim == 2:
-            figsize = get_figure_size(scale=0.750, subplots=(1, 2))
-            figure, axes = plt.subplots(1, 2, figsize=figsize, layout="tight")
+            figure, axes = plt.subplots(1, 2, figsize=(4, 2), layout="tight")
 
             rcp_im = axes[0].matshow(
                 reciprocal_space_data,
@@ -1219,7 +1220,6 @@ class PhasingResultAnalyser:
             ax.set_yticks([])
 
         figure.suptitle(title)
-        figure.tight_layout()
     plt.show()
 
     @staticmethod
