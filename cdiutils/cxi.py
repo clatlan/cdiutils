@@ -33,7 +33,7 @@ GROUP_ATTRIBUTES = {
 class CXIFile:
     IMAGE_MEMBERS = (
         "title", "data", "data_error", "data_space", "data_type", "detector_",
-        "dimensionality", "image_center", "image_size", "is_fft_shifter",
+        "dimensionality", "image_center", "image_size", "is_fft_shifted",
         "mask", "process_", "reciprocal_coordinates", "source_"
     )
 
@@ -94,6 +94,50 @@ class CXIFile:
         else:
             raise KeyError(f"Entry '{entry}' does not exist, cannot delete.")
 
+    def copy(
+            self,
+            source_path: str,
+            dest_file: str = None,
+            dest_path: str = None,
+            **kwargs
+    ) -> None:
+        """
+        Copy a group or dataset from this CXI file to another location,
+        either within the same file or to a different CXI file.
+
+        Args:
+            source_path (str): Path to the object to copy in the source
+                file.
+            dest_file (CXIFile or h5py.File, optional): Destination file
+                object. If None, the copy will be within the same file.
+                Defaults to None.
+            dest_path (str, optional): Path in the destination file. If
+                None, defaults to source_path in the destination.
+                Defaults to None.
+            **kwargs: Additional arguments for h5py copy method (e.g.,
+                shallow, expand_soft).
+
+        Raises:
+            KeyError: if the source_path does not exist in the CXI file.
+        """
+        if source_path not in self.file:
+            raise KeyError(
+                f"Source path '{source_path}' does not exist in the CXI file.")
+
+        # Determine the destination file
+        if dest_file is None:
+            dest_file = self.file  # Same file copy
+        elif isinstance(dest_file, CXIFile):
+            # Unwrap to h5py.File if another CXIFile instance
+            dest_file = dest_file.file
+
+        # Determine the destination path
+        if dest_path is None:
+            # Use the same name if dest_path is not specified
+            dest_path = source_path 
+        # Perform the copy operation
+        self.file.copy(source_path, dest_file, name=dest_path, **kwargs)
+
     def set_entry(self, index: int = None) -> str:
         """
         Create or switch to a specific entry group (e.g., 'entry_1').
@@ -152,7 +196,7 @@ class CXIFile:
                 'process').
             default (str, optional): the default hdf5 attribute. If not
                 provided will use the one stored in GROUP_ATTRIBUTES.
-                Defaults to None.   
+                Defaults to None.
             index (int, optional): explicit index. If None, the next
                 available index is used. Defaults to None.
             attrs: Additional attributes for the group.
