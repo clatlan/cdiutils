@@ -8,7 +8,8 @@ import seaborn as sns
 import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
-import xrayutilities as xu
+
+from cdiutils.plot.formatting import save_fig
 
 
 def bin_along_axis(
@@ -899,7 +900,8 @@ def find_isosurface(
         nbins: int = 100,
         sigma_criterion: float = 3,
         plot: bool = False,
-        show: bool = False
+        show: bool = False,
+        save: str = None
 ) -> tuple[float, matplotlib.axes.Axes] | float:
     """
     Estimate the isosurface from the amplitude distribution
@@ -911,6 +913,7 @@ def find_isosurface(
     calculated as: mu - sigma_criterion * sigma. By default set to 3.
     (optional, float)
     :param show: whether or not to show the the figure
+    :param save: where to save the figure is plotted
 
     :return: the isosurface value and the figure in which the histogram
     was plotted
@@ -954,7 +957,7 @@ def find_isosurface(
 
     if plot or show:
         figsize = (5.812, 3.592)  # golden ratio
-        fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=figsize)
+        fig, ax = matplotlib.pyplot.subplots(1, 1, layout="tight", figsize=figsize)
         ax.bar(
             bin_centres,
             counts,
@@ -991,9 +994,11 @@ def find_isosurface(
 
         ax.set_xlabel(r"normalised amplitude")
         ax.set_ylabel("counts")
-        ax.legend()
+        ax.legend(frameon=False)
         fig.suptitle(r"Reconstructed amplitude distribution")
         fig.tight_layout()
+        if save is not None:
+            save_fig(fig, save, transparent=False)
         if show:
             matplotlib.pyplot.show()
         return float(isosurface), fig
