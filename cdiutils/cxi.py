@@ -290,8 +290,7 @@ class CXIFile:
         if isinstance(data, dict):
             self.create_group(path, nx_class, **attrs)
             for key, value in data.items():
-                # Create a nested group or dataset depending on the
-                # value type.
+                # Recursively create nested datasets or groups
                 self.create_cxi_dataset(f"{path}/{key}", data=value)
             return self[path]
 
