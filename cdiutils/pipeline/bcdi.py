@@ -38,6 +38,8 @@ from cdiutils.utils import (
 
 # Plot function specifically made for the pipeline.
 from .pipeline_plotter import PipelinePlotter
+from cdiutils.plot.colormap import RED_TO_TEAL
+from cdiutils.plot.volume import plot_3d_surface_projections
 
 from cdiutils.process.phaser import PhasingResultAnalyser, PynNXImportError
 from cdiutils.process.postprocessor import PostProcessor
@@ -146,6 +148,9 @@ class BcdiPipeline(Pipeline):
         self.reconstruction: np.ndarray = None
         self.structural_props: dict = None
 
+        # For storing data that later saved in the cxi files
+        self.extra_info: dict = {}
+
         self.logger.info("BcdiPipeline initialised.")
 
     @Pipeline.process
@@ -193,8 +198,8 @@ class BcdiPipeline(Pipeline):
             if r < 0:
                 raise ValueError(
                     "The preprocess_shape and the detector voxel reference are"
-                    f" not compatible: {self.params['preprocess_shape'] = }, "
-                    f"{self.voi['full']['ref'] = }."
+                    f" not compatible: {self.params['preprocess_shape'] = }, "  # noqa E251, E202
+                    f"{self.voi['full']['ref'] = }."  # noqa E251, E202
                 )
         # print out the oversampling ratio and rebin factor suggestion
         ratios = oversampling_from_diffraction(
@@ -357,7 +362,7 @@ class BcdiPipeline(Pipeline):
         )
 
         # Save the data and the parameters in the dump directory
-        self._save_preprocess_data()
+        self._save_preprocessed_data()
         self._save_parameter_file()
 
     def _save_parameter_file(self) -> None:
@@ -649,7 +654,7 @@ class BcdiPipeline(Pipeline):
 
         return cropped_detector_data, roi
 
-    def _save_preprocess_data(self) -> None:
+    def _save_preprocessed_data(self) -> None:
         """Save the data generated during the preprocessing."""
         # Prepare dir in which pynx phasing results will be saved.
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
@@ -663,13 +668,14 @@ class BcdiPipeline(Pipeline):
             np.savez(path, data=data)
 
         # Save all outputs of the preprocessing stage in a .cxi file
-        with CXIFile("new_cxi_file.cxi", "w") as cxi:
+        dump_path = f"{self.dump_dir}/S{self.scan}_preprocessed_data.cxi"
+        with CXIFile(dump_path, "w") as cxi:
             cxi.stamp()
             cxi.set_entry()
 
             path = cxi.create_cxi_group(
                 "process",
-                command="cdiutils.pipeline.BcdiPipeline.preprocess()",
+                command="cdiutils.BcdiPipeline.preprocess()",
                 comment="Pipeline preprocessing step"
             )
             cxi.softlink(f"{path}/program", "/creator")
@@ -691,11 +697,13 @@ class BcdiPipeline(Pipeline):
             cxi.softlink(f"{path}/geometry_1", geo_path)
 
             msg = """Raw detector data centring and cropping. The Region of
-Interet is given by the roi entry. The Voxels of interest are given by the voi
+Interest is given by the roi entry. The Voxels of interest are given by the voi
 entry."""
-            cxi.create_cxi_group(
+            path = cxi.create_cxi_group(
                 "result", voi=self.voi, roi=self.converter.roi, description=msg
             )
+            cxi.softlink(path + "/process_1", "entry_1/process_1")
+
             msg = """The orthogonalisation allows to make table of
 correspondence between the detector pixels and their associated positions in
 the reciprocal space. From this, the average d-spacing and lattice parameter
@@ -716,7 +724,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "atomic_parameters": atomic_params, "description": msg,
                 "qx_xu": qx, "qy_xu": qy, "qz_xu": qz
             })
-            cxi.create_cxi_group("result", **results)
+            path = cxi.create_cxi_group("result", **results)
+            cxi.softlink(path + "/process_1", "entry_1/process_1")
             exp_path = self.params["experiment_file_path"]
             cxi.create_cxi_group(
                 "sample",
@@ -738,21 +747,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 data_space="reciprocal",
                 process_1="process_1"
             )
-
-        # if self.params["orthogonalise_before_phasing"]:
-        #     regular_grid_func = self.converter.get_xu_q_lab_regular_grid
-        # else:
-        #     regular_grid_func = self.converter.get_q_lab_regular_grid
-        #     self.converter.to_file(
-        #         f"{self.dump_dir}/S{self.scan}_space_converter_parameters.h5"
-        #     )
-        # np.savez(
-        #     f"{self.dump_dir}/S{self.scan}_orthogonalised_intensity.npz",
-        #     q_xlab=regular_grid_func()[0],
-        #     q_ylab=regular_grid_func()[1],
-        #     q_zlab=regular_grid_func()[2],
-        #     orthogonalised_intensity=self.orthogonalised_intensity
-        # )
+        self.logger.info(f"Preprocess data file saved at:\n{dump_path}")
 
     def _make_slurm_file(self, template: str = None) -> None:
         # Make the pynx slurm file
@@ -767,7 +762,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         else:
             self.logger.info(
                 "Pynx slurm file template provided"
-                f"{template = }."
+                f"{template = }."  # noqa: E251, E202
             )
         with open(
                 template, "r", encoding="utf8"
@@ -795,6 +790,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             pynx_slurm_file_template: str = None,
             clear_former_results: bool = False,
             cmd: str = None,
+            **pynx_params
     ) -> None:
         """
         Run the phase retrieval using pynx either by submitting a job to
@@ -810,11 +806,14 @@ retrieval is also computed and will be used in the post-processing stage."""
                 former results. Defaults to False.
             cmd (str, optional): the command to run when running
                 pynx on the current machine. Defaults to None.
+            **pynx_params: additional pynx parameters.
 
         Raises:
             PyNXScriptError: if the pynx script fails.
             e: if the subprocess fails.
         """
+        if pynx_params is not None:
+            self.params["pynx"].update(pynx_params)
         if clear_former_results:
             self.logger.info("Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
@@ -929,7 +928,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
             plot_phase (bool, optional): whether the phase must be
-                plotted. If True, will the phase is plotted with 
+                plotted. If True, will the phase is plotted with
                 amplitude as opacity. If False, amplitude is plotted
                 instead. Defaults to False.
             init_analyser: (bool, optional): whether to force the
@@ -998,11 +997,11 @@ retrieval is also computed and will be used in the post-processing stage."""
         try:
             modes, mode_weights = self.result_analyser.mode_decomposition()
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
-            self._save_mode_as_h5(
-                modes,
-                mode_weights,
-                candidates=self.result_analyser.best_candidates
-            )
+            # self._save_mode_as_h5(
+            #     modes,
+            #     mode_weights,
+            #     candidates=self.result_analyser.best_candidates
+            # )
         except PynNXImportError:
             self.logger.info(
                 "PyNX is not installed on the current machine. Will try to "
@@ -1016,8 +1015,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 """
                 self.logger.info("No command provided will use the default.")
             self._run_cmd(cmd)
-        self._save_pynx_results()
-    
+            self._save_pynx_results(self.pynx_phasing_dir + "mode.h5")
+
     def _save_pynx_results(
             self,
             mode_path: str = None,
@@ -1031,14 +1030,74 @@ retrieval is also computed and will be used in the post-processing stage."""
         else:
             if modes is None:
                 raise ValueError("mode_path or modes required.")
-        
+
         path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
         with CXIFile(path, "w") as cxi:
             cxi.stamp()
             cxi.set_entry()
-            path = cxi.create_cxi_image(data=modes)
+            # Copy the information in PyNX file
+            path = cxi.create_cxi_group(
+                "process",
+                comment="PyNX phasing.",
+                description="""Process information for the original CDI
+reconstruction (best solution)."""
+            )
+            with h5py.File(self.result_analyser.best_candidates[0], "r") as f:
+                if "/entry_last/image_1/process_1" in f:
+                    for key in f["/entry_last/image_1/process_1"]:
+                        f.copy(
+                            f"/entry_last/image_1/process_1/{key}",
+                            cxi[path],
+                            name=key
+                        )
+
+            path = cxi.create_cxi_group(
+                "result",
+                description=f"Check results out in {self.pynx_phasing_dir}"
+            )
+            cxi.softlink(f"{path}/process_1", "/entry_1/process_1")
+
+            cxi.create_cxi_group(
+                "process",
+                command="cdiutils.BcdiPipeline.analyse_phasing_results()",
+                comment="Pipeline phase retrieval results analysis step."
+            )
+            path = cxi.create_cxi_group(
+                "result",
+                description="Sort the phasing results according to criterion.",
+                sorted_results=self.result_analyser.sorted_phasing_results,
+                metrics=self.result_analyser.metrics
+            )
+            cxi.softlink(f"{path}/process_2", "/entry_1/process_2")
+
+            cxi.create_cxi_group(
+                "process",
+                command="cdiutils.BcdiPipeline.select_best_candidates()",
+                comment="Best candidate selection"
+            )
+            path = cxi.create_cxi_group(
+                "result", description="Only selected best candidates",
+                best_candidates=self.result_analyser.best_candidates
+            )
+            cxi.softlink(f"{path}/process_3", "/entry_1/process_3")
+
+            cxi.create_cxi_group(
+                "process",
+                command=(
+                    "pynx-cdi-analysis / "
+                    "cdiutils.pipeline.BcdiPipeline.mode_decomposition()"
+                ),
+                comment="Mode decomposition"
+            )
+            path = cxi.create_cxi_group(
+                "result",
+                description="The weights of each calculated mode.",
+                mode_weights=mode_weights
+            )
+            cxi.softlink(f"{path}/process_4", "/entry_1/process_4")
+
+            path = cxi.create_cxi_image(data=modes, process_4="process_4")
             cxi[path].attrs["description"] = "Mode decomposition"
-        
 
     def _save_mode_as_h5(
             self,
@@ -1115,22 +1174,16 @@ retrieval is also computed and will be used in the post-processing stage."""
             data_2["title"] = "Modes relative weights"
 
     @Pipeline.process
-    def postprocess(
-            self, reload_params_file: bool | str = None,
-            **params
-    ) -> None:
-
-        if reload_params_file is not None:
-            if isinstance(reload_params_file, str):
-                self.logger.info(
-                    "Parameters file provided, will load the parameters and "
-                    "update the current ones."
-                )
-                self.params.update(self.load_parameters(reload_params_file))
-            elif reload_params_file:
-                params_path = f"{self.dump_dir}S{self.scan}_parameters.yml"
-                self.logger.info(f"Loading parameters from:\n{params_path}")
-                self.params.update(self.load_parameters(params_path))
+    def postprocess(self, **params) -> None:
+        # Whether to reload the data
+        not_missing = np.array([
+            self.params[k] is not None or params.get(k) is not None
+            for k in ("det_reference_voxel", "q_lab_ref")
+        ])
+        if not np.all(not_missing):
+            params_path = f"{self.dump_dir}S{self.scan}_parameters.yml"
+            self.logger.info(f"Loading parameters from:\n{params_path}")
+            self.params.update(self.load_parameters(params_path))
         if params:
             self.logger.info(
                 "Additional parameters provided, will update the current "
@@ -1139,8 +1192,9 @@ retrieval is also computed and will be used in the post-processing stage."""
             self.params.update(params)
 
         if self.reconstruction is None:
-            with h5py.File(self.pynx_phasing_dir + "mode.h5") as file:
-                self.reconstruction = file["entry_1/data_1/data"][0]
+            path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
+            with CXIFile(path, "r") as cxi:
+                self.reconstruction = cxi["entry_1/data_1/data"][0]
 
         self._get_oversampling_ratios(self.reconstruction)
 
@@ -1148,7 +1202,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         if self.converter is None:
             path = f"{self.dump_dir}S{self.scan}_space_converter_parameters.h5"
             if self.params["orthogonalise_before_phasing"]:
-                pass
+                pass  # TODO
             else:
                 if os.path.exists(path):
                     self.converter = SpaceConverter.from_file(path)
@@ -1191,15 +1245,17 @@ retrieval is also computed and will be used in the post-processing stage."""
         self.logger.info(
             "Finding an isosurface estimate based on the "
             "reconstructed Bragg electron density histogram:",
-            end=" "
         )
-        isosurface, amp_hist_fig = find_isosurface(
+        isosurface, _ = find_isosurface(
             np.abs(self.reconstruction),
             nbins=100,
             sigma_criterion=3,
-            plot=True  # plot and return the figure
+            plot=True,  # plot and return the figure,
+            save=f"{self.dump_dir}/S{self.scan}_amplitude_distribution.png"
         )
-        self.logger.info(f"isosurface estimated at {isosurface}.")
+        # store the estimated isosurface
+        self.extra_info["estimated_isosurface"] = isosurface
+        self.logger.info(f"Isosurface estimated at {isosurface}.")
 
         if self.params["isosurface"] is not None:
             self.logger.info(
@@ -1221,17 +1277,16 @@ retrieval is also computed and will be used in the post-processing stage."""
             "\n\t- phase \n\t- displacement\n\t- het. (heterogeneous) strain"
             "\n\t- d-spacing\n\t- lattice parameter."
             "\nhet. strain maps are computed using various methods, either"
-            " phase ramp removal or d-spacing method.\n",
+            " phase ramp removal or d-spacing method.\n"
             f"The theoretical Bragg peak is {self.params['hkl']}."
         )
         if self.params["handle_defects"]:
             self.logger.info("Defect handling requested.")
 
         if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.xu_to_cxi(self.params["q_lab_reference"])
+            g_vector = SpaceConverter.xu_to_cxi(self.params["q_lab_ref"])
         else:
-            g_vector = self.params["q_lab_reference"]
-
+            g_vector = self.params["q_lab_ref"]
         self.structural_props = PostProcessor.get_structural_properties(
             self.reconstruction,
             support_parameters=(
@@ -1253,34 +1308,36 @@ retrieval is also computed and will be used in the post-processing stage."""
         }
         # plot and save the detector data in the full detector frame and
         # final frame
-        dump_file_tmpl = (
-            f"{self.dump_dir}/S{self.scan}_" + "{}.png"
+        dump_file_tmpl = f"{self.dump_dir}/S{self.scan}_" + "{}.png"
+        sample_scan = f"{self.sample_name}, S{self.scan}"
+        self.extra_info["averaged_lattice_parameter"] = np.nanmean(
+            self.structural_props["lattice_parameter"]
         )
-
+        self.extra_info["averaged_dspacing"] = np.nanmean(
+            self.structural_props["dspacing"]
+        )
         table_info = {
             "Isosurface": self.params["isosurface"],
-            r"Averaged Lat. Par. ($\AA$)": np.nanmean(
-                self.structural_props["lattice_parameter"]
+            "Averaged Lat. Par. (Å)": (
+                self.extra_info["averaged_lattice_parameter"]
             ),
-            r"Averaged d-spacing ($\AA$)": np.nanmean(
-                self.structural_props["dspacing"]
-            )
+            "Averaged d-spacing (Å)": self.extra_info["averaged_dspacing"]
         }
         PipelinePlotter.summary_plot(
-            title=f"Summary figure, {self.sample_name}, S{self.scan}",
+            title=f"Summary figure, {sample_scan}",
             support=self.structural_props["support"],
             table_info=table_info,
             voxel_size=self.params["voxel_size"],
-            save=dump_file_tmpl.format("summary_plot"),
             convention=self.params["orientation_convention"],
+            save=dump_file_tmpl.format("summary_plot"),
             **to_plot
         )
         PipelinePlotter.summary_plot(
-            title=f"Strain check figure, {self.sample_name}, S{self.scan}",
+            title=f"Strain check figure, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
-            save=dump_file_tmpl.format("strain_methods"),
             convention=self.params["orientation_convention"],
+            save=dump_file_tmpl.format("strain_methods"),
             **{
                 k: self.structural_props[k]
                 for k in [
@@ -1289,11 +1346,76 @@ retrieval is also computed and will be used in the post-processing stage."""
                 ]
             }
         )
-        # TODO: surface strain projections, strain statistics, shear
-        # displacement and fft of final object
 
-        self.bcdi_processor.postprocess()
-        self.bcdi_processor.save_postprocessed_data()
+        axis_names = [r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"]
+        denom = (
+            "du_"
+            + "{" + f"{''.join([str(e) for e in self.params['hkl']])}"
+            + "}"
+        )
+        titles = [f"${denom}/d{axis_names[i]}$" for i in range(3)]
+        displacement_gradient_plots = {
+            titles[i]: self.structural_props["displacement_gradient"][i]
+            for i in range(3)
+        }
+        ptp_value = (
+            np.nanmax(self.structural_props["displacement_gradient"][0])
+            - np.nanmin(self.structural_props["displacement_gradient"][0])
+        )
+        PipelinePlotter.summary_plot(
+            title=f"Shear displacement, {sample_scan}",
+            support=self.structural_props["support"],
+            voxel_size=self.params["voxel_size"],
+            convention=self.params["orientation_convention"],
+            save=dump_file_tmpl.format("shear_displacement"),
+            unique_vmin=-ptp_value/2,
+            unique_vmax=ptp_value/2,
+            cmap=RED_TO_TEAL,
+            **displacement_gradient_plots
+        )
+
+        PipelinePlotter.strain_statistics(
+            self.structural_props["het_strain_from_dspacing"],
+            self.structural_props["support"],
+        )
+        plot_3d_surface_projections(
+            data=self.structural_props["het_strain"],
+            support=self.structural_props["support"],
+            voxel_size=self.params["voxel_size"],
+            cmap="cet_CET_D13",
+            vmin=-np.nanmax(np.abs(self.structural_props["het_strain"])),
+            vmax=np.nanmax(np.abs(self.structural_props["het_strain"])),
+            cbar_title=r"Strain (%)",
+            title=f"3D views of the strain, {sample_scan}"
+        )
+
+        # Load the orthogonalised peak
+        path = f"{self.dump_dir}/S{self.scan}_preprocessed_data.cxi"
+        with CXIFile(path, "r") as cxi:
+            ortho_exp_intensity = cxi["entry_1/data_2/data"][()]
+            exp_q_grid = tuple(
+                cxi[f"entry_1/result_2/{k}_xu"][()]
+                for k in ("qx", "qy", "qz")
+            )
+        # To be compared, we must make sure we are in XU convention.
+        obj = (
+            self.structural_props["amplitude"]
+            * np.exp(-1j*self.structural_props["phase"])
+        )
+        if self.params["orientation_convention"].lower() == "CXI":
+            obj = self.space_converter.cxi_to_xu(obj)
+
+        PipelinePlotter.plot_final_object_fft(
+            obj,
+            self.params["voxel_size"],
+            self.converter.q_space_shift,
+            ortho_exp_intensity,
+            exp_q_grid,
+            title=f"FFT of final object vs. experimental data, {sample_scan}",
+            save=f"{self.dump_dir}/S{self.scan}_final_object_fft.png"
+        )
+
+        self._save_postprocessed_data()
         self._save_parameter_file()
 
     def _get_oversampling_ratios(self, data: np.ndarray) -> np.ndarray:
@@ -1306,12 +1428,13 @@ retrieval is also computed and will be used in the post-processing stage."""
         support = np.where(amp >= isosurface, 1, 0)
         # Print the oversampling ratio
         ratios = get_oversampling_ratios(support)
-        self.verbose_print(
-            "[INFO] The oversampling ratios in each direction are "
+        self.logger.info(
+            "The oversampling ratios in each direction are "
             + ", ".join(
                 [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
         )
+        self.extra_info["oversampling_ratios"] = ratios
 
         if support.shape != self.params["preprocess_shape"]:
             self.logger.warning(
@@ -1321,6 +1444,9 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
 
     def _check_voxel_size(self) -> None:
+        self.extra_info["voxel_size_from_extent"] = (
+            self.converter.direct_lab_voxel_size
+        )
         if self.params["voxel_size"] is None:
             self.params["voxel_size"] = self.converter.direct_lab_voxel_size
         else:
@@ -1331,6 +1457,11 @@ retrieval is also computed and will be used in the post-processing stage."""
                 ))
             # This sets the direct space interpolator voxel size
             self.converter.direct_lab_voxel_size = self.params["voxel_size"]
+        print(
+            self.params["voxel_size"], type(self.params["voxel_size"]),
+            self.converter.direct_lab_voxel_size,
+            self.converter.direct_lab_interpolator.target_voxel_size
+        )
 
     def _check_orientation_convention(self) -> None:
         # After orthogonalisation, convention is XU.
@@ -1339,6 +1470,118 @@ retrieval is also computed and will be used in the post-processing stage."""
             self.params["voxel_size"] = self.converter.xu_to_cxi(
                 self.params["voxel_size"]
             )
+
+    def _save_postprocessed_data(self) -> None:
+        dump_path = f"{self.dump_dir}/S{self.scan}_post_processed_data.cxi"
+        with CXIFile(dump_path, "w") as cxi:
+            cxi.stamp()
+            msg = """Post-processing of the data including:
+- orthogonalisation
+- isosurface estimation
+- apodization
+- structural properties computation"""
+            path = cxi.create_cxi_group(
+                "process",
+                description=msg,
+                comment="Data post-processing",
+                command="cdiutils.BcdiPipeline.postprocess()"
+            )
+            cxi.softlink(f"{path}/program", "/creator")
+            cxi.softlink(f"{path}/version", "/version")
+
+            path = cxi.create_cxi_group(
+                "result",
+                description="Orthogonalisation procedure",
+                voxel_size_from_reciprocal_space_extent=(
+                    self.extra_info["voxel_size_from_extent"]
+                ),
+                used_voxel_size=self.params["voxel_size"],
+            )
+            cxi.softlink(f"{path}/process_1", "entry_1/process_1")
+
+            path = cxi.create_cxi_group(
+                "result",
+                description="Surface determination",
+                estimated_isosurface=self.extra_info["estimated_isosurface"],
+                used_isosurface=self.params["isosurface"],
+            )
+            cxi.softlink(f"{path}/process_1", "entry_1/process_1")
+            path = cxi.create_cxi_group(
+                "result",
+                description="Oversampling estimation",
+                oversampling_ratios=self.extra_info["oversampling_ratios"]
+            )
+            cxi.softlink(f"{path}/process_1", "entry_1/process_1")
+
+            path = cxi.create_cxi_group(
+                "result",
+                description="Averaged lattice parameter and d-spacing",
+                dspacing=self.extra_info["averaged_dspacing"],
+                lattice_parameter=self.extra_info[
+                    "averaged_lattice_parameter"
+                ],
+                units="angstrom"
+            )
+            cxi.softlink(f"{path}/process_1", "entry_1/process_1")
+
+            # Copy entries from the preprocessed_data file
+            prep_path = f"{self.dump_dir}/S{self.scan}_preprocessed_data.cxi"
+            if os.path.isfile(prep_path):
+                with CXIFile(prep_path, "r") as f:
+                    for group in ("detector_1", "geometry_1", "sample_1"):
+                        try:
+                            f.copy(
+                                f"/entry_1/{group}",
+                                cxi,
+                                f"/entry_1/{group}"
+                            )
+                        except KeyError:
+                            print(f"Cannot found {group} in {prep_path} file.")
+            # We do not copy the parameters from preprocessed_data
+            # because they might have changed.
+            cxi.create_cxi_group("parameters", **self.params)
+
+            for key, data in self.structural_props.items():
+                if isinstance(data, np.ndarray):
+                    path = cxi.create_cxi_image(
+                        data=data,
+                        data_space="Direct space",
+                        title=key,
+                        process_1="process_1"
+                    )
+                    cxi.softlink(f"entry_1/{key}", path)
+
+        # Save as vti
+        to_save_as_vti = {
+            k: self.structural_props[k]
+            for k in ["amplitude", "support", "phase", "displacement",
+                      "het_strain", "het_strain_from_dspacing",
+                      "lattice_parameter", "numpy_het_strain", "dspacing"]
+        }
+
+        # add the dspacing average and lattice constant average around
+        # the NP to avoid nan values that are annoying for 3D
+        # visualisation
+        to_save_as_vti["dspacing"] = np.where(
+            np.isnan(to_save_as_vti["dspacing"]),
+            self.extra_info["averaged_dspacing"],
+            to_save_as_vti["dspacing"]
+        )
+        to_save_as_vti["lattice_parameter"] = np.where(
+            np.isnan(to_save_as_vti["lattice_parameter"]),
+            self.extra_info["averaged_lattice_parameter"],
+            to_save_as_vti["lattice_parameter"]
+        )
+
+        # save to vti file
+        self.save_to_vti(
+            f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
+            voxel_size=self.params["voxel_size"],
+            cxi_convention=(
+                self.params["orientation_convention"].lower() == "cxi"
+            ),
+            **to_save_as_vti
+        )
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
