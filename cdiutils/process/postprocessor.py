@@ -66,12 +66,12 @@ class PostProcessor:
                 )
             # center the arrays at the center of mass of the support
             com = CroppingHandler.get_position(support, "com")
-            complex_object = CroppingHandler.force_centered_cropping(
+            complex_object = CroppingHandler.force_centred_cropping(
                 complex_object,
                 where=com,
                 output_shape=final_shape
             )
-            support = CroppingHandler.force_centered_cropping(
+            support = CroppingHandler.force_centred_cropping(
                 support,
                 where=com,
                 output_shape=final_shape
@@ -89,7 +89,7 @@ class PostProcessor:
                 pad=[6, 6, 6]
             )
         com_pre_crop = CroppingHandler.get_position(support_pre_crop, "com")
-        complex_object_pre_crop = CroppingHandler.force_centered_cropping(
+        complex_object_pre_crop = CroppingHandler.force_centred_cropping(
             complex_object,
             where=com_pre_crop,
             output_shape=final_shape_pre_crop
@@ -108,17 +108,17 @@ class PostProcessor:
             print(f"[INFO] new array shape is {final_shape}")
         # center the arrays at the center of mass of the support
         com = CroppingHandler.get_position(support, "com")
-        complex_object = CroppingHandler.force_centered_cropping(
+        complex_object = CroppingHandler.force_centred_cropping(
             complex_object_pre_crop,
             where=com,
             output_shape=final_shape
         )
-        support = CroppingHandler.force_centered_cropping(
+        support = CroppingHandler.force_centred_cropping(
             support,
             where=com,
             output_shape=final_shape
         )
-        surface = CroppingHandler.force_centered_cropping(
+        surface = CroppingHandler.force_centred_cropping(
             surface,
             where=com,
             output_shape=final_shape
