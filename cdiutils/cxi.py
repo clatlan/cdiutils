@@ -75,12 +75,40 @@ class CXIFile:
         """Exit the runtime context related to this object."""
         self.close()
 
-    def __getitem__(self, entry: str):
-        """Allow direct access to entries with cxi[entry]."""
-        if entry in self.file:
-            return self.file[entry]
+    def __getitem__(self, path: str):
+        """
+        Access data or groups in the CXI file, handling datasets
+        and groups transparently.
+
+        Args:
+            path (str): Path to the dataset or group.
+
+        Returns:
+            Data if it's a dataset, or a nested dictionary if it's a group.
+        """
+        node = self.get_node(path)
+
+        # If the node is a dataset, retrieve the data directly
+        if isinstance(node, h5py.Dataset):
+            data = node[()]
+            # Check for byte-like data and decode if necessary
+            if isinstance(data, bytes):  # Single byte string
+                return data.decode('utf-8')
+            # Array of byte strings
+            if isinstance(data, np.ndarray) and data.dtype.kind == 'S':
+                return data.astype(str)
+            # Convert NaN to None if needed
+            if isinstance(data, float) and np.isnan(data):  # Single NaN
+                return None
+            return data
+
+        # If the node is a group, recursively read its contents
+        elif isinstance(node, h5py.Group):
+            return {key: self[f"{path}/{key}"] for key in node.keys()}
+
+        # If neither, raise an error as a fallback
         else:
-            raise KeyError(f"Entry '{entry}' does not exist in the CXI file.")
+            raise TypeError(f"Unsupported node type at path '{path}'")
 
     def __setitem__(self, entry: str, data):
         """Allow adding data to an entry with cxi[entry] = data."""
@@ -94,6 +122,22 @@ class CXIFile:
             del self.file[entry]
         else:
             raise KeyError(f"Entry '{entry}' does not exist, cannot delete.")
+
+    def get_node(self, path: str):
+        """
+        Retrieve the raw node (dataset or group) at the specified path.
+        Allow direct access to entries with cxi[path].
+
+        Args:
+            path (str): Path to the node.
+
+        Returns:
+            The h5py Dataset or Group object.
+        """
+        if path in self.file:
+            return self.file[path]
+        else:
+            raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
 
     def copy(
             self,
@@ -285,6 +329,14 @@ class CXIFile:
         Returns:
             h5py.Dataset: the dataset or group instance created.
         """
+        # If data is a string or a list of strings, set dtype to store
+        # as UTF-8.
+        if isinstance(data, str):
+            dtype = h5py.string_dtype(encoding='utf-8')
+        elif isinstance(data, list) and all(
+                isinstance(item, str) for item in data):
+            dtype = h5py.string_dtype(encoding='utf-8')
+
         # Handle nested dictionary by creating a group and populating it
         # recursively.
         if isinstance(data, dict):
@@ -292,7 +344,7 @@ class CXIFile:
             for key, value in data.items():
                 # Recursively create nested datasets or groups
                 self.create_cxi_dataset(f"{path}/{key}", data=value)
-            return self[path]
+            return self.get_node(path)
 
         # Handle the case where data is a list with mixed types
         if isinstance(data, list):
@@ -300,8 +352,8 @@ class CXIFile:
                 self.create_group(path, nx_class, **attrs)
                 for i, item in enumerate(data):
                     self.create_cxi_dataset(f"{path}/{i}", data=item)
-                self[path].attrs["original_type"] = "inhomogeneous_list"
-                return self[path]
+                self.get_node(path).attrs["original_type"] = "inhomogeneous_list"
+                return self.get_node(path)
 
         # Check if data contains tuples, which need to be handled
         elif isinstance(data, tuple):
