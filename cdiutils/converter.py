@@ -32,15 +32,14 @@ class SpaceConverter():
         self.det_calib_params = det_calib_params
         self.energy = energy
         self.roi = roi
-        self.shape = shape
         self.angles: dict = None
         self.q_space_shift = q_space_shift
 
         self.q_lab_interpolator: Interpolator3D = None
+        self.direct_lab_interpolator: Interpolator3D = None
         if shape is not None and q_lab_matrix is not None:
             self.q_lab_interpolator = Interpolator3D(shape, q_lab_matrix)
 
-        self.direct_lab_interpolator: Interpolator3D = None
         if shape is not None and direct_lab_matrix is not None:
             self.direct_lab_interpolator = Interpolator3D(
                 shape, direct_lab_matrix, direct_lab_voxel_size
@@ -52,39 +51,61 @@ class SpaceConverter():
 
         self.hxrd = None
 
+        # attributes that must be protected
+        self._shape = shape
+        self._direct_lab_voxel_size = direct_lab_voxel_size
         self._q_space_transitions = None
-        self._direct_lab_voxel_size = None
-        if self.direct_lab_interpolator is not None:
-            self._direct_lab_voxel_size = (
-                self.direct_lab_interpolator.target_voxel_size
-            )
 
         self.xu_gridder: xu.FuzzyGridder3D = None
 
     @property
     def direct_lab_voxel_size(self):
+        if self._direct_lab_voxel_size is None:
+            return None
         return tuple(float(e) for e in self._direct_lab_voxel_size)
 
     @direct_lab_voxel_size.setter
     def direct_lab_voxel_size(self, size: tuple):
+        """
+        This setter will reinitialise the direct_lab_interpolator if it
+        has been initialised beforehand.
+        """
+        if isinstance(size, (float, int)):
+            size = tuple(np.repeat(size, len(self._shape)))
+
         if self.direct_lab_interpolator is not None:
-            self.direct_lab_interpolator.target_voxel_size = size
+            if size != tuple(self.direct_lab_interpolator.target_voxel_size):
+                print("Reinitialising the direct space interpolator")
+                self.init_interpolator(size, space="direct")
         self._direct_lab_voxel_size = size
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @shape.setter
+    def shape(self, shape):
+        if self._q_space_transitions[0].shape != shape:
+            raise ValueError(
+                "Setting up the shape is not possible. The shape should"
+                "only be defined by the input detector data."
+                f"({self._q_space_transitions[0].shape = } vs. {shape = })."  # noqa E251
+            )
 
     def to_dict(self) -> dict:
         d = {
                 k: self.__dict__[k] for k in (
-                    "energy", "roi", "q_space_shift", "shape", "angles",
+                    "energy", "roi", "q_space_shift", "_shape", "angles",
                     "det_calib_params"
                 )
         }
         d["geometry"] = self.geometry.to_dict()
         if self.q_lab_interpolator is not None:
             d["transformation_matrices"] = {
-                "q_space": self.q_lab_interpolator.original_to_target_matrix,
+                "q_lab": self.q_lab_interpolator.original_to_target_matrix,
             }
         if self.direct_lab_interpolator is not None:
-            d["transformation_matrices"]["direct_space"] = (
+            d["transformation_matrices"]["direct_lab"] = (
                 self.direct_lab_interpolator.original_to_target_matrix
             )
             d["direct_lab_voxel_size"] = self.direct_lab_voxel_size
@@ -128,7 +149,7 @@ class SpaceConverter():
                     data=attributes["direct_lab_voxel_size"]
                 )
                 matrice_group = file.create_group("transformation_matrices")
-                for key in ("q_space", "direct_space"):
+                for key in ("q_lab", "direct_lab"):
                     matrice_group.create_dataset(
                         key, data=attributes["transformation_matrices"][key]
                     )
@@ -173,14 +194,14 @@ class SpaceConverter():
             # load the angles separately
             angles = {k: v[()] for k, v in file["angles"].items()}
 
-            if "q_space" in file["transformation_matrices"]:
+            if "q_lab" in file["transformation_matrices"]:
                 attributes["q_lab_matrix"] = file[
-                    "transformation_matrices/q_space"
+                    "transformation_matrices/q_lab"
                 ][()]
 
-            if "q_space" in file["transformation_matrices"]:
+            if "direct_lab" in file["transformation_matrices"]:
                 attributes["direct_lab_matrix"] = file[
-                    "transformation_matrices/direct_space"
+                    "transformation_matrices/direct_lab"
                 ][()]
                 attributes["direct_lab_voxel_size"] = file[
                     "direct_lab_voxel_size"
@@ -213,14 +234,14 @@ class SpaceConverter():
             if self.det_calib_params is None:
                 raise ValueError(
                     "det_calib_params not provided and no attribute set "
-                    f"({self.det_calib_params = })."
+                    f"({self.det_calib_params = })."  # noqa, E251
                 )
             det_calib_params = self.det_calib_params
         det_calib_params = det_calib_params.copy()
         if roi is None:
             if self.roi is None:
                 raise ValueError(
-                    f"roi not provided and no attribute set ({self.roi = })."
+                    f"roi not provided and no attribute set ({self.roi = })."  # noqa, E251
                 )
             roi = self.roi
 
@@ -268,7 +289,7 @@ class SpaceConverter():
         qy = np.array(qy)
         qz = np.array(qz)
         self._q_space_transitions = np.asarray([qx, qy, qz])
-        self.shape = self._q_space_transitions.shape[1:]
+        self._shape = self._q_space_transitions.shape[1:]
 
         self.angles = {
             "sample_outofplane_angle": sample_outofplane_angle,
@@ -291,19 +312,6 @@ class SpaceConverter():
             ijk,
             self._q_space_transitions
         )
-
-    # def index_cropped_det_to_det(self, ijk:  tuple) -> tuple:
-    #     """
-    #     Transition an index of the cropped detector frame to the full
-    #     detector frame
-    #     """
-    #     if self._reference_voxel is None:
-    #         raise ValueError("Set a reference_voxel.")
-    #     return tuple(
-    #         ijk
-    #         + (np.array(self._shape) - np.array(self._cropped_shape))//2
-    #         - (np.array(self._shape)//2 - self._reference_voxel)
-    #     )
 
     def index_cropped_det_to_q_lab(self, ijk:  tuple) -> tuple:
         """
@@ -388,25 +396,6 @@ class SpaceConverter():
         ijk = tuple(ijk)
         return tuple(float(transition_matrix[i][ijk]) for i in range(3))
 
-    # def crop_q_space_transitions(self) -> np.ndarray:
-    #     """
-    #     Crop the _q_space_transitions according to the cropped data
-    #     shape
-    #     """
-    #     if self._cropped_shape == self._shape:
-    #         return self._q_space_transitions.copy()
-
-    #     q_space_transitions = np.empty((3,) + self._cropped_shape)
-    #     for i in range(3):
-    #         q_space_transitions[i] = crop_at_center(
-    #             center(
-    #                 self._q_space_transitions[i],
-    #                 where=self._reference_voxel
-    #             ),
-    #             final_shape=self._cropped_shape
-    #         )
-    #     return q_space_transitions
-
     def _center_shift_q_space_transitions(
             self,
             q_space_transitions: np.ndarray,
@@ -446,7 +435,6 @@ class SpaceConverter():
         (xu) frame.
         """
 
-        self._check_shape(data.shape)
         if self._q_space_transitions[0].shape != data.shape:
             q_space_transitions = self.crop_q_space_transitions()
         else:
@@ -460,29 +448,13 @@ class SpaceConverter():
 
         if self.q_lab_interpolator is None:
             self.init_interpolator(
-                data.shape,
                 space="reciprocal_space",
                 shift_voxel=shift_voxel
             )
         return self.q_lab_interpolator(data)
 
-    def _check_shape(self, shape: tuple) -> None:
-        """
-        Raise an error if the shape is different to the original raw
-        data and the _reference voxel was not set.
-        """
-        if self._q_space_transitions[0].shape != shape:
-            raise ValueError(
-                "The shape of the data to orthogonalise should be similar "
-                "to that of the raw data "
-                f"({self._q_space_transitions[0].shape} vs. {shape})."
-                "\n Or you must set the reference_voxel which is the center "
-                "of the parsed cropped data in the full raw data frame."
-            )
-
     def init_interpolator(
             self,
-            shape: tuple,
             direct_lab_voxel_size: tuple | float = None,
             space: str = "direct",
             shift_voxel: tuple = None,
@@ -496,12 +468,13 @@ class SpaceConverter():
             raise ValueError(
                 "Invalid space."
             )
-        size = np.prod(shape)
-        self._check_shape(shape)
+        size = np.prod(self._shape)
 
         if shift_voxel is None:
-            shift_voxel = tuple(s // 2 for s in shape)
+            shift_voxel = tuple(s // 2 for s in self._shape)
 
+        # In any case (rcp or direct), we need to set up the
+        # transformation matrix.
         q_space_transitions = self._center_shift_q_space_transitions(
             self._q_space_transitions,
             shift_voxel
@@ -509,7 +482,7 @@ class SpaceConverter():
 
         # create the 0 centered index grid
         k_matrix = []
-        for i in np.indices(shape):
+        for i in np.indices(self._shape):
             k_matrix.append(i - i[shift_voxel])
         k_matrix = np.array(k_matrix).reshape(3, size)
 
@@ -524,7 +497,7 @@ class SpaceConverter():
                 "reciprocal", "reciprocal_space", "both"):
 
             self.q_lab_interpolator = Interpolator3D(
-                original_shape=shape,
+                original_shape=self._shape,
                 original_to_target_matrix=transformation_matrix
             )
 
@@ -533,25 +506,27 @@ class SpaceConverter():
             # Compute the linear transformation matrix of the direct space
             direct_lab_transformation_matrix = np.dot(
                 np.linalg.inv(transformation_matrix.T),
-                np.diag(2 * np.pi / np.array(shape))
+                np.diag(2 * np.pi / np.array(self._shape))
             )
             # Unit of the matrix vectors is A, convert it to nm
             direct_lab_transformation_matrix /= 10
 
-            direct_lab_voxel_size = np.linalg.norm(
+            original_direct_lab_voxel_size = np.linalg.norm(
                 direct_lab_transformation_matrix,
                 axis=1
             )
             if verbose:
                 print(
                     "Voxel size in the direct lab space due to the "
-                    f"orthognolisation process is:\n{direct_lab_voxel_size} "
-                    "(nm)."
+                    "orthogonalisation process is:\n"
+                    f"{original_direct_lab_voxel_size}(nm)."
                 )
 
+            if direct_lab_voxel_size is None:
+                direct_lab_voxel_size = original_direct_lab_voxel_size
             # initialise the interpolator instance
             self.direct_lab_interpolator = Interpolator3D(
-                original_shape=shape,
+                original_shape=self._shape,
                 original_to_target_matrix=direct_lab_transformation_matrix,
                 target_voxel_size=direct_lab_voxel_size
             )
@@ -560,7 +535,6 @@ class SpaceConverter():
     def orthogonalise_to_direct_lab(
             self,
             direct_space_data: np.ndarray,
-            detector_data: np.ndarray = None,
             direct_lab_voxel_size: tuple | np.ndarray | list | float = None,
     ) -> np.ndarray:
         """
@@ -569,17 +543,14 @@ class SpaceConverter():
         """
 
         if self.direct_lab_interpolator is None:
-            if detector_data is None:
-                raise ValueError(
-                    "Provide a detector_data or initialise the interpolator "
-                    "using init_interpolator() method"
-                )
             self.init_interpolator(
-                detector_data,
-                direct_space_data.shape,
+                direct_lab_voxel_size=direct_lab_voxel_size,
                 space="direct",
-                direct_lab_voxel_size=direct_lab_voxel_size
             )
+        if direct_lab_voxel_size is not None:
+            # This will reinitialise the whole interpolator!
+            self.direct_lab_voxel_size = direct_lab_voxel_size
+
         return self.direct_lab_interpolator(direct_space_data)
 
     @staticmethod
