@@ -956,7 +956,7 @@ def find_isosurface(
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
-        figsize = (5.812, 3.592)  # golden ratio
+        figsize = (6, 4)  # (5.812, 3.592)  # golden ratio
         fig, ax = matplotlib.pyplot.subplots(1, 1, layout="tight", figsize=figsize)
         ax.bar(
             bin_centres,
