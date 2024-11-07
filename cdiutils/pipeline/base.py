@@ -14,6 +14,7 @@ import time
 import numpy as np
 import yaml
 import vtk
+from vtk.util.numpy_support import numpy_to_vtk
 
 from cdiutils.plot.formatting import update_plot_params
 
@@ -526,7 +527,7 @@ class Pipeline(ABC):
                 point_data = image_data.GetPointData()
                 is_init = True
 
-            vtk_array = vtk.util.numpy_support.numpy_to_vtk(array.ravel())
+            vtk_array = numpy_to_vtk(array.ravel())
             point_data.AddArray(vtk_array)
             point_data.GetArray(i).SetName(key)
             point_data.Update()
