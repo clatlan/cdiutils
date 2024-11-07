@@ -65,7 +65,7 @@ exclude = ["images"]
 
 [tool.setuptools.package-data]
 "cdiutils" = [
-    "pipeline/pynx-id01cdi_template.slurm",
+    "pipeline/pynx-id01-cdi_template.slurm",
     "examples/bcdi_pipeline.ipynb",
     "examples/step_by_step_bcdi_analysis.ipynb"
 ]
