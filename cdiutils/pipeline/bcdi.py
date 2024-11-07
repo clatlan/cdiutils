@@ -15,7 +15,6 @@ import subprocess
 # Dependencies.
 import h5py
 import numpy as np
-import ruamel.yaml
 from tabulate import tabulate
 import yaml
 
@@ -47,7 +46,7 @@ from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
-from .parameters import check_params, convert_np_arrays, fill_pynx_params
+from .parameters import check_params, convert_np_arrays
 
 # to save version in files:
 from cdiutils import __version__
@@ -56,36 +55,6 @@ from cdiutils import __version__
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
     pass
-
-
-def update_parameter_file(file_path: str, updated_params: dict) -> None:
-    """
-    Update a parameter file with the provided dictionary that contains
-    the parameters (keys, values) to update.
-    """
-    convert_np_arrays(updated_params)
-    fill_pynx_params(updated_params)
-    with open(file_path, "r", encoding="utf8") as file:
-        config, ind, bsi = ruamel.yaml.util.load_yaml_guess_indent(file)
-
-    for key in config.keys():
-        for updated_key, updated_value in updated_params.items():
-            if updated_key in config[key]:
-                config[key][updated_key] = updated_value
-            elif updated_key == key:
-                config[key] = updated_value
-            else:
-                for sub_key in config[key].keys():
-                    if (
-                            isinstance(config[key][sub_key], dict)
-                            and updated_key in config[key][sub_key]
-                    ):
-                        config[key][sub_key][updated_key] = updated_value
-
-    yaml_file = ruamel.yaml.YAML()
-    yaml_file.indent(mapping=ind, sequence=ind, offset=bsi)
-    with open(file_path, "w", encoding="utf8") as file:
-        yaml_file.dump(config, file)
 
 
 class BcdiPipeline(Pipeline):
@@ -103,6 +72,7 @@ class BcdiPipeline(Pipeline):
 
     """
     voxel_pos = ("ref", "max", "com")
+    class_isosurface = 0.1
 
     def __init__(
             self,
@@ -154,40 +124,81 @@ class BcdiPipeline(Pipeline):
         self.logger.info("BcdiPipeline initialised.")
 
     @classmethod
-    def from_file(self, path: str) -> "BcdiPipeline":
+    def from_file(cls, path: str) -> "BcdiPipeline":
+        """
+        Factory method to create a BcdiPipeline instance from a file.
+        """
         if path.endswith(".cxi"):
-            with CXIFile(path, "r") as cxi:
-                instance = BcdiPipeline(cxi["entry_1/parameters_1"][()])
-
-                # Load the space converter related parameters
-                converter_params = {"geometry": Geometry.from_setup(
-                    cxi["entry_1/geometry_1/name"][()]
-                )}
-                converter_params["det_calib_params"] = cxi[
-                    "entry_1/detector_1/calibration"
-                ][()]
-                converter_params["roi"] = cxi["entry_1/result_1/roi"][()]
-                converter_params["energy"] = cxi["entry_1/source_1/energy"][()]
-                converter_params["shape"] = cxi["entry_1/image_1/size"][()]
-                converter_params["q_space_shift"] = cxi[
-                    "entry_1/result_2/q_space_shift"
-                ][()]
-                converter_params["q_lab_matrix"] = cxi[
-                    "entry_1/result_2/transformation_matrices/q_lab"
-                ][()]
-                converter_params["dreict_lab_matrix"] = cxi[
-                    "entry_1/result_2/transformation_matrices/direct_lab"
-                ][()]
-                converter_params["angles"] = cxi[
-                    "entry_1/geometry_1/angles"
-                ][()]
-                converter_params["is_cxi"]
-
-                instance.converter = SpaceConverter(**converter_params)
+            params = cls._load_parameters_from_cxi(path)
+            instance = cls(params)
+            instance._set_converter_from_file(path)
             return instance
+
         if path.endswith(".yml") or path.endswith(".yaml"):
             raise ValueError("Loading from yaml files not yet implemented.")
-        raise ValueError("File not supported.")
+
+        raise ValueError("File format not supported.")
+
+    def update_from_file(self, path: str) -> None:
+        """
+        Update the current instance with parameters loaded from a
+        CXI file.
+        """
+        params = {}
+        if path.endswith(".cxi"):
+            params = self._load_parameters_from_cxi(path)
+            self._set_converter_from_file(path)
+
+        elif path.endswith(".yml") or path.endswith(".yaml"):
+            params = self.load_parameters(path)
+
+        self.params.update(params)
+        # # Update instance attributes
+        # for key, value in params.items():
+        #     setattr(self, key, value)
+
+    @staticmethod
+    def _load_parameters_from_cxi(path: str) -> tuple:
+        """
+        Load and organize parameters from a CXI file for instantiation
+        or updating.
+        """
+        if path.endswith(".cxi"):
+            with CXIFile(path, "r") as cxi:
+                # Main parameters for BcdiPipeline instantiation
+                params = cxi["entry_1/parameters_1"]
+            return params or {}
+        raise ValueError("CXI file expected.")
+
+    def _set_converter_from_file(self, path: str) -> None:
+        if path.endswith(".cxi"):
+            with CXIFile(path, "r") as cxi:
+                # SpaceConverter-specific parameters
+                converter_params = {
+                    "geometry": Geometry.from_setup(
+                        cxi["entry_1/geometry_1/name"]
+                    ),
+                    "det_calib_params": cxi["entry_1/detector_1/calibration"],
+                    "roi": cxi["entry_1/result_1/roi"],
+                    "energy": cxi["entry_1/source_1/energy"],
+                    "shape": cxi["entry_1/image_1/image_size"],
+                    "q_space_shift": cxi["entry_1/result_2/q_space_shift"],
+                    "q_lab_matrix": cxi[
+                        "entry_1/result_2/transformation_matrices/q_lab"
+                    ],
+                    "direct_lab_matrix": cxi[
+                        "entry_1/result_2/transformation_matrices/direct_lab"
+                    ],
+                    "direct_lab_voxel_size": cxi[
+                        "entry_1/result_2/direct_lab_voxel_size"
+                    ],
+                }
+                self.converter = SpaceConverter(**converter_params)
+                self.converter.init_q_space(**cxi["entry_1/geometry_1/angles"])
+        elif path.endswith(".h5"):
+            self.converter = SpaceConverter.from_file(path)
+        else:
+            raise ValueError("CXI or H5 files expected.")
 
     @Pipeline.process
     def preprocess(self) -> None:
@@ -315,15 +326,13 @@ class BcdiPipeline(Pipeline):
             )
             self.orthogonalised_intensity = (
                 self.converter.orthogonalise_to_q_lab(
-                     self.cropped_detector_data,
-                     method="xrayutilities"
+                     self.cropped_detector_data, method="xrayutilities"
                 )
             )
             # we must orthogonalise the mask and orthogonalised_intensity must
             # be saved as the pynx input
             self.mask = self.converter.orthogonalise_to_q_lab(
-                self.mask,
-                method="xrayutilities"
+                self.mask, method="xrayutilities"
             )
             self.cropped_detector_data = self.orthogonalised_intensity
             q_lab_regular_grid = self.converter.get_xu_q_lab_regular_grid()
@@ -335,9 +344,8 @@ class BcdiPipeline(Pipeline):
             # Initialise the interpolator so we won't need to reload raw
             # data during the post processing. The converter will be saved.
             self.converter.init_interpolator(
-                self.params["preprocess_shape"],
-                space="both",
-                direct_lab_voxel_size=self.params["voxel_size"]
+                direct_lab_voxel_size=self.params["voxel_size"],
+                space="both"
             )
             self.logger.info(
                 "Voxel size calculated from the extent in the reciprocal "
@@ -1086,7 +1094,7 @@ reconstruction (best solution)."""
                     for key in f["/entry_last/image_1/process_1"]:
                         f.copy(
                             f"/entry_last/image_1/process_1/{key}",
-                            cxi[path],
+                            cxi.get_node(path),
                             name=key
                         )
 
@@ -1136,7 +1144,7 @@ reconstruction (best solution)."""
             cxi.softlink(f"{path}/process_4", "/entry_1/process_4")
 
             path = cxi.create_cxi_image(data=modes, process_4="process_4")
-            cxi[path].attrs["description"] = "Mode decomposition"
+            cxi.get_node(path).attrs["description"] = "Mode decomposition"
 
     def _save_mode_as_h5(
             self,
@@ -1220,9 +1228,10 @@ reconstruction (best solution)."""
             for k in ("det_reference_voxel", "q_lab_ref")
         ])
         if not np.all(not_missing):
-            params_path = f"{self.dump_dir}S{self.scan}_parameters.yml"
-            self.logger.info(f"Loading parameters from:\n{params_path}")
-            self.params.update(self.load_parameters(params_path))
+            path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
+            self.logger.info(f"Loading parameters from:\n{path}")
+            self.update_from_file(path)
+
         if params:
             self.logger.info(
                 "Additional parameters provided, will update the current "
@@ -1230,12 +1239,9 @@ reconstruction (best solution)."""
             )
             self.params.update(params)
 
-        if self.reconstruction is None:
-            path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
-            with CXIFile(path, "r") as cxi:
-                self.reconstruction = cxi["entry_1/data_1/data"][0]
-
-        self._get_oversampling_ratios(self.reconstruction)
+        # Load the reconstruction mode
+        path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
+        self.reconstruction = self._load_reconstruction(path, centre=True)
 
         # If self.converter is None, we should build it from file
         if self.converter is None:
@@ -1257,7 +1263,10 @@ reconstruction (best solution)."""
             self.reconstruction = self.converter.orthogonalise_to_direct_lab(
                 self.reconstruction
             )
-        self._check_orientation_convention()
+        # Change convention of the reconstruction if necessary.
+        if self.params["orientation_convention"].lower() == "cxi":
+            self.reconstruction = self.converter.xu_to_cxi(self.reconstruction)
+
         self.logger.info(
             f"Voxel size finally used is: {self.params['voxel_size']} nm in "
             f"the {self.params['orientation_convention'].upper()} convention."
@@ -1380,7 +1389,7 @@ reconstruction (best solution)."""
             **{
                 k: self.structural_props[k]
                 for k in [
-                    "het_strain", "het_strain_from_dspacing",
+                    "het_strain", "numpy_het_strain",
                     "het_strain_from_dspacing", "het_strain_with_ramp"
                 ]
             }
@@ -1416,6 +1425,8 @@ reconstruction (best solution)."""
         PipelinePlotter.strain_statistics(
             self.structural_props["het_strain_from_dspacing"],
             self.structural_props["support"],
+            title=f"Strain statistics, {sample_scan}",
+            save=dump_file_tmpl.format("strain_statistics")
         )
         plot_3d_surface_projections(
             data=self.structural_props["het_strain"],
@@ -1436,17 +1447,19 @@ reconstruction (best solution)."""
                 cxi[f"entry_1/result_2/{k}_xu"][()]
                 for k in ("qx", "qy", "qz")
             )
-        # To be compared, we must make sure we are in XU convention.
+        # To compare, we must make sure we are back in XU convention.
         obj = (
             self.structural_props["amplitude"]
             * np.exp(-1j*self.structural_props["phase"])
         )
-        if self.params["orientation_convention"].lower() == "CXI":
-            obj = self.space_converter.cxi_to_xu(obj)
+        voxel_size = self.params["voxel_size"]
+        if self.params["orientation_convention"].lower() == "cxi":
+            obj = SpaceConverter.cxi_to_xu(obj)
+            voxel_size = SpaceConverter.cxi_to_xu(voxel_size)
 
         PipelinePlotter.plot_final_object_fft(
             obj,
-            self.params["voxel_size"],
+            voxel_size,
             self.converter.q_space_shift,
             ortho_exp_intensity,
             exp_q_grid,
@@ -1457,25 +1470,47 @@ reconstruction (best solution)."""
         self._save_postprocessed_data()
         self._save_parameter_file()
 
+    def _load_reconstruction(
+            self,
+            path: str,
+            centre: bool = False,
+            isosurface: float = None
+    ) -> np.ndarray:
+        with CXIFile(path, "r") as cxi:
+            reconstruction = cxi["entry_1/data_1/data"][0]
+
+        self._get_oversampling_ratios(reconstruction)
+
+        if centre:
+            if isosurface is None:
+                isosurface = self.class_isosurface
+            amp = np.abs(reconstruction) / np.max(np.abs(reconstruction))
+            support = np.where(amp >= isosurface, 1, 0)
+            com = CroppingHandler.get_position(support, "com")
+            reconstruction = CroppingHandler.force_centred_cropping(
+                reconstruction, where=com
+            )
+        return reconstruction
+
     def _get_oversampling_ratios(self, data: np.ndarray) -> np.ndarray:
         amp = np.abs(data) / np.max(np.abs(data))
 
         isosurface = self.params["isosurface"]
         # if not provided, isosurface is hardcoded at this stage
         if isosurface is None:
-            isosurface = 0.3
+            isosurface = self.class_isosurface
         support = np.where(amp >= isosurface, 1, 0)
         # Print the oversampling ratio
         ratios = get_oversampling_ratios(support)
         self.logger.info(
-            "The oversampling ratios in each direction are "
+            "The oversampling ratios in each direction (original frame) are "
             + ", ".join(
                 [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
             )
         )
         self.extra_info["oversampling_ratios"] = ratios
 
-        if support.shape != self.params["preprocess_shape"]:
+        if support.shape != tuple(self.params["preprocess_shape"]):
             self.logger.warning(
                 f"Shapes before {self.params['preprocess_shape']} "
                 f"and after {support.shape} Phase Retrieval are different.\n"
@@ -1483,32 +1518,33 @@ reconstruction (best solution)."""
             )
 
     def _check_voxel_size(self) -> None:
-        self.extra_info["voxel_size_from_extent"] = (
-            self.converter.direct_lab_voxel_size
-        )
+        if self.params["orientation_convention"].lower() == "cxi":
+            self.extra_info["voxel_size_from_extent"] = (
+                SpaceConverter.xu_to_cxi(self.converter.direct_lab_voxel_size)
+            )  # if cxi requested, convert the voxel size from extent
+
         if self.params["voxel_size"] is None:
             self.params["voxel_size"] = self.converter.direct_lab_voxel_size
+
+            # In the SpaceConverter, the convention is XU.
+            if self.params["orientation_convention"].lower() == "cxi":
+                self.params["voxel_size"] = SpaceConverter.xu_to_cxi(
+                    self.params["voxel_size"]
+                )
         else:
+            # We consider voxel_size is given with the same convention
+            # as the one specified in 'orientation_convention'.
             # if 1D, make it 3D
             if isinstance(self.params["voxel_size"], (float, int)):
                 self.params["voxel_size"] = tuple(np.repeat(
                     self.params["voxel_size"], self.reconstruction.ndim
                 ))
-            # This sets the direct space interpolator voxel size
-            self.converter.direct_lab_voxel_size = self.params["voxel_size"]
-        print(
-            self.params["voxel_size"], type(self.params["voxel_size"]),
-            self.converter.direct_lab_voxel_size,
-            self.converter.direct_lab_interpolator.target_voxel_size
-        )
-
-    def _check_orientation_convention(self) -> None:
-        # After orthogonalisation, convention is XU.
-        if self.params["orientation_convention"].lower() == "cxi":
-            self.reconstruction = self.converter.xu_to_cxi(self.reconstruction)
-            self.params["voxel_size"] = self.converter.xu_to_cxi(
-                self.params["voxel_size"]
-            )
+            if self.params["orientation_convention"].lower() == "cxi":
+                # Set the direct space interpolator voxel size with XU
+                # convention.
+                self.converter.direct_lab_voxel_size = (
+                    SpaceConverter.cxi_to_xu(self.params["voxel_size"])
+                )
 
     def _save_postprocessed_data(self) -> None:
         dump_path = f"{self.dump_dir}/S{self.scan}_post_processed_data.cxi"
