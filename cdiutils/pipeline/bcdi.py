@@ -615,7 +615,7 @@ class BcdiPipeline(Pipeline):
                     "kernel_size = 3 "
                 )
                 data, hot_pixel_mask = hot_pixel_filter(data)
-            self.mask *= hot_pixel_mask
+            self.mask = np.where(hot_pixel_mask + self.mask > 0, 1, 0)
 
         if self.params["background_level"]:
             self.logger.info(
@@ -781,6 +781,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 self.cropped_detector_data,
                 data_type="cropped detector data",
                 data_space="reciprocal",
+                mask=self.mask[0],
                 process_1="process_1"
             )
             cxi.create_cxi_image(
