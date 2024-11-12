@@ -424,35 +424,6 @@ class SpaceConverter():
         self.q_space_shift = q_space_shift
         return q_space_transitions
 
-    def orthogonalise_to_q_lab(
-            self,
-            data: np.ndarray,
-            method: str = "cdiutils",
-            shift_voxel: tuple = None
-    ) -> np.ndarray:
-        """
-        orthogonalise detector data of the reciprocal space to the lab
-        (xu) frame.
-        """
-
-        if self._q_space_transitions[0].shape != data.shape:
-            q_space_transitions = self.crop_q_space_transitions()
-        else:
-            q_space_transitions = self._q_space_transitions
-
-        if method in ("xu", "xrayutilities"):
-            gridder = xu.FuzzyGridder3D(*data.shape)
-            gridder(*q_space_transitions, data)
-            self.xu_gridder = gridder
-            return gridder.data
-
-        if self.q_lab_interpolator is None:
-            self.init_interpolator(
-                space="reciprocal_space",
-                shift_voxel=shift_voxel
-            )
-        return self.q_lab_interpolator(data)
-
     def init_interpolator(
             self,
             direct_lab_voxel_size: tuple | float = None,
@@ -531,6 +502,37 @@ class SpaceConverter():
                 target_voxel_size=direct_lab_voxel_size
             )
             self._direct_lab_voxel_size = direct_lab_voxel_size
+
+    def orthogonalise_to_q_lab(
+            self,
+            data: np.ndarray,
+            method: str = "cdiutils",
+            shift_voxel: tuple = None
+    ) -> np.ndarray:
+        """
+        orthogonalise detector data of the reciprocal space to the lab
+        (xu) frame.
+        """
+
+        if self.shape != data.shape:
+            raise ValueError(
+                f"The shape of the data to orthogonalise {data.shape} must "
+                "match that of the data used to initialise the q space "
+                f"{self.shape})."
+            )
+
+        if method in ("xu", "xrayutilities"):
+            gridder = xu.FuzzyGridder3D(*data.shape)
+            gridder(*self._q_space_transitions, data)
+            self.xu_gridder = gridder
+            return gridder.data
+
+        if self.q_lab_interpolator is None:
+            self.init_interpolator(
+                space="reciprocal_space",
+                shift_voxel=shift_voxel
+            )
+        return self.q_lab_interpolator(data)
 
     def orthogonalise_to_direct_lab(
             self,
