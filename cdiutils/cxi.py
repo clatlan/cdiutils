@@ -363,8 +363,10 @@ class CXIFile:
 
         # Check if data contains tuples, which need to be handled
         elif isinstance(data, tuple):
+            # Convert tuples to a numpy array
+            self.create_cxi_dataset(path, data=np.array(data))
             self.get_node(path).attrs["original_type"] = "tuple"
-            data = np.array(data)  # Convert tuples to a numpy array
+            return self.get_node(path)
 
         # Otherwise, simply create a standard dataset.
         data = np.nan if data is None else data
