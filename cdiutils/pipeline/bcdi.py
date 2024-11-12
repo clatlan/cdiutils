@@ -102,7 +102,7 @@ class BcdiPipeline(Pipeline):
         self.voi = {"full": {}, "cropped": {}}
 
         # The dictionary of the VOI associated q_lab positions
-        self.q_lab = {key: None for key in self.voxel_pos}
+        self.q_lab_pos = {key: None for key in self.voxel_pos}
 
         # The dictionary of the atomic parameters (d-spacing and lattice
         # parameter) for the various voxel positions.
@@ -132,14 +132,16 @@ class BcdiPipeline(Pipeline):
         Factory method to create a BcdiPipeline instance from a file.
         """
         if path.endswith(".cxi"):
-            params, converter, q_lab = cls.load_from_cxi(path)
+            params, converter = cls.load_from_cxi(path)
         elif path.endswith(".yml") or path.endswith(".yaml"):
             raise ValueError("Loading from yaml files not yet implemented.")
         else:
             raise ValueError("File format not supported.")
         instance = cls(params)
         instance.converter = converter
-        instance.q_lab = q_lab
+        if "q_lab_ref" not in params:
+            raise ValueError("q_lab_ref is missing in the parameters.")
+        instance.q_lab_pos["ref"] = params["q_lab_ref"]
         return instance
 
     def update_from_file(self, path: str) -> None:
@@ -148,25 +150,26 @@ class BcdiPipeline(Pipeline):
         CXI file.
         """
         if path.endswith(".cxi"):
-            params, converter, q_lab = self.load_from_cxi(path)
+            params, converter = self.load_from_cxi(path)
         elif path.endswith(".yml") or path.endswith(".yaml"):
             raise ValueError("Loading from yaml files not yet implemented.")
         else:
             raise ValueError("File format not supported.")
         self.params.update(params)
         self.converter = converter
-        self.q_lab = q_lab
+        if "q_lab_ref" not in params:
+            raise ValueError("q_lab_ref is missing in the parameters.")
+        self.q_lab_pos["ref"] = params["q_lab_ref"]
 
     @classmethod
-    def load_from_cxi(cls, path: str) -> tuple[dict, SpaceConverter, dict]:
+    def load_from_cxi(cls, path: str) -> tuple[dict, SpaceConverter]:
         if not path.endswith(".cxi"):
             raise ValueError("CXI file expected.")
 
         with CXIFile(path, "r") as cxi:
             params = cxi["entry_1/parameters_1"]
             converter = cls._build_converter_from_cxi(cxi)
-            q_lab = cxi["entry_1/result_2/q_lab"]
-        return params, converter, q_lab
+        return params, converter
 
     @staticmethod
     def _build_converter_from_cxi(cxi: CXIFile):
@@ -283,18 +286,18 @@ class BcdiPipeline(Pipeline):
             det_voxel = self.voi["full"][pos]
             cropped_det_voxel = self.voi["cropped"][pos]
 
-            self.q_lab[pos] = self.converter.index_det_to_q_lab(
+            self.q_lab_pos[pos] = self.converter.index_det_to_q_lab(
                 cropped_det_voxel
             )
 
             # compute the corresponding dpsacing and lattice parameter
             # for printing
             self.atomic_params["dspacing"][pos] = self.converter.dspacing(
-                self.q_lab[pos]
+                self.q_lab_pos[pos]
             )
             self.atomic_params["lattice_parameter"][pos] = (
                 self.converter.lattice_parameter(
-                    self.q_lab[pos], self.params["hkl"]
+                    self.q_lab_pos[pos], self.params["hkl"]
                 )
             )
             table.append(
@@ -397,7 +400,9 @@ class BcdiPipeline(Pipeline):
             save=dump_file_tmpl.format("orthogonalisation")
         )
 
-        # Save the data and the parameters in the dump directory
+        # Save the data and the parameters in the dump directory, and
+        # save the q_lab reference position as a parameter.
+        self.params["q_lab_ref"] = self.q_lab_pos["ref"]
         self._save_preprocessed_data()
         self._save_parameter_file()
 
@@ -493,7 +498,7 @@ class BcdiPipeline(Pipeline):
                 )
             else:
                 self.logger.info(
-                    "det_calib_params successfully loaded:"
+                    "det_calib_params successfully loaded:\n"
                     f"{self.params['det_calib_params']}"
                     )
 
@@ -680,10 +685,9 @@ class BcdiPipeline(Pipeline):
         """
         output_file_path = f"{self.dump_dir}/S{self.scan}_parameters.yml"
 
-        convert_np_arrays(self.params)
+        self.params = convert_np_arrays(**self.params)
         with open(output_file_path, "w", encoding="utf8") as file:
             yaml.dump(self.params, file)
-            yaml.dump({"q_lab_ref": self.q_lab["ref"]}, file)
         self.logger.info(
             f"\nScan parameter file saved at:\n{output_file_path}"
         )
@@ -750,7 +754,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             )}
             atomic_params = self.atomic_params.copy()
             atomic_params["units"] = "angstrom"
-            q_lab = self.q_lab.copy()
+            q_lab = self.q_lab_pos.copy()
             q_lab["units"] = "1/angstrom"
             if self.params["orthogonalise_before_phasing"]:
                 qx, qy, qz = self.converter.get_xu_q_lab_regular_grid()
@@ -1215,7 +1219,7 @@ reconstruction (best solution)."""
     @Pipeline.process
     def postprocess(self, **params) -> None:
         # Whether to reload the pre-processing .cxi file.
-        if self.q_lab.get("ref") is None or self.converter is None:
+        if self.q_lab_pos.get("ref") is None or self.converter is None:
             path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
             self.logger.info(f"Loading parameters from:\n{path}")
             self.update_from_file(path)
@@ -1223,26 +1227,13 @@ reconstruction (best solution)."""
         if params:
             self.logger.info(
                 "Additional parameters provided, will update the current "
-                "parameter dictionary."
+                "dictionary of parameters."
             )
             self.params.update(params)
 
         # Load the reconstruction mode
         path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
         self.reconstruction = self._load_reconstruction(path, centre=True)
-
-        # # If self.converter is None, we should build it from file
-        # if self.converter is None:
-        #     path = f"{self.dump_dir}S{self.scan}_space_converter_parameters.h5"
-        #     if self.params["orthogonalise_before_phasing"]:
-        #         pass  # TODO
-        #     else:
-        #         if os.path.exists(path):
-        #             self.converter = SpaceConverter.from_file(path)
-        #         else:
-        #             raise ValueError(
-        #                 f"Space converter parameters not found at {path}."
-        #             )
 
         # Handle the voxel size
         self._check_voxel_size()
@@ -1320,9 +1311,9 @@ reconstruction (best solution)."""
             self.logger.info("Defect handling requested.")
 
         if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.xu_to_cxi(self.q_lab["ref"])
+            g_vector = SpaceConverter.xu_to_cxi(self.q_lab_pos["ref"])
         else:
-            g_vector = self.q_lab["ref"]
+            g_vector = self.q_lab_pos["ref"]
         self.structural_props = PostProcessor.get_structural_properties(
             self.reconstruction,
             support_parameters=(
