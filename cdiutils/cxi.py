@@ -4,7 +4,6 @@ make CXI-compliant HDF5 files.
 """
 
 import h5py
-import json
 import numpy as np
 import re
 
@@ -95,8 +94,11 @@ class CXIFile:
             if isinstance(data, bytes):  # Single byte string
                 return data.decode('utf-8')
             # Array of byte strings
-            if isinstance(data, np.ndarray) and data.dtype.kind == 'S':
-                return data.astype(str)
+            if isinstance(data, np.ndarray):
+                if data.dtype.kind == 'S':
+                    return data.astype(str)
+                if node.attrs.get("original_type") == "tuple":
+                    return tuple(data)
             # Convert NaN to None if needed
             if isinstance(data, float) and np.isnan(data):  # Single NaN
                 return None
@@ -354,11 +356,14 @@ class CXIFile:
                 self.create_group(path, nx_class, **attrs)
                 for i, item in enumerate(data):
                     self.create_cxi_dataset(f"{path}/{i}", data=item)
-                self.get_node(path).attrs["original_type"] = "inhomogeneous_list"
+                self.get_node(path).attrs["original_type"] = (
+                    "inhomogeneous_list"
+                )
                 return self.get_node(path)
 
         # Check if data contains tuples, which need to be handled
         elif isinstance(data, tuple):
+            self.get_node(path).attrs["original_type"] = "tuple"
             data = np.array(data)  # Convert tuples to a numpy array
 
         # Otherwise, simply create a standard dataset.
