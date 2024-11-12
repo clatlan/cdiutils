@@ -866,8 +866,8 @@ def find_suitable_array_shape(
     elif support.ndim == 2:
         if len(pad) != 2:
             raise ValueError(
-                f"Length of pad ({len(pad) = }) must be equal to support "
-                f"dimensions ({support.ndim = })"
+                f"Length of pad ({len(pad) = }) must be equal to support "  # noqa E251
+                f"dimensions ({support.ndim = })"  # noqa E251
             )
         shape = get_2d_shape(support, pad)
 
