@@ -24,6 +24,7 @@ AUTHORIZED_KEYS = {
     "hkl": [1, 1, 1],
     "hot_pixel_filter": False,
     "voxel_reference_methods": ["max", "com", "com"],
+    "q_lab_ref": None,
     "light_loading": False,
     "det_reference_voxel": None,
     "rocking_angle_binning": None,
