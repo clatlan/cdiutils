@@ -104,6 +104,8 @@ class CXIFile:
 
         # If the node is a group, recursively read its contents
         elif isinstance(node, h5py.Group):
+            if node.attrs.get("original_type") == "inhomogeneous_list":
+                return [self[f"{path}/{key}"] for key in node.keys()]
             return {key: self[f"{path}/{key}"] for key in node.keys()}
 
         # If neither, raise an error as a fallback
