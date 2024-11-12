@@ -8,7 +8,6 @@ Authors:
 # Built-in dependencies.
 import glob
 import os
-import shutil
 from string import Template
 import subprocess
 
@@ -1294,7 +1293,7 @@ reconstruction (best solution)."""
             self.params["isosurface"] = self.class_isosurface
             self.logger.info(
                 f"isosurface estimate has a wrong value ({isosurface}) and "
-                f"will be set set to {self.class_isosurface = }."
+                f"will be set set to {self.class_isosurface = }."  # noqa, E251
             )
         else:
             self.params["isosurface"] = isosurface
