@@ -92,10 +92,10 @@ def ensure_pynx_shape(
         s-1 if s % 2 == 1 else s for s in shape
     )
     if verbose:
-        if checked_shape != shape:
+        if checked_shape != tuple(shape):
             print(
                 f"PyNX needs even input dimensions, "
-                f"requested shape {shape} will be cropped to "
+                f"requested shape {tuple(shape)} will be cropped to "
                 f"{checked_shape}."
             )
         else:
