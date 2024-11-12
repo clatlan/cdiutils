@@ -181,11 +181,7 @@ class PostProcessor:
             np.ndarray: the unwrapped phase
         """
         if support is None:
-            return unwrap_phase(
-                phase,
-                wrap_around=False,
-                seed=1
-            )
+            return unwrap_phase(phase, wrap_around=False)
         support = nan_to_zero(support)
         mask = np.where(support == 0, 1, 0)
         phase = np.ma.masked_array(phase, mask=mask)
