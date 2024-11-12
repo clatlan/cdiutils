@@ -6,10 +6,10 @@ https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
 
 import numpy as np
 
-from cdiutils.load import Loader, h5_safe_load
+from cdiutils.load.loader import H5TypeLoader, h5_safe_load
 
 
-class NanoMAXLoader(Loader):
+class NanoMAXLoader(H5TypeLoader):
     """
     A class to handle loading/reading .h5 files that were created at the
     NanoMax beamline.
@@ -33,6 +33,7 @@ class NanoMAXLoader(Loader):
         "detector_outofplane_angle": "delta",
         "detector_inplane_angle": "gamma"
     }
+    authorised_detector_names = ("eiger500k")
 
     def __init__(
             self,
@@ -58,10 +59,13 @@ class NanoMAXLoader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(NanoMaxLoader, self).__init__(flat_field, alien_mask)
-        self.experiment_file_path = experiment_file_path
-        self.detector_name = detector_name
-        self.sample_name = sample_name
+        super().__init__(
+            experiment_file_path,
+            sample_name,
+            detector_name,
+            flat_field,
+            alien_mask
+        )
 
     @h5_safe_load
     def load_detector_data(
@@ -130,9 +134,9 @@ class NanoMAXLoader(Loader):
             roi = roi[0]
 
         key_path = "entry/snapshots/post_scan/"
-        angles = {key: None for key in NanoMaxLoader.angle_names}
+        angles = {key: None for key in NanoMAXLoader.angle_names}
 
-        for angle, name in NanoMaxLoader.angle_names.items():
+        for angle, name in NanoMAXLoader.angle_names.items():
             angles[angle] = h5file[key_path + name][()]
 
         # Take care of the rocking curve angle
@@ -149,7 +153,7 @@ class NanoMAXLoader(Loader):
                     ]
                 # Find what generic angle (in-plane or out-of-plane) it
                 # corresponds to.
-                for angle, name in NanoMaxLoader.angle_names.items():
+                for angle, name in NanoMAXLoader.angle_names.items():
                     if name == rocking_angle_name:
                         rocking_angle = angle
 

@@ -1,11 +1,11 @@
 import numpy as np
 
-from cdiutils.load import Loader, h5_safe_load
+from cdiutils.load.loader import H5TypeLoader, h5_safe_load
 from cdiutils.utils import wavelength_to_energy
 import warnings
 
 
-class ID27Loader(Loader):
+class ID27Loader(H5TypeLoader):
     """
     A class to handle loading/reading .h5 files that were created using
     Bliss on the ID27 beamline.
@@ -17,6 +17,7 @@ class ID27Loader(Loader):
         "detector_outofplane_angle": None,
         "detector_inplane_angle": None
     }
+    authorised_detector_names = ("eiger")
 
     def __init__(
             self,
@@ -43,25 +44,13 @@ class ID27Loader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super().__init__(flat_field, alien_mask)
-        self.experiment_file_path = experiment_file_path
-        self.sample_name = sample_name
-        if detector_name is None:
-            if sample_name is not None:
-                self.detector_name = self.get_detector_name()
-                print(
-                    "Detector name automatically found "
-                    f"('{self.detector_name}')."
-                )
-            else:
-                print(
-                    "detector_name is not provided, cannot automatically find "
-                    "it since sample_name is not provided either.\n"
-                    "Will set detector_name to 'eiger'."
-                )
-                self.detector_name = "eiger"
-        else:
-            self.detector_name = detector_name
+        super().__init__(
+            experiment_file_path,
+            sample_name,
+            detector_name,
+            flat_field,
+            alien_mask
+        )
 
     @h5_safe_load
     def load_detector_data(
@@ -160,34 +149,37 @@ class ID27Loader(Loader):
         if sample_name is None:
             sample_name = self.sample_name
 
-        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+        angles = self.load_angles(
+            key_path=f"{sample_name}_{scan}.1/instrument/positioners/"
+        )
 
-        if roi is None or len(roi) == 2:
-            roi = slice(None)
-        elif len(roi) == 3:
-            roi = roi[0]
-
-        angles = {key: 0 for key in ID27Loader.angle_names}
-
-        if rocking_angle_binning:
-            angles["sample_inplane_angle"] = self.h5file[key_path + "nath"][()]
-        else:
-            try:
-                angles["sample_inplane_angle"] = self.h5file[
-                    key_path + "nath"
-                ][roi]
-            except ValueError:
-                angles["sample_inplane_angle"] = self.h5file[
-                    key_path + "nath"
-                ][()]
+        formatted_angles = {
+            key: angles[name] if angles.get(name) is not None else 0.
+            for key, name in ID27Loader.angle_names.items()
+        }
 
         self.rocking_angle = "sample_inplane_angle"
-        angles[self.rocking_angle] = self.bin_rocking_angle_values(
-            angles[self.rocking_angle], rocking_angle_binning
+        formatted_angles[self.rocking_angle] = self.bin_rocking_angle_values(
+            formatted_angles[self.rocking_angle], rocking_angle_binning
         )
-        if roi and rocking_angle_binning:
-            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
-        return angles
+        # take care of the roi
+        if isinstance(roi, (tuple, list)):
+            if len(roi) == 2:
+                roi = slice(None)
+            else:
+                roi = roi[0]
+        elif roi is None:
+            roi = slice(None)
+        elif not isinstance(roi, slice):
+            raise ValueError(
+                f"roi should be tuple of slices, or a slice, not {type(roi)}"
+            )
+
+        formatted_angles[
+            self.rocking_angle
+        ] = formatted_angles[self.rocking_angle][roi]
+
+        return formatted_angles
 
     @h5_safe_load
     def get_detector_name(self) -> str:

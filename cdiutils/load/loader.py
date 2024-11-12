@@ -15,14 +15,6 @@ from cdiutils.utils import (
 from cdiutils.plot import add_colorbar
 
 
-def h5_safe_load(func: Callable) -> Callable:
-    """A wrapper to safely load data in h5 file"""
-    def wrap(self, *args, **kwargs):
-        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
-            return func(self, *args, **kwargs)
-    return wrap
-
-
 class Loader(ABC):
     """A generic class for loaders."""
 
@@ -95,7 +87,7 @@ class Loader(ABC):
         if beamline_setup.lower() == "id27":
             from . import ID27Loader
             return ID27Loader(**metadata)
-        raise ValueError(f"Invalid beamline setup: {beamline_setup = }")
+        raise ValueError(f"Invalid beamline setup: {beamline_setup = }")  # noqa, E251
 
     @staticmethod
     def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
@@ -151,7 +143,7 @@ class Loader(ABC):
             tuple[slice]: the prepared roi.
         """
         usage_text = (
-            f"Wrong value for roi ({roi = }), roi should be:\n"
+            f"Wrong value for roi ({roi = }), roi should be:\n"  # noqa, E251
             "\t - either a tuple of slices with len = 2 or len = 3"
             "\t - either a tuple of int with len = 4 or len = 6"
         )
@@ -258,7 +250,7 @@ class Loader(ABC):
                 return "sample_inplane_angle"
             raise ValueError(
                 "Could not find a rocking angle "
-                f"({outofplane = }, {inplane = })"
+                f"({outofplane = }, {inplane = })"  # noqa, E251
             )
         raise ValueError(
             "sample_outofplane_angle and/or sample_inplane_angle missing in "
@@ -438,3 +430,55 @@ class Loader(ABC):
             f"Invalid data shape (detector_data.shape={data.shape})."
             "Should be 2D or 3D."
         )
+
+
+def h5_safe_load(func: Callable) -> Callable:
+    """A wrapper to safely load data in h5 file"""
+    def wrap(self, *args, **kwargs):
+        with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
+            return func(self, *args, **kwargs)
+    return wrap
+
+
+class H5TypeLoader(Loader):
+    def __init__(
+            self,
+            experiment_file_path: str,
+            sample_name: str = None,
+            detector_name: str = None,
+            flat_field: np.ndarray | str = None,
+            alien_mask: np.ndarray | str = None,
+    ) -> None:
+        super().__init__(flat_field, alien_mask)
+        self.experiment_file_path = experiment_file_path
+        self.sample_name = sample_name
+        if detector_name is None:
+            if sample_name is not None:
+                self.detector_name = self.get_detector_name()
+                print(
+                    "Detector name automatically found "
+                    f"('{self.detector_name}')."
+                )
+            else:
+                print(
+                    "detector_name is not provided, cannot automatically find "
+                    "it since sample_name is not provided either.\n"
+                    "Will set detector_name to "
+                    f"({self.authorised_detector_names[0]})'."
+                )
+                self.detector_name = self.authorised_detector_names[0]
+        else:
+            self.detector_name = detector_name
+
+    @abstractmethod
+    def get_detector_name(self) -> str:
+        pass
+
+    @h5_safe_load
+    def load_angles(self, key_path: str) -> dict:
+        angles = {}
+        for name in self.angle_names.values():
+            if name is not None:
+                angles[name] = self.h5file[key_path + name][()]
+
+        return angles

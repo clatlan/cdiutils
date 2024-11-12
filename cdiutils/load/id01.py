@@ -6,10 +6,10 @@ import fabio
 import silx.io
 import silx.io.specfile
 
-from cdiutils.load import Loader, h5_safe_load
+from cdiutils.load.loader import H5TypeLoader, h5_safe_load, Loader
 
 
-class ID01Loader(Loader):
+class ID01Loader(H5TypeLoader):
     """
     A class to handle loading/reading .h5 files that were created using
     Bliss at the ID01 beamline.
@@ -21,6 +21,7 @@ class ID01Loader(Loader):
         "detector_outofplane_angle": "delta",
         "detector_inplane_angle": "nu"
     }
+    authorised_detector_names = ("mpxgaas", "mpx1x4", "eiger2M")
 
     def __init__(
             self,
@@ -47,36 +48,26 @@ class ID01Loader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super().__init__(flat_field, alien_mask)
-        self.experiment_file_path = experiment_file_path
-        self.sample_name = sample_name
-        if detector_name is None:
-            if sample_name is not None:
-                self.detector_name = self.get_detector_name()
-                print(
-                    "Detector name automatically found "
-                    f"('{self.detector_name}')."
-                )
-            else:
-                print(
-                    "detector_name is not provided, cannot automatically find "
-                    "it since sample_name is not provided either.\n"
-                    "Please set detector_name."
-                )
-        else:
-            self.detector_name = detector_name
+        super().__init__(
+            experiment_file_path,
+            sample_name,
+            detector_name,
+            flat_field,
+            alien_mask
+        )
 
     @h5_safe_load
     def get_detector_name(self) -> str:
         h5file = self.h5file
         key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
         detector_names = []
-        authorised_names = ("mpxgaas", "mpx1x4", "eiger2M")
         for key in h5file[key_path]:
-            if key in authorised_names:
+            if key in self.authorised_detector_names:
                 detector_names.append(key)
         if len(detector_names) == 0:
-            raise ValueError(f"No detector name found in {authorised_names}")
+            raise ValueError(
+                f"No detector name found in {self.authorised_detector_names}"
+            )
         elif len(detector_names) > 1:
             raise ValueError(
                 f"Several detector names found ({detector_names}).\n"
@@ -225,34 +216,41 @@ class ID01Loader(Loader):
         if sample_name is None:
             sample_name = self.sample_name
 
-        key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-
-        if roi is None or len(roi) == 2:
-            roi = slice(None)
-        elif len(roi) == 3:
-            roi = roi[0]
-
-        angles = {key: None for key in ID01Loader.angle_names}
-
-        for angle, name in ID01Loader.angle_names.items():
-            if rocking_angle_binning:
-                angles[angle] = self.h5file[key_path + name][()]
-            else:
-                try:
-                    angles[angle] = self.h5file[key_path + name][roi]
-                except ValueError:
-                    angles[angle] = self.h5file[key_path + name][()]
-
-        self.rocking_angle = self.get_rocking_angle(angles)
-
-        angles[self.rocking_angle] = self.bin_rocking_angle_values(
-            angles[self.rocking_angle], rocking_angle_binning
+        angles = self.load_angles(
+            key_path=f"{sample_name}_{scan}.1/instrument/positioners/"
         )
 
-        if roi and rocking_angle_binning:
-            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
+        formatted_angles = {
+            key: angles[name] if angles.get(name) is not None else 0.
+            for key, name in ID01Loader.angle_names.items()
+        }
 
-        return angles
+        if rocking_angle_binning:
+            self.rocking_angle = self.get_rocking_angle(formatted_angles)
+
+            formatted_angles[
+                self.rocking_angle
+            ] = self.bin_rocking_angle_values(
+                formatted_angles[self.rocking_angle], rocking_angle_binning
+            )
+        # take care of the roi
+        if isinstance(roi, (tuple, list)):
+            if len(roi) == 2:
+                roi = slice(None)
+            else:
+                roi = roi[0]
+        elif roi is None:
+            roi = slice(None)
+        elif not isinstance(roi, slice):
+            raise ValueError(
+                f"roi should be tuple of slices, or a slice, not {type(roi)}"
+            )
+
+        formatted_angles[
+            self.rocking_angle
+        ] = formatted_angles[self.rocking_angle][roi]
+
+        return formatted_angles
 
     @h5_safe_load
     def load_energy(
