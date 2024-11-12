@@ -67,11 +67,13 @@ exclude = ["images"]
 "cdiutils" = [
     "pipeline/pynx-id01-cdi_template.slurm",
     "examples/bcdi_pipeline.ipynb",
-    "examples/step_by_step_bcdi_analysis.ipynb"
+    "examples/step_by_step_bcdi_analysis.ipynb",
+    "examples/detector_calibration.ipynb"
 ]
 
 
 [project.scripts]
 prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"
+prepare_detector_calibraion = "scripts.prepare_detector_calibration"
 
 
