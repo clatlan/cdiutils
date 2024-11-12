@@ -92,37 +92,51 @@ AUTHORIZED_KEYS = {
 }
 
 
-def convert_np_arrays(dictionary) -> None:
+def convert_np_arrays(**data) -> dict:
     """
-    Recursively converts np.ndarray values in a dictionary to tuple or
-    a single value.
+    Recursively converts numpy types and arrays in a dictionary to
+    standard Python types for YAML serialization.
 
     Args:
-        dictionary (Dict[str, Any]): The dictionary to be processed.
+        **data: arbitrary keyword arguments representing a dictionary
+            with potential numpy types.
 
     Returns:
-        None: This function modifies the dictionary in-place.
-
+        dict: A dictionary with all numpy types converted to standard
+            Python types.
     """
-    for key, value in dictionary.items():
+    def convert_value(value):
+        # Handle numpy arrays
         if isinstance(value, np.ndarray):
             if value.size == 1:
-                dictionary[key] = value[0]
-            else:
-                if value.dtype == int:
-                    dictionary[key] = tuple(value.astype(int))
+                return convert_value(value.item())
+            return tuple(convert_value(v) for v in value)
 
-        elif isinstance(value, list):
-            for i, v in enumerate(value):
-                if isinstance(v, int):
-                    dictionary[key][i] = int(v)
+        # Handle numpy scalar types.
+        elif isinstance(value, (np.integer, np.int32, np.int64)):
+            return int(value)
+        elif isinstance(value, (np.floating, np.float32, np.float64)):
+            return float(value)
+        elif isinstance(value, (np.bool_, bool)):
+            return bool(value)
+        elif isinstance(value, (np.str_, str)):
+            return str(value)
 
-        elif isinstance(value, (tuple, list)):
-            if isinstance(value[0], (int, int, np.int64, np.int32)):
-                dictionary[key] = tuple(int(v) for v in value)
+        # Handle nested lists or tuples.
+        elif isinstance(value, (list, tuple)):
+            return type(value)(convert_value(v) for v in value)
 
+        # If value is a dictionary, convert its contents recursively.
         elif isinstance(value, dict):
-            convert_np_arrays(value)
+            return convert_np_arrays(**value)
+
+        # Return the value as is if no conversion is needed.
+        return value
+
+    # Apply the conversion function to each dictionary entry
+    return {
+        key: convert_value(value) for key, value in data.items()
+    }
 
 
 def check_params(params: dict) -> None:
