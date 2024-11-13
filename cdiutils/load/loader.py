@@ -189,18 +189,21 @@ class Loader(ABC):
         Returns:
             np.ndarray: the new data
         """
+        if roi is None:
+            roi = (slice(None), slice(None), slice(None))
+
         if rocking_angle_binning:
             data = bin_along_axis(
                 data, rocking_angle_binning, binning_method, axis=0
             )
-            if roi is not None:
-                data = data[roi]
+            # If binning, roi[1] and roi[2] have been applied already.
+            data = data[roi[0]]
 
         if flat_field is not None:
             data = data * flat_field[roi[1:]]
 
         if alien_mask is not None:
-            data = data * alien_mask[roi[1:]]
+            data = data * (1 - alien_mask[roi])
         return data
 
     @staticmethod
@@ -350,14 +353,13 @@ class Loader(ABC):
             mask[2712:2750, :] = 1
 
         elif detector_name.lower() == "eiger500k":
-            return np.zeros(shape=(512, 1028))
+            mask = np.zeros(shape=(512, 1028))
         elif detector_name.lower() == "merlin":
-            return np.zeros(shape=(512, 512))
-
+            mask = np.zeros(shape=(512, 512))
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
         if channel:
-            return np.repeat(mask[np.newaxis, :, :,], channel, axis=0)[roi]
+            mask = np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
         return mask[roi]
 
     @staticmethod
