@@ -245,7 +245,6 @@ class ID01Loader(H5TypeLoader):
             raise ValueError(
                 f"roi should be tuple of slices, or a slice, not {type(roi)}"
             )
-
         formatted_angles[
             self.rocking_angle
         ] = formatted_angles[self.rocking_angle][roi]
