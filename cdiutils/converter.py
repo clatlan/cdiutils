@@ -1,4 +1,5 @@
 import copy
+import warnings
 
 import h5py
 import matplotlib.pyplot as plt
@@ -237,6 +238,13 @@ class SpaceConverter():
                     f"({self.det_calib_params = })."  # noqa, E251
                 )
             det_calib_params = self.det_calib_params
+        if "outerangle_offset" in det_calib_params:
+            warnings.warn(
+                "outerangle_offset is no longer required, will remove it from "
+                "det_calib_params.",
+                DeprecationWarning,
+            )
+            det_calib_params.pop("outerangle_offset")
         det_calib_params = det_calib_params.copy()
         if roi is None:
             if self.roi is None:
