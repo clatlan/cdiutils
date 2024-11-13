@@ -38,7 +38,10 @@ class Loader(ABC):
         self.detector_name = None
         self.rocking_angle = "sample_outofplane_angle"
 
-    def get_mask(self, roi: tuple[slice, slice, slice] = None) -> np.ndarray:
+    def get_alien_mask(
+            self,
+            roi: tuple[slice, slice, slice] = None
+    ) -> np.ndarray:
         if self.alien_mask is None:
             return None
 

@@ -241,8 +241,8 @@ class BcdiPipeline(Pipeline):
             self._from_2d_to_3d_shape()
             self.logger.info(
                 "The preprocessing output shape is: and "
-                f"{self.params['preprocess_shape']} will be used for "
-                "determining the ROI dimensions."
+                f"{self.params['preprocess_shape']} will be used for the "
+                "determination of the ROI dimensions."
             )
             # Filter, crop and centre the detector data.
             self.cropped_detector_data, roi = self._crop_centre(
@@ -478,9 +478,9 @@ class BcdiPipeline(Pipeline):
             detector_name=self.params["detector_name"],
             roi=(slice(None), roi[1], roi[2]) if roi else None
         )
-        if loader.get_mask() is not None:
+        if loader.get_alien_mask() is not None:
             self.logger.info("Alien mask provided. Will update detector mask.")
-            alien_mask = loader.get_mask(roi)
+            alien_mask = loader.get_alien_mask(roi)
             self.mask = np.where(self.mask + alien_mask > 0, 1, 0)
 
         if any(
