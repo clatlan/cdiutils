@@ -74,6 +74,6 @@ exclude = ["images"]
 
 [project.scripts]
 prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"
-prepare_detector_calibraion = "scripts.prepare_detector_calibration"
+prepare_detector_calibraion = "scripts.prepare_detector_calibration:main"
 
 
