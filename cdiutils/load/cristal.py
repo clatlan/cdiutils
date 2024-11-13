@@ -80,8 +80,6 @@ class CristalLoader(Loader):
             if binning_along_axis0:
                 # we first apply the roi for axis1 and axis2
                 data = h5file[key_path][(slice(None), roi[1], roi[2])]
-                # But then we'll keep only the roi for axis0
-                roi = (roi[0], slice(None), slice(None))
             else:
                 data = h5file[key_path][roi]
         except KeyError as exc:
