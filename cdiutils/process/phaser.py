@@ -40,8 +40,8 @@ except ImportError:
     IS_PYNX_AVAILABLE = False
     CDI_Type = None
 
-from cdiutils.plot import get_plot_configs, get_figure_size, add_colorbar
-from cdiutils.utils import get_centred_slices, valid_args_only
+from cdiutils.plot import get_plot_configs, add_colorbar
+from cdiutils.utils import get_centred_slices, valid_args_only, CroppingHandler
 from cdiutils.process.postprocessor import PostProcessor
 
 
@@ -665,7 +665,7 @@ class PyNXPhaser:
 class PhasingResultAnalyser:
     """
     This class provided utility function for phase retrieval results
-    anaylis.
+    analysis.
     """
     def __init__(
             self,
@@ -1131,8 +1131,9 @@ class PhasingResultAnalyser:
             figure, axes = plt.subplots(
                 2, 3, figsize=(6, 4), layout="constrained"
             )
-
-            slices = get_centred_slices(data.shape)
+            com = CroppingHandler.get_position(support, "com")
+            shift = tuple(com[i] - support.shape[i] // 2 for i in range(3))
+            slices = get_centred_slices(data.shape, shift)
             for i in range(3):
                 rcp_im = axes[0, i].matshow(
                     np.sum(reciprocal_space_data, axis=i),
@@ -1155,7 +1156,7 @@ class PhasingResultAnalyser:
                         cmap="turbo"
                     )
 
-                if support.sum() > 0:
+                if support[slices[i]].sum() > 0:
                     axes[1, i].set_xlim(
                         np.nonzero(support[slices[i]].sum(axis=0))[0][[0, -1]]
                         + np.array([-5, 5])
