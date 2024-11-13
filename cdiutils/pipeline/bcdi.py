@@ -441,7 +441,7 @@ class BcdiPipeline(Pipeline):
         loader_keys = (
             "beamline_setup", "scan", "sample_name", "experiment_file_path",
             "experiment_data_dir_path", "detector_data_path",
-            "edf_file_template", "detector_name"
+            "edf_file_template", "detector_name", "alien_mask", "flat_field"
         )
         loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
 
@@ -478,6 +478,11 @@ class BcdiPipeline(Pipeline):
             detector_name=self.params["detector_name"],
             roi=(slice(None), roi[1], roi[2]) if roi else None
         )
+        if loader.get_mask() is not None:
+            self.logger.info("Alien mask provided. Will update detector mask.")
+            alien_mask = loader.get_mask(roi)
+            self.mask = np.where(self.mask + alien_mask > 0, 1, 0)
+
         if any(
                 data is None
                 for data in (self.detector_data, self.angles)
