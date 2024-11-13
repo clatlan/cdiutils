@@ -196,16 +196,28 @@ class BcdiPipeline(Pipeline):
         return converter
 
     @Pipeline.process
-    def preprocess(self) -> None:
+    def preprocess(self, **params) -> None:
         """
         Main method to handle the preprocessing of the BCDI data. It
         takes care of the data loading, centring, cropping and gets the
         orthogonalisation parameters.
 
+        Arguments:
+            **params (optional): additional parameters provided by the
+                user. They will overwrite those parsed upon instance
+                initialisation.
+
         Raises:
             ValueError: if the requested shape and the voxel reference
                 are not compatible.
         """
+        if params:
+            self.logger.info(
+                "Additional parameters provided, will update the current "
+                "dictionary of parameters."
+            )
+            self.params.update(params)
+
         # If voxel_reference_methods is not a list, make it a list
         if not isinstance(self.params["voxel_reference_methods"], list):
             self.params["voxel_reference_methods"] = [
@@ -442,15 +454,20 @@ class BcdiPipeline(Pipeline):
                     f"({self.params['metadata']['setup']} = )."
                 )
 
-        shape = loader.load_detector_shape(self.scan)
-        if shape is not None:
-            self.logger.info(f"Raw detector data shape is: {shape}.")
-
         self.detector_data = loader.load_detector_data(
             scan=self.scan,
             roi=roi,
             rocking_angle_binning=self.params["rocking_angle_binning"]
         )
+        if roi is not None:
+            shape = loader.load_detector_shape(self.scan)
+            if shape is not None:
+                self.logger.info(f"Raw detector data shape is: {shape}.")
+        else:
+            self.logger.info(
+                f"Raw detector data shape is: {self.detector_data.shape}."
+            )
+
         self.angles = loader.load_motor_positions(
             scan=self.scan,
             roi=roi,
