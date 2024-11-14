@@ -45,7 +45,6 @@ dependencies = [
     "seaborn>=0.12.1",
     "silx>=1.0.0",
     "tabulate",
-    "vtk>=9.0.1",
     "xrayutilities>=1.7.3",
     "ipyvolume",
     "ipython_genutils",
@@ -53,6 +52,9 @@ dependencies = [
     "panel",
     "tornado",
 ]
+
+[project.optional-dependencies]
+vtk = ["vtk>=9.0.1"]
 
 [project.urls]
 Homepage = "https://github.com/clatlan/cdiutils"

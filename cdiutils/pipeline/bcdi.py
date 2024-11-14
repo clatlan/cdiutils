@@ -44,7 +44,7 @@ from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
-from .base import Pipeline
+from .base import Pipeline, IS_VTK_AVAILABLE
 from .parameters import check_params, convert_np_arrays
 
 # to save version in files:
@@ -826,12 +826,9 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             self.logger.info(
-                "Pynx slurm file template provided"
-                f"{template = }."  # noqa: E251, E202
+                f"Pynx slurm file template provided {template = }."  # noqa, E251, E202
             )
-        with open(
-                template, "r", encoding="utf8"
-        ) as file:
+        with open(template, "r", encoding="utf8") as file:
             source = Template(file.read())
             pynx_slurm_text = source.substitute(
                 {
@@ -1628,36 +1625,41 @@ reconstruction (best solution)."""
                     cxi.softlink(f"entry_1/{key}", path)
 
         # Save as vti
-        to_save_as_vti = {
-            k: self.structural_props[k]
-            for k in ["amplitude", "support", "phase", "displacement",
-                      "het_strain", "het_strain_from_dspacing",
-                      "lattice_parameter", "numpy_het_strain", "dspacing"]
-        }
+        if IS_VTK_AVAILABLE:
+            to_save_as_vti = {
+                k: self.structural_props[k]
+                for k in ["amplitude", "support", "phase", "displacement",
+                        "het_strain", "het_strain_from_dspacing",
+                        "lattice_parameter", "numpy_het_strain", "dspacing"]
+            }
 
-        # add the dspacing average and lattice constant average around
-        # the NP to avoid nan values that are annoying for 3D
-        # visualisation
-        to_save_as_vti["dspacing"] = np.where(
-            np.isnan(to_save_as_vti["dspacing"]),
-            self.extra_info["averaged_dspacing"],
-            to_save_as_vti["dspacing"]
-        )
-        to_save_as_vti["lattice_parameter"] = np.where(
-            np.isnan(to_save_as_vti["lattice_parameter"]),
-            self.extra_info["averaged_lattice_parameter"],
-            to_save_as_vti["lattice_parameter"]
-        )
+            # add the dspacing average and lattice constant average around
+            # the NP to avoid nan values that are annoying for 3D
+            # visualisation
+            to_save_as_vti["dspacing"] = np.where(
+                np.isnan(to_save_as_vti["dspacing"]),
+                self.extra_info["averaged_dspacing"],
+                to_save_as_vti["dspacing"]
+            )
+            to_save_as_vti["lattice_parameter"] = np.where(
+                np.isnan(to_save_as_vti["lattice_parameter"]),
+                self.extra_info["averaged_lattice_parameter"],
+                to_save_as_vti["lattice_parameter"]
+            )
 
-        # save to vti file
-        self.save_to_vti(
-            f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
-            voxel_size=self.params["voxel_size"],
-            cxi_convention=(
-                self.params["orientation_convention"].lower() == "cxi"
-            ),
-            **to_save_as_vti
-        )
+            # save to vti file
+            self.save_to_vti(
+                f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
+                voxel_size=self.params["voxel_size"],
+                cxi_convention=(
+                    self.params["orientation_convention"].lower() == "cxi"
+                ),
+                **to_save_as_vti
+            )
+        else:
+            self.logger.info(
+                "vtk package not available, will not save the vti file."
+            )
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(

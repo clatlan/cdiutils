@@ -13,10 +13,27 @@ import time
 
 import numpy as np
 import yaml
-import vtk
-from vtk.util.numpy_support import numpy_to_vtk
+
+# handling vtk case
+try:
+    import vtk
+    from vtk.util.numpy_support import numpy_to_vtk
+    IS_VTK_AVAILABLE = True
+
+except ImportError:
+    print("'vtk' package is not installed.")
+    IS_VTK_AVAILABLE = False
 
 from cdiutils.plot.formatting import update_plot_params
+
+
+class VtkImportError(Exception):
+    """Custom exception to handle Vtk import error."""
+    def __init__(self, msg: str = None) -> None:
+        _msg = "'vtk' package is not installed."
+        if msg is not None:
+            _msg += "\n" + msg
+        super().__init__(_msg)
 
 
 # Define a custom log level for JOB
@@ -501,6 +518,8 @@ class Pipeline(ABC):
         """
         Save numpy arrays to .vti file.
         """
+        if not IS_VTK_AVAILABLE:
+            raise VtkImportError
         voxel_size = tuple(voxel_size)
         nb_arrays = len(np_arrays)
 
