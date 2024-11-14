@@ -56,7 +56,7 @@ def main() -> None:
             f"Diretory {path} does not exist.\n" + helptext
         )
 
-    dest = path + os.path.split(notebook_path)[1],
+    dest = path + os.path.split(notebook_path)[1]
 
     if os.path.isfile(dest):
         if args.force:
