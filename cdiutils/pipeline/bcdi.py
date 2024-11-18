@@ -913,20 +913,19 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "provided command."
             )
             if cmd is None:
-                self.logger.info("No command provided. Will use the default.")
-                cmd = """
-                    module load pynx
-                    pynx-cdi-id01 pynx-cdi-inputs.txt
-                """
-            self._run_cmd(cmd)
+                cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
+                self.logger.info(
+                    f"No command provided. Will use the default: {cmd}"
+                )
+            self._run_cmd(cmd, self.pynx_phasing_dir)
 
-    def _run_cmd(self, cmd: str) -> None:
+    def _run_cmd(self, cmd: str, cwd: str) -> None:
         try:
             with subprocess.Popen(
                     ["bash", "-l", "-c", cmd],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    cwd=self.pynx_phasing_dir,  # Change to this directory
+                    cwd=cwd,  # Change to this directory
                     text=True,  # Ensures stdout/stderr are str, not bytes
                     # shell=True,
                     env=os.environ.copy(),
@@ -1070,13 +1069,14 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "run the provided command instead."
             )
             if cmd is None:
-                cmd = """
-                module load pynx
-                pynx-cdi-analysis candidate_*.cxi --modes 1 --modes_output \
-                mode.h5
-                """
-                self.logger.info("No command provided will use the default.")
-            self._run_cmd(cmd)
+                cmd = (
+                    "pynx-cdi-analysis candidate_*.cxi --modes 1 "
+                    "--modes_output mode.h5"
+                )
+                self.logger.info(
+                    f"No command provided will use the default: {cmd}"
+                )
+            self._run_cmd(cmd, self.pynx_phasing_dir)
             self._save_pynx_results(self.pynx_phasing_dir + "mode.h5")
 
     def _save_pynx_results(
@@ -1628,9 +1628,11 @@ reconstruction (best solution)."""
         if IS_VTK_AVAILABLE:
             to_save_as_vti = {
                 k: self.structural_props[k]
-                for k in ["amplitude", "support", "phase", "displacement",
-                        "het_strain", "het_strain_from_dspacing",
-                        "lattice_parameter", "numpy_het_strain", "dspacing"]
+                for k in [
+                    "amplitude", "support", "phase", "displacement",
+                    "het_strain", "het_strain_from_dspacing",
+                    "lattice_parameter", "numpy_het_strain", "dspacing"
+                ]
             }
 
             # add the dspacing average and lattice constant average around
