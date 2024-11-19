@@ -1,0 +1,32 @@
+name: cdiutils
+
+maintainer: clement.atlan@esrf.fr
+
+channels:
+  - conda-forge
+
+dependencies:
+  - colorcet>=3.0.0
+  - h5py>=3.6.0
+  - hdf5plugin>=3.2.0
+  - ipykernel
+  - matplotlib>=3.8
+  - numpy>=1.26
+  - pandas>=1.4.2
+  - scikit-image>=0.19.2
+  - scikit-learn>=1.1.3
+  - scipy>=1.8.0
+  - seaborn>=0.12.1
+  - silx-base
+  - tabulate
+  - xrayutilities>=1.7.3
+  - ipyvolume
+  - ipython_genutils
+  - bokeh
+  - panel
+  - tornado
+  - vtk>=9.0
+
+  - pip:
+    - https://github.com/clatlan/cdiutils/archive/refs/heads/refacto.zip
+
