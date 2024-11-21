@@ -7,6 +7,7 @@ import warnings
 from cdiutils.plot.formatting import (
     get_figure_size,
     get_extent,
+    save_fig,
     CXI_VIEW_PARAMETERS
 )
 from cdiutils.utils import (
@@ -139,6 +140,7 @@ def plot_3d_surface_projections(
         figsize: tuple = None,
         title: str = None,
         cbar_title: str = None,
+        save: str = None,
         **plot_params
 ) -> plt.Figure:
     """Plot 3D projected views from a 3D object.
@@ -279,6 +281,8 @@ def plot_3d_surface_projections(
     cax.set_title(cbar_title)
 
     figure.suptitle(title)
+    if save:
+        save_fig(figure, path=save, transparent=False)
     return figure
 
 

@@ -1335,10 +1335,7 @@ reconstruction (best solution)."""
             g_vector = self.q_lab_pos["ref"]
         self.structural_props = PostProcessor.get_structural_properties(
             self.reconstruction,
-            support_parameters=(
-                None if self.params["method_det_support"] is None
-                else self.params
-            ),
+            support_parameters=None,
             isosurface=self.params["isosurface"],
             g_vector=g_vector,
             hkl=self.params["hkl"],
@@ -1434,7 +1431,8 @@ reconstruction (best solution)."""
             vmin=-np.nanmax(np.abs(self.structural_props["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_props["het_strain"])),
             cbar_title=r"Strain (%)",
-            title=f"3D views of the strain, {sample_scan}"
+            title=f"3D views of the strain, {sample_scan}",
+            save=dump_file_tmpl.format("3d_strain_views")
         )
 
         # Load the orthogonalised peak
@@ -1665,6 +1663,6 @@ reconstruction (best solution)."""
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
-            parameters=self.params
+            self.params["facet_analysis"]
         )
         facet_anlysis_processor.facet_analysis()
