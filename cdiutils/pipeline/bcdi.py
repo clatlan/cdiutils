@@ -259,15 +259,18 @@ class BcdiPipeline(Pipeline):
         ratios = oversampling_from_diffraction(
             self.cropped_detector_data
         )
-        self.logger.info(
-            "\nOversampling ratios calculated from diffraction pattern "
-            "are: "
-            + ", ".join(
-                [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
+        if ratios is None:
+            self.logger.info("Could not estimate the oversampling.")
+        else:
+            self.logger.info(
+                "\nOversampling ratios calculated from diffraction pattern "
+                "are: "
+                + ", ".join(
+                    [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
+                )
+                + ". If low-strain crystal, you can set PyNX 'rebin' parameter"
+                " to (" + ", ".join([f"{r//2}" for r in ratios]) + ")"
             )
-            + ". If low-strain crystal, you can set PyNX 'rebin' parameter to "
-            "(" + ", ".join([f"{r//2}" for r in ratios]) + ")"
-        )
 
         # position of the max and com in the cropped detector frame
         for pos in ("max", "com"):
@@ -275,7 +278,7 @@ class BcdiPipeline(Pipeline):
                 self.cropped_detector_data, pos
             )
 
-        # Initialise SpaceConverter, later use for orthogonalisation
+        # Initialise SpaceConverter, later used for orthogonalisation
         geometry = Geometry.from_setup(self.params["beamline_setup"])
         self.converter = SpaceConverter(
             geometry=geometry,
@@ -296,21 +299,25 @@ class BcdiPipeline(Pipeline):
         for pos in self.voxel_pos:
             det_voxel = self.voi["full"][pos]
             cropped_det_voxel = self.voi["cropped"][pos]
-
-            self.q_lab_pos[pos] = self.converter.index_det_to_q_lab(
-                cropped_det_voxel
-            )
-
-            # compute the corresponding dpsacing and lattice parameter
-            # for printing
-            self.atomic_params["dspacing"][pos] = self.converter.dspacing(
-                self.q_lab_pos[pos]
-            )
-            self.atomic_params["lattice_parameter"][pos] = (
-                self.converter.lattice_parameter(
-                    self.q_lab_pos[pos], self.params["hkl"]
+            if any(np.isnan(e) for e in cropped_det_voxel):
+                self.q_lab_pos[pos] = None
+                self.atomic_params["dspacing"][pos] = None
+                self.atomic_params["lattice_parameter"][pos] = None
+            else:
+                self.q_lab_pos[pos] = self.converter.index_det_to_q_lab(
+                    cropped_det_voxel
                 )
-            )
+
+                # compute the corresponding dpsacing and lattice parameter
+                # for printing
+                self.atomic_params["dspacing"][pos] = self.converter.dspacing(
+                    self.q_lab_pos[pos]
+                )
+                self.atomic_params["lattice_parameter"][pos] = (
+                    self.converter.lattice_parameter(
+                        self.q_lab_pos[pos], self.params["hkl"]
+                    )
+                )
             table.append(
                 [pos, det_voxel, cropped_det_voxel,
                  f"{self.atomic_params['dspacing'][pos]:.5f}",
@@ -1058,11 +1065,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         try:
             modes, mode_weights = self.result_analyser.mode_decomposition()
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
-            # self._save_mode_as_h5(
-            #     modes,
-            #     mode_weights,
-            #     candidates=self.result_analyser.best_candidates
-            # )
+
         except PynNXImportError:
             self.logger.info(
                 "PyNX is not installed on the current machine. Will try to "
@@ -1237,22 +1240,24 @@ reconstruction (best solution)."""
 
     @Pipeline.process
     def postprocess(self, **params) -> None:
-        # Whether to reload the pre-processing .cxi file.
-        if self.q_lab_pos.get("ref") is None or self.converter is None:
-            path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
-            self.logger.info(f"Loading parameters from:\n{path}")
-            self.update_from_file(path)
-
+        _path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
         if params:
             self.logger.info(
                 "Additional parameters provided, will update the current "
                 "dictionary of parameters."
             )
             self.params.update(params)
+            if "voxel_size" in params and params["voxel_size"] is None:
+                with CXIFile(_path, "r") as cxi:
+                    self.converter = self._build_converter_from_cxi(cxi)
 
+        # Whether to reload the pre-processing .cxi file.
+        if self.q_lab_pos.get("ref") is None or self.converter is None:
+            self.logger.info(f"Loading parameters from:\n{_path}")
+            self.update_from_file(_path)
         # Load the reconstruction mode
-        path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
-        self.reconstruction = self._load_reconstruction(path, centre=True)
+        _path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
+        self.reconstruction = self._load_reconstruction(_path, centre=True)
 
         # Handle the voxel size
         self._check_voxel_size()
@@ -1663,6 +1668,7 @@ reconstruction (best solution)."""
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
-            self.params["facet_analysis"]
+            self.params["facet_analysis"],
+            self.dump_dir
         )
         facet_anlysis_processor.facet_analysis()
