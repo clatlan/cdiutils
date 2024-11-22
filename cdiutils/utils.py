@@ -563,7 +563,7 @@ class CroppingHandler:
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
             com = center_of_mass(data)
-            return tuple(int(round(e)) for e in com)
+            return tuple(np.nan if np.isnan(e) else int(round(e)) for e in com)
         elif (
             isinstance(method, (list, tuple))
             and all(isinstance(e, (int, np.int64)) for e in method)
@@ -1038,7 +1038,8 @@ def get_oversampling_ratios(
                 "isosurface (default to 0.3) value"
             )
         support = make_support(np.abs(direct_space_object), isosurface)
-
+    if support.sum() < 1:
+        return None
     support_indices = np.where(support == 1)
     size_per_dim = (
         np.max(support_indices, axis=1)
