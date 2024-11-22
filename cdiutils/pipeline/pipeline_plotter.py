@@ -45,7 +45,7 @@ class PipelinePlotter:
                 return None
             return sub.get(k2)
 
-        norm = LogNorm(1)
+        norm = LogNorm()
 
         plot_params = {
             "norm": norm, "slice_shift": (0, 0, 0),
@@ -190,14 +190,14 @@ class PipelinePlotter:
         _, raw_axes = plot_volume_slices(
             det_data,
             views=("z-", "y+", "x+"),  # natural views,
-            norm=LogNorm(1),
+            norm=LogNorm(),
             show=False
         )
         _, ortho_axes = plot_volume_slices(
             ortho_data,
             voxel_size=q_spacing,
             data_centre=q_centre,
-            norm=LogNorm(1),
+            norm=LogNorm(),
             convention="xu",
             show=False
         )
@@ -207,7 +207,7 @@ class PipelinePlotter:
                 # replot with same configuration
                 im = old_ax.get_images()[0]
                 new_ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(1),
+                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(),
                     extent=im.get_extent(), origin=im.origin
                 )
                 new_ax.axis(old_ax.axis())
@@ -646,7 +646,7 @@ class PipelinePlotter:
             obj_fft,
             voxel_size=q_spacing,
             data_centre=q_space_shift,
-            norm=LogNorm(1),
+            norm=LogNorm(),
             convention="xu",
             show=False
         )
@@ -658,7 +658,7 @@ class PipelinePlotter:
             exp_ortho_data,
             voxel_size=q_spacing,
             data_centre=q_centre,
-            norm=LogNorm(1),
+            norm=LogNorm(),
             convention="xu",
             show=False
         )
@@ -668,7 +668,7 @@ class PipelinePlotter:
                 # replot with same configuration
                 im = old_ax.get_images()[0]
                 new_ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(1),
+                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(),
                     extent=im.get_extent(), origin=im.origin
                 )
                 new_ax.axis(old_ax.axis())
