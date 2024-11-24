@@ -179,3 +179,12 @@ class NanoMAXLoader(H5TypeLoader):
         """
         h5file = self.h5file
         return h5file["entry/snapshots/post_scan/energy"][0]
+
+    def get_detector_name(self) -> str:
+        return None
+
+    def load_det_calib_params(self) -> dict:
+        return None
+
+    def load_detector_shape(self) -> tuple:
+        return None
