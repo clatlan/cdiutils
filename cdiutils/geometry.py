@@ -85,8 +85,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # gontheta, gonphi
                 detector_circles=["y-", "x-"],  # gamma, delta
-                detector_vertical_orientation="y+",
-                detector_horizontal_orientation="x+",
+                detector_vertical_orientation="y-",
+                detector_horizontal_orientation="x-",
                 beam_direction=[1, 0, 0],
                 name="NanoMAX"
             )
