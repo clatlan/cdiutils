@@ -26,7 +26,7 @@ def plot_volume_slices(
         voxel_size: tuple | list = None,
         data_centre: tuple | list = None,
         views: tuple[str] = None,
-        convention: str = "cxi",
+        convention: str = None,
         title: str = None,
         equal_limits: bool = True,
         slice_shift: tuple | list = None,
@@ -41,6 +41,10 @@ def plot_volume_slices(
     if plot_params:
         _plot_params.update(plot_params)
 
+    if convention is None:
+        if views is None:  # Simplest case, no swapping, no flipping etc.
+            views = ("z-", "y+", "x+")  # natural view in cxi convention
+            view_params = CXI_VIEW_PARAMETERS.copy()
     if convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()
         if views is None:
