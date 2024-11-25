@@ -45,7 +45,7 @@ def plot_volume_slices(
         if views is None:  # Simplest case, no swapping, no flipping etc.
             views = ("z-", "y+", "x+")  # natural view in cxi convention
             view_params = CXI_VIEW_PARAMETERS.copy()
-    if convention.lower() in ("xu", "lab"):
+    elif convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()
         if views is None:
             views = ("x-", "y-", "z-")
