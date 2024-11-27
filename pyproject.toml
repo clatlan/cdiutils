@@ -35,7 +35,7 @@ dependencies = [
     "hdf5plugin>=3.2.0",
     "ipykernel",
     "matplotlib>=3.8",
-    "numpy>=1.26",
+    "numpy",
     "pandas>=1.4.2",
     "scikit-image>=0.19.2",
     "scikit-learn>=1.1.3",
