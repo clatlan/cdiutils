@@ -30,27 +30,73 @@ def plot_volume_slices(
         title: str = None,
         equal_limits: bool = True,
         slice_shift: tuple | list = None,
-        show: bool = True,
         integrate: bool = False,
+        show: bool = True,
         **plot_params
 ) -> tuple[plt.Figure, plt.Axes]:
-    _plot_params = {
-        "cmap": "turbo",
-    }
+    """
+    Generic function for plotting 2D slices (cross section or sum, with
+    option 'integrate') of 3D volumes. The slices are plotted according
+    to the specified views and conventions. If not specified, natural
+    views are plotted in matrix convention (x-axis: 2nd dim, y-axis:
+    1st dim), i.e:
+    * first slice: taken at the centre of axis0
+    * second slice: taken at the centre of axis1
+    * third slice: taken at the centre of axis2
+
+    Args:
+        data (np.ndarray): the data to plot.
+        support (np.ndarray, optional): a support for the data. Defaults
+            to None.
+        voxel_size (tuple | list, optional): the voxel size to modify
+            the aspect ratio accordingly. Defaults to None.
+        data_centre (tuple | list, optional): the centre to take the
+            data at. Defaults to None.
+        views (tuple[str], optional): the views for each plot according
+            to the provided convention. If None default views of the
+            specified convention are plotted. Defaults to None.
+        convention (str, optional): the convention employed to plot the
+            multiple slices, if views not specified, will set the
+            default views for the specified convention, i.e.:
+            ("x-", "y-", "z-") for XU convention and ("z+", "y-", "x+")
+            for the CXI convention. If None, natural views are plotted.
+            Defaults to None.
+        title (str, optional): the title of the plot. Defaults to None.
+        equal_limits (bool, optional): whether to have the same limit
+            extend for all axes. Defaults to True.
+        slice_shift (tuple | list, optional): the shift in the slice
+            selection, by default will use the centre for each dim.
+            Defaults to None.
+        integrate (bool, optional): whether to sum the data instead of
+            taking the slice. Defaults to False.
+        show (bool, optional): whether to show the plot. Defaults to
+            True. False might be useful if the function is only used for
+            generating the axes that are then redrawn afterwards.
+        **plot_params: additional plot params that will be parsed into
+            the matplotlib imshow() function.
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: the generated figure and axes.
+    """
+    _plot_params = {"cmap": "turbo"}
 
     if plot_params:
         _plot_params.update(plot_params)
 
+    # For the default behaviour we use CXI view parameters, but this
+    # case does not correspond to the the classical CXI views yet. If
+    # convention and views are not specified, we use the natural matrix
+    # representation and CXI_VIEW_PARAMETERS is just use for
+    # convenience.
+    view_params = CXI_VIEW_PARAMETERS.copy()
     if convention is None:
         if views is None:  # Simplest case, no swapping, no flipping etc.
             views = ("z-", "y+", "x+")  # natural view in cxi convention
-            view_params = CXI_VIEW_PARAMETERS.copy()
     elif convention.lower() in ("xu", "lab"):
-        view_params = XU_VIEW_PARAMETERS.copy()
+        view_params = XU_VIEW_PARAMETERS.copy()  # overwrite the params
         if views is None:
             views = ("x-", "y-", "z-")
     elif convention.lower() == "cxi":
-        view_params = CXI_VIEW_PARAMETERS.copy()
         if views is None:
             views = ("z+", "y-", "x+")
 
