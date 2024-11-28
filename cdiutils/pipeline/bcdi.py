@@ -358,12 +358,14 @@ class BcdiPipeline(Pipeline):
             # data during the post processing. The converter will be saved.
             self.converter.init_interpolator(
                 direct_lab_voxel_size=self.params["voxel_size"],
-                space="both"
+                space="both",
+                verbose=True
             )
-            self.logger.info(
-                "Voxel size calculated from the extent in the reciprocal "
-                f"space is {self.converter.direct_lab_voxel_size} nm."
-            )
+            if self.params["voxel_size"] is not None:
+                self.logger.info(
+                    "Voxel size provided by user will be saved for the direct "
+                    "space orthogonalisation."
+                )
 
             # Run the interpolation in the reciprocal space so we don't
             # do it later

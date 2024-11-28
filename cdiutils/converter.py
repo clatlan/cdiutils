@@ -54,7 +54,7 @@ class SpaceConverter():
 
         # attributes that must be protected
         self._shape = shape
-        self._direct_lab_voxel_size = direct_lab_voxel_size
+        self.direct_lab_voxel_size = direct_lab_voxel_size
         self._q_space_transitions = None
 
         self.xu_gridder: xu.FuzzyGridder3D = None
@@ -66,7 +66,7 @@ class SpaceConverter():
         return tuple(float(e) for e in self._direct_lab_voxel_size)
 
     @direct_lab_voxel_size.setter
-    def direct_lab_voxel_size(self, size: tuple):
+    def direct_lab_voxel_size(self, size: tuple | float | int):
         """
         This setter will reinitialise the direct_lab_interpolator if it
         has been initialised beforehand.
@@ -75,7 +75,8 @@ class SpaceConverter():
             size = tuple(np.repeat(size, len(self._shape)))
 
         if self.direct_lab_interpolator is not None:
-            if size != tuple(self.direct_lab_interpolator.target_voxel_size):
+            if np.array_equal(
+                    size, self.direct_lab_interpolator.target_voxel_size):
                 print("Reinitialising the direct space interpolator")
                 self.init_interpolator(size, space="direct")
         self._direct_lab_voxel_size = size
@@ -496,20 +497,20 @@ class SpaceConverter():
             )
             if verbose:
                 print(
-                    "Voxel size in the direct lab space due to the "
-                    "orthogonalisation process is:\n"
-                    f"{original_direct_lab_voxel_size}(nm)."
+                    "Voxel size calculated from the extent in the reciprocal "
+                    "space is:\n"
+                    f"{original_direct_lab_voxel_size} (nm)."
                 )
 
             if direct_lab_voxel_size is None:
                 direct_lab_voxel_size = original_direct_lab_voxel_size
+            self.direct_lab_voxel_size = direct_lab_voxel_size  # setter
             # initialise the interpolator instance
             self.direct_lab_interpolator = Interpolator3D(
                 original_shape=self._shape,
                 original_to_target_matrix=direct_lab_transformation_matrix,
-                target_voxel_size=direct_lab_voxel_size
+                target_voxel_size=self.direct_lab_voxel_size  # property
             )
-            self._direct_lab_voxel_size = direct_lab_voxel_size
 
     def orthogonalise_to_q_lab(
             self,
