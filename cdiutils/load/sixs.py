@@ -3,6 +3,8 @@ import silx.io.h5py_utils
 
 from cdiutils.load import Loader
 
+# TODO: need to be updated: H5TypeLoader, checkup sample_name and scan.
+
 
 class SIXS2022Loader(Loader):
     """
@@ -15,6 +17,7 @@ class SIXS2022Loader(Loader):
         "detector_outofplane_angle": "gamma",
         "detector_inplane_angle": "delta"
     }
+    authorised_detector_names = ("maxipix", )
 
     def __init__(
             self,
@@ -41,7 +44,7 @@ class SIXS2022Loader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(SIXS2022Loader, self).__init__(flat_field, alien_mask)
+        super().__init__(flat_field, alien_mask)
         self.experiment_data_dir_path = experiment_data_dir_path
         self.detector_name = detector_name
         self.sample_name = sample_name

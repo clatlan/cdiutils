@@ -15,12 +15,14 @@ class P10Loader(Loader):
         "detector_outofplane_angle": "del",
         "detector_inplane_angle": "gam"
     }
+    authorised_detector_names = ("eiger4m", )
 
     def __init__(
             self,
             experiment_data_dir_path: str,
-            detector_name: str,
+            scan: int = None,
             sample_name: str = None,
+            detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
             hutch: str = "EH1",
@@ -42,10 +44,11 @@ class P10Loader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(P10Loader, self).__init__(flat_field, alien_mask)
+        super().__init__(flat_field, alien_mask)
         self.experiment_data_dir_path = experiment_data_dir_path
-        self.detector_name = detector_name
+        self.scan = scan
         self.sample_name = sample_name
+        self.detector_name = detector_name
 
         if hutch.lower() == "eh2":
             self.angle_names["sample_outofplane_angle"] = "samth"
@@ -97,7 +100,7 @@ class P10Loader(Loader):
 
     def load_detector_data(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -107,19 +110,20 @@ class P10Loader(Loader):
         Load detector data for a given scan and sample.
 
         Args:
-            scan (int): Scan number.
+            scan (int): Scan number. Defaults to None.
             sample_name (str, optional): Name of the sample. Defaults to
-                                         None.
+                None.
             roi (tuple, optional): Region of interest. Defaults to None.
             rocking_angle_binning (int, optional): Binning factor along
-                                                 axis 0. Defaults to
-                                                 None.
+                axis 0. Defaults to None.
             binning_method (str, optional): Binning method. Defaults to
-                                            "sum".
+                "sum".
 
         Returns:
             numpy.ndarray: Loaded detector data.
         """
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -155,7 +159,7 @@ class P10Loader(Loader):
 
     def load_motor_positions(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -164,7 +168,7 @@ class P10Loader(Loader):
         Load motor positions for a given scan and sample.
 
         Args:
-            scan (int): Scan number.
+            scan (int): Scan number. Defaults to None.
             sample_name (str, optional): Name of the sample. Defaults
                 to None.
             roi (tuple, optional): Region of interest. Defaults to None.
@@ -174,6 +178,8 @@ class P10Loader(Loader):
         Returns:
             dict: Dictionary containing motor positions.
         """
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -239,7 +245,9 @@ class P10Loader(Loader):
             for angle, name in self.angle_names.items()
         }
 
-    def load_energy(self, scan: int, sample_name: str = None) -> float:
+    def load_energy(self, scan: int = None, sample_name: str = None) -> float:
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 

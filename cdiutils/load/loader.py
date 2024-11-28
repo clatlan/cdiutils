@@ -246,9 +246,12 @@ class Loader(ABC):
     def load_det_calib_params(self):
         pass
 
-    @abstractmethod
     def load_detector_shape(self):
-        pass
+        return None
+
+    def get_detector_name(self) -> str:
+        """By default, return the first authorised name of the class."""
+        return self.authorised_detector_names[0]
 
     @staticmethod
     def get_rocking_angle(angles) -> str:
@@ -467,26 +470,23 @@ class H5TypeLoader(Loader):
         self.experiment_file_path = experiment_file_path
         self.sample_name = sample_name
         if detector_name is None:
-            if sample_name is not None:
-                self.detector_name = self.get_detector_name()
-                print(
-                    "Detector name automatically found "
-                    f"('{self.detector_name}')."
-                )
-            else:
-                print(
-                    "detector_name is not provided, cannot automatically find "
-                    "it since sample_name is not provided either.\n"
-                    "Will set detector_name to "
-                    f"({self.authorised_detector_names[0]})'."
-                )
-                self.detector_name = self.authorised_detector_names[0]
+            self.detector_name = self.get_detector_name()
+            # if sample_name is not None:
+            #     self.detector_name = self.get_detector_name()
+            #     print(
+            #         "Detector name automatically found "
+            #         f"('{self.detector_name}')."
+            #     )
+            # else:
+            #     print(
+            #         "detector_name is not provided, cannot automatically find "
+            #         "it since sample_name is not provided either.\n"
+            #         "Will set detector_name to "
+            #         f"'{self.authorised_detector_names[0]}'."
+            #     )
+            #     self.detector_name = self.authorised_detector_names[0]
         else:
             self.detector_name = detector_name
-
-    @abstractmethod
-    def get_detector_name(self) -> str:
-        pass
 
     @h5_safe_load
     def load_angles(self, key_path: str) -> dict:

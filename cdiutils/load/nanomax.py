@@ -33,7 +33,7 @@ class NanoMAXLoader(H5TypeLoader):
         "detector_outofplane_angle": "delta",
         "detector_inplane_angle": "gamma"
     }
-    authorised_detector_names = ("eiger500k")
+    authorised_detector_names = ("eiger500k", )
 
     def __init__(
             self,
@@ -61,10 +61,10 @@ class NanoMAXLoader(H5TypeLoader):
         """
         super().__init__(
             experiment_file_path,
-            sample_name,
-            detector_name,
-            flat_field,
-            alien_mask
+            sample_name=sample_name,
+            detector_name=detector_name,
+            flat_field=flat_field,
+            alien_mask=alien_mask
         )
 
     @h5_safe_load
@@ -179,9 +179,6 @@ class NanoMAXLoader(H5TypeLoader):
         """
         h5file = self.h5file
         return h5file["entry/snapshots/post_scan/energy"][0]
-
-    def get_detector_name(self) -> str:
-        return None
 
     def load_det_calib_params(self) -> dict:
         return None

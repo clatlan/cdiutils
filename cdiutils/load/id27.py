@@ -22,6 +22,7 @@ class ID27Loader(H5TypeLoader):
     def __init__(
             self,
             experiment_file_path: str,
+            scan: int = None,
             sample_name: str = None,
             detector_name: str = None,
             flat_field: np.ndarray | str = None,
@@ -35,9 +36,10 @@ class ID27Loader(H5TypeLoader):
         Args:
             experiment_file_path (str): path to the bliss master file
                 used for the experiment.
-            detector_name (str): name of the detector.
+            scan (int, optional): the scan number. Defaults to None.
             sample_name (str, optional): name of the sample. Defaults
                 to None.
+            detector_name (str): name of the detector.
             flat_field (np.ndarray | str, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
@@ -51,11 +53,12 @@ class ID27Loader(H5TypeLoader):
             flat_field,
             alien_mask
         )
+        self.scan = scan
 
     @h5_safe_load
     def load_detector_data(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -65,7 +68,7 @@ class ID27Loader(H5TypeLoader):
         Load the detector data.
 
         Args:
-            scan (int): the scan number
+            scan (int): the scan number. Defaults to None.
             sample_name (str, optional): the sample name.
                 Defaults to None.
             roi (tuple[slice], optional): the region of interest to
@@ -82,6 +85,8 @@ class ID27Loader(H5TypeLoader):
             np.ndarray: the detector data.
         """
         h5file = self.h5file
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -123,7 +128,7 @@ class ID27Loader(H5TypeLoader):
     @h5_safe_load
     def load_motor_positions(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -133,7 +138,7 @@ class ID27Loader(H5TypeLoader):
         with a scan.
 
         Args:
-            scan (int): the scan number
+            scan (int): the scan number. Defaults to None.
             sample_name (str, optional): the sample name.
                 Defaults to None.
             roi (tuple[slice], optional): the region of interest.
@@ -144,6 +149,8 @@ class ID27Loader(H5TypeLoader):
         Returns:
             dict: the four diffractometer angles.
         """
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -200,7 +207,7 @@ class ID27Loader(H5TypeLoader):
     @h5_safe_load
     def load_det_calib_params(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None
     ) -> dict:
         """
@@ -211,6 +218,8 @@ class ID27Loader(H5TypeLoader):
         notebook.
         """
         h5file = self.h5file
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -256,12 +265,14 @@ class ID27Loader(H5TypeLoader):
     @h5_safe_load
     def load_detector_shape(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
     ) -> tuple:
+        h5file = self.h5file
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
-        h5file = self.h5file
         if self.detector_name in ("eiger", "eiger9m", "e9m"):
             shape = (3262, 3108)
             key_path = f"{sample_name}_{scan}.1/instrument/eiger/acq_nb_frames"
@@ -274,10 +285,12 @@ class ID27Loader(H5TypeLoader):
     @h5_safe_load
     def load_energy(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None
     ) -> float:
         h5file = self.h5file
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
