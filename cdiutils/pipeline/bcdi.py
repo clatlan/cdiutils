@@ -458,16 +458,15 @@ class BcdiPipeline(Pipeline):
                 raise ValueError(
                     "The automatic detection of the detector name is not"
                     "yet implemented for this setup"
-                    f"({self.params['metadata']['setup']} = )."
+                    f"({self.params['setup']} = )."
                 )
 
         self.detector_data = loader.load_detector_data(
-            scan=self.scan,
             roi=roi,
             rocking_angle_binning=self.params["rocking_angle_binning"]
         )
         if roi is not None:
-            shape = loader.load_detector_shape(self.scan)
+            shape = loader.load_detector_shape()
             if shape is not None:
                 self.logger.info(f"Raw detector data shape is: {shape}.")
         else:
@@ -476,7 +475,6 @@ class BcdiPipeline(Pipeline):
             )
 
         self.angles = loader.load_motor_positions(
-            scan=self.scan,
             roi=roi,
             rocking_angle_binning=self.params["rocking_angle_binning"]
         )
@@ -503,7 +501,7 @@ class BcdiPipeline(Pipeline):
             if self.params["energy"] is None:
                 raise ValueError(
                     "The automatic loading of energy is not yet implemented"
-                    f"for this setup ({self.params['metadata']['setup']} = )."
+                    f"for this setup ({self.params['setup']} = )."
                 )
             else:
                 self.logger.info(
@@ -522,7 +520,8 @@ class BcdiPipeline(Pipeline):
                 raise ValueError(
                     "The automatic loading of det_calib_params is not yet "
                     "implemented for this setup "
-                    f"({self.params['metadata']['setup']} = )."
+                    f"('{self.params['beamline_setup']}'), you must provide "
+                    "them."
                 )
             else:
                 self.logger.info(
@@ -1668,7 +1667,8 @@ reconstruction (best solution)."""
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
-            self.params["facet_analysis"],
-            self.dump_dir
+            self.params["facets"],
+            self.params["support"]["support_method"],
+            self.dump_dir,
         )
         facet_anlysis_processor.facet_analysis()
