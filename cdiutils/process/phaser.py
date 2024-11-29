@@ -710,6 +710,8 @@ class PhasingResultAnalyser:
 
     @property
     def metrics(self) -> dict:
+        if self._metrics is None:
+            return None
         metrics = {m: {} for m in self._metrics}
         for m in self._metrics:
             for path in self._metrics[m]:
@@ -722,6 +724,8 @@ class PhasingResultAnalyser:
 
     @property
     def sorted_phasing_results(self) -> dict:
+        if self._sorted_phasing_results is None:
+            return None
         sorted_results = {}
         for path in self._sorted_phasing_results:
             if os.path.exists(path):
