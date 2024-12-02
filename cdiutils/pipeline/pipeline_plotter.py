@@ -238,7 +238,7 @@ class PipelinePlotter:
             kde_y: np.ndarray = None,
             color: ColorType = "lightcoral",
             fwhm: bool = True
-    ) -> None:
+    ) -> float:
         """
         Plot the bars of a histogram as well as the kernel density
         estimate.
@@ -255,6 +255,9 @@ class PipelinePlotter:
                 density estimate.
             color (ColorType, optional): the colour of the bar and line.
                 Defaults to "lightcoral".
+
+        Returns:
+            float: the fwhm is required else None.
         """
 
         # Resample the histogram to calculate the kernel density estimate
@@ -296,6 +299,8 @@ class PipelinePlotter:
                     label=f"FWHM = {fwhm:.4f}%",
                     color=color, ls="--", linewidth=1
                 )
+            return fwhm
+        return None
 
     @classmethod
     def strain_statistics(
@@ -362,10 +367,10 @@ class PipelinePlotter:
         figure, axes = plt.subplot_mosaic(
             mosaic, layout="tight", figsize=(6, 4)
         )
-
+        fwhms = {}
         # First plot the three histograms separately
         for e, key in zip(("overall", "bulk", "surface"), ("A", "B", "C")):
-            cls.plot_histogram(
+            fwhms[e] = cls.plot_histogram(
                 axes[key], *histograms[e], *kdes[e], color=colors[e]
             )
 
@@ -378,7 +383,7 @@ class PipelinePlotter:
 
         # Plot the density histograms for bulk and surface on the same subplot
         for e in ("bulk_density", "surface_density"):
-            cls.plot_histogram(
+            fwhms[e] = cls.plot_histogram(
                 axes["D"], *histograms[e], *kdes[e], color=colors[e]
             )
 
@@ -436,7 +441,7 @@ class PipelinePlotter:
         if save:
             save_fig(figure, path=save, transparent=False)
 
-        return figure, axes
+        return figure, axes, means, fwhms
 
     @staticmethod
     def summary_plot(

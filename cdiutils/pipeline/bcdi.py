@@ -1063,6 +1063,10 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             cmd
         """
+        if self.result_analyser is None:
+            self.result_analyser = PhasingResultAnalyser(
+                result_dir_path=self.pynx_phasing_dir
+            )
         try:
             modes, mode_weights = self.result_analyser.mode_decomposition()
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
@@ -1097,6 +1101,12 @@ retrieval is also computed and will be used in the post-processing stage."""
             if modes is None:
                 raise ValueError("mode_path or modes required.")
 
+        best_candidates, sorted_results, metrics = None, None, None
+        if self.result_analyser is not None:
+            best_candidates = self.result_analyser.best_candidates
+            sorted_results = self.result_analyser.sorted_phasing_results
+            metrics = self.result_analyser.metrics
+
         path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
         with CXIFile(path, "w") as cxi:
             cxi.stamp()
@@ -1108,14 +1118,15 @@ retrieval is also computed and will be used in the post-processing stage."""
                 description="""Process information for the original CDI
 reconstruction (best solution)."""
             )
-            with h5py.File(self.result_analyser.best_candidates[0], "r") as f:
-                if "/entry_last/image_1/process_1" in f:
-                    for key in f["/entry_last/image_1/process_1"]:
-                        f.copy(
-                            f"/entry_last/image_1/process_1/{key}",
-                            cxi.get_node(path),
-                            name=key
-                        )
+            if best_candidates:
+                with h5py.File(best_candidates[0], "r") as f:
+                    if "/entry_last/image_1/process_1" in f:
+                        for key in f["/entry_last/image_1/process_1"]:
+                            f.copy(
+                                f"/entry_last/image_1/process_1/{key}",
+                                cxi.get_node(path),
+                                name=key
+                            )
 
             path = cxi.create_cxi_group(
                 "result",
@@ -1131,8 +1142,8 @@ reconstruction (best solution)."""
             path = cxi.create_cxi_group(
                 "result",
                 description="Sort the phasing results according to criterion.",
-                sorted_results=self.result_analyser.sorted_phasing_results,
-                metrics=self.result_analyser.metrics
+                sorted_results=sorted_results,
+                metrics=metrics
             )
             cxi.softlink(f"{path}/process_2", "/entry_1/process_2")
 
@@ -1143,7 +1154,7 @@ reconstruction (best solution)."""
             )
             path = cxi.create_cxi_group(
                 "result", description="Only selected best candidates",
-                best_candidates=self.result_analyser.best_candidates
+                best_candidates=best_candidates
             )
             cxi.softlink(f"{path}/process_3", "/entry_1/process_3")
 
@@ -1242,20 +1253,20 @@ reconstruction (best solution)."""
     @Pipeline.process
     def postprocess(self, **params) -> None:
         _path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
+        # Whether to reload the pre-processing .cxi file.
+        if self.q_lab_pos.get("ref") is None or self.converter is None:
+            self.logger.info(f"Loading parameters from:\n{_path}")
+            self.update_from_file(_path)
         if params:
             self.logger.info(
-                "Additional parameters provided, will update the current "
-                "dictionary of parameters."
+                f"Additional parameters provided {params}, will update the "
+                "current dictionary of parameters."
             )
             self.params.update(params)
             if "voxel_size" in params and params["voxel_size"] is None:
                 with CXIFile(_path, "r") as cxi:
                     self.converter = self._build_converter_from_cxi(cxi)
 
-        # Whether to reload the pre-processing .cxi file.
-        if self.q_lab_pos.get("ref") is None or self.converter is None:
-            self.logger.info(f"Loading parameters from:\n{_path}")
-            self.update_from_file(_path)
         # Load the reconstruction mode
         _path = f"{self.dump_dir}/S{self.scan}_pynx_reconstruction_mode.cxi"
         self.reconstruction = self._load_reconstruction(_path, centre=True)
@@ -1422,13 +1433,14 @@ reconstruction (best solution)."""
             cmap=RED_TO_TEAL,
             **displacement_gradient_plots
         )
-
-        PipelinePlotter.strain_statistics(
+        _, _, means, fwhms = PipelinePlotter.strain_statistics(
             self.structural_props["het_strain_from_dspacing"],
             self.structural_props["support"],
             title=f"Strain statistics, {sample_scan}",
             save=dump_file_tmpl.format("strain_statistics")
         )
+        self.extra_info["strain_means"] = means
+        self.extra_info["strain_fwhms"] = fwhms
         plot_3d_surface_projections(
             data=self.structural_props["het_strain"],
             support=self.structural_props["support"],
@@ -1537,7 +1549,10 @@ reconstruction (best solution)."""
             # We consider voxel_size is given with the same convention
             # as the one specified in 'orientation_convention'.
             # if 1D, make it 3D
-            if isinstance(self.params["voxel_size"], (float, int)):
+            if isinstance(
+                self.params["voxel_size"],
+                (float, int, np.floating, np.integer)
+            ):
                 self.params["voxel_size"] = tuple(np.repeat(
                     self.params["voxel_size"], self.reconstruction.ndim
                 ))
@@ -1598,6 +1613,15 @@ reconstruction (best solution)."""
                     "averaged_lattice_parameter"
                 ],
                 units="angstrom"
+            )
+            cxi.softlink(f"{path}/process_1", "entry_1/process_1")
+
+            path = cxi.create_cxi_group(
+                "result",
+                description="Strain statistics",
+                strain_averages=self.extra_info["strain_means"],
+                strain_fwhms=self.extra_info["strain_fwhms"],
+                units="%"
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
