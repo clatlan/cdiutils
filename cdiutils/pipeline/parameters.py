@@ -39,20 +39,6 @@ AUTHORIZED_KEYS = {
     "handle_defects": False,
     "orthogonalise_before_phasing": False,
     "orientation_convention": "cxi",
-    "method_det_support": None,
-    "raw_process": True,
-    "support_path": None,
-    "remove_edges": True,
-    "nb_facets": None,
-    "order_of_derivative": None,
-    "derivative_threshold": None,
-    "amplitude_threshold": None,
-    "top_facet_reference_index": [1, 1, 1],
-    "authorized_index": 1,
-    "nb_nghbs_min": 0,
-    "index_to_display": None,
-    "display_f_e_c": 'facet',
-    "size": 10,
     "pynx": {
         "data": None,
         "mask": None,
@@ -88,6 +74,24 @@ AUTHORIZED_KEYS = {
         "live_plot": False,
         "save_plot": True,
         "mpi": "run"
+    },
+    "support": {
+        "support_method": None,
+        "raw_process": True,
+        "support_path": None,
+    },
+    "facets": {
+        "nb_facets": None,
+        "remove_edges": True,
+        "order_of_derivative": None,
+        "derivative_threshold": None,
+        "amplitude_threshold": None,
+        "top_facet_reference_index": [1, 1, 1],
+        "authorised_index": 1,
+        "nb_nghbs_min": 0,
+        "index_to_display": None,
+        "display_f_e_c": 'facet',
+        "size": 10, 
     }
 }
 
@@ -149,16 +153,17 @@ def check_params(params: dict) -> None:
             if value == "REQUIRED":
                 raise ValueError(f"Parameter '{name}' is required.")
             params.update({name: value})
-    for name, value in AUTHORIZED_KEYS["pynx"].items():
-        if name not in params["pynx"] or params["pynx"][name] is None:
-            if value == "REQUIRED":
-                raise ValueError(f"Parameter '{name}' is required.")
-            params["pynx"].update({name: value})
-    for name in params["pynx"]:
-        if not isparameter(name):
-            warnings.warn(
-                f"Parameter '{name}' is unknown, will not be used")
-    for name in params.keys():
+    
+    for subdict in ("pynx", "support", "facets"):
+        for name, value in AUTHORIZED_KEYS[subdict].items():
+            if name not in params[subdict] or params[subdict][name] is None:
+                # None of these parameters are required.
+                params[subdict].update({name: value})
+        for name in params[subdict]:
+            if not isparameter(name):
+                warnings.warn(
+                    f"Parameter '{name}' is unknown, will not be used")
+    for name in params:
         if not isparameter(name):
             warnings.warn(
                 f"Parameter '{name}' is unknown, will not be used."
@@ -179,11 +184,10 @@ def fill_pynx_params(params: dict) -> None:
 
 def isparameter(string: str):
     """Return whether or not the given string is in AUTHORIZED_KEYS."""
-    return (
-        string in list(AUTHORIZED_KEYS.keys())
-        + list(AUTHORIZED_KEYS["pynx"].keys())
-        + ["pynx"]
-    )
+    authorised = list(AUTHORIZED_KEYS.keys())
+    for key in ("pynx", "support", "facets"):
+        authorised += list(AUTHORIZED_KEYS[key].keys())
+    return string in authorised
 
 
 def get_params_from_variables(
@@ -194,13 +198,14 @@ def get_params_from_variables(
     Return a dictionary of parameters whose keys are authorized by the
     AUTHORIZED_KEYS list.
     """
-    params = {
-        "pynx": {}
-    }
+    params = {"pynx": {}, "facets": {}, "support": {}}
     for e in dir_list:
         if e in AUTHORIZED_KEYS:
             params[e] = globals_dict[e]
         elif e in AUTHORIZED_KEYS["pynx"]:
             params["pynx"][e] = globals_dict[e]
-
+        elif e in AUTHORIZED_KEYS["facets"]:
+            params["facets"][e] = globals_dict[e]
+        elif e in AUTHORIZED_KEYS["support"]:
+            params["support"][e] = globals_dict[e]
     return params
