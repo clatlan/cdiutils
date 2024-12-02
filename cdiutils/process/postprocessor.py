@@ -446,7 +446,7 @@ class PostProcessor:
 
         # all strains are saved in percent
         return {
-            "amplitude": normalise(amplitude),
+            "amplitude": amplitude,
             "support": nan_to_zero(support),
             "surface": nan_to_zero(surface) if surface is not None else nan_to_zero(support),
             "phase": nan_to_zero(phase),
