@@ -1,4 +1,5 @@
 import copy
+import numbers
 import warnings
 
 import h5py
@@ -54,10 +55,12 @@ class SpaceConverter():
 
         # attributes that must be protected
         self._shape = shape
-        self.direct_lab_voxel_size = direct_lab_voxel_size
         self._q_space_transitions = None
 
         self.xu_gridder: xu.FuzzyGridder3D = None
+
+        # particular attribute that is also defined by its setter.
+        self.direct_lab_voxel_size = direct_lab_voxel_size
 
     @property
     def direct_lab_voxel_size(self):
@@ -71,12 +74,15 @@ class SpaceConverter():
         This setter will reinitialise the direct_lab_interpolator if it
         has been initialised beforehand.
         """
-        if isinstance(size, (float, int)):
+        if isinstance(size, (numbers.Number)):
             size = tuple(np.repeat(size, len(self._shape)))
 
         if self.direct_lab_interpolator is not None:
-            if np.array_equal(
-                    size, self.direct_lab_interpolator.target_voxel_size):
+            if (
+                    not np.array_equal(
+                        size, self.direct_lab_interpolator.target_voxel_size)
+                    and self._q_space_transitions is not None
+            ):
                 print("Reinitialising the direct space interpolator")
                 self.init_interpolator(size, space="direct")
         self._direct_lab_voxel_size = size
@@ -448,7 +454,6 @@ class SpaceConverter():
             raise ValueError(
                 "Invalid space."
             )
-        size = np.prod(self._shape)
 
         if shift_voxel is None:
             shift_voxel = tuple(s // 2 for s in self._shape)
@@ -464,7 +469,7 @@ class SpaceConverter():
         k_matrix = []
         for i in np.indices(self._shape):
             k_matrix.append(i - i[shift_voxel])
-        k_matrix = np.array(k_matrix).reshape(3, size)
+        k_matrix = np.array(k_matrix).reshape(3, np.prod(self._shape))
 
         # get the transformation_matrix
         transformation_matrix = self.transformation_matrix(
@@ -504,13 +509,18 @@ class SpaceConverter():
 
             if direct_lab_voxel_size is None:
                 direct_lab_voxel_size = original_direct_lab_voxel_size
-            self.direct_lab_voxel_size = direct_lab_voxel_size  # setter
+            if isinstance(direct_lab_voxel_size, numbers.Number):
+                direct_lab_voxel_size = np.repeat(
+                    direct_lab_voxel_size, len(self._shape)
+                )
+
             # initialise the interpolator instance
             self.direct_lab_interpolator = Interpolator3D(
                 original_shape=self._shape,
                 original_to_target_matrix=direct_lab_transformation_matrix,
                 target_voxel_size=self.direct_lab_voxel_size  # property
             )
+            self._direct_lab_voxel_size = direct_lab_voxel_size
 
     def orthogonalise_to_q_lab(
             self,
@@ -893,7 +903,7 @@ class Interpolator3D:
             self.target_voxel_size = np.linalg.norm(
                 original_to_target_matrix, axis=1
             )
-        elif isinstance(target_voxel_size, (float, int)):
+        elif isinstance(target_voxel_size, numbers.Number):
             self.target_voxel_size = np.repeat(
                 target_voxel_size,
                 len(original_shape)
