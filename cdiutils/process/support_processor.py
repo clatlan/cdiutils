@@ -19,15 +19,14 @@ class SupportProcessor:
     
     def __init__(
             self,
-            parameters: dict,
-            data: np.ndarray=[],
-            isosurface: float=0.5,
-            nan_values: bool=False
+            params: dict,
+            data: np.ndarray = None,
+            isosurface: float=0.1,
     ) -> None:
         
         #Parameters
-        self.params = parameters
-        
+        self.params = params
+
         self.isosurface = None
         self.amplitude_threshold = None 
         self.order_of_derivative = None
@@ -58,34 +57,34 @@ class SupportProcessor:
         self.path_order = None
 
         if self.params["support_path"] is None:
-            if self.params["method_det_support"] == "Amplitude_variation":
+            if self.params["support_method"] == "amplitude_variation":
                 self.path_surface = (f'{self.dump_dir}surface_calculation/'
-                                     f'{self.params["method_det_support"]}/'
+                                     f'{self.params["support_method"]}/'
                 )
-            elif self.params["method_det_support"] == "Isosurface":
+            elif self.params["support_method"] == "isosurface":
                 self.path_surface = (f'{self.dump_dir}surface_calculation/'
-                                     f'{self.params["method_det_support"]}'
+                                     f'{self.params["support_method"]}'
                                      f'={self.params["isosurface"]}/'
                 )
 
             else:
-                raise ValueError("Unknown method_det_support. "
-                                 "Use method_det_support='Amplitude_variation'"
-                                 " or method_det_support='Isosurface'"
+                raise ValueError("Unknown support_method. "
+                                 "Use support_method='amplitude_variation'"
+                                 " or support_method='isosurface'"
                 )
-            if self.params["method_det_support"] == "Amplitude_variation":
-                if (self.order_of_derivative == "Gradient" 
-                    or self.order_of_derivative == "Laplacian"
+            if self.params["support_method"] == "amplitude_variation":
+                if (self.order_of_derivative == "gradient" 
+                    or self.order_of_derivative == "laplacian"
                 ):
                     self.path_order = (f'{self.path_surface}'
                                            f'{self.order_of_derivative}/'
                     )
                 else:
                     raise ValueError("Unknown order_of_derivative. "
-                                     "Use order_of_derivative='Gradient'"
-                                     " or order_of_derivative='Laplacian'"
+                                     "Use order_of_derivative='gradient'"
+                                     " or order_of_derivative='laplacian'"
                     )
-            elif self.params["method_det_support"] == "Isosurface":
+            elif self.params["support_method"] == "isosurface":
                 self.path_order = self.path_surface        
         
   
@@ -124,7 +123,7 @@ class SupportProcessor:
                 except:
                     print(f'The folder {self.path_surface} doesn\'t exist.')
                 
-            elif self.params["method_det_support"] == "Amplitude_variation":
+            elif self.params["support_method"] == "amplitude_variation":
                 if not np.array_equal(self.input_parameters[:2], 
                                       self.previous_input_parameters[:2]
                 ):
@@ -157,7 +156,7 @@ class SupportProcessor:
         """
         Calculate the gradient of the amplitude, its value and its direction
         in each voxel, and calculate the laplacian of the amplitude 
-        if order_of_derivative="Laplacian".
+        if order_of_derivative="laplacian".
         """
 
         try:
@@ -210,7 +209,7 @@ class SupportProcessor:
             )
         
         laplacian = None
-        if self.order_of_derivative == "Laplacian":
+        if self.order_of_derivative == "laplacian":
             try:
                 laplacian = np.load(f'{self.path_surface}/laplacian.npy')
             except FileNotFoundError:
@@ -245,7 +244,7 @@ class SupportProcessor:
         except FileNotFoundError:
             print('No previous surface_voxel_candidat found')
 
-            if self.order_of_derivative == "Gradient":
+            if self.order_of_derivative == "gradient":
                 grad_min = np.min(grad_val)
                 
                 voxel_indices = np.argwhere(grad_val 
@@ -255,7 +254,7 @@ class SupportProcessor:
 
                 surface_voxel_candidat = voxel_indices.tolist()
 
-            if self.order_of_derivative == "Laplacian":
+            if self.order_of_derivative == "laplacian":
                 lapl_min = np.min(laplacian)
                 voxel_indices = np.argwhere(laplacian 
                                             < (self.derivative_threshold 
@@ -307,7 +306,7 @@ class SupportProcessor:
 
                     coeff_voisins[a][b][c] = coeff_x * coeff_y * coeff_z
                     
-                    if self.order_of_derivative == "Gradient": 
+                    if self.order_of_derivative == "gradient": 
 
                         gradxyz = (
                             xgrad[int(i + a * ux), 
@@ -327,7 +326,7 @@ class SupportProcessor:
                                             / math.sqrt(dx*dx + dy*dy + dz*dz)
                         )
 
-                    elif self.order_of_derivative == "Laplacian": 
+                    elif self.order_of_derivative == "laplacian": 
                         
                         laplacianxyz = laplacian[int(i + a * ux), 
                                                       int(j + b * uy), 
@@ -338,8 +337,8 @@ class SupportProcessor:
                         
                     else: 
                         raise ValueError("Unknown order_of_derivative. " 
-                                         "Use order_of_derivative='Gradient'"
-                                         " or order_of_derivative='Laplacian'"
+                                         "Use order_of_derivative='gradient'"
+                                         " or order_of_derivative='laplacian'"
                         )
 
         interpolated = np.sum(coeff_voisins * voisins)
@@ -380,7 +379,7 @@ class SupportProcessor:
     ) -> None:
         """
         Defines the preprocess surface from the minimum of the derivative 
-        (gradient or Laplacian) of the amplitude.
+        (gradient or laplacian) of the amplitude.
         """
 
         try:
@@ -398,14 +397,14 @@ class SupportProcessor:
                 i, j, k = elem
                 if 0 < i < self.X-1 and 0 < j < self.Y-1 and 0 < k < self.Z-1:
                     dir = grad_dir[i][j][k]
-                    if self.order_of_derivative == "Gradient":
+                    if self.order_of_derivative == "gradient":
                         fw_grad, bw_grad = self.interpolation(i, j, k, dir, 
                                                               xgrad, ygrad, 
                                                               zgrad, laplacian
                                             )
                         condition_met = (grad_val[i][j][k] < fw_grad 
                                          and grad_val[i][j][k] < bw_grad)
-                    elif self.order_of_derivative == "Laplacian":
+                    elif self.order_of_derivative == "laplacian":
                         fw_lapl, bw_lapl = self.interpolation(i, j, k, dir, 
                                                               xgrad, ygrad, 
                                                               zgrad, laplacian
@@ -415,8 +414,8 @@ class SupportProcessor:
                         )
                     else:
                         raise ValueError("Unknown order_of_derivative. "
-                                         "Use order_of_derivative='Gradient' "
-                                         "or order_of_derivative='Laplacian'")
+                                         "Use order_of_derivative='gradient' "
+                                         "or order_of_derivative='laplacian'")
 
                     if condition_met:
                         pre_surface[i][j][k] = 1
@@ -748,7 +747,7 @@ class SupportProcessor:
         if self.params["support_path"] is None:
             self.check_previous_data()
 
-            if self.params["method_det_support"]=='Isosurface':
+            if self.params["support_method"]=='isosurface':
                 try:
                     support = np.load(f'{self.path_order}/support.npy')
                 except:
@@ -768,7 +767,7 @@ class SupportProcessor:
                     )
                     np.save(f'{self.path_order}/surface.npy', surface)
 
-            elif self.params["method_det_support"]=='Amplitude_variation' :
+            elif self.params["support_method"]=='amplitude_variation' :
                 (xgrad, ygrad, zgrad, 
                  grad_dir, grad_val, laplacian
                 ) = self.def_derivative_value_direction()
@@ -833,9 +832,9 @@ class SupportProcessor:
                     surface = p_surface
  
             else:
-                raise ValueError("Unknown method_det_support. "
-                                 "Use method_det_support='Isosurface' "
-                                  "or method_det_support='Amplitude_variation'"
+                raise ValueError("Unknown support_method. "
+                                 "Use support_method='isosurface' "
+                                  "or support_method='amplitude_variation'"
                 )
 
         else :

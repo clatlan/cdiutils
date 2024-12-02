@@ -6,13 +6,11 @@ import numpy as np
 from numpy.linalg import norm as npnorm
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import DBSCAN
-from scipy import ndimage
 from scipy.ndimage import binary_erosion as erosion
 from collections import defaultdict
 import json
 import copy
 from scipy.optimize import minimize
-import warnings
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
@@ -34,26 +32,18 @@ class FacetAnalysisProcessor:
     """
 
     def __init__(
-            self,
-            parameters: dict,
+        self,
+        params: dict,
+        support_method: str,
+        dump_dir: str,
+        support_path: str = None,
+        
     ) -> None:
         
         #Parameters
-        self.params = parameters["cdiutils"]
+        self.params = params   
+        self.support_method = support_method     
         
-        self.raw_process = self.params["raw_process"]
-        
-        self.remove_edges = self.params["remove_edges"]
-        self.nb_nghbs_min = self.params["nb_nghbs_min"]
-        self.nb_facets = self.params["nb_facets"]
-        self.top_facet_ref_index = self.params["top_facet_reference_index"]
-        self.authorized_index = self.params["authorized_index"]
-        if self.params["index_to_display"] is None:
-            self.index_to_display = [self.top_facet_ref_index]
-        else:
-            self.index_to_display = self.params["index_to_display"]
-        self.size = self.params["size"]
-        self.display_f_e_c = self.params["display_f_e_c"]
         self.input_parameters = None
         self.previous_input_parameters = None
 
@@ -65,29 +55,29 @@ class FacetAnalysisProcessor:
 
         self.order_of_derivative = self.params["order_of_derivative"]
         
-        if self.nb_facets is None:
+        if self.params["nb_facets"] is None:
             raise ValueError("Please indicate the expected number of facets :"
                              "\"nb_facets\" = n ."
             )
 
-        self.dump_dir = self.params["metadata"]["dump_dir"]
-        if self.params["support_path"] is None:
+        self.dump_dir = dump_dir
+        if support_path is None:
  
-            if self.params["method_det_support"]=="Amplitude_variation":
+            if self.support_method == "amplitude_variation":
                 self.path_surface = (f'{self.dump_dir}surface_calculation/'
-                                     f'{self.params["method_det_support"]}/'
+                                     f'{self.support_method}/'
                 )
-            elif self.params["method_det_support"]=="Isosurface":
+            elif self.support_method == "isosurface":
                 self.path_surface = (f'{self.dump_dir}surface_calculation/'
-                                     f'{self.params["method_det_support"]}'
+                                     f'{self.support_method}'
                                      f'={self.params["isosurface"]}/'
                 )
             else:
-                raise ValueError("Unknown method_det_support. "
-                                 "Use method_det_support='Amplitude_variation'"
-                                  " or method_det_support='Isosurface' ")
+                raise ValueError("Unknown support_method. "
+                                 "Use support_method='amplitude_variation'"
+                                  " or support_method='isosurface' ")
 
-            if self.params["method_det_support"]=="Amplitude_variation":
+            if self.support_method == "amplitude_variation":
                 if not self.order_of_derivative is None:
                     self.path_order = (f'{self.path_surface}'
                                        f'{self.order_of_derivative}/'
@@ -96,15 +86,15 @@ class FacetAnalysisProcessor:
                     raise ValueError("Unknown order_of_derivative. "
                                      "Use order_of_derivative = 'Gradient' "
                                      "or order_of_derivative = 'Laplacian'")
-            elif self.params["method_det_support"]=="Isosurface":
+            elif self.support_method=="isosurface":
                 self.path_order = self.path_surface
             
             self.path_f = (f'{self.path_order}nb_facets='
-                                     f'{self.nb_facets}/'
+                                     f'{self.params["nb_facets"]}/'
             )
 
             h5_file_path = (f'{self.dump_dir}/cdiutils_S'
-                            f'{self.params["metadata"]["scan"]}'
+                            f'{self.params["scan"]}'
                             f'_structural_properties.h5'
             )
 
@@ -126,10 +116,10 @@ class FacetAnalysisProcessor:
                     )
 
         else : 
-            self.path_f = (f'{dirname(self.params["support_path"])}/'
-                                     f'nb_facets={self.nb_facets}/'
+            self.path_f = (f'{dirname(support_path)}/'
+                                     f'nb_facets={self.params["nb_facets"]}/'
             )
-            self.support=np.load(self.params["support_path"])
+            self.support=np.load(support_path)
 
         
         self.path_visu = f'{self.path_f}/visualization/'
@@ -143,37 +133,34 @@ class FacetAnalysisProcessor:
     def check_previous_data(self) -> None:
         """
         If one of these parameters 
-        (authorized_index, top_facet_reference_index,
+        (authorised_index, top_facet_reference_index,
         remove_edges or nb_nghbs_min) 
         has changed since the previous run, 
         this method deletes the files affected.
         """
 
-        if self.authorized_index is None:
-            raise ValueError("Please indicate the authorised index. \n"
-                             "\"self.authorized_index\" = ['max', n] "
-                             "if you want |h|, |k|, |l| <= n. \n"
-                             "\"self.authorized_index\" ="
-                             "['absolute', a,b, ...] "
-                             "if you want |h|, |k|, |l| in [a,b, ...]. \n"
-                             "\"self.authorized_index\" = "
-                             "['families', [1,0,0], [1,1,1], ...] "
-                             "if you want to authorise the index families "
-                             "[1,0,0], [1,1,1], ..."
+        if self.params["authorised_index"] is None:
+            msg = (
+                "authorised_index parameter required:\n"
+                "ex: ['max', n]: for |h|, |k|, |l| <= n. \n"
+                "['absolute', a, b, ...] for |h|, |k|, |l| in [a, b, ...]. \n"
+                "['families', [1, 0, 0], [1, 1, 1], ...]  for index families "
+                "[1,0,0], [1,1,1], ..."
             )
+            raise ValueError(msg)
        
-        if self.top_facet_ref_index is None:
+        if self.params["top_facet_reference_index"] is None:
             raise ValueError("Please indicate the reference index of "
                              "the upper facet : \"top_facet_reference_index\""
                              " = [h,k,l] ."
             )
 
-        self.input_parameters=[self.authorized_index, 
-                               self.top_facet_ref_index,
-                               self.remove_edges,
+        self.input_parameters=[self.params["authorised_index"], 
+                               self.params["top_facet_reference_index"],
+                               self.params["remove_edges"],
                                self.nb_nghbs_min,
-                               self.index_to_display,
-                               self.size
+                               self.params["index_to_display"],
+                               self.params["voxel_size"]
         ]
         
         try: 
@@ -231,7 +218,7 @@ class FacetAnalysisProcessor:
                                     self.previous_input_parameters[1]
                         )
             ):
-                print('authorized_index or top_facet_reference_index'
+                print('authorised_index or top_facet_reference_index'
                       'has been changed'
                 )
                 files_to_remove = ['facet_label_index.json',
@@ -380,7 +367,7 @@ class FacetAnalysisProcessor:
             cluster_list = []
             cluster_pos = np.zeros((self.X, self.Y, self.Z))
             n = 0
-            if self.remove_edges:
+            if self.params["remove_edges"]:
                 surface_to_cluster = self.surface*(1-edges)
             else:
                 surface_to_cluster = self.surface
@@ -402,7 +389,7 @@ class FacetAnalysisProcessor:
         except:
             print('No previous label found')
 
-            clustering = SpectralClustering(n_clusters=self.nb_facets, 
+            clustering = SpectralClustering(n_clusters=self.params["nb_facets"], 
                                             assign_labels='kmeans', 
                                             random_state=0
             )
@@ -411,7 +398,7 @@ class FacetAnalysisProcessor:
  
         
             label = np.zeros((self.X, self.Y, self.Z))
-            if self.remove_edges:
+            if self.params["remove_edges"]:
                 surface_to_cluster = self.surface*(1-edges)
             else:
                 surface_to_cluster = self.surface
@@ -435,7 +422,7 @@ class FacetAnalysisProcessor:
         facet_label = np.zeros((self.X,self.Y,self.Z))
         pos_centres=[]
         dir_centres=[]
-        for lbl in range(1, self.nb_facets+1):
+        for lbl in range(1, self.params["nb_facets"]+1):
             pos_centre= np.array([0,0,0])
             dir_centre= np.array([0,0,0])
             n_points=0
@@ -458,7 +445,7 @@ class FacetAnalysisProcessor:
                        )[1]+1
             facet_label[x,y,z]=lbl
 
-        if self.nb_nghbs_min > 0:
+        if self.params["nb_nghbs_min"]> 0:
             facet_label = np.copy(facet_label)
             for x,y,z in zip(*np.nonzero(self.surface>0)):
                 lbl = facet_label[x,y,z]
@@ -509,8 +496,8 @@ class FacetAnalysisProcessor:
             edge_label = copy.deepcopy(facet_label)
             corner_label = copy.deepcopy(facet_label)
             
-            corner_lbl = self.nb_facets + 1
-            edge_lbl = self.nb_facets + 2
+            corner_lbl = self.params["nb_facets"] + 1
+            edge_lbl = self.params["nb_facets"] + 2
             
             for i,j,k in zip(*np.nonzero(facet_label>0)):
                 
@@ -608,7 +595,7 @@ class FacetAnalysisProcessor:
                 pos_label = int(list_corner_pos[i, j, k])
                 spect_label_corner = spect_labels[pos_label] 
                 corner_label[i, j, k] = int( spect_label_corner
-                                                 + self.nb_facets + 3 
+                                                 + self.params["nb_facets"] + 3 
                                                  + nb_edges + 2
                 )
 
@@ -714,64 +701,64 @@ class FacetAnalysisProcessor:
                 direction_top_facet=direction[1] 
                 
         ## Calculate the coordinates of the normalized reference_index 
-        ref_dir_top_facet = (self.top_facet_ref_index
-                             / npnorm(self.top_facet_ref_index)
+        ref_dir_top_facet = (self.params["top_facet_reference_index"]
+                             / npnorm(self.params["top_facet_reference_index"])
         )
     
         ## Create the authorized coordinates set 
 
-        if self.authorized_index[0] == 'max':
-            authorized_h = np.linspace(-self.authorized_index[1], 
-                                       self.authorized_index[1], 
-                                       2*self.authorized_index[1]+1
+        if self.params["authorised_index"][0] == 'max':
+            authorized_h = np.linspace(-self.params["authorised_index"][1], 
+                                       self.params["authorised_index"][1], 
+                                       2*self.params["authorised_index"][1]+1
             )
-            authorized_k = np.linspace(-self.authorized_index[1], 
-                                       self.authorized_index[1], 
-                                       2*self.authorized_index[1]+1
+            authorized_k = np.linspace(-self.params["authorised_index"][1], 
+                                       self.params["authorised_index"][1], 
+                                       2*self.params["authorised_index"][1]+1
             )
-            authorized_l = np.linspace(-self.authorized_index[1], 
-                                       self.authorized_index[1], 
-                                       2*self.authorized_index[1]+1
+            authorized_l = np.linspace(-self.params["authorised_index"][1], 
+                                       self.params["authorised_index"][1], 
+                                       2*self.params["authorised_index"][1]+1
             )
-            authorized_index = np.array(np.meshgrid(authorized_h, 
+            authorised_index = np.array(np.meshgrid(authorized_h, 
                                                     authorized_k, 
                                                     authorized_l))
             
-            authorized_index = authorized_index.T.reshape(-1, 3)
+            authorised_index = authorised_index.T.reshape(-1, 3)
  
-        elif self.authorized_index[0] == 'absolute':
+        elif self.params["authorised_index"][0] == 'absolute':
             authorized_h = []
             authorized_k = []
             authorized_l = []
-            for i in range(1,len(self.authorized_index)):
-                if self.authorized_index[i] != 0:
-                    authorized_h.append(self.authorized_index[i])
-                    authorized_h.append(-self.authorized_index[i])
-                    authorized_k.append(self.authorized_index[i])
-                    authorized_k.append(-self.authorized_index[i])
-                    authorized_l.append(self.authorized_index[i])
-                    authorized_l.append(-self.authorized_index[i])
+            for i in range(1,len(self.params["authorised_index"])):
+                if self.params["authorised_index"][i] != 0:
+                    authorized_h.append(self.params["authorised_index"][i])
+                    authorized_h.append(-self.params["authorised_index"][i])
+                    authorized_k.append(self.params["authorised_index"][i])
+                    authorized_k.append(-self.params["authorised_index"][i])
+                    authorized_l.append(self.params["authorised_index"][i])
+                    authorized_l.append(-self.params["authorised_index"][i])
                 else:
-                    authorized_h.append(self.authorized_index[i])
-                    authorized_k.append(self.authorized_index[i])
-                    authorized_l.append(self.authorized_index[i])     
+                    authorized_h.append(self.params["authorised_index"][i])
+                    authorized_k.append(self.params["authorised_index"][i])
+                    authorized_l.append(self.params["authorised_index"][i])     
 
-            authorized_index = np.array(np.meshgrid(authorized_h, 
+            authorised_index = np.array(np.meshgrid(authorized_h, 
                                                     authorized_k, 
                                                     authorized_l))
                 
-            authorized_index = authorized_index.T.reshape(-1, 3)
+            authorised_index = authorised_index.T.reshape(-1, 3)
   
-        elif self.authorized_index[0] == 'families':
-            authorized_index =[]
+        elif self.params["authorised_index"][0] == 'families':
+            authorised_index =[]
             added = {} 
-            for i in range(1, len(self.authorized_index)):
+            for i in range(1, len(self.params["authorised_index"])):
                 for s0 in range(-1, 2, 2):
                     for s1 in range(-1, 2, 2):
                         for s2 in range(-1, 2, 2):
                             for x in range(3):
                                 for y in range(2):
-                                    a_i_i = self.authorized_index[i]
+                                    a_i_i = self.params["authorised_index"][i]
                                     index_i = list(copy.deepcopy(a_i_i))
                                     index = []
                                     index.append(s0*index_i[x])
@@ -781,32 +768,32 @@ class FacetAnalysisProcessor:
                                     index.append(s2*index_i[0])
                                     if not tuple(index) in added: 
                                         added[tuple(index)] = True 
-                                        authorized_index.append(index)
+                                        authorised_index.append(index)
             
-        elif self.authorized_index[0] == 'list':
-            authorized_index = self.authorized_index[1:]
+        elif self.params["authorised_index"][0] == 'list':
+            authorised_index = self.params["authorised_index"][1:]
             
         else: 
-            raise ValueError("Wrong value of authorized_index. "
-                             "Use authorized_index = ['max', integer], "
-                             "authorized_index = ['absolute', integers], "
-                             "authorized_index = ['families', "
+            raise ValueError("Wrong value of authorised_index. "
+                             "Use authorised_index = ['max', integer], "
+                             "authorised_index = ['absolute', integers], "
+                             "authorised_index = ['families', "
                              "3-length integers lists], "
-                             "or authorized_index = ['list', "
+                             "or authorised_index = ['list', "
                              "3-length integers lists] "
                 ) 
             
-        authorized_index = np.array(authorized_index)
-        authorized_index = authorized_index.astype(np.float64)
-        authorized_index = authorized_index[np.any(authorized_index 
+        authorised_index = np.array(authorised_index)
+        authorised_index = authorised_index.astype(np.float64)
+        authorised_index = authorised_index[np.any(authorised_index 
                                                    != [0., 0., 0.], 
                                                    axis=1)]
         
         
         dict_index = {}
         authorized_coordinates=[]
-        for i in range(len(authorized_index)):
-            index = authorized_index[i]
+        for i in range(len(authorised_index)):
+            index = authorised_index[i]
             normalized_index = index / npnorm(index) 
             if not tuple(normalized_index) in dict_index:
                 dict_index[tuple(normalized_index)] = index
@@ -816,15 +803,15 @@ class FacetAnalysisProcessor:
                 if npnorm(index) < npnorm(dict_index[tuple(normalized_index)]):
                     dict_index[tuple(normalized_index)] = index
             
-        if len(authorized_coordinates)<self.nb_facets:
+        if len(authorized_coordinates)<self.params["nb_facets"]:
             raise ValueError("Please note that the number of indices (h,k,l) "
                              "allowed is strictly less than the number of "
                              "facets requested. It is therefore not possible "
                              "to index the facets of the particle with the "
                              "authorized indices given. Note that in the case "
-                             "where authorized_index is a list of values that "
+                             "where authorised_index is a list of values that "
                              "each h,k, and l can take "
-                             "(e.g. authorized_index = [0,1,3]), it is "
+                             "(e.g. authorised_index = [0,1,3]), it is "
                              "important to specify the value 0 if you wish "
                              "to authorize indices h,k,l to be equal to 0. "
                              "The value 0 is not considered by default. Also, "
@@ -1131,7 +1118,7 @@ class FacetAnalysisProcessor:
                 edge_label_index.append(facet_label_index[i])
                                             
         for lbl in list(np.unique(edge_label)):
-            if lbl >= self.nb_facets + 3:
+            if lbl >= self.params["nb_facets"] + 3:
                 
                 direction = smooth_dir_e[int(lbl)]
                 new_direction = list(np.dot(rotation_matrix, direction))
@@ -1179,7 +1166,7 @@ class FacetAnalysisProcessor:
                 corner_label_index.append(edge_label_index[i])
         
         for lbl in list(np.unique(corner_label)):
-            if lbl >= self.nb_facets + 3 + nb_edges + 2:
+            if lbl >= self.params["nb_facets"] + 3 + nb_edges + 2:
                 direction = smooth_dir_c[int(lbl)]
                 new_direction = list(np.dot(rotation_matrix, direction))
                 corner_label_index.append([lbl, new_direction])
@@ -1388,14 +1375,14 @@ class FacetAnalysisProcessor:
                 values = c_label[x, y, z]
 
                 scatter = ax.scatter(x, y, z, c=values, 
-                                     cmap='hsv', s=self.size
+                                     cmap='hsv', s=self.params["voxel_size"]
                           )
 
                 for i in range(len(c_label_index)):
                     lbl = c_label_index[i][0]
-                    if lbl <= self.nb_facets:
+                    if lbl <= self.params["nb_facets"]:
                         index = c_label_index[i][1]
-                        if index in self.index_to_display:
+                        if index in self.params["index_to_display"]:
                             index_x, index_y, index_z = index
                             c_x = np.mean(np.where(c_label == lbl)[0])
                             c_y = np.mean(np.where(c_label == lbl)[1])
@@ -1422,8 +1409,8 @@ class FacetAnalysisProcessor:
                       writer='Pillow', fps=8)
 
         for angle in range(3):
-            if (self.display_f_e_c == 'facet'
-               or self.display_f_e_c == 'all'):
+            if (self.params["display_f_e_c"] == 'facet'
+               or self.params["display_f_e_c"] == 'all'):
                 if not (os.path.exists(f'{self.path_visu}/facet_gif_0.gif') 
                 and os.path.exists(f'{self.path_visu}/facet_gif_1.gif') 
                 and os.path.exists(f'{self.path_visu}/facet_gif_2.gif') 
@@ -1440,8 +1427,8 @@ class FacetAnalysisProcessor:
                                           angle, 
                                          'facet')
                     
-            if (self.display_f_e_c == 'edge'
-               or self.display_f_e_c == 'all'):
+            if (self.params["display_f_e_c"] == 'edge'
+               or self.params["display_f_e_c"] == 'all'):
                 if not (os.path.exists(f'{self.path_visu}/edge_gif_0.gif') 
                 and os.path.exists(f'{self.path_visu}/edge_gif_1.gif') 
                 and os.path.exists(f'{self.path_visu}/edge_gif_2.gif') 
@@ -1457,8 +1444,8 @@ class FacetAnalysisProcessor:
                                           edge_label_index, 
                                           angle, 
                                          'edge')
-            if (self.display_f_e_c == 'corner'
-               or self.display_f_e_c == 'all'):
+            if (self.params["display_f_e_c"] == 'corner'
+               or self.params["display_f_e_c"] == 'all'):
                 if not (os.path.exists(f'{self.path_visu}/corner_gif_0.gif') 
                 and os.path.exists(f'{self.path_visu}/corner_gif_1.gif') 
                 and os.path.exists(f'{self.path_visu}/corner_gif_2.gif') 
@@ -1482,7 +1469,7 @@ class FacetAnalysisProcessor:
 
         smooth_dir = self.def_smooth_supp_dir()
         edges = None
-        if self.remove_edges:
+        if self.params["remove_edges"]:
             edges = self.find_edges(smooth_dir)
         cluster_list, cluster_pos = self.def_list_facet_analysis(smooth_dir, 
                                                                  edges
@@ -1572,13 +1559,13 @@ class FacetAnalysisProcessor:
             )
             print('\n')
       
-        print('number of facet expected = ', self.nb_facets )
+        print('number of facet expected = ', self.params["nb_facets"] )
         print('number of facet used = ', 
               len(np.unique((facet_label) * self.surface))-1, '\n'
         )
         
         h5_file_path = (f'{self.dump_dir}/cdiutils_S'
-                        f'{self.params["metadata"]["scan"]}'
+                        f'{self.params["scan"]}'
                         f'_structural_properties.h5'
         )
         try:
