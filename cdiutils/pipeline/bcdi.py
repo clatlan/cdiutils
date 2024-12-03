@@ -820,7 +820,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 data_space="reciprocal",
                 process_1="process_1"
             )
-        self.logger.info(f"Preprocess data file saved at:\n{dump_path}")
+        self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
     def _make_slurm_file(self, template: str = None) -> None:
         # Make the pynx slurm file
@@ -1652,6 +1652,8 @@ reconstruction (best solution)."""
                         process_1="process_1"
                     )
                     cxi.softlink(f"entry_1/{key}", path)
+
+        self.logger.info(f"Post-processed data file saved at:\n{dump_path}")
 
         # Save as vti
         if IS_VTK_AVAILABLE:
