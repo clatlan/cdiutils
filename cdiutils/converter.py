@@ -782,6 +782,78 @@ class SpaceConverter():
 
         return sorted_q_norm, sorted_flat_intens
 
+    def support_transfer(
+            self,
+            support:  np.ndarray,
+            voxel_size: tuple,
+            convert_to_xu: bool = False
+    ) -> np.ndarray:
+        """
+        Calculate the support in the reconstruction frame based on a
+        given support and voxel size in the direct laboratory frame.
+
+        Args:
+            support (np.ndarray): the support in the direct lab frame.
+            voxel_size (tuple): the voxel size associated to the support
+            convert_to_xu (bool): convert the support and voxel_size
+                from cxi to xu convention.
+
+        Returns:
+            np.ndarray: the new support in the reconstruction frame.
+        """
+        if convert_to_xu:
+            support = self.xu_to_cxi(support)
+            voxel_size = self.xu_to_cxi(voxel_size)
+        shape = support.shape
+        rgi = RegularGridInterpolator(
+            (
+                np.arange(-shape[0]//2, shape[0]//2, 1) * voxel_size[0],
+                np.arange(-shape[1]//2, shape[1]//2, 1) * voxel_size[1],
+                np.arange(-shape[2]//2, shape[2]//2, 1) * voxel_size[2],
+            ),
+            support,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
+
+        shift_voxel = tuple(s // 2 for s in self._shape)
+        q_space_transitions = self._center_shift_q_space_transitions(
+            self._q_space_transitions,
+            shift_voxel
+        )
+
+        # create the 0 centered index grid
+        ortho_grid = []
+        for i in np.indices(self._shape):
+            ortho_grid.append(i - i[shift_voxel])
+        ortho_grid = np.array(ortho_grid).reshape(3, np.prod(self._shape))
+
+        # get the transformation_matrix
+        transformation_matrix = self.transformation_matrix(
+            q_space_transitions,
+            ortho_grid
+        )
+        direct_lab_transformation_matrix = np.dot(
+            np.linalg.inv(transformation_matrix.T),
+            np.diag(2 * np.pi / np.array(self._shape))
+        )
+        # Unit of the matrix vectors is A, convert it to nm
+        direct_lab_transformation_matrix /= 10
+
+        reconstruction_frame_grid = np.dot(
+            direct_lab_transformation_matrix,
+            ortho_grid
+        )
+        reconstruction_frame_grid = reconstruction_frame_grid.reshape(
+            (3, ) + self._shape
+        )
+        reconstruction_frame_support = rgi(
+            tuple(reconstruction_frame_grid),  # must be a tuple here
+            method="linear"
+        )
+        return reconstruction_frame_support
+
     @staticmethod
     def run_detector_calibration(
             detector_calibration_frames: np.ndarray,
