@@ -1,8 +1,9 @@
+# flake8: noqa, E501
 import matplotlib
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-import colorcet
+import colorcet  # noqa, F401
 
 
 # Planes are given with the indexing convention,
@@ -97,6 +98,15 @@ XU_VIEW_PARAMETERS = {
        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
        "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
     },
+}
+
+
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
+NATURAL_VIEW_PARAMETERS = {
+    "dim0": {"axis": 0, "plane": [1, 2], "xaxis_points_left": False},
+    "dim1": {"axis": 1, "plane": [0, 2], "xaxis_points_left": False},
+    "dim2": {"axis": 2, "plane": [0, 1], "xaxis_points_left": False}
 }
 
 

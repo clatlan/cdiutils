@@ -16,7 +16,8 @@ from cdiutils.plot.formatting import (
     get_x_y_limits_extents,
     set_x_y_limits_extents,
     XU_VIEW_PARAMETERS,
-    CXI_VIEW_PARAMETERS
+    CXI_VIEW_PARAMETERS,
+    NATURAL_VIEW_PARAMETERS
 )
 
 
@@ -83,15 +84,12 @@ def plot_volume_slices(
     if plot_params:
         _plot_params.update(plot_params)
 
-    # For the default behaviour we use CXI view parameters, but this
-    # case does not correspond to the the classical CXI views yet. If
-    # convention and views are not specified, we use the natural matrix
-    # representation and CXI_VIEW_PARAMETERS is just use for
-    # convenience.
     view_params = CXI_VIEW_PARAMETERS.copy()
     if convention is None:
         if views is None:  # Simplest case, no swapping, no flipping etc.
-            views = ("z-", "y+", "x+")  # natural view in cxi convention
+            # For the default behaviour we use the 'natural views'
+            view_params = NATURAL_VIEW_PARAMETERS.copy()
+            views = ("dim0", "dim1", "dim2")
     elif convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()  # overwrite the params
         if views is None:
