@@ -1587,7 +1587,8 @@ reconstruction (best solution)."""
                 voxel_size_from_reciprocal_space_extent=(
                     self.extra_info["voxel_size_from_extent"]
                 ),
-                used_voxel_size=self.params["voxel_size"],
+                voxel_size=self.params["voxel_size"],
+                units="nm"
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
