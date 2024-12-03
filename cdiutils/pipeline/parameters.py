@@ -51,8 +51,9 @@ AUTHORIZED_KEYS = {
         "support_only_shrink": False,
         "support_update_period": 20,
         "support_smooth_width_begin": 2,
-        "support_smooth_width_end": 1,
+        "support_smooth_width_end": 0.5,
         "support_post_expand": None,  # (-1, 1)
+        "support_update_border_n": None,
         "psf": "pseudo-voigt,0.5,0.1,10",
         "nb_raar": 500,
         "nb_hio": 300,
