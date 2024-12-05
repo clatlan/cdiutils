@@ -461,14 +461,12 @@ class H5TypeLoader(Loader):
     def __init__(
             self,
             experiment_file_path: str,
-            sample_name: str = None,
             detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
     ) -> None:
         super().__init__(flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
-        self.sample_name = sample_name
         if detector_name is None:
             self.detector_name = self.get_detector_name()
             # if sample_name is not None:

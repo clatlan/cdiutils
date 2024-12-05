@@ -44,11 +44,11 @@ class P10Loader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super().__init__(flat_field, alien_mask)
         self.experiment_data_dir_path = experiment_data_dir_path
         self.scan = scan
         self.sample_name = sample_name
         self.detector_name = detector_name
+        super().__init__(flat_field, alien_mask)
 
         if hutch.lower() == "eh2":
             self.angle_names["sample_outofplane_angle"] = "samth"
@@ -263,3 +263,6 @@ class P10Loader(Loader):
                 words = line.split()
                 if "fmbenergy" in words:
                     return float(words[-1])
+
+    def load_det_calib_params(self) -> dict:
+        return None

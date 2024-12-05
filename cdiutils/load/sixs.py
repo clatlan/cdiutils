@@ -1,12 +1,10 @@
 import numpy as np
-import silx.io.h5py_utils
+import h5py
 
-from cdiutils.load import Loader
-
-# TODO: need to be updated: H5TypeLoader, checkup sample_name and scan.
+from cdiutils.load.loader import H5TypeLoader
 
 
-class SIXS2022Loader(Loader):
+class SIXS2022Loader(H5TypeLoader):
     """
     A class for loading data from SIXS beamline experiments.
     """
@@ -22,8 +20,9 @@ class SIXS2022Loader(Loader):
     def __init__(
             self,
             experiment_data_dir_path: str,
-            detector_name: str,
+            scan: int = None,
             sample_name: str = None,
+            detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
             **kwargs
@@ -47,6 +46,7 @@ class SIXS2022Loader(Loader):
         super().__init__(flat_field, alien_mask)
         self.experiment_data_dir_path = experiment_data_dir_path
         self.detector_name = detector_name
+        self.scan = scan
         self.sample_name = sample_name
 
     def _get_file_path(
@@ -63,7 +63,7 @@ class SIXS2022Loader(Loader):
             scan (int): Scan number.
             sample_name (str): Name of the sample.
             data_type (str, optional): Type of data. Defaults to
-                                       "detector_data".
+                "detector_data".
 
         Returns:
             str: File path.
@@ -102,6 +102,9 @@ class SIXS2022Loader(Loader):
         Returns:
             np.ndarray: Loaded detector data.
         """
+        h5file = self.h5file
+        if scan is None:
+            scan = self.scan
         if sample_name is None:
             sample_name = self.sample_name
 
@@ -110,7 +113,7 @@ class SIXS2022Loader(Loader):
 
         roi = self._check_roi(roi)
 
-        with silx.io.h5py_utils.File(path) as h5file:
+        with h5py.File(path) as h5file:
             if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
                 data = h5file[key_path][(slice(None), roi[1], roi[2])]
@@ -163,7 +166,7 @@ class SIXS2022Loader(Loader):
 
         angles = {key: None for key in SIXS2022Loader.angle_names.keys()}
 
-        with silx.io.h5py_utils.File(path) as h5file:
+        with h5py.File(path) as h5file:
             for angle, name in SIXS2022Loader.angle_names.items():
                 if rocking_angle_binning:
                     angles[angle] = h5file[key_path + name][()]
@@ -180,3 +183,9 @@ class SIXS2022Loader(Loader):
         if roi and rocking_angle_binning:
             angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles
+
+    def load_det_calib_params(self) -> dict:
+        return None
+
+    def load_energy(self) -> tuple:
+        return None

@@ -53,9 +53,12 @@ class CristalLoader(H5TypeLoader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super().__init__(flat_field, alien_mask)
-        self.experiment_file_path = experiment_file_path
         self.scan = scan
+        super().__init__(
+            experiment_file_path,
+            flat_field=flat_field,
+            alien_mask=alien_mask
+        )
 
     @h5_safe_load
     def load_detector_data(

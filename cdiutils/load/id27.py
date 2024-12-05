@@ -17,7 +17,7 @@ class ID27Loader(H5TypeLoader):
         "detector_outofplane_angle": None,
         "detector_inplane_angle": None
     }
-    authorised_detector_names = ("eiger")
+    authorised_detector_names = ("eiger", )
 
     def __init__(
             self,
@@ -46,14 +46,14 @@ class ID27Loader(H5TypeLoader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
+        self.scan = scan
+        self.sample_name = sample_name
         super().__init__(
             experiment_file_path,
-            sample_name,
             detector_name,
             flat_field,
             alien_mask
         )
-        self.scan = scan
 
     @h5_safe_load
     def load_detector_data(

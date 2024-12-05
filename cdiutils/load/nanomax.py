@@ -39,7 +39,6 @@ class NanoMAXLoader(H5TypeLoader):
             self,
             experiment_file_path: str,
             detector_name: str = "eiger500k",
-            sample_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
             **kwargs
@@ -51,8 +50,6 @@ class NanoMAXLoader(H5TypeLoader):
         Args:
             experiment_file_path (str): path to the scan file.
             detector_name (str): name of the detector.
-            sample_name (str, optional): name of the sample. Defaults
-                to None.
             flat_field (np.ndarray | str, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
@@ -61,7 +58,6 @@ class NanoMAXLoader(H5TypeLoader):
         """
         super().__init__(
             experiment_file_path,
-            sample_name=sample_name,
             detector_name=detector_name,
             flat_field=flat_field,
             alien_mask=alien_mask
@@ -181,7 +177,4 @@ class NanoMAXLoader(H5TypeLoader):
         return h5file["entry/snapshots/post_scan/energy"][0]
 
     def load_det_calib_params(self) -> dict:
-        return None
-
-    def load_detector_shape(self) -> tuple:
         return None
