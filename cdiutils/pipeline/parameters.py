@@ -60,7 +60,7 @@ AUTHORIZED_KEYS = {
         "nb_er": 200,
         "nb_ml": 0,
         "nb_run": 20,
-        "nb_run_keep": 5,
+        "nb_run_keep": 10,
         "zero_mask": False,
         "crop_output": 0,
         "positivity": False,
