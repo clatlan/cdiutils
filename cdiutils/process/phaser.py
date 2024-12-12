@@ -55,6 +55,8 @@ DEFAULT_PYNX_PARAMS = {
     "method": "rms",
     "force_shrink": False,
     "update_border_n": 0,
+    "smooth_width_begin": 2,
+    "smooth_width_end": 0.5,
 
     # object initialisation
     # "support": "auto",
@@ -73,6 +75,7 @@ DEFAULT_PYNX_PARAMS = {
     "positivity": False,
     "confidence_interval_factor_mask_min": 0.5,
     "confidence_interval_factor_mask_max": 1.2,
+    "detwin": False
 
 }
 
@@ -589,7 +592,7 @@ class PyNXPhaser:
 
         elif spaces == "both":
             quantities["calculated_intensity"] = np.abs(
-                fftshift(fftn(cdi.get_obj().copy()))[the_slice]
+                ifftshift(fftn(cdi.get_obj().copy()))[the_slice]
             ) ** 2
 
             iobs = cdi.get_iobs(shift=True).copy()[the_slice]
