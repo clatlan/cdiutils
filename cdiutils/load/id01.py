@@ -62,11 +62,17 @@ class ID01Loader(H5TypeLoader):
     @h5_safe_load
     def get_detector_name(self) -> str:
         h5file = self.h5file
-        key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
+        key_path = self.sample_name + "_1.1/measurement/"
         detector_names = []
-        for key in h5file[key_path]:
-            if key in self.authorised_detector_names:
-                detector_names.append(key)
+        try:
+            for key in h5file[key_path]:
+                if key in self.authorised_detector_names:
+                    detector_names.append(key)
+        except KeyError as e:
+            raise KeyError(
+                "Could not load detector name, because something went "
+                "wrong with the first scan of the dataset."
+            ) from e
         if len(detector_names) == 0:
             raise ValueError(
                 f"No detector name found in {self.authorised_detector_names}"
@@ -233,9 +239,15 @@ class ID01Loader(H5TypeLoader):
             key: angles[name] if angles.get(name) is not None else 0.
             for key, name in ID01Loader.angle_names.items()
         }
-
-        if rocking_angle_binning:
+        try:
             self.rocking_angle = self.get_rocking_angle(formatted_angles)
+        except ValueError:
+            print(
+                "No rocking angle found. Will return the raw angles with no "
+                "binning nor cropping."
+            )
+            return formatted_angles
+        if rocking_angle_binning:
 
             formatted_angles[
                 self.rocking_angle
@@ -388,8 +400,8 @@ class ID01Loader(H5TypeLoader):
 
 def safe(func):
     def wrap(self, *args, **kwargs):
-        with silx.io.open(self.experiment_file_path) as specfile:
-            return func(self, specfile, *args, **kwargs)
+        with silx.io.open(self.experiment_file_path) as self.specfile:
+            return func(self, *args, **kwargs)
     return wrap
 
 
@@ -409,6 +421,7 @@ class SpecLoader(Loader):
             detector_data_path: str,
             edf_file_template: str,
             detector_name: str,
+            scan: int = None,
             flat_field: str | np.ndarray = None,
             alien_mask: np.ndarray | str = None,
             **kwargs
@@ -425,13 +438,15 @@ class SpecLoader(Loader):
             edf_file_template (str): the file name template of the
                 detector data frame.
             detector_name (str): name of the detector.
+            scan (int, optional): the scan number. Defaults to None.
             flat_field (str | np.ndarray, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super(SpecLoader, self).__init__(flat_field, alien_mask)
+        super().__init__(flat_field, alien_mask)
+        self.scan = scan
         self.experiment_file_path = experiment_file_path
         self.detector_data_path = detector_data_path
         self.edf_file_template = edf_file_template
@@ -440,15 +455,18 @@ class SpecLoader(Loader):
     @safe
     def load_detector_data(
             self,
-            specfile: silx.io.specfile.SpecFile,
-            scan: int,
+            scan: int = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ):
+        if scan is None:
+            scan = self.scan
         roi = self._check_roi(roi)
 
-        frame_ids = specfile[f"{scan}.1/measurement/{self.detector_name}"][...]
+        frame_ids = self.specfile[
+            f"{scan}.1/measurement/{self.detector_name}"
+        ][()]
 
         data = []
 
@@ -456,10 +474,14 @@ class SpecLoader(Loader):
 
         for frame_id in frame_ids:
             with fabio.open(template % frame_id) as edf_data:
-                data.append(edf_data.data)
+                data.append(edf_data.data[roi[1:]])
+        data = np.asarray(data)
+
+        if rocking_angle_binning is None:
+            data = data[roi[0]]
 
         return self.bin_flat_mask(
-            np.asarray(data),
+            data,
             roi,
             self.flat_field,
             self.alien_mask,
@@ -470,18 +492,18 @@ class SpecLoader(Loader):
     @safe
     def load_motor_positions(
             self,
-            specfile: silx.io.specfile.SpecFile,
-            scan: int,
+            scan: int = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
     ):
-
+        if scan is None:
+            scan = self.scan
         if roi is None or len(roi) == 2:
             roi = slice(None)
         elif len(roi) == 3:
             roi = roi[0]
 
-        positioners = specfile[f"{scan}.1/instrument/positioners"]
+        positioners = self.specfile[f"{scan}.1/instrument/positioners"]
 
         angles = {key: None for key in SpecLoader.angle_names.keys()}
         for angle, name in SpecLoader.angle_names.items():
@@ -498,3 +520,9 @@ class SpecLoader(Loader):
         if roi and rocking_angle_binning:
             angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles
+
+    def load_det_calib_params(self) -> dict:
+        return None
+
+    def load_energy(self) -> tuple:
+        return None
