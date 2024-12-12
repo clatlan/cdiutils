@@ -32,6 +32,7 @@ from cdiutils.utils import (
     hot_pixel_filter,
     get_oversampling_ratios,
     find_isosurface,
+    normalise
 )
 
 # Plot function specifically made for the pipeline.
@@ -460,7 +461,7 @@ class BcdiPipeline(Pipeline):
                 raise ValueError(
                     "The automatic detection of the detector name is not"
                     "yet implemented for this setup"
-                    f"({self.params['setup']} = )."
+                    f"({self.params['beamline_setup']} = )."
                 )
 
         self.detector_data = loader.load_detector_data(
@@ -503,7 +504,7 @@ class BcdiPipeline(Pipeline):
             if self.params["energy"] is None:
                 raise ValueError(
                     "The automatic loading of energy is not yet implemented"
-                    f"for this setup ({self.params['setup']} = )."
+                    f"for this setup ({self.params['beamline_setup']} = )."
                 )
             else:
                 self.logger.info(
@@ -1665,6 +1666,9 @@ reconstruction (best solution)."""
                     "lattice_parameter", "numpy_het_strain", "dspacing"
                 ]
             }
+            to_save_as_vti["amplitude"] = normalise(
+                to_save_as_vti["amplitude"]
+            )
 
             # add the dspacing average and lattice constant average around
             # the NP to avoid nan values that are annoying for 3D
