@@ -336,28 +336,29 @@ class PostProcessor:
 
         Args:
             complex_object (np.ndarray): the reconstructed object
-            (rho e^(i phi))
+                (rho e^(i phi))
             g_vector (np.ndarray | tuple | list): the reciprocal space
-            node on which the displacement gradient must be projected.
+                node on which the displacement gradient must be
+                projected.
             hkl (tuple | list): the probed Bragg reflection.
-            voxel_size (np.ndarray | tuple | list): the voxel size of
-            the 3D array.
+                voxel_size (np.ndarray | tuple | list): the voxel size
+                of the 3D array.
             phase_factor (int, optional): the factor the phase should
-            should be multiplied by, depending on the FFT convention
-            used. Defaults to -1 (PyNX convention in Phase Retrieval,
-            in PyNX scattering, use 1).
+                should be multiplied by, depending on the FFT convention
+                used. Defaults to -1 (PyNX convention in Phase
+                Retrieval, in PyNX scattering, use 1).
             handle_defects (bool, optional): whether a defect is present
-            in the reconstruction, in this case phasing processing and
-            strain computation is different. Defaults to False.
+                in the reconstruction, in this case phasing processing
+                and strain computation is different. Defaults to False.
 
         Returns:
             dict: the structural properties of the object in the form of
-            a dictionary. Each key corresponds to one quantity of'
-            interest, including: amplitude, support, phase,
-            displacement, displacement_gradient (in all three
-            directions), het. (heterogeneous) strain using various
-            methods, d-spacing, lattice parameter 3D maps. hkl, g_vector
-            and voxel size are also returned.
+                a dictionary. Each key corresponds to one quantity of'
+                interest, including: amplitude, support, phase,
+                displacement, displacement_gradient (in all three
+                directions), het. (heterogeneous) strain using various
+                methods, d-spacing, lattice parameter 3D maps. hkl,
+                g_vector and voxel size are also returned.
         """
         complex_object, support, surface = cls.prepare_volume(
             complex_object,
