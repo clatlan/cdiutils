@@ -451,7 +451,8 @@ class BcdiPipeline(Pipeline):
         loader_keys = (
             "beamline_setup", "scan", "sample_name", "experiment_file_path",
             "experiment_data_dir_path", "detector_data_path",
-            "edf_file_template", "detector_name", "alien_mask", "flat_field"
+            "edf_file_template", "detector_name", "alien_mask", "flat_field",
+            "version"
         )
         loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
 
@@ -498,9 +499,7 @@ class BcdiPipeline(Pipeline):
             raise ValueError("Something went wrong during data loading.")
 
         if self.params["energy"] is None:
-            self.params["energy"] = loader.load_energy(
-                self.scan
-            )
+            self.params["energy"] = loader.load_energy()
             if self.params["energy"] is None:
                 raise ValueError(
                     "The automatic loading of energy is not yet implemented"
@@ -516,9 +515,7 @@ class BcdiPipeline(Pipeline):
                 "However, for a more accurate calculation, you'd better "
                 "provide them."
             )
-            self.params["det_calib_params"] = (
-                loader.load_det_calib_params(self.scan)
-            )
+            self.params["det_calib_params"] = loader.load_det_calib_params()
             if self.params["det_calib_params"] is None:
                 raise ValueError(
                     "The automatic loading of det_calib_params is not yet "
@@ -704,7 +701,7 @@ class BcdiPipeline(Pipeline):
         # set the q space area with the sample and detector angles
         # that correspond to the requested roi
         for key, value in self.angles.items():
-            if isinstance(value, (list, np.ndarray)):
+            if isinstance(value, (list, np.ndarray)) and len(value) > 1:
                 self.angles[key] = value[np.s_[roi[0]:roi[1]]]
 
         return cropped_detector_data, roi
