@@ -119,7 +119,7 @@ class Plotter:
         self.title = title
 
         # Get data array from any of the supported files
-        if os.path.isfile(data):
+        if isinstance(data, str) and os.path.isfile(data):
             self.filename = data
             self.get_data_array()
 
