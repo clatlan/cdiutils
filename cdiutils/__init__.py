@@ -38,7 +38,6 @@ __class_submodules__ = {
     "CXIFile": "cxi"
 }
 
-
 __all__ = [
     "energy_to_wavelength", "wavelength_to_energy", "make_support",
     "get_centred_slices", "CroppingHandler", "hot_pixel_filter"
