@@ -1,10 +1,10 @@
 import numpy as np
 import h5py
 
-from cdiutils.load.loader import H5TypeLoader
+from cdiutils.load.loader import H5TypeLoader, h5_safe_load
 
 
-class SIXS2022Loader(H5TypeLoader):
+class SIXSLoader(H5TypeLoader):
     """
     A class for loading data from SIXS beamline experiments.
     """
@@ -19,12 +19,13 @@ class SIXS2022Loader(H5TypeLoader):
 
     def __init__(
             self,
-            experiment_data_dir_path: str,
+            experiment_file_path: str,
             scan: int = None,
             sample_name: str = None,
             detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
+            version: str = None,
             **kwargs
     ) -> None:
         """
@@ -32,8 +33,7 @@ class SIXS2022Loader(H5TypeLoader):
         detector information.
 
         Args:
-            experiment_data_dir_path (str): path to the experiment data
-                directory.
+            experiment_file_path (str): path to the experiment file.
             detector_name (str): name of the detector.
             sample_name (str, optional): name of the sample. Defaults to
                 None.
@@ -42,45 +42,25 @@ class SIXS2022Loader(H5TypeLoader):
                 detector. Defaults to None.
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
+            version (str, optional): the version of the loader. Defaults
+                to None.
         """
-        super().__init__(flat_field, alien_mask)
-        self.experiment_data_dir_path = experiment_data_dir_path
-        self.detector_name = detector_name
-        self.scan = scan
-        self.sample_name = sample_name
-
-    def _get_file_path(
-            self,
-            scan: int,
-            sample_name: str,
-            data_type: str = "detector_motor_data"
-    ) -> str:
-        """
-        Get the file path based on scan number, sample name, and data
-        type. Only works for mu scans (out-of-plane RC).
-
-        Args:
-            scan (int): Scan number.
-            sample_name (str): Name of the sample.
-            data_type (str, optional): Type of data. Defaults to
-                "detector_data".
-
-        Returns:
-            str: File path.
-        """
-        if data_type == "detector_motor_data":
-            return (
-                self.experiment_data_dir_path
-                + f"/{sample_name}_ascan_mu_{scan:05d}.nxs"
-            )
-
-        raise ValueError(
-            f"data_type {data_type} is not valid. Must be detector_motor_data."
+        self.version = version
+        if version is None:
+            self.version = "2022"
+        super().__init__(
+            experiment_file_path,
+            scan,
+            sample_name,
+            detector_name,
+            flat_field,
+            alien_mask
         )
 
+    @h5_safe_load
     def load_detector_data(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -90,7 +70,7 @@ class SIXS2022Loader(H5TypeLoader):
         Load detector data for a given scan and sample.
 
         Args:
-            scan (int): Scan number.
+            scan (int, optional): Scan number.
             sample_name (str, optional): Name of the sample. Defaults to
                 None.
             roi (tuple, optional): Region of interest. Defaults to None.
@@ -102,23 +82,20 @@ class SIXS2022Loader(H5TypeLoader):
         Returns:
             np.ndarray: Loaded detector data.
         """
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
-        path = self._get_file_path(scan, sample_name)
-        key_path = "com/scan_data/test_image"
+        # path = self._get_file_path(scan, sample_name)
+        # key_path = "com/scan_data/test_image"
+        key_path = self._get_detector_key_path(self.h5file)
 
         roi = self._check_roi(roi)
 
-        with h5py.File(path) as h5file:
-            if rocking_angle_binning:
-                # we first apply the roi for axis1 and axis2
-                data = h5file[key_path][(slice(None), roi[1], roi[2])]
-            else:
-                data = h5file[key_path][roi]
+        # with h5py.File(path) as h5file:
+        if rocking_angle_binning:
+            # we first apply the roi for axis1 and axis2
+            data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
+        else:
+            data = self.h5file[key_path][roi]
 
         return self.bin_flat_mask(
             data,
@@ -129,9 +106,10 @@ class SIXS2022Loader(H5TypeLoader):
             binning_method
         )
 
+    @h5_safe_load
     def load_motor_positions(
             self,
-            scan: int,
+            scan: int = None,
             sample_name: str = None,
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
@@ -141,7 +119,7 @@ class SIXS2022Loader(H5TypeLoader):
         with a scan.
 
         Args:
-            scan (int): the scan number
+            scan (int, optional): the scan number. Defaults to None.
             sample_name (str, optional): the sample name.
                 Defaults to None.
             roi (tuple[slice], optional): the region of interest.
@@ -152,40 +130,99 @@ class SIXS2022Loader(H5TypeLoader):
         Returns:
             dict: the four diffractometer angles.
         """
-
-        if sample_name is None:
-            sample_name = self.sample_name
-
-        path = self._get_file_path(scan, sample_name)
-        key_path = "com/scan_data/"
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         if roi is None or len(roi) == 2:
             roi = slice(None)
         elif len(roi) == 3:
             roi = roi[0]
 
-        angles = {key: None for key in SIXS2022Loader.angle_names.keys()}
+        angles = {key: None for key in self.angle_names}
 
-        with h5py.File(path) as h5file:
-            for angle, name in SIXS2022Loader.angle_names.items():
-                if rocking_angle_binning:
-                    angles[angle] = h5file[key_path + name][()]
-                else:
-                    try:
-                        angles[angle] = h5file[key_path + name][roi]
-                    except ValueError:
-                        angles[angle] = h5file[key_path + name][()]
+        for angle, name in self.angle_names.items():
+            motor_key_path = self._get_motor_key_path(self.h5file, name)
+            angles[angle] = self.h5file[motor_key_path][()]
 
-        self.rocking_angle = self.get_rocking_angle(angles)
-        angles[self.rocking_angle] = self.bin_rocking_angle_values(
-            angles[self.rocking_angle]
-        )
-        if roi and rocking_angle_binning:
-            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
+        # take care of the rocking angle
+        self.rocking_angle = "sample_outofplane_angle"
+        if self.version == "2019":
+            actuator_name = "data_07"
+        else:
+            raise ValueError(f"Version {self.version} not supported yet.")
+        angles[self.rocking_angle] = self.h5file[
+            f"com/scan_data/{actuator_name}"
+        ][()]
+
+        if rocking_angle_binning:
+            angles[self.rocking_angle] = self.bin_rocking_angle_values(
+                angles[self.rocking_angle], rocking_angle_binning
+            )
+
+        # take care of the roi
+        if isinstance(roi, (tuple, list)):
+            if len(roi) == 2:
+                roi = slice(None)
+            else:
+                roi = roi[0]
+        elif roi is None:
+            roi = slice(None)
+        elif not isinstance(roi, slice):
+            raise ValueError(
+                f"roi should be tuple of slices, or a slice, not {type(roi)}"
+            )
+        angles[self.rocking_angle] = angles[self.rocking_angle][roi]
+
         return angles
+
+    def _get_detector_key_path(self, h5file: h5py.File) -> str:
+        """
+        Get the key path for the detector data.
+
+        Args:
+            h5file (h5py.File): the h5 file to search in.
+
+        Returns:
+            str: the key path.
+        """
+        key_path = "com/scan_data/"
+        for key in h5file[key_path]:
+            data = h5file[key_path + key][()]
+            if isinstance(data, np.ndarray) and data.ndim == 3:
+                return key_path + key
+        raise ValueError("No detector data found in the file.")
+
+    def _get_motor_key_path(self, h5file: h5py.File, name: str) -> str:
+        """
+        Get the key path for the motor data.
+
+        Args:
+            h5file (h5py.File): the h5 file to search in.
+            name (str): the angle name to search for.
+
+        Returns:
+            str: the key path.
+        """
+        key_path = "com/SIXS/"
+        for key in h5file[key_path]:
+            if name in key:
+                return key_path + key + "/position_pre"
+        raise ValueError("No motor data found in the file.")
 
     def load_det_calib_params(self) -> dict:
         return None
 
-    def load_energy(self) -> tuple:
-        return None
+    @h5_safe_load
+    def load_energy(self, scan: int = None) -> tuple:
+        """
+        Load the energy of the beamline.
+
+        Args:
+            scan (int, optional): the scan number. Defaults to None.
+
+        Returns:
+            tuple: the photon energy used during beamtime.
+        """
+        scan, _ = self._check_scan_sample(scan, None)
+        key_path = "com/SIXS/i14-c-c02-op-mono/energy"
+
+        return self.h5file[key_path][()].item() * 1e3
