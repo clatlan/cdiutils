@@ -72,7 +72,7 @@ class Geometry:
                 beam_direction=[1, 0, 0],
                 name="P10"
             )
-        if beamline_setup.lower() == "sixs2022":
+        if "sixs" in beamline_setup.lower():
             return cls(
                 sample_circles=["x-", "y+"],  # mu, omega
                 detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE OF THE COMMENT
@@ -111,7 +111,7 @@ class Geometry:
             )
         raise NotImplementedError(
             f"The beamline_setup {beamline_setup} is not valid. Available:\n"
-            "'ID01', 'ID01SPEC', 'ID01BLISS', 'P10', 'P10EH2', 'SIXS2022' "
+            "'ID01', 'ID01SPEC', 'ID27', 'P10', 'P10EH2', 'SIXS2022' "
             "and NanoMAX."
         )
 
