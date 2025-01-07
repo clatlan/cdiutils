@@ -20,6 +20,8 @@ class Loader(ABC):
 
     def __init__(
             self,
+            scan: int = None,
+            sample_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None
     ) -> None:
@@ -27,12 +29,16 @@ class Loader(ABC):
         The generic parent class for all loaders.
 
         Args:
+            scan (int, optional): the scan number. Defaults to None.
+            sample_name (str, optional): the name of the sample.
             flat_field (np.ndarray | str, optional): flat field to
                 account for the non homogeneous counting of the
                 detector. Defaults to None.
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
+        self.scan = scan
+        self.sample_name = sample_name
         self.flat_field = self._check_load(flat_field)
         self.alien_mask = self._check_load(alien_mask)
         self.detector_name = None
@@ -78,9 +84,9 @@ class Loader(ABC):
             from . import SpecLoader
             return SpecLoader(**metadata)
 
-        if beamline_setup.lower() == "sixs2022":
-            from . import SIXS2022Loader
-            return SIXS2022Loader(**metadata)
+        if "sixs" in beamline_setup.lower():
+            from . import SIXSLoader
+            return SIXSLoader(**metadata)
 
         if "p10" in beamline_setup.lower():
             from . import P10Loader
@@ -170,6 +176,27 @@ class Loader(ABC):
             if all(isinstance(e, (int, np.integer)) for e in roi):
                 return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text)
+
+    def _check_scan_sample(
+            self,
+            scan: str = None,
+            sample_name: str = None
+    ) -> tuple:
+        """
+        Utility function to check if a scan and sample name were parsed.
+
+        Args:
+            scan (str, optional): the scan name. Defaults to None.
+            sample_name (str, optional): the sample name. Defaults to None.
+
+        Returns:
+            tuple: the scan and sample names.
+        """
+        if scan is None:
+            scan = self.scan
+        if sample_name is None:
+            sample_name = self.sample_name
+        return scan, sample_name
 
     @staticmethod
     def bin_flat_mask(
@@ -461,11 +488,13 @@ class H5TypeLoader(Loader):
     def __init__(
             self,
             experiment_file_path: str,
+            scan: int = None,
+            sample_name: str = None,
             detector_name: str = None,
             flat_field: np.ndarray | str = None,
             alien_mask: np.ndarray | str = None,
     ) -> None:
-        super().__init__(flat_field, alien_mask)
+        super().__init__(scan, sample_name, flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
         if detector_name is None:
             self.detector_name = self.get_detector_name()

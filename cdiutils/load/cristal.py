@@ -53,9 +53,9 @@ class CristalLoader(H5TypeLoader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        self.scan = scan
         super().__init__(
             experiment_file_path,
+            scan=scan,
             flat_field=flat_field,
             alien_mask=alien_mask
         )
@@ -68,14 +68,11 @@ class CristalLoader(H5TypeLoader):
             rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ) -> np.ndarray:
-        if scan is None:
-            scan = self.scan
-
-        h5file = self.h5file
+        scan, _ = self._check_scan_sample(scan)
 
         # First, find the key that corresponds to the detector data
-        for k in h5file[f"exp_{scan:04d}/scan_data"]:
-            if h5file[f"exp_{scan:04d}/scan_data"][k].ndim == 3:
+        for k in self.h5file[f"exp_{scan:04d}/scan_data"]:
+            if self.h5file[f"exp_{scan:04d}/scan_data"][k].ndim == 3:
                 data_key = k
 
         key_path = f"exp_{scan:04d}/scan_data/{data_key}"
@@ -85,9 +82,9 @@ class CristalLoader(H5TypeLoader):
         try:
             if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
-                data = h5file[key_path][(slice(None), roi[1], roi[2])]
+                data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
-                data = h5file[key_path][roi]
+                data = self.h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
@@ -110,24 +107,21 @@ class CristalLoader(H5TypeLoader):
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
     ) -> dict:
-
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
+        scan, _ = self._check_scan_sample(scan)
 
         key_path = f"exp_{scan:04d}"
         key_path_template = key_path + "/CRISTAL/{}/position"
 
         angles = {}
         for angle, name in CristalLoader.angle_names.items():
-            angles[angle] = float(h5file[key_path_template.format(name)][()])
+            angles[angle] = float(self.h5file[key_path_template.format(name)][()])
 
         # Get the motor name used for the rocking curve
-        rocking_motor = h5file[
+        rocking_motor = self.h5file[
             key_path + "/scan_config/name"
         ][()].decode("utf-8")[-4:]  # here, only the last 3 char are needed
         # Get the associated motor values
-        rocking_values = h5file[key_path + "/scan_data/actuator_1_1"][()]
+        rocking_values = self.h5file[key_path + "/scan_data/actuator_1_1"][()]
 
         if rocking_angle_binning:
             rocking_values = self.bin_rocking_angle_values(
@@ -156,14 +150,11 @@ class CristalLoader(H5TypeLoader):
 
     @h5_safe_load
     def load_energy(self, scan: int = None) -> float:
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
+        scan, _ = self._check_scan_sample(scan)
         key_path = f"exp_{scan:04d}/CRISTAL/Monochromator/energy"
-        return h5file[key_path][0] * 1e3
+        return self.h5file[key_path][0] * 1e3
 
     @h5_safe_load
     def load_det_calib_params(self, scan: int = None) -> dict:
-        if scan is None:
-            scan = self.scan
+        scan, _ = self._check_scan_sample(scan)
         return None

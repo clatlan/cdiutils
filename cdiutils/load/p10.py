@@ -45,10 +45,8 @@ class P10Loader(Loader):
                 aliens. Defaults to None.
         """
         self.experiment_data_dir_path = experiment_data_dir_path
-        self.scan = scan
-        self.sample_name = sample_name
         self.detector_name = detector_name
-        super().__init__(flat_field, alien_mask)
+        super().__init__(scan, sample_name, flat_field, alien_mask)
 
         if hutch.lower() == "eh2":
             self.angle_names["sample_outofplane_angle"] = "samth"
@@ -122,10 +120,7 @@ class P10Loader(Loader):
         Returns:
             numpy.ndarray: Loaded detector data.
         """
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         path = self._get_file_path(scan, sample_name)
         key_path = "entry/data/data_000001"
@@ -178,10 +173,7 @@ class P10Loader(Loader):
         Returns:
             dict: Dictionary containing motor positions.
         """
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         path = self._get_file_path(
             scan,
@@ -246,11 +238,7 @@ class P10Loader(Loader):
         }
 
     def load_energy(self, scan: int = None, sample_name: str = None) -> float:
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
-
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         path = self._get_file_path(
             scan,
             sample_name,

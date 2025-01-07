@@ -84,9 +84,6 @@ class NanoMAXLoader(H5TypeLoader):
         Returns:
             np.ndarray: the detector data.
         """
-        # The self.h5file is initialised by the @safe decorator.
-        h5file = self.h5file
-
         # Where to find the data.
         key_path = (
             # "_".join((sample_name, str(scan)))
@@ -96,9 +93,9 @@ class NanoMAXLoader(H5TypeLoader):
         try:
             if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
-                data = h5file[key_path][(slice(None), roi[1], roi[2])]
+                data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
-                data = h5file[key_path][roi]
+                data = self.h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
@@ -120,29 +117,25 @@ class NanoMAXLoader(H5TypeLoader):
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
     ) -> dict:
-        h5file = self.h5file
-
-        if roi is None or len(roi) == 2:
-            roi = slice(None)
-        elif len(roi) == 3:
-            roi = roi[0]
+        roi = self._check_roi(roi)
+        roi = roi[0]
 
         key_path = "entry/snapshots/post_scan/"
         angles = {key: None for key in NanoMAXLoader.angle_names}
 
         for angle, name in NanoMAXLoader.angle_names.items():
-            angles[angle] = h5file[key_path + name][()]
+            angles[angle] = self.h5file[key_path + name][()]
 
         # Take care of the rocking curve angle
         for angle in ("gonphi", "gontheta"):
-            if angle in h5file["entry/measurement"].keys():
+            if angle in self.h5file["entry/measurement"].keys():
                 rocking_angle_name = angle
                 if rocking_angle_binning:
-                    rocking_angle_values = h5file["entry/measurement"][angle][
+                    rocking_angle_values = self.h5file["entry/measurement"][angle][
                         ()
                     ]
                 else:
-                    rocking_angle_values = h5file["entry/measurement"][angle][
+                    rocking_angle_values = self.h5file["entry/measurement"][angle][
                         roi
                     ]
                 # Find what generic angle (in-plane or out-of-plane) it
@@ -173,8 +166,7 @@ class NanoMAXLoader(H5TypeLoader):
         Returns:
             float: the energy value in keV.
         """
-        h5file = self.h5file
-        return h5file["entry/snapshots/post_scan/energy"][0]
+        return self.h5file["entry/snapshots/post_scan/energy"][0]
 
     def load_det_calib_params(self) -> dict:
         return None

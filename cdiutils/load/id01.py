@@ -50,10 +50,10 @@ class ID01Loader(H5TypeLoader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        self.scan = scan
-        self.sample_name = sample_name
         super().__init__(
             experiment_file_path,
+            scan,
+            sample_name,
             detector_name,
             flat_field,
             alien_mask
@@ -61,11 +61,11 @@ class ID01Loader(H5TypeLoader):
 
     @h5_safe_load
     def get_detector_name(self) -> str:
-        h5file = self.h5file
+        self.h5file = self.h5file
         key_path = self.sample_name + "_1.1/measurement/"
         detector_names = []
         try:
-            for key in h5file[key_path]:
+            for key in self.h5file[key_path]:
                 if key in self.authorised_detector_names:
                     detector_names.append(key)
         except KeyError as e:
@@ -97,22 +97,18 @@ class ID01Loader(H5TypeLoader):
         tilt angles of the detector run the detector calibration
         notebook.
         """
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = (
             "_".join((sample_name, str(scan)))
             + f".1/instrument/{self.detector_name}"
         )
         try:
             return {
-                "cch1": float(h5file[key_path + "/beam_center_y"][()]),
-                "cch2": float(h5file[key_path + "/beam_center_x"][()]),
-                "pwidth1": float(h5file[key_path + "/y_pixel_size"][()]),
-                "pwidth2": float(h5file[key_path + "/x_pixel_size"][()]),
-                "distance": float(h5file[key_path + "/distance"][()]),
+                "cch1": float(self.h5file[key_path + "/beam_center_y"][()]),
+                "cch2": float(self.h5file[key_path + "/beam_center_x"][()]),
+                "pwidth1": float(self.h5file[key_path + "/y_pixel_size"][()]),
+                "pwidth2": float(self.h5file[key_path + "/x_pixel_size"][()]),
+                "distance": float(self.h5file[key_path + "/distance"][()]),
                 "tiltazimuth": 0.,
                 "tilt": 0.,
                 "detrot": 0.,
@@ -129,17 +125,16 @@ class ID01Loader(H5TypeLoader):
             scan: int = None,
             sample_name: str = None,
     ) -> tuple:
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         key_path = (
             "_".join((sample_name, str(scan)))
             + f".1/instrument/{self.detector_name}"
         )
-        return h5file[f"{key_path}/dim_j"][()], h5file[f"{key_path}/dim_i"][()]
+        return (
+            self.h5file[f"{key_path}/dim_j"][()],
+            self.h5file[f"{key_path}/dim_i"][()]
+        )
 
     @h5_safe_load
     def load_detector_data(
@@ -170,12 +165,7 @@ class ID01Loader(H5TypeLoader):
         Returns:
             np.ndarray: the detector data.
         """
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
-
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = (
             "_".join((sample_name, str(scan)))
             + f".1/measurement/{self.detector_name}"
@@ -184,9 +174,9 @@ class ID01Loader(H5TypeLoader):
         try:
             if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
-                data = h5file[key_path][(slice(None), roi[1], roi[2])]
+                data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
-                data = h5file[key_path][roi]
+                data = self.h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
@@ -226,11 +216,7 @@ class ID01Loader(H5TypeLoader):
         Returns:
             dict: the four diffractometer angles.
         """
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
-
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         angles = self.load_angles(
             key_path=f"{sample_name}_{scan}.1/instrument/positioners/"
         )
@@ -255,17 +241,9 @@ class ID01Loader(H5TypeLoader):
                 formatted_angles[self.rocking_angle], rocking_angle_binning
             )
         # take care of the roi
-        if isinstance(roi, (tuple, list)):
-            if len(roi) == 2:
-                roi = slice(None)
-            else:
-                roi = roi[0]
-        elif roi is None:
-            roi = slice(None)
-        elif not isinstance(roi, slice):
-            raise ValueError(
-                f"roi should be tuple of slices, or a slice, not {type(roi)}"
-            )
+        roi = self._check_roi(roi)
+        roi = roi[0]
+
         formatted_angles[
             self.rocking_angle
         ] = formatted_angles[self.rocking_angle][roi]
@@ -278,10 +256,7 @@ class ID01Loader(H5TypeLoader):
             scan: int = None,
             sample_name: str = None
     ) -> float:
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
         try:
             return float(self.h5file[key_path + "mononrj"][()] * 1e3)
@@ -296,13 +271,9 @@ class ID01Loader(H5TypeLoader):
             sample_name: str = None,
     ) -> None:
         """Print the attributes (keys) of a given scan number"""
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join((sample_name, str(scan))) + ".1"
-        print(h5file[key_path].keys())
+        print(self.h5file[key_path].keys())
 
     @h5_safe_load
     def load_measurement_parameters(
@@ -312,10 +283,7 @@ class ID01Loader(H5TypeLoader):
             sample_name: str = None
     ) -> tuple:
         """Load the measurement parameters of the specified scan."""
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join(
              (sample_name, str(scan))
         ) + ".1/measurement"
@@ -332,10 +300,7 @@ class ID01Loader(H5TypeLoader):
             sample_name: str = None
     ) -> tuple:
         """Load the instrument parameters of the specified scan."""
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/instrument"
@@ -350,10 +315,7 @@ class ID01Loader(H5TypeLoader):
             sample_name: str = None,
     ) -> tuple:
         """Load the sample parameters of the specified scan."""
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join(
              (sample_name, str(scan))
              ) + ".1/sample"
@@ -370,11 +332,7 @@ class ID01Loader(H5TypeLoader):
             sample_name: str = None,
     ) -> tuple:
         """Load the plotselect parameters of the specified scan."""
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
-
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join((sample_name, str(scan))) + ".1/plotselect"
         requested_parameter = self.h5file[key_path + "/" + plot_parameter][()]
 
@@ -387,12 +345,7 @@ class ID01Loader(H5TypeLoader):
         the returned object is of type datetime.datetime and can
         be easily manipulated arithmetically.
         """
-
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
-
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = "_".join((sample_name, str(scan))) + ".1/start_time"
 
         return dateutil.parser.isoparse(self.h5file[key_path][()])
@@ -445,8 +398,7 @@ class SpecLoader(Loader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        super().__init__(flat_field, alien_mask)
-        self.scan = scan
+        super().__init__(scan, None, flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
         self.detector_data_path = detector_data_path
         self.edf_file_template = edf_file_template
@@ -460,8 +412,7 @@ class SpecLoader(Loader):
             rocking_angle_binning: int = None,
             binning_method: str = "sum"
     ):
-        if scan is None:
-            scan = self.scan
+        scan, _ = self._check_scan_sample(scan, None)
         roi = self._check_roi(roi)
 
         frame_ids = self.specfile[
@@ -496,12 +447,9 @@ class SpecLoader(Loader):
             roi: tuple[slice] = None,
             rocking_angle_binning: int = None,
     ):
-        if scan is None:
-            scan = self.scan
-        if roi is None or len(roi) == 2:
-            roi = slice(None)
-        elif len(roi) == 3:
-            roi = roi[0]
+        scan, _ = self._check_scan_sample(scan, None)
+        roi = self._check_roi(roi)
+        roi = roi[0]
 
         positioners = self.specfile[f"{scan}.1/instrument/positioners"]
 

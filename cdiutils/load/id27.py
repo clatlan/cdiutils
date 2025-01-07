@@ -46,10 +46,10 @@ class ID27Loader(H5TypeLoader):
             alien_mask (np.ndarray | str, optional): array to mask the
                 aliens. Defaults to None.
         """
-        self.scan = scan
-        self.sample_name = sample_name
         super().__init__(
             experiment_file_path,
+            scan,
+            sample_name,
             detector_name,
             flat_field,
             alien_mask
@@ -84,11 +84,7 @@ class ID27Loader(H5TypeLoader):
         Returns:
             np.ndarray: the detector data.
         """
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         key_path = (
             "_".join((sample_name, str(scan)))
@@ -98,9 +94,9 @@ class ID27Loader(H5TypeLoader):
         try:
             if rocking_angle_binning:
                 # we first apply the roi for axis1 and axis2
-                data = h5file[key_path][(slice(None), roi[1], roi[2])]
+                data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
-                data = h5file[key_path][roi]
+                data = self.h5file[key_path][roi]
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
@@ -149,10 +145,7 @@ class ID27Loader(H5TypeLoader):
         Returns:
             dict: the four diffractometer angles.
         """
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         angles = self.load_angles(
             key_path=f"{sample_name}_{scan}.1/instrument/positioners/"
@@ -188,11 +181,10 @@ class ID27Loader(H5TypeLoader):
 
     @h5_safe_load
     def get_detector_name(self) -> str:
-        h5file = self.h5file
         key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
         detector_names = []
         authorised_names = ("eiger")
-        for key in h5file[key_path]:
+        for key in self.h5file[key_path]:
             if key in authorised_names:
                 detector_names.append(key)
         if len(detector_names) == 0:
@@ -217,50 +209,47 @@ class ID27Loader(H5TypeLoader):
         tilt angles of the detector run the detector calibration
         notebook.
         """
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        return None  # Data in id27 files are not reliable.
+        # scan, sample_name = self._check_scan_sample(scan, sample_name)
+       
+        # key_path = f"{sample_name}_{scan}.1/instrument/calibration/"
 
-        key_path = f"{sample_name}_{scan}.1/instrument/calibration/"
+        # params = {}
+        # # First retrieve the data stored in the metadata
+        # try:
+        #     params["distance"] = float(self.h5file[key_path + "distance"][()])
 
-        params = {}
-        # First retrieve the data stored in the metadata
-        try:
-            params["distance"] = float(h5file[key_path + "distance"][()])
+        #     if self.detector_name in ("eiger", "eiger9m", "e9m"):
+        #         params["pwidth1"], params["pwidth2"] = 75e-6, 75e-6
 
-            if self.detector_name in ("eiger", "eiger9m", "e9m"):
-                params["pwidth1"], params["pwidth2"] = 75e-6, 75e-6
+        #     # Take care of the direct beam position
+        #     center = self.h5file[key_path + "center"][()]
+        #     center = tuple(
+        #         float(c)
+        #         for c in center.decode("utf-8").strip("()").split(", ")
+        #     )
+        #     params["cch1"], params["cch2"] = -center[0], center[1]
 
-            # Take care of the direct beam position
-            center = h5file[key_path + "center"][()]
-            center = tuple(
-                float(c)
-                for c in center.decode("utf-8").strip("()").split(", ")
-            )
-            params["cch1"], params["cch2"] = -center[0], center[1]
+        #     # Now correct the distance, cch1, cch2 with eigx, eigy, eigz
+        #     key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
+        #     params["cch1"] += (
+        #         (float(self.h5file[key_path + "eigz"][()]) -5.0647) * 1e-3  # to m
+        #         // 75e-6  # pixel size in metres
+        #     )
+        #     params["cch2"] += (
+        #         float(self.h5file[key_path + "eigy"][()]) * 1e-3  # to m
+        #         // 75e-6  # pixel size in metres
+        #     )
+        #     params["distance"] += float(self.h5file[key_path + "eigx"][()]) - 231.92
+        #     params["distance"] *= 1e-3  # Convert from mm to metres
 
-            # Now correct the distance, cch1, cch2 with eigx, eigy, eigz
-            key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-            params["cch1"] += (
-                (float(self.h5file[key_path + "eigz"][()]) -5.0647) * 1e-3  # to m
-                // 75e-6  # pixel size in metres
-            )
-            params["cch2"] += (
-                float(self.h5file[key_path + "eigy"][()]) * 1e-3  # to m
-                // 75e-6  # pixel size in metres
-            )
-            params["distance"] += float(self.h5file[key_path + "eigx"][()]) - 231.92
-            params["distance"] *= 1e-3  # Convert from mm to metres
+        # except KeyError as e:
+        #     raise KeyError(
+        #         f"key_path is wrong (key_path='{key_path}'). "
+        #         "Are sample_name, scan number or detector name correct?"
+        #     ) from e
 
-        except KeyError as e:
-            raise KeyError(
-                f"key_path is wrong (key_path='{key_path}'). "
-                "Are sample_name, scan number or detector name correct?"
-            ) from e
-
-        return params
+        # return params
 
     @h5_safe_load
     def load_detector_shape(
@@ -268,16 +257,12 @@ class ID27Loader(H5TypeLoader):
             scan: int = None,
             sample_name: str = None,
     ) -> tuple:
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
         if self.detector_name in ("eiger", "eiger9m", "e9m"):
             shape = (3262, 3108)
             key_path = f"{sample_name}_{scan}.1/instrument/eiger/acq_nb_frames"
             try:
-                return (int(h5file[key_path][()]), ) + shape
+                return (int(self.h5file[key_path][()]), ) + shape
             except KeyError:
                 print("Could not load original detector data shape.")
         return None
@@ -288,17 +273,13 @@ class ID27Loader(H5TypeLoader):
             scan: int = None,
             sample_name: str = None
     ) -> float:
-        h5file = self.h5file
-        if scan is None:
-            scan = self.scan
-        if sample_name is None:
-            sample_name = self.sample_name
+        scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         key_path = f"{sample_name}_{scan}.1/instrument/calibration/"
         try:
             # Convert from angstrom to m
             return wavelength_to_energy(
-                float(h5file[key_path + "wavelength"][()]) * 1e-10
+                float(self.h5file[key_path + "wavelength"][()]) * 1e-10
             )
         except KeyError:
             warnings.warn(f"Energy not found at {key_path + 'wavelength'}. ")
