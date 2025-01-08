@@ -6,12 +6,14 @@ Implement the engines to run the pipelines.
 
 import importlib
 
+from .base import Pipeline
 from .bcdi import BcdiPipeline
 from .pipeline_plotter import PipelinePlotter
 from .parameters import get_params_from_variables
 
 
 __class_func_submodules__ = {
+    "Pipeline": "base",
     "BcdiPipeline": "bcdi",
     "PipelinePlotter": "pipeline_plotter",
     "get_params_from_variables": "parameters"

@@ -1250,6 +1250,10 @@ reconstruction (best solution)."""
 
     @Pipeline.process
     def postprocess(self, **params) -> None:
+        """
+        Post-process the reconstruction.
+        The parameters can be updated by providing keyword arguments.
+        """
         _path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
         # Whether to reload the pre-processing .cxi file.
         if self.q_lab_pos.get("ref") is None or self.converter is None:
