@@ -8,7 +8,7 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import center_of_mass
 
-# xrayulities imports
+# xrayutilities imports
 from xrayutilities import HXRD, FuzzyGridder3D
 from xrayutilities.experiment import QConversion
 from xrayutilities.analysis.sample_align import area_detector_calib
@@ -416,18 +416,20 @@ class SpaceConverter():
         ijk = tuple(ijk)
         return tuple(float(transition_matrix[i][ijk]) for i in range(3))
 
-    def _center_shift_q_space_transitions(
+    def _centre_shift_q_space_transitions(
             self,
             q_space_transitions: np.ndarray,
             shift_voxel: tuple
     ) -> np.ndarray:
 
-        # Using the Interpolator3D requires the centering of the q
+        # Using the Interpolator3D requires the centring of the q
         # values, here we save the shift in q for later use
         q_space_shift = np.array([
             q_space_transitions[i][shift_voxel]
             for i in range(3)
         ])
+        print("the shift_voxel is: ", shift_voxel)
+        print("the q_space_shift is: ", q_space_shift)
         # center the q_space_transitions values (not the indexes) so the
         # center of the Bragg peak is (0, 0, 0) A-1
         for i in range(3):
@@ -465,8 +467,8 @@ class SpaceConverter():
 
         # In any case (rcp or direct), we need to set up the
         # transformation matrix.
-        q_space_transitions = self._center_shift_q_space_transitions(
-            self._q_space_transitions,
+        q_space_transitions = self._centre_shift_q_space_transitions(
+            self._q_space_transitions.copy(),
             shift_voxel
         )
 
@@ -823,7 +825,7 @@ class SpaceConverter():
         )
 
         shift_voxel = tuple(s // 2 for s in self._shape)
-        q_space_transitions = self._center_shift_q_space_transitions(
+        q_space_transitions = self._centre_shift_q_space_transitions(
             self._q_space_transitions,
             shift_voxel
         )
