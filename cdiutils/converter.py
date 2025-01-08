@@ -9,8 +9,8 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import center_of_mass
 
 # xrayutilities imports
-from xrayutilities import HXRD, FuzzyGridder3D
-from xrayutilities.experiment import QConversion
+from xrayutilities.experiment import HXRD, QConversion
+from xrayutilities.gridder3d import FuzzyGridder3D
 from xrayutilities.analysis.sample_align import area_detector_calib
 
 from cdiutils.geometry import Geometry
@@ -428,8 +428,6 @@ class SpaceConverter():
             q_space_transitions[i][shift_voxel]
             for i in range(3)
         ])
-        print("the shift_voxel is: ", shift_voxel)
-        print("the q_space_shift is: ", q_space_shift)
         # center the q_space_transitions values (not the indexes) so the
         # center of the Bragg peak is (0, 0, 0) A-1
         for i in range(3):
