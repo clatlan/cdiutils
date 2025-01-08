@@ -338,8 +338,9 @@ class Loader(ABC):
                     "When called as a static method, detector_name must be "
                     "provided."
                 )
-        if roi is None:
-            roi = tuple(slice(None) for i in range(3 if channel else 2))
+        roi = cls._check_roi(roi)
+        if channel:
+            roi = (slice(None),) + roi[-2:]
 
         if detector_name in (
             "maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"
