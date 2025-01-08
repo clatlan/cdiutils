@@ -7,9 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import center_of_mass
-import xrayutilities as xu
+
+# xrayulities imports
+from xrayutilities import HXRD, FuzzyGridder3D
+from xrayutilities.experiment import QConversion
+from xrayutilities.analysis.sample_align import area_detector_calib
 
 from cdiutils.geometry import Geometry
+from cdiutils.utils import energy_to_wavelength
 from cdiutils import __version__
 
 
@@ -57,7 +62,7 @@ class SpaceConverter():
         self._shape = shape
         self._q_space_transitions = None
 
-        self.xu_gridder: xu.FuzzyGridder3D = None
+        self.xu_gridder: FuzzyGridder3D = None
 
         # particular attribute that is also defined by its setter.
         self.direct_lab_voxel_size = direct_lab_voxel_size
@@ -269,12 +274,12 @@ class SpaceConverter():
                 "Key missing in det_calib_params, it must contain at least: "
                 "'cch1', 'cch2', 'distance', 'pwidth1' and 'pwidth2'."
             )
-        qconversion = xu.experiment.QConversion(
+        qconversion = QConversion(
             sampleAxis=self.geometry.sample_circles,
             detectorAxis=self.geometry.detector_circles,
             r_i=self.geometry.beam_direction
         )
-        self.hxrd = xu.HXRD(
+        self.hxrd = HXRD(
             idir=self.geometry.beam_direction,  # defines the inplane
             # reference direction (idir points into the beam
             # direction at zero angles)
@@ -518,7 +523,7 @@ class SpaceConverter():
             self.direct_lab_interpolator = Interpolator3D(
                 original_shape=self._shape,
                 original_to_target_matrix=direct_lab_transformation_matrix,
-                target_voxel_size=self.direct_lab_voxel_size  # property
+                target_voxel_size=direct_lab_voxel_size
             )
             self._direct_lab_voxel_size = direct_lab_voxel_size
 
@@ -541,7 +546,7 @@ class SpaceConverter():
             )
 
         if method in ("xu", "xrayutilities"):
-            gridder = xu.FuzzyGridder3D(*data.shape)
+            gridder = FuzzyGridder3D(*data.shape)
             gridder(*self._q_space_transitions, data)
             self.xu_gridder = gridder
             return gridder.data
@@ -728,7 +733,7 @@ class SpaceConverter():
             data: np.ndarray | tuple | list
     ) -> np.ndarray | tuple | list:
         """
-        Convert the a np.ndarray, a list or a tuple from the cxi frame
+        Convert a np.ndarray, a list or a tuple from the cxi frame
         system to the lab frame conventions.
         [
             axis0=Zcxi (pointing away from the light source),
@@ -900,7 +905,7 @@ class SpaceConverter():
                 "[INFO] Processing to detector calibration using "
                 "xrayutilities.analysis.sample_align.area_detector_calib"
             )
-        parameter_list, _ = xu.analysis.sample_align.area_detector_calib(
+        parameter_list, _ = area_detector_calib(
             detector_inplane_angle,
             detector_outofplane_angle,
             detector_calibration_frames,
@@ -908,7 +913,7 @@ class SpaceConverter():
             r_i="x+",
             start=(pixel_size_x, pixel_size_y, sdd_estimate, 0, 0, 0, 0),
             fix=(True, True, False, False, False, False, True),
-            wl=xu.en2lam(energy),
+            wl=energy_to_wavelength(energy) * 1e-10,  # wavelength in A
         )
 
         parameters = {
