@@ -636,7 +636,6 @@ class PipelinePlotter:
         q_voxel_size = 2 * np.pi / (10 * np.multiply(voxel_size, shape))
         obj_q_grid = [
             np.arange(-shape[i]//2, shape[i]//2) * q_voxel_size[i]
-            # + q_space_shift[i]
             for i in range(3)
         ]
 
