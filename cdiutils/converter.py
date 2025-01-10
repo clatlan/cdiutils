@@ -290,8 +290,8 @@ class SpaceConverter():
         )
 
         self.hxrd.Ang2Q.init_area(
-            detectorDir1=self.geometry.detector_vertical_orientation,
-            detectorDir2=self.geometry.detector_horizontal_orientation,
+            detectorDir1=self.geometry.detector_axis0_orientation,
+            detectorDir2=self.geometry.detector_axis1_orientation,
             cch1=det_calib_params.pop("cch1") - roi[0],
             cch2=det_calib_params.pop("cch2") - roi[2],
             Nch1=roi[1] - roi[0],

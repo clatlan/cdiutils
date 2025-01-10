@@ -19,16 +19,16 @@ class Geometry:
             self,
             sample_circles: list = None,
             detector_circles: list = None,
-            detector_vertical_orientation: str = "y-",
-            detector_horizontal_orientation: str = "x+",
+            detector_axis0_orientation: str = "y-",
+            detector_axis1_orientation: str = "x+",
             beam_direction: list = None,
             name: str = None,
             is_cxi: bool = True
     ) -> None:
         self.sample_circles = sample_circles
         self.detector_circles = detector_circles
-        self.detector_vertical_orientation = detector_vertical_orientation
-        self.detector_horizontal_orientation = detector_horizontal_orientation
+        self.detector_axis0_orientation = detector_axis0_orientation
+        self.detector_axis1_orientation = detector_axis1_orientation
         if beam_direction is None:
             self.beam_direction = [1, 0, 0]
         else:
@@ -58,8 +58,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # eta, phi
                 detector_circles=["y-", "x-"],  # nu, delta
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x+",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 name="ID01"
             )
@@ -67,8 +67,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # om (or samth), phi
                 detector_circles=["y+", "x-"],  # gam, del (or e2_t02)
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x+",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 name="P10"
             )
@@ -76,8 +76,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y+"],  # mu, omega
                 detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE OF THE COMMENT
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x+",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 name="SIXS2022"
             )
@@ -85,8 +85,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # gontheta, gonphi
                 detector_circles=["y-", "x-"],  # gamma, delta
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x-",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 name="NanoMAX"
             )
@@ -94,8 +94,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y+"],  # omega, phi
                 detector_circles=["y+", "x-"],  # gamma, delta  OK FOR omega/delta but not for the two others
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x+",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 name="CRISTAL"
             )
@@ -104,8 +104,8 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y-"],  # In plane rotation only
                 detector_circles=["y-", "x-"],  # There is no circle, these value are dummy
-                detector_vertical_orientation="y-",
-                detector_horizontal_orientation="x-",
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 name="ID27"
             )
@@ -125,11 +125,11 @@ class Geometry:
         self.detector_circles = [
             CXI_TO_XU_TRANSITIONS[v] for v in self.detector_circles
         ]
-        self.detector_vertical_orientation = CXI_TO_XU_TRANSITIONS[
-            self.detector_vertical_orientation
+        self.detector_axis0_orientation = CXI_TO_XU_TRANSITIONS[
+            self.detector_axis0_orientation
         ]
-        self.detector_horizontal_orientation = CXI_TO_XU_TRANSITIONS[
-            self.detector_horizontal_orientation
+        self.detector_axis1_orientation = CXI_TO_XU_TRANSITIONS[
+            self.detector_axis1_orientation
         ]
         self.is_cxi = False
 
@@ -138,8 +138,8 @@ class Geometry:
             f"{self.name} geometry:\n"
             f"{self.sample_circles = }\n"
             f"{self.detector_circles = }\n"
-            f"{self.detector_vertical_orientation = }\n"
-            f"{self.detector_horizontal_orientation = }\n"
+            f"{self.detector_axis0_orientation = }\n"
+            f"{self.detector_axis1_orientation = }\n"
             f"{self.beam_direction = }\n"
             f"{self.is_cxi = }\n"
         )
