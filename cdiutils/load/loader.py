@@ -86,7 +86,14 @@ class Loader(ABC):
 
         if "sixs" in beamline_setup.lower():
             from . import SIXSLoader
-            return SIXSLoader(**metadata)
+            if "2022" in beamline_setup.lower():
+                return SIXSLoader(version="2022", **metadata)
+            if "2019" in beamline_setup.lower():
+                return SIXSLoader(version="2019", **metadata)
+            raise NotImplementedError(
+                "Only 2019 and 2022 versions are available for now. Specify "
+                "the version in the beamline_setup."
+            )
 
         if "p10" in beamline_setup.lower():
             from . import P10Loader
@@ -338,7 +345,7 @@ class Loader(ABC):
                     "When called as a static method, detector_name must be "
                     "provided."
                 )
-        roi = cls._check_roi(roi)
+        roi = cls._check_roi(roi)[1:]
         if channel:
             roi = (slice(None),) + roi[-2:]
 
