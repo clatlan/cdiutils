@@ -7,7 +7,6 @@ from cdiutils.utils import energy_to_wavelength
 AUTHORIZED_KEYS = {
     # Formerly the "metadata"
     "beamline_setup": "REQUIRED",
-    "version": None,  # Version of the loader, only required for SIXS
     "scan": "REQUIRED",
     "experiment_file_path": "REQUIRED",
     "dump_dir": "REQUIRED",
