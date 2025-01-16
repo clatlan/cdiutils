@@ -146,11 +146,13 @@ class SIXSLoader(H5TypeLoader):
         # take care of the rocking angle
         self.rocking_angle = "sample_outofplane_angle"
         if self.version == "2019":
-            actuator_name = "data_07"
+            node_name = "data_07"
+        elif self.version == "2022":
+            node_name = "actuator_1_1"
         else:
             raise ValueError(f"Version {self.version} not supported yet.")
         angles[self.rocking_angle] = self.h5file[
-            f"com/scan_data/{actuator_name}"
+            f"com/scan_data/{node_name}"
         ][()]
 
         if rocking_angle_binning:
@@ -202,10 +204,16 @@ class SIXSLoader(H5TypeLoader):
         Returns:
             str: the key path.
         """
-        key_path = "com/SIXS/"
-        for key in h5file[key_path]:
-            if name in key:
-                return key_path + key + "/position_pre"
+        if self.version == "2022":
+            key_path = "com/SIXS/i14-c-cx1-ex-med-v-dif-group.1"
+            for key in h5file[key_path]:
+                if name in key:
+                    return key_path + f"/{key}/position"
+        if self.version == "2019":
+            key_path = "com/SIXS/"
+            for key in h5file[key_path]:
+                if name in key:
+                    return key_path + key + "/position_pre"
         raise ValueError("No motor data found in the file.")
 
     def load_det_calib_params(self) -> dict:

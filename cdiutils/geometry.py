@@ -76,10 +76,10 @@ class Geometry:
             return cls(
                 sample_circles=["x-", "y+"],  # mu, omega
                 detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE OF THE COMMENT
-                detector_axis0_orientation="y-",
-                detector_axis1_orientation="x+",
+                detector_axis0_orientation="x-" if "2022" in beamline_setup.lower() else "y-",
+                detector_axis1_orientation="y-" if "2022" in beamline_setup.lower() else "x+",
                 beam_direction=[1, 0, 0],
-                name="SIXS2022"
+                name="SIXS"
             )
         if beamline_setup.lower() == "nanomax":
             return cls(
