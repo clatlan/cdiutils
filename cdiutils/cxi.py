@@ -98,6 +98,9 @@ class CXIFile:
                 if data.dtype.kind == 'S':
                     return data.astype(str)
                 if node.attrs.get("original_type") == "tuple":
+                    for i, item in enumerate(data):
+                        if isinstance(item, bytes):
+                            data[i] = item.decode('utf-8')
                     return tuple(data)
             # Convert NaN to None if needed
             if isinstance(data, float) and np.isnan(data):  # Single NaN
