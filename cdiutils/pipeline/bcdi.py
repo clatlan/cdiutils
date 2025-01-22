@@ -21,8 +21,8 @@ import yaml
 # space conversion.
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
-from cdiutils.load import Loader
-from cdiutils.cxi import CXIFile
+from cdiutils.io import Loader, CXIFile
+from cdiutils.io.vtk import IS_VTK_AVAILABLE, save_as_vti
 
 # Utility functions
 from cdiutils.utils import (
@@ -45,7 +45,7 @@ from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
-from .base import Pipeline, IS_VTK_AVAILABLE
+from .base import Pipeline
 from .parameters import check_params, convert_np_arrays
 
 # to save version in files:
@@ -334,7 +334,7 @@ class BcdiPipeline(Pipeline):
 
         if self.params["orthogonalise_before_phasing"]:
             self.logger.info(
-                "Orthogonalization required before phasing.\n"
+                "Orthogonalisation required before phasing.\n"
                 "Will use xrayutilities Fuzzy Gridding without linear "
                 "approximation."
             )
@@ -452,7 +452,6 @@ class BcdiPipeline(Pipeline):
             "beamline_setup", "scan", "sample_name", "experiment_file_path",
             "experiment_data_dir_path", "detector_data_path",
             "edf_file_template", "detector_name", "alien_mask", "flat_field",
-            "version"
         )
         loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
 
@@ -1686,7 +1685,7 @@ reconstruction (best solution)."""
             )
 
             # save to vti file
-            self.save_to_vti(
+            save_as_vti(
                 f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
                 voxel_size=self.params["voxel_size"],
                 cxi_convention=(

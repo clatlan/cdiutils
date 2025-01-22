@@ -24,7 +24,7 @@ __submodules__ = {
     "utils",
     "geometry",
     "converter",
-    "load",
+    "io",
     "process",
     "pipeline",
     "plot"
@@ -35,7 +35,7 @@ __class_submodules__ = {
     "SpaceConverter": "converter",
     "BcdiPipeline": "pipeline",
     "Loader": "load",
-    "CXIFile": "cxi"
+    "CXIFile": "io"
 }
 
 __all__ = [

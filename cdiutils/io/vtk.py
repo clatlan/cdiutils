@@ -45,7 +45,7 @@ def load_vtk(file_path: str):
     return reader.GetOutput()
 
 
-def save_to_vti(
+def save_as_vti(
         output_path: str,
         voxel_size: tuple | list | np.ndarray,
         cxi_convention: bool = False,
