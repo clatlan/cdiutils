@@ -1,6 +1,6 @@
 import numpy as np
 
-from cdiutils.load.loader import H5TypeLoader, h5_safe_load
+from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 from cdiutils.utils import wavelength_to_energy
 import warnings
 

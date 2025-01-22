@@ -6,7 +6,7 @@ import fabio
 import silx.io
 import silx.io.specfile
 
-from cdiutils.load.loader import H5TypeLoader, h5_safe_load, Loader
+from cdiutils.io.loader import H5TypeLoader, h5_safe_load, Loader
 
 
 class ID01Loader(H5TypeLoader):

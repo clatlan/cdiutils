@@ -1,7 +1,5 @@
 import h5py
 import numpy as np
-import vtk
-from vtk.util.numpy_support import vtk_to_numpy
 import json
 from matplotlib.colors import LinearSegmentedColormap
 import silx.io
@@ -66,20 +64,6 @@ def load_data_from_cxi(file, *items):
         print("[ERROR] An error occured while opening the file:", exc,
               "\n", exc.__str__())
         return None
-
-
-def load_vtk(file):
-    """Get raw data from .vtk file."""
-
-    reader = vtk.vtkGenericDataObjectReader()
-    reader.SetFileName(file)
-    reader.ReadAllScalarsOn()
-    reader.ReadAllVectorsOn()
-    reader.ReadAllTensorsOn()
-    reader.Update()
-
-    return reader.GetOutput()
-
 
 def load_amp_phase_strain(
         file_path,

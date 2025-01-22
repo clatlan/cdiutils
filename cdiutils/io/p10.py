@@ -1,7 +1,7 @@
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.load import Loader
+from cdiutils.io import Loader
 
 
 class P10Loader(Loader):

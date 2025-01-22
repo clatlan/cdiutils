@@ -6,7 +6,7 @@ https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
 
 import numpy as np
 
-from cdiutils.load.loader import H5TypeLoader, h5_safe_load
+from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 
 
 class NanoMAXLoader(H5TypeLoader):
