@@ -5,8 +5,8 @@ from .p10 import P10Loader
 from .sixs import SIXSLoader
 from .cristal import CristalLoader
 from .nanomax import NanoMAXLoader
-from .cxi import CXIFile
-from .vtk import save_to_vti
+from .cxi import CXIFile, save_as_cxi, load_cxi
+from .vtk import save_as_vti
 
 __all__ = [
     "Loader",
@@ -19,5 +19,7 @@ __all__ = [
     "CristalLoader",
     "NanoMAXLoader",
     "CXIFile",
-    "save_to_vti",
+    "save_as_cxi",
+    "load_cxi",
+    "save_as_vti",
 ]

@@ -87,6 +87,9 @@ class CXIFile:
         """
         node = self.get_node(path)
 
+        if node is None:
+            raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
+
         # If the node is a dataset, retrieve the data directly
         if isinstance(node, h5py.Dataset):
             data = node[()]
@@ -130,6 +133,18 @@ class CXIFile:
         else:
             raise KeyError(f"Entry '{entry}' does not exist, cannot delete.")
 
+    def __contains__(self, path: str) -> bool:
+        """
+        Check if the specified path exists in the CXI file.
+
+        Args:
+            path (str): Path to the node.
+
+        Returns:
+            bool: True if the path exists, False otherwise.
+        """
+        return path in self.file
+
     def get_node(self, path: str):
         """
         Retrieve the raw node (dataset or group) at the specified path.
@@ -141,7 +156,7 @@ class CXIFile:
         Returns:
             The h5py Dataset or Group object.
         """
-        if path in self.file:
+        if path in self:
             return self.file[path]
         else:
             raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
@@ -515,3 +530,88 @@ class CXIFile:
             ].attrs["default"] = "data_1" if link_data else "image_1"
 
         return path
+
+
+def save_as_cxi(output_path: str, **to_be_saved: dict) -> None:
+    """
+    A helper function to quickly save data to a CXI file without
+    dealing with CXIFile complexity. However, this function is less
+    flexible than using CXIFile directly.
+
+    Args:
+        output_path (str): the path to save the CXI file.
+        to_be_saved (dict): the data to save in the CXI file.
+    """
+    if len(to_be_saved) == 0:
+            raise ValueError("No data to save. No file created.")
+    with CXIFile(output_path, "w") as cxi:
+        cxi.stamp()
+        cxi.set_entry()
+
+        results = {}
+
+        for key, value in to_be_saved.items():
+            if isinstance(value, np.ndarray) and value.ndim >= 2:
+                path = cxi.create_cxi_image(data=value, title=key)
+                cxi.softlink(f"entry_1/{key}", path)
+            else:
+                results[key] = value
+
+        # Simply save all the rests of the data in "result_1" group
+        cxi.create_cxi_group("result", **results)
+
+
+def load_cxi(path: str, *key: str) -> dict:
+    """
+    Load a CXI file and return its content as a dictionary.
+
+    Args:
+        path (str): the path to the CXI file.
+
+    Returns:
+        dict: the content of the CXI file.
+    """
+    data = {}
+    with CXIFile(path, "r") as cxi:
+        # Handle case where key_path is not provided
+        if len(key) == 0:
+            for k in cxi["entry_1"]:
+                if k.startswith("result"):
+                    for subk in cxi[f"entry_1/{k}"]:
+                        data[subk] = cxi[f"entry_1/{k}/{subk}"]
+                elif not k.startswith("image") and not k.startswith("data"):
+                    data[k] = cxi[f"entry_1/{k}/data"]
+            return data
+
+        # key_path provided
+        for k in key:
+            if k.startswith("entry"):  # assume that the exact path is provided
+                data[k] = cxi[k]
+            else:
+                # If the key_path is not a full path, we search for the data
+                e_counter = 1  # entry counter
+                while f"entry_{e_counter}" in cxi:
+                    key_path = f"entry_{e_counter}/{k}"
+                    if (
+                            key_path in cxi and cxi.get_node(
+                                key_path
+                            ).attrs["NX_class"] == "NXdata"
+                    ):
+                        data[k] = cxi[f"{key_path}/data"]
+                        e_counter = 0
+                    else:
+                        # We search the data in result groups
+                        r_counter = 1  # result counter
+                        while f"entry_{e_counter}/result_{r_counter}" in cxi:
+                            key_path = (
+                                f"entry_{e_counter}/result_{r_counter}/{k}"
+                            )
+                            if key_path in cxi:
+                                data[k] = cxi[key_path]
+                                e_counter, r_counter = 0, 0
+                            else:
+                                e_counter += 1
+                                r_counter += 1
+    if len(data) == 1:
+        return data[list(data.keys())[0]]
+    return data
