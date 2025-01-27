@@ -1663,7 +1663,7 @@ reconstruction (best solution)."""
                 for k in [
                     "amplitude", "support", "phase", "displacement",
                     "het_strain", "het_strain_from_dspacing",
-                    "lattice_parameter", "numpy_het_strain", "dspacing"
+                    "lattice_parameter", "dspacing"
                 ]
             }
             to_save_as_vti["amplitude"] = normalise(
@@ -1675,7 +1675,7 @@ reconstruction (best solution)."""
             # visualisation
             for k in (
                     "het_strain", "het_strain_from_dspacing", "dspacing",
-                    "numpy_het_strain", "lattice_parameter", "displacement"
+                    "lattice_parameter", "displacement"
             ):
                 to_save_as_vti[k] = np.where(
                     np.isnan(to_save_as_vti[k]),
