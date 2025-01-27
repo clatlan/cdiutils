@@ -103,7 +103,7 @@ class Geometry:
         if beamline_setup.lower() == "id27":
             return cls(
                 sample_circles=["x-", "y-"],  # In plane rotation only
-                detector_circles=["y-", "x-"],  # There is no circle, these value are dummy
+                detector_circles=["y-", "x-"],  # There is no circle, these values are dummy
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
