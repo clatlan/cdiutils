@@ -451,8 +451,8 @@ class PostProcessor:
             "support": nan_to_zero(support),
             "surface": nan_to_zero(surface) if surface is not None else nan_to_zero(support),
             "phase": nan_to_zero(phase),
-            "displacement": displacement,
-            "displacement_gradient": displacement_gradient,
+            "displacement": nan_to_zero(displacement),
+            "displacement_gradient": nan_to_zero(displacement_gradient),
             "het_strain": nan_to_zero(het_strain) * 100,
             "het_strain_with_ramp": nan_to_zero(het_strain_with_ramp) * 100,
             "het_strain_from_dspacing": nan_to_zero(
