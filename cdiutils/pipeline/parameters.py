@@ -42,7 +42,7 @@ AUTHORIZED_KEYS = {
     "pynx": {
         "data": None,
         "mask": None,
-        "data2cxi": True,
+        "data2cxi": False,
         "auto_center_resize": False,
         "support": "auto",
         "support_size": None,
@@ -63,6 +63,7 @@ AUTHORIZED_KEYS = {
         "nb_run_keep": 10,
         "zero_mask": False,
         "crop_output": 0,
+        "roi": "full",
         "positivity": False,
         "beta": 0.9,
         "detwin": True,
