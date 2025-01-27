@@ -409,7 +409,6 @@ class PostProcessor:
                 mask = np.isclose(strains[i % 3], strains[(i + 1) % 3])
                 het_strain_with_ramp[mask == 1] = strains[i][mask == 1]
             numpy_het_strain = np.array([np.nan])
-            het_strain = np.array([np.nan])
 
         else:
             # compute the various strain quantities
@@ -444,7 +443,8 @@ class PostProcessor:
         )
         dspacing_mean = np.nanmean(dspacing)
         het_strain_from_dspacing = (dspacing - dspacing_mean)/dspacing_mean
-
+        if handle_defects:
+            het_strain = het_strain_from_dspacing.copy()
         # all strains are saved in percent
         return {
             "amplitude": amplitude,
