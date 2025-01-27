@@ -804,19 +804,22 @@ retrieval is also computed and will be used in the post-processing stage."""
             cxi.create_cxi_group(
                 "source", energy=self.params["energy"], units="eV"
             )
-            cxi.create_cxi_image(
+            path = cxi.create_cxi_image(
                 self.cropped_detector_data,
                 data_type="cropped detector data",
                 data_space="reciprocal",
                 mask=self.mask[0],
                 process_1="process_1"
             )
-            cxi.create_cxi_image(
+            cxi.softlink("entry_1/cropped_detector_data", path)
+            path = cxi.create_cxi_image(
                 self.orthogonalised_intensity,
                 data_type="orthogonalised detector data",
                 data_space="reciprocal",
                 process_1="process_1"
             )
+            cxi.softlink("entry_1/orthogonalised_detector_data", path)
+
         self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
     def _make_slurm_file(self, template: str = None) -> None:
@@ -1565,7 +1568,7 @@ reconstruction (best solution)."""
                 )
 
     def _save_postprocessed_data(self) -> None:
-        dump_path = f"{self.dump_dir}/S{self.scan}_post_processed_data.cxi"
+        dump_path = f"{self.dump_dir}/S{self.scan}_postprocessed_data.cxi"
         with CXIFile(dump_path, "w") as cxi:
             cxi.stamp()
             msg = """Post-processing of the data including:
