@@ -1673,16 +1673,15 @@ reconstruction (best solution)."""
             # add the dspacing average and lattice constant average around
             # the NP to avoid nan values that are annoying for 3D
             # visualisation
-            to_save_as_vti["dspacing"] = np.where(
-                np.isnan(to_save_as_vti["dspacing"]),
-                self.extra_info["averaged_dspacing"],
-                to_save_as_vti["dspacing"]
-            )
-            to_save_as_vti["lattice_parameter"] = np.where(
-                np.isnan(to_save_as_vti["lattice_parameter"]),
-                self.extra_info["averaged_lattice_parameter"],
-                to_save_as_vti["lattice_parameter"]
-            )
+            for k in (
+                    "het_strain", "het_strain_from_dspacing", "dspacing",
+                    "numpy_het_strain", "lattice_parameter", "displacement"
+            ):
+                to_save_as_vti[k] = np.where(
+                    np.isnan(to_save_as_vti[k]),
+                    np.nanmean(to_save_as_vti[k]),
+                    to_save_as_vti[k]
+                )
 
             # save to vti file
             save_as_vti(
