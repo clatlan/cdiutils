@@ -3,6 +3,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import Normalize
 import numpy as np
 import warnings
+import os
+
+try:
+    import pyvista as pv
+    pv.set_jupyter_backend('client')
+except ModuleNotFoundError:
+    print("Could not load PyVista")
+    pyvista_import = False
 
 from cdiutils.plot.formatting import (
     get_figure_size,
@@ -16,6 +24,262 @@ from cdiutils.utils import (
     nan_to_zero
 )
 
+# PyVista functions, clément remove this after it's cleaned
+"""
+The goal is to have the possibility to do multi_isosurfaces
+rendering in JupyterLab.
+
+For now this notebook works well in JupyterLab in my own environment.
+
+It is important to properly install pyvista / trame, see
+`https://tutorial.pyvista.org/tutorial/09_trame/index.html`,
+ `Trame` is the `PyVista` `Jupyter` backend.
+
+Use `pip install 'pyvista[all,trame]' jupyterlab` or
+`conda install -c conda-forge pyvista jupyterlab
+trame trame-vuetify trame-vtk ipywidgets`.
+
+For now, I still need to figure out how to make it work on
+ `JupyterHub`, see
+ `https://tutorial.pyvista.org/tutorial/00_jupyter/index.html#remote-jupyterhubs`
+
+ Test the notebook here: /data/id01/inhouse/david/Notebooks/Viewer
+"""
+
+def pyvista_mesh(
+    scalar_field: np.ndarray,
+    isosurfaces: list[float] | np.ndarray,
+    initial_view: dict[str, float] = None,
+    kwargs_mesh: dict[str, float | str | bool] = {
+        "cmap": "viridis",
+        "opacity": 0.2,
+        "show_edges": False,
+        "style": "wireframe",
+        "log_scale": False,
+    },
+    scalar_field_name: str = "Values",
+    window_size: list[int] = [1100, 700],
+    plot_title: str = "3D view",
+    interactive: bool = True,
+    jupyter_backend: str = "client",
+) -> None:
+    """
+    Visualize a 3D scalar field using PyVista, with isosurfaces and customizable mesh settings.
+
+    This function creates a structured 3D grid from a scalar field and generates isosurfaces
+    (contours) for the specified values. The isosurfaces are displayed in a 3D interactive
+    plot using PyVista's `Plotter`, with options for customization through `kwargs_mesh` and
+    other parameters.
+
+    Parameters
+    ----------
+    scalar_field : np.ndarray
+        3D array representing the scalar field to visualize. The shape of this array defines
+        the grid dimensions for the mesh.
+
+    isosurfaces : list[float] | np.ndarray
+        List of scalar values for which isosurfaces (contours) will be generated in the 3D plot.
+
+    initial_view : dict[str, float], optional
+        Dictionary specifying the initial camera position, e.g., {"azimuth": 30, "elevation": 20, "roll": 10}.
+        Default is None.
+
+    kwargs_mesh : dict[str, float | str | bool], optional
+        A dictionary of keyword arguments passed to PyVista's `add_mesh` function to customize
+        the appearance of the mesh. Default options include:
+        - `cmap` (str) : Colormap to use (default is 'viridis').
+        - `opacity` (float) : Opacity of the mesh, where 1 is fully opaque and 0 is fully transparent.
+        - `show_edges` (bool) : Whether to display mesh edges (default is False).
+        - `style` (str) : Display style of the mesh ('wireframe', 'surface', etc.).
+        - `log_scale` (bool) : Apply logarithmic scaling to the color map.
+
+        For more options, see:
+        https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
+
+    scalar_field_name : str, optional
+        The name to associate with the scalar field when adding it as point data to the grid.
+        This will appear in the plot legend or color bar (default is "Values").
+
+    window_size : list[int], optional
+        The size of the rendering window, specified as [width, height] in pixels. Default is [700, 500].
+
+    plot_title : str, optional
+        Title for the 3D plot window (default is "3D view").
+
+    interactive : bool, optional
+        If True, enables interactive mode in the plot (allowing rotation, zoom, etc.). Set to False
+        for static views (default is True).
+
+    jupyter_backend : str, optional
+        Backend to use for displaying the plot in a Jupyter notebook environment. Options include:
+        - `'none'` : Do not display the plot in the notebook.
+        - `'static'` : Display a static image of the plot.
+        - `'trame'` : Use Trame to display an interactive figure.
+        - `'html'` : Display an embeddable HTML scene for interactive visualization.
+        The default is `'trame'`.
+
+    Returns
+    -------
+    None
+        This function does not return any value. It generates and displays the 3D plot.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> scalar_field = np.random.random((50, 50, 50))
+    >>> isosurfaces = [0.3, 0.5, 0.7]
+    >>> pyvista_mesh(scalar_field, isosurfaces)
+
+    Notes
+    -----
+    - This function is useful for visualizing 3D scalar fields in scientific and engineering
+      applications, where isosurfaces provide insight into spatial distributions of values.
+    - For large scalar fields, consider adjusting `kwargs_mesh` to balance between visualization
+      quality and rendering performance.
+    """
+
+    # Create grid for PyVista
+    nx, ny, nz = scalar_field.shape
+    x = np.arange(nx, dtype=np.float32)
+    y = np.arange(ny, dtype=np.float32)
+    z = np.arange(nz, dtype=np.float32)
+    X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+    grid = pv.StructuredGrid(X, Y, Z)
+
+    # Add the scalar field data as point data to the grid, room to play here
+    grid.point_data[scalar_field_name] = scalar_field.flatten(order="F")
+
+    # Generate contours for different isosurfaces
+    contours = grid.contour(
+        isosurfaces=isosurfaces,
+        method="contour", # Other methodcdiutilss do not work
+    )
+
+    plotter = pv.Plotter()
+    plotter.add_mesh(contours,**kwargs_mesh)
+
+    # Set the initial view if provided
+    if initial_view:
+        if "azimuth" in initial_view:
+            plotter.camera.Azimuth(initial_view["azimuth"])
+        if "elevation" in initial_view:
+            plotter.camera.Elevation(initial_view["elevation"])
+        if "roll" in initial_view:
+            plotter.camera.Roll(initial_view["roll"])
+
+    plotter.show(
+        title=plot_title,
+        window_size=window_size,
+        interactive=interactive,
+        jupyter_backend=jupyter_backend,
+    )
+
+    # Print the current camera view after interaction
+    current_camera = plotter.camera
+    print(f"Current Camera View - Azimuth: {current_camera.azimuth}, "
+          f"Elevation: {current_camera.elevation}, Roll: {current_camera.roll}")
+
+
+def save_rotating_contours(
+    scalar_field: np.ndarray,
+    isosurfaces: list[float] | np.ndarray,
+    save_directory: str,
+    scalar_field_name: str = "Values",
+    rotation_axis: str = "z",
+    n_frames: int = 18,
+    initial_view: dict[str, float] = None,
+    kwargs_mesh: dict[str, float | str | bool] = {
+        "cmap": "viridis",
+        "opacity": 0.2,
+        "show_edges": False,
+        "style": "wireframe",
+        "log_scale": False,
+    },
+    window_size: list[int] = [1100, 700],
+    plot_title: str = "3D view",
+):
+    """
+    Generate and save images of a 3D scalar field contour plot with rotations around a specified axis.
+
+    Parameters
+    ----------
+    scalar_field : np.ndarray
+        3D array representing the scalar field to visualize.
+    isosurfaces : list[float] | np.ndarray
+        List of scalar values for which isosurfaces (contours) will be generated.
+    save_directory : str
+        Directory where the generated images will be saved.
+    scalar_field_name : str, optional
+        Name to associate with the scalar field for visualization (default is "Values").
+    rotation_axis : str, optional
+        Axis of rotation ("x", "y", or "z"). Default is "z".
+    n_frames : int, optional
+        Number of frames (rotations) to generate (default is 18).
+    initial_view : dict[str, float], optional
+        Dictionary specifying the initial camera position, e.g., {"azimuth": 30, "elevation": 20, "roll": 10}.
+        Default is None.
+    kwargs_mesh : dict[str, float | str | bool], optional
+        Keyword arguments for customizing the PyVista mesh (default settings provided).
+    window_size : list[int], optional
+        Size of the rendering window in pixels (default is [1100, 700]).
+    plot_title : str, optional
+        Title for the 3D plot (default is "3D view").
+
+    Returns
+    -------
+    None
+    """
+
+    # Ensure the save directory exists
+    os.makedirs(save_directory, exist_ok=True)
+
+    # Create the grid and contours
+    nx, ny, nz = scalar_field.shape
+    x = np.arange(nx, dtype=np.float32)
+    y = np.arange(ny, dtype=np.float32)
+    z = np.arange(nz, dtype=np.float32)
+    X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+    grid = pv.StructuredGrid(X, Y, Z)
+    grid.point_data[scalar_field_name] = scalar_field.flatten(order="F")
+
+    contours = grid.contour(isosurfaces=isosurfaces, method="contour")
+
+    # Initialize the PyVista plotter
+    plotter = pv.Plotter(window_size=window_size)
+    plotter.add_mesh(contours, **kwargs_mesh)
+
+    # Set the initial view if provided
+    if initial_view:
+        if "azimuth" in initial_view:
+            plotter.camera.Azimuth(initial_view["azimuth"])
+        if "elevation" in initial_view:
+            plotter.camera.Elevation(initial_view["elevation"])
+        if "roll" in initial_view:
+            plotter.camera.Roll(initial_view["roll"])
+
+    # Determine rotation step
+    angle_step = 360 / n_frames
+
+    for i in range(n_frames):
+        # Rotate the view
+        if rotation_axis == "x":
+            plotter.camera.Elevation(angle_step)  # Rotate around the x-axis
+        elif rotation_axis == "y":
+            plotter.camera.Azimuth(angle_step)  # Rotate around the y-axis
+        elif rotation_axis == "z":
+            plotter.camera.Roll(angle_step)  # Rotate around the z-axis
+        else:
+            raise ValueError("rotation_axis must be 'x', 'y', or 'z'")
+
+        # Render the updated view
+        plotter.render()
+
+        # Save the current frame
+        filename = os.path.join(save_directory, f"frame_{i:03d}.png")
+        plotter.screenshot(filename)
+        # plotter.show()
+
+    plotter.close()
 
 def plot_3d_voxels(
         data: np.ndarray,
@@ -350,7 +614,7 @@ def plot_3d_object(
 
     if show:
         plt.show()
-        
+
     return fig
 
 
@@ -363,7 +627,8 @@ def plot_3d_vector_field(
         title="",
         vmin=None,
         vmax=None,
-        verbose=False):
+        verbose=False
+):
     """
     Plot a 3D vector field represented by arrows.
 
