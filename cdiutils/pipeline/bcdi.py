@@ -692,7 +692,7 @@ class BcdiPipeline(Pipeline):
         self.logger.info(
             "The reference voxel was found at "
             f"{self.voi['full']['ref']} in the uncropped data frame.\n"
-            "The processing_out_put_shape being "
+            "The process_shape being "
             f"{self.params['preprocess_shape']}, the roi used to crop "
             f"the data is {roi}.\n"
         )
