@@ -7,10 +7,11 @@ import os
 
 try:
     import pyvista as pv
-    pv.set_jupyter_backend('client')
-except ModuleNotFoundError:
+    # pv.set_jupyter_backend('client')
+    IS_PYVISTA_AVAILABLE = True
+except ImportError:
     print("Could not load PyVista")
-    pyvista_import = False
+    IS_PYVISTA_AVAILABLE = False
 
 from cdiutils.plot.formatting import (
     get_figure_size,
@@ -23,6 +24,15 @@ from cdiutils.utils import (
     CroppingHandler,
     nan_to_zero
 )
+
+
+class PyVistaImportError(ImportError):
+    """Custom exception to handle PyVista import error."""
+    def __init__(self, msg: str = None) -> None:
+        _msg = "PyVista package is not installed."
+        if msg is not None:
+            _msg += "\n" + msg
+        super().__init__(_msg)
 
 # PyVista functions, clément remove this after it's cleaned
 """
@@ -64,64 +74,78 @@ def pyvista_mesh(
     jupyter_backend: str = "client",
 ) -> None:
     """
-    Visualize a 3D scalar field using PyVista, with isosurfaces and customizable mesh settings.
+    Visualise a 3D scalar field using PyVista, with isosurfaces and
+    customisable mesh settings.
 
-    This function creates a structured 3D grid from a scalar field and generates isosurfaces
-    (contours) for the specified values. The isosurfaces are displayed in a 3D interactive
-    plot using PyVista's `Plotter`, with options for customization through `kwargs_mesh` and
+    This function creates a structured 3D grid from a scalar field and
+    generates isosurfaces (contours) for the specified values. The
+    isosurfaces are displayed in a 3D interactive plot using PyVista's
+    `Plotter`, with options for customization through `kwargs_mesh` and
     other parameters.
 
     Parameters
     ----------
     scalar_field : np.ndarray
-        3D array representing the scalar field to visualize. The shape of this array defines
-        the grid dimensions for the mesh.
+        3D array representing the scalar field to visualize. The shape
+        of this array defines the grid dimensions for the mesh.
 
     isosurfaces : list[float] | np.ndarray
-        List of scalar values for which isosurfaces (contours) will be generated in the 3D plot.
+        List of scalar values for which isosurfaces (contours) will be
+        generated in the 3D plot.
 
     initial_view : dict[str, float], optional
-        Dictionary specifying the initial camera position, e.g., {"azimuth": 30, "elevation": 20, "roll": 10}.
+        Dictionary specifying the initial camera position, e.g.,
+        {"azimuth": 30, "elevation": 20, "roll": 10}.
         Default is None.
 
     kwargs_mesh : dict[str, float | str | bool], optional
-        A dictionary of keyword arguments passed to PyVista's `add_mesh` function to customize
-        the appearance of the mesh. Default options include:
+        A dictionary of keyword arguments passed to PyVista's `add_mesh`
+        function to customise the appearance of the mesh. Default options
+        include:
         - `cmap` (str) : Colormap to use (default is 'viridis').
-        - `opacity` (float) : Opacity of the mesh, where 1 is fully opaque and 0 is fully transparent.
-        - `show_edges` (bool) : Whether to display mesh edges (default is False).
-        - `style` (str) : Display style of the mesh ('wireframe', 'surface', etc.).
-        - `log_scale` (bool) : Apply logarithmic scaling to the color map.
+        - `opacity` (float) : Opacity of the mesh, where 1 is fully
+        opaque and 0 is fully transparent.
+        - `show_edges` (bool) : Whether to display mesh edges (default
+        is False).
+        - `style` (str) : Display style of the mesh ('wireframe',
+        'surface', etc.).
+        - `log_scale` (bool) : Apply logarithmic scaling to the color
+        map.
 
         For more options, see:
         https://docs.pyvista.org/api/plotting/_autosummary/pyvista.plotter.add_mesh
 
     scalar_field_name : str, optional
-        The name to associate with the scalar field when adding it as point data to the grid.
-        This will appear in the plot legend or color bar (default is "Values").
+        The name to associate with the scalar field when adding it as
+        point data to the grid. This will appear in the plot legend or
+        colour bar (default is "Values").
 
     window_size : list[int], optional
-        The size of the rendering window, specified as [width, height] in pixels. Default is [700, 500].
+        The size of the rendering window, specified as [width, height]
+        in pixels. Default is [700, 500].
 
     plot_title : str, optional
         Title for the 3D plot window (default is "3D view").
 
     interactive : bool, optional
-        If True, enables interactive mode in the plot (allowing rotation, zoom, etc.). Set to False
-        for static views (default is True).
+        If True, enables interactive mode in the plot (allowing rotation,
+        zoom, etc.). Set to False for static views (default is True).
 
     jupyter_backend : str, optional
-        Backend to use for displaying the plot in a Jupyter notebook environment. Options include:
-        - `'none'` : Do not display the plot in the notebook.
-        - `'static'` : Display a static image of the plot.
-        - `'trame'` : Use Trame to display an interactive figure.
-        - `'html'` : Display an embeddable HTML scene for interactive visualization.
-        The default is `'trame'`.
+        Backend to use for displaying the plot in a Jupyter notebook
+        environment. Options include:
+            - `'none'` : Do not display the plot in the notebook.
+            - `'static'` : Display a static image of the plot.
+            - `'trame'` : Use Trame to display an interactive figure.
+            - `'html'` : Display an embeddable HTML scene for
+            interactive visualisation.
+            The default is `'trame'`.
 
     Returns
     -------
     None
-        This function does not return any value. It generates and displays the 3D plot.
+        This function does not return any value. It generates and
+        displays the 3D plot.
 
     Example
     -------
@@ -132,11 +156,14 @@ def pyvista_mesh(
 
     Notes
     -----
-    - This function is useful for visualizing 3D scalar fields in scientific and engineering
-      applications, where isosurfaces provide insight into spatial distributions of values.
-    - For large scalar fields, consider adjusting `kwargs_mesh` to balance between visualization
-      quality and rendering performance.
+    - This function is useful for visualizing 3D scalar fields in
+    scientific and engineering applications, where isosurfaces provide
+    insight into spatial distributions of values.
+    - For large scalar fields, consider adjusting `kwargs_mesh` to
+    balance between visualization quality and rendering performance.
     """
+    if not IS_PYVISTA_AVAILABLE:
+        raise PyVistaImportError
 
     # Create grid for PyVista
     nx, ny, nz = scalar_field.shape
@@ -146,13 +173,14 @@ def pyvista_mesh(
     X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
     grid = pv.StructuredGrid(X, Y, Z)
 
-    # Add the scalar field data as point data to the grid, room to play here
+    # Add the scalar field data as point data to the grid, room to play
+    # here
     grid.point_data[scalar_field_name] = scalar_field.flatten(order="F")
 
     # Generate contours for different isosurfaces
     contours = grid.contour(
         isosurfaces=isosurfaces,
-        method="contour", # Other methodcdiutilss do not work
+        method="contour", # Other methods do not work
     )
 
     plotter = pv.Plotter()
