@@ -121,10 +121,7 @@ class Pipeline(ABC):
         else:
             print(
                 f"Creating the dump directory at: {dump_dir}")
-            os.makedirs(
-                dump_dir,
-                exist_ok=True
-            )
+            os.makedirs(dump_dir, exist_ok=True)
 
     def _init_logger(self) -> logging.Logger:
         # Remove all handlers associated with the root logger (Jupyter
