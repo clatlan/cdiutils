@@ -403,7 +403,7 @@ class BcdiPipeline(Pipeline):
             voxels=self.voi,
             integrate=True,
             title=(
-                "Detector data preprocessing (sum), "
+                "Detector data preprocessing (projection), "
                 f"{self.sample_name}, S{self.scan}"
             ),
             save=dump_file_tmpl.format("sum")
