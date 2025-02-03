@@ -84,7 +84,7 @@ def bin_along_axis(
     return np.moveaxis(binned_data, 0, axis)
 
 
-def get_prime_factors(n):
+def get_prime_factors(n: int) -> list[int]:
     """Return the prime factors of the given integer."""
     i = 2
     factors = []
@@ -98,12 +98,26 @@ def get_prime_factors(n):
         factors.append(n)
     return factors
 
-def is_valid_shape(n, maxprime=13, required_dividers=(2,)):
+
+def is_valid_shape(
+        n: int,
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,)
+) -> bool:
     """Check if n meets Pynx shape constraints."""
     factors = get_prime_factors(n)
-    return max(factors) <= maxprime and all(n % k == 0 for k in required_dividers)
+    return (
+        max(factors) <= maxprime
+        and all(n % k == 0 for k in required_dividers)
+    )
 
-def adjust_to_valid_shape(n, maxprime=13, required_dividers=(4,), decrease=True):
+
+def adjust_to_valid_shape(
+        n: int,
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,),
+        decrease: bool = True
+) -> int:
     """Find the nearest valid shape value."""
     if maxprime < n:
         assert n > 1
@@ -113,13 +127,13 @@ def adjust_to_valid_shape(n, maxprime=13, required_dividers=(4,), decrease=True)
                 raise ValueError("No valid shape found")
     return n
 
+
 def ensure_pynx_shape(
         shape: int | tuple | list | np.ndarray,
-        maxprime: int = 13, 
-        required_dividers: tuple = (4,),
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,),
         decrease: bool = True,
-        verbose: bool = False
-        
+        verbose: bool = False 
 ) -> tuple | np.ndarray | list:
     """
     Ensure shape dimensions comply with Pynx constraints.
@@ -137,13 +151,14 @@ def ensure_pynx_shape(
         verbose (bool, optional): whether to print messages.
 
     Raises:
-        TypeError: if the shape is not an int, list, tuple, or numpy array.
+        TypeError: if the shape is not an int, list, tuple, or
+            numpy array.
 
     Returns:
         tuple | np.ndarray | list: the adjusted shape.
     """
     print("test")
-    
+
     if isinstance(shape, int):
         adjusted_shape =  adjust_to_valid_shape(
             shape, maxprime, required_dividers, decrease
@@ -159,7 +174,7 @@ def ensure_pynx_shape(
         )
     else:
         raise TypeError("Shape must be an int, list, tuple, or numpy array")
-    
+
     if verbose:
         if adjusted_shape != tuple(shape):
             print(
@@ -170,6 +185,7 @@ def ensure_pynx_shape(
         else:
             print("Shape already in agreement with pynx shape conventions.")
     return adjusted_shape
+
 
 def energy_to_wavelength(energy: float) -> float:
     """
