@@ -1405,7 +1405,7 @@ reconstruction (best solution)."""
             **{
                 k: self.structural_props[k]
                 for k in [
-                    "het_strain", "numpy_het_strain",
+                    "het_strain",
                     "het_strain_from_dspacing", "het_strain_with_ramp"
                 ]
             }
@@ -1532,7 +1532,8 @@ reconstruction (best solution)."""
             self.logger.warning(
                 f"Shapes before {self.params['preprocess_shape']} "
                 f"and after {support.shape} Phase Retrieval are different.\n"
-                "Check out PyNX parameters (ex.: auto_center_resize)."
+                "Check out PyNX parameters (ex.: auto_center_resize (now "
+                "deprecated) and roi)."
             )
 
     def _check_voxel_size(self) -> None:
