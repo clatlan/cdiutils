@@ -10,7 +10,6 @@ try:
     # pv.set_jupyter_backend('client')
     IS_PYVISTA_AVAILABLE = True
 except ImportError:
-    print("Could not load PyVista")
     IS_PYVISTA_AVAILABLE = False
 
 from cdiutils.plot.formatting import (
@@ -55,6 +54,7 @@ For now, I still need to figure out how to make it work on
 
  Test the notebook here: /data/id01/inhouse/david/Notebooks/Viewer
 """
+
 
 def pyvista_mesh(
     scalar_field: np.ndarray,
