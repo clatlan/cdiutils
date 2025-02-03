@@ -951,8 +951,8 @@ class PhasingResultAnalyser:
                 "Phasing result analysis (the lower the better)\n"
             )
         print(
-            "[INFO] the sorted list of runs using sorting_criterion "
-            f"'{sorting_criterion}' is:\n{runs}"
+            f"[INFO] the sorted list of runs using '{sorting_criterion}' "
+            f"sorting_criterion is:\n{runs}."
         )
 
         if plot_phasing_results and plot:
