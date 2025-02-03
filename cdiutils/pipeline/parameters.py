@@ -63,7 +63,7 @@ AUTHORIZED_KEYS = {
         "nb_run_keep": 10,
         "zero_mask": False,
         "crop_output": 0,
-        "roi": None,
+        "roi": "full",
         "positivity": False,
         "beta": 0.9,
         "detwin": True,
