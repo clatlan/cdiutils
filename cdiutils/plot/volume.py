@@ -8,9 +8,11 @@ import os
 try:
     import pyvista as pv
     # pv.set_jupyter_backend('client')
-    IS_PYVISTA_AVAILABLE = True
+    from pyvista.trame.ui.vuetify3 import divider, slider, select
+    # from trame.app import get_server
+    IS_TRAME_PYVISTA_AVAILABLE = True
 except ImportError:
-    IS_PYVISTA_AVAILABLE = False
+    IS_TRAME_PYVISTA_AVAILABLE = False
 
 from cdiutils.plot.formatting import (
     get_figure_size,
@@ -25,13 +27,216 @@ from cdiutils.utils import (
 )
 
 
-class PyVistaImportError(ImportError):
+class TramePyVistaImportError(ImportError):
     """Custom exception to handle PyVista import error."""
     def __init__(self, msg: str = None) -> None:
         _msg = "PyVista package is not installed."
         if msg is not None:
             _msg += "\n" + msg
         super().__init__(_msg)
+
+
+class VolumeViewer:
+    generic_params = {
+        "amplitude": {"cmap": "turbo", "centred_clim": False, "clim": [0, 1]},
+        "support": {"cmap": "viridis", "centred_clim": False},
+        "phase": {"cmap": "cet_CET_C9s_r", "centred_clim": True},
+        "displacement": {"cmap": "cet_CET_D1A", "centred_clim": True},
+        "het_strain": {"cmap": "cet_CET_D13", "centred_clim": True},
+        "het_strain_from_dspacing": {
+            "cmap": "cet_CET_D13", "centred_clim": True
+        },
+        "lattice_parameter": {"cmap": "turbo", "centred_clim": False},
+        "dspacing": {"cmap": "turbo", "centred_clim": False},
+        "isosurface": 0.50,
+        "cmap": "turbo"
+    }
+
+    cmap_options = (
+        "turbo", "viridis", "spectral", "inferno", "magma", "plasma",
+        "cividis", "RdBu", "coolwarm", "Blues", "Greens", "Greys", "Purples",
+        "Oranges", "Reds", "cet_CET_D13", "cet_CET_C9s_r", "cet_CET_D1A"
+    )
+    if not IS_TRAME_PYVISTA_AVAILABLE:
+        raise TramePyVistaImportError
+
+    @classmethod
+    def generate_toolbar_tools(
+        cls,
+        initial_scalar: str,
+        available_scalars: list[str],
+        **kwargs
+    ) -> callable:
+        def toolbar_tools() -> None:
+            divider(vertical=True, classes="mx-1")
+
+            # isosurface slider
+            slider(
+                model=("isosurface_value", cls.generic_params["isosurface"]),
+                tooltip="Adjust isosurface threshold",
+                min=0.0,
+                max=1.0,
+                step=0.01,
+                dense=True,
+                hide_details=False,
+                style="width: 250px",
+                classes="my-0 py-0 ml-1 mr-1",
+            )
+
+            divider(vertical=True, classes="mx-1")
+
+            # scalar field dropdown
+            select(
+                model=("scalar_field", initial_scalar),  # Correct binding
+                tooltip="Choose scalar field for coloring",
+                items=("available_scalars", available_scalars),
+                hide_details=True,
+                dense=True,
+                outlined=True,
+            )
+            divider(vertical=True, classes="mx-1")
+
+            # colourmap dropdown
+            select(
+                model=("cmap", cls.generic_params[initial_scalar]["cmap"]),
+                tooltip="Choose a colourmap",
+                items=("cmap_options", cls.cmap_options),
+                hide_details=True,
+                dense=True,
+                outlined=True,
+            )
+        return toolbar_tools
+
+    @classmethod
+    def contour_plot(
+            cls,
+            data_path: str,
+            initial_active_scalar: str = "het_strain",
+            **data
+    ):
+        if len(data) > 0:
+            raise NotImplementedError(
+                "Directly parsing numpy.ndarray is not implemented yet."
+            )
+        if not data_path.endswith(".vti"):
+            raise ValueError(
+                "The provided data_path should points to a .vti file"
+            )
+        # server = get_server()
+        # state = server.state  # Trame state
+
+        data = pv.read(data_path)  # load volume data
+        available_scalars = data.array_names  # the available fields
+
+        plotter = pv.Plotter(notebook=True)
+
+        # generate the initial isosurface
+        contours = data.contour(
+            [cls.generic_params["isosurface"]], scalars="amplitude"
+        )
+        if initial_active_scalar not in available_scalars:
+            raise ValueError(
+                f"initial_active_scalar (={initial_active_scalar}) cannot be"
+                "found in the provided data."
+            )
+        contours.set_active_scalars(initial_active_scalar)
+        initial_clim = cls.generic_params[initial_active_scalar].get("clim")
+        if cls.generic_params[initial_active_scalar]["centred_clim"]:
+            initial_clim = (
+                -np.max(data[initial_active_scalar]), 
+                np.max(data[initial_active_scalar])
+            )
+
+        mesh_actor = plotter.add_mesh(
+            contours,
+            scalars=initial_active_scalar,
+            cmap=cls.generic_params[initial_active_scalar]["cmap"],
+            clim=initial_clim,
+            scalar_bar_args={
+                "title": initial_active_scalar.replace("_", " ").capitalize()
+            },
+        )
+
+        plotter.add_axes()  # the tripod axes
+
+        # get the IPython widget
+        widget = plotter.show(
+            jupyter_kwargs={"add_menu_items": cls.generate_toolbar_tools(
+                initial_active_scalar, available_scalars
+            )},
+            return_viewer=True
+        )
+
+        # connect Trame state with Pyvista
+        state = widget.viewer.server.state
+        ctrl = widget.viewer.server.controller
+        state.isosurface_value = cls.generic_params["isosurface"]
+        state.scalar_field = initial_active_scalar
+        state.cmap = cls.generic_params[initial_active_scalar]["cmap"]
+
+        ctrl.view_update = widget.viewer.update
+
+        # **Trame Callbacks**
+        @state.change("isosurface_value")
+        def update_isosurface(isosurface_value, **kwargs):
+            """Update isosurface dynamically when user moves the slider."""
+            new_contours = data.contour(
+                [isosurface_value], scalars="amplitude"
+            )
+            new_contours.set_active_scalars(state.scalar_field)
+            mesh_actor.mapper.dataset = new_contours
+            ctrl.view_update()
+
+        @state.change("scalar_field")
+        def update_scalar_field(scalar_field, **kwargs):
+            """Change the active scalar field dynamically."""
+            # Ensure correct field is active
+            contours.set_active_scalars(scalar_field)
+            mesh_actor.mapper.array_name = scalar_field
+
+            # Get colormap and clim behavior
+            cmap = cls.generic_params[scalar_field]["cmap"]
+
+            centred_clim = cls.generic_params[scalar_field]["centred_clim"]
+            # Adjust color limits (clim)
+            clim_range = list(contours.get_data_range(scalar_field))
+            if centred_clim:
+                max_abs = max(abs(clim_range[0]), abs(clim_range[1]))
+                clim_range = [-max_abs, max_abs]  # Centered around 0
+            else:
+                clim_range = cls.generic_params[scalar_field].get("clim")
+
+            mesh_actor.mapper.scalar_range = clim_range            
+
+            # Update colormap selection dynamically
+            state.cmap = cmap
+
+            # Apply new colormap to PyVista actor
+            mesh_actor.mapper.lookup_table = pv.LookupTable(cmap)
+
+            plotter.remove_scalar_bar()  # Remove old colorbar
+            plotter.add_scalar_bar(
+                title=scalar_field.replace("_", " ").capitalize(), n_labels=5
+            )
+
+            ctrl.view_update()
+
+        @state.change("cmap")
+        def update_colourmap(cmap, **kwargs):
+            """Update the colourmap dynamically."""
+            # Apply new cmap
+            state.cmap = cmap
+            mesh_actor.mapper.lookup_table = pv.LookupTable(cmap)
+            plotter.remove_scalar_bar()  # Remove old colourbar
+            plotter.add_scalar_bar(
+                title=state.scalar_field.replace("_", " ").capitalize(),
+                n_labels=5
+            )
+
+            ctrl.view_update()  # Refresh the visualization
+
+        return widget  # Display the viewer
+
 
 # PyVista functions, clément remove this after it's cleaned
 """
@@ -162,8 +367,8 @@ def pyvista_mesh(
     - For large scalar fields, consider adjusting `kwargs_mesh` to
     balance between visualization quality and rendering performance.
     """
-    if not IS_PYVISTA_AVAILABLE:
-        raise PyVistaImportError
+    if not IS_TRAME_PYVISTA_AVAILABLE:
+        raise TramePyVistaImportError
 
     # Create grid for PyVista
     nx, ny, nz = scalar_field.shape
@@ -180,11 +385,11 @@ def pyvista_mesh(
     # Generate contours for different isosurfaces
     contours = grid.contour(
         isosurfaces=isosurfaces,
-        method="contour", # Other methods do not work
+        method="contour"  # Other methods do not work
     )
 
     plotter = pv.Plotter()
-    plotter.add_mesh(contours,**kwargs_mesh)
+    plotter.add_mesh(contours, **kwargs_mesh)
 
     # Set the initial view if provided
     if initial_view:
@@ -204,50 +409,56 @@ def pyvista_mesh(
 
     # Print the current camera view after interaction
     current_camera = plotter.camera
-    print(f"Current Camera View - Azimuth: {current_camera.azimuth}, "
-          f"Elevation: {current_camera.elevation}, Roll: {current_camera.roll}")
+    print(
+        f"Current Camera View - Azimuth: {current_camera.azimuth}, "
+        f"Elevation: {current_camera.elevation}, Roll: {current_camera.roll}"
+    )
 
 
 def save_rotating_contours(
-    scalar_field: np.ndarray,
-    isosurfaces: list[float] | np.ndarray,
-    save_directory: str,
-    scalar_field_name: str = "Values",
-    rotation_axis: str = "z",
-    n_frames: int = 18,
-    initial_view: dict[str, float] = None,
-    kwargs_mesh: dict[str, float | str | bool] = {
-        "cmap": "viridis",
-        "opacity": 0.2,
-        "show_edges": False,
-        "style": "wireframe",
-        "log_scale": False,
-    },
-    window_size: list[int] = [1100, 700],
-    plot_title: str = "3D view",
+        scalar_field: np.ndarray,
+        isosurfaces: list[float] | np.ndarray,
+        save_directory: str,
+        scalar_field_name: str = "Values",
+        rotation_axis: str = "z",
+        n_frames: int = 18,
+        initial_view: dict[str, float] = None,
+        kwargs_mesh: dict[str, float | str | bool] = {
+            "cmap": "viridis",
+            "opacity": 0.2,
+            "show_edges": False,
+            "style": "wireframe",
+            "log_scale": False,
+        },
+        window_size: list[int] = [1100, 700],
+        plot_title: str = "3D view",
 ):
     """
-    Generate and save images of a 3D scalar field contour plot with rotations around a specified axis.
+    Generate and save images of a 3D scalar field contour plot with
+    rotations around a specified axis.
 
     Parameters
     ----------
     scalar_field : np.ndarray
         3D array representing the scalar field to visualize.
     isosurfaces : list[float] | np.ndarray
-        List of scalar values for which isosurfaces (contours) will be generated.
+        List of scalar values for which isosurfaces (contours) will be
+        generated.
     save_directory : str
         Directory where the generated images will be saved.
     scalar_field_name : str, optional
-        Name to associate with the scalar field for visualization (default is "Values").
+        Name to associate with the scalar field for visualization
+        (default is "Values").
     rotation_axis : str, optional
         Axis of rotation ("x", "y", or "z"). Default is "z".
     n_frames : int, optional
         Number of frames (rotations) to generate (default is 18).
     initial_view : dict[str, float], optional
-        Dictionary specifying the initial camera position, e.g., {"azimuth": 30, "elevation": 20, "roll": 10}.
-        Default is None.
+        Dictionary specifying the initial camera position, e.g.:
+        {"azimuth": 30, "elevation": 20, "roll": 10}. Default is None.
     kwargs_mesh : dict[str, float | str | bool], optional
-        Keyword arguments for customizing the PyVista mesh (default settings provided).
+        Keyword arguments for customizing the PyVista mesh (default
+        settings provided).
     window_size : list[int], optional
         Size of the rendering window in pixels (default is [1100, 700]).
     plot_title : str, optional
@@ -308,6 +519,7 @@ def save_rotating_contours(
         # plotter.show()
 
     plotter.close()
+
 
 def plot_3d_voxels(
         data: np.ndarray,
