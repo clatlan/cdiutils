@@ -157,10 +157,8 @@ def ensure_pynx_shape(
     Returns:
         tuple | np.ndarray | list: the adjusted shape.
     """
-    print("test")
-
     if isinstance(shape, int):
-        adjusted_shape =  adjust_to_valid_shape(
+        adjusted_shape = adjust_to_valid_shape(
             shape, maxprime, required_dividers, decrease
         )
     elif isinstance(shape, (list, tuple, np.ndarray)):
