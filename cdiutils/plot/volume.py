@@ -57,11 +57,9 @@ class VolumeViewer:
         "cividis", "RdBu", "coolwarm", "Blues", "Greens", "Greys", "Purples",
         "Oranges", "Reds", "cet_CET_D13", "cet_CET_C9s_r", "cet_CET_D1A"
     )
-    if not IS_TRAME_PYVISTA_AVAILABLE:
-        raise TramePyVistaImportError
 
     @classmethod
-    def generate_toolbar_tools(
+    def _generate_toolbar_tools(
         cls,
         initial_scalar: str,
         available_scalars: list[str],
@@ -114,6 +112,8 @@ class VolumeViewer:
             initial_active_scalar: str = "het_strain",
             **data
     ):
+        if not IS_TRAME_PYVISTA_AVAILABLE:
+            raise TramePyVistaImportError
         if len(data) > 0:
             raise NotImplementedError(
                 "Directly parsing numpy.ndarray is not implemented yet."
@@ -161,7 +161,7 @@ class VolumeViewer:
 
         # get the IPython widget
         widget = plotter.show(
-            jupyter_kwargs={"add_menu_items": cls.generate_toolbar_tools(
+            jupyter_kwargs={"add_menu_items": cls._generate_toolbar_tools(
                 initial_active_scalar, available_scalars
             )},
             return_viewer=True
