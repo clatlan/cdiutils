@@ -383,15 +383,9 @@ class PostProcessor:
             phase_with_ramp, g_vector
         )
 
-        # compute the displacement gradient
-        displacement_gradient = cls.get_displacement_gradient(
-            displacement,
-            voxel_size,
-            gradient_method="hybrid"
-        )
-
         if handle_defects:
             het_strain_with_ramp = np.zeros(amplitude.shape)
+            displacement_gradient = np.zeros((3, ) + amplitude.shape)
             phases = [
                 np.mod(phase_with_ramp * support + i * (np.pi / 2), 2 * np.pi)
                 for i in range(3)
@@ -405,9 +399,28 @@ class PostProcessor:
                 )
                 for i in range(3)
             ]
+            displacement_gradients = [
+                cls.get_displacement_gradient(
+                    cls.get_displacement(phases[i], g_vector) * 1e-1,
+                    voxel_size,
+                    gradient_method="hybrid"
+                )
+                for i in range(3)
+            ]
             for i in range(3):
+                # strain case
                 mask = np.isclose(strains[i % 3], strains[(i + 1) % 3])
                 het_strain_with_ramp[mask == 1] = strains[i][mask == 1]
+
+                # displacement gradient case
+                for k in range(3):
+                    mask = np.isclose(
+                        displacement_gradients[k][i % 3],
+                        displacement_gradients[k][(i + 3) % 3]
+                    )
+                    displacement_gradient[k][mask == 1] = (
+                        displacement_gradients[k][i][mask == 1]
+                    )
             numpy_het_strain = np.array([np.nan])
 
         else:
@@ -427,6 +440,13 @@ class PostProcessor:
             het_strain_with_ramp = cls.get_het_normal_strain(
                 displacement_with_ramp * 1e-1,
                 g_vector,
+                voxel_size,
+                gradient_method="hybrid"
+            )
+
+            # compute the displacement gradient
+            displacement_gradient = cls.get_displacement_gradient(
+                displacement,
                 voxel_size,
                 gradient_method="hybrid"
             )
