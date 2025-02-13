@@ -1658,7 +1658,12 @@ reconstruction (best solution)."""
                     )
                     cxi.softlink(f"entry_1/{key}", path)
 
-        self.logger.info(f"Post-processed data file saved at:\n{dump_path}")
+        # save as npz
+        to_save_as_npz = {**self.extra_info, **self.structural_props}
+        np.savez_compressed(
+            f"{self.dump_dir}/S{self.scan}_postprocessed_data.npz",
+            **to_save_as_npz
+        )
 
         # Save as vti
         if IS_VTK_AVAILABLE:
@@ -1700,6 +1705,8 @@ reconstruction (best solution)."""
             self.logger.info(
                 "vtk package not available, will not save the vti file."
             )
+
+        self.logger.info(f"Post-processed data file saved at:\n{dump_path}")
 
     def facet_analysis(self) -> None:
         facet_anlysis_processor = FacetAnalysisProcessor(
