@@ -80,10 +80,6 @@ class Loader(ABC):
             from . import ID01Loader
             return ID01Loader(**metadata)
 
-        if beamline_setup.lower() == "id01spec":
-            from . import SpecLoader
-            return SpecLoader(**metadata)
-
         if "sixs" in beamline_setup.lower():
             from . import SIXSLoader
             if "2022" in beamline_setup.lower():
