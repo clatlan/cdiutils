@@ -419,17 +419,17 @@ def symmetric_pad(
             f"output_shape length ({len(output_shape)}) should match of input "
             f"data dimension ({data.ndim})."
         )
-    widths = []
+    pad_widths = []
     for current_s, output_s in zip(data.shape, output_shape):
-        widths.append((output_s - current_s) // 2)
+        if output_s < current_s:
+            pad_widths.append((0, 0))
+        else:
+            pad_left = (output_s - current_s) // 2
+            pad_right = pad_left + (output_s - current_s) % 2
+            pad_widths.append((pad_left, pad_right))
     return np.pad(
         data,
-        pad_width=tuple(
-            (
-                widths[i],
-                widths[i] + (output_shape[i] - data.shape[i]) % 2
-            ) for i in range(data.ndim)
-        ),
+        pad_width=pad_widths,
         mode="constant",
         constant_values=values
     )
