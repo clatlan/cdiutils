@@ -1,0 +1,14 @@
+name: readthedocs
+channels:
+  - conda-forge
+dependencies:
+  - python==3.5
+  - sphinx>=1.4
+  - pandoc
+  - nbconvert
+  - ipykernel
+  - nbsphinx
+  - nbsphinx-link
+  - sphinx-rtd-theme
+  - pydata-sphinx-theme
+  - sphinx-autodoc-typehints
