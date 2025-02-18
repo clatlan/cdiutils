@@ -1239,7 +1239,7 @@ class PhasingResultAnalyser:
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Implementation of the check-up for the twin image problem as
-        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa 
         The function takes two reconstructions, one is considered a
         reference. After the two reconstuctions being registered, their
         phase in the Fourier space are compared (difference). The same
