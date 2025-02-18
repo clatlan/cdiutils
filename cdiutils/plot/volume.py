@@ -778,8 +778,8 @@ def plot_3d_surface_projections(
 
         ax.locator_params(nbins=5)
 
-    divider = make_axes_locatable(axes[0, 1])
-    cax = divider.append_axes("top", size=cbar_size, pad=cbar_pad)
+    ax_divider = make_axes_locatable(axes[0, 1])
+    cax = ax_divider.append_axes("top", size=cbar_size, pad=cbar_pad)
     figure.colorbar(
         image,
         cax=cax,
