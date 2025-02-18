@@ -12,6 +12,7 @@ except ImportError:
 
 class VtkImportError(ImportError):
     """Custom exception to handle Vtk import error."""
+
     def __init__(self, msg: str = None) -> None:
         _msg = "vtk package is not installed."
         if msg is not None:

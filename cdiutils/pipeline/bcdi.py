@@ -50,6 +50,7 @@ from .parameters import check_params, convert_np_arrays
 
 
 class PyNXScriptError(Exception):
+
     """Custom exception to handle pynx script failure."""
 
 
@@ -67,6 +68,7 @@ class BcdiPipeline(Pipeline):
             Defaults to None.
 
     """
+
     voxel_pos = ("ref", "max", "com")
     class_isosurface = 0.1
 

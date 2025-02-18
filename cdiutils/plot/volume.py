@@ -27,6 +27,7 @@ from cdiutils.utils import (
 
 class TramePyVistaImportError(ImportError):
     """Custom exception to handle PyVista import error."""
+
     def __init__(self, msg: str = None) -> None:
         _msg = "PyVista package is not installed."
         if msg is not None:
@@ -41,6 +42,7 @@ class VolumeViewer:
     Raises:
         TramePyVistaImportError: if Trame or PyVista are not installed.
     """
+
     generic_params = {
         "amplitude": {"cmap": "turbo", "centred_clim": False, "clim": [0, 1]},
         "support": {"cmap": "viridis", "centred_clim": False},

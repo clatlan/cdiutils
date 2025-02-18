@@ -82,6 +82,7 @@ DEFAULT_PYNX_PARAMS = {
 
 class PynNXImportError(Exception):
     """Custom exception to handle Pynx import error."""
+
     def __init__(self, msg: str = None) -> None:
         _msg = "'PyNX' is not installed on the current machine."
         if msg is not None:

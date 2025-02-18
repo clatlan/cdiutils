@@ -37,6 +37,7 @@ class LoggerWriter:
     Custom stream to send stdout (print statements) directly to
     logger in real-time.
     """
+
     def __init__(self, logger, level, wrap=True):
         self.logger = logger
         self.level = level
@@ -58,10 +59,12 @@ class LoggerWriter:
 
 
 class JobCancelledError(Exception):
+
     """Custom exception to handle job cancellations by the user."""
 
 
 class JobFailedError(Exception):
+
     """Custom exception to handle job failure."""
 
 
@@ -70,10 +73,8 @@ class Pipeline(ABC):
     The main class for handling pipelines in the context of cdi. It is
     not intended for direct use, and should be derived for a specific
     application.
-
-    Args:
-        ABC (_type_): _description_
     """
+
     def __init__(
             self,
             params: dict = None,
