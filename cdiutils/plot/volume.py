@@ -7,9 +7,7 @@ import os
 
 try:
     import pyvista as pv
-    # pv.set_jupyter_backend('client')
     from pyvista.trame.ui.vuetify3 import divider, slider, select
-    # from trame.app import get_server
     IS_TRAME_PYVISTA_AVAILABLE = True
 except ImportError:
     IS_TRAME_PYVISTA_AVAILABLE = False
@@ -41,15 +39,7 @@ class VolumeViewer:
     A class to plot volume in 3D with trame and PyVista.
 
     Raises:
-        TramePyVistaImportError: if Trame or PyVista are not
-            installed.
-        NotImplementedError: When parsing np.ndarray directly.
-        ValueError: If the path to the data is not a .vti file.
-        ValueError: If initial requested scalar field is not
-            available in the data to plot.
-
-    Returns:
-        the widget viewer
+        TramePyVistaImportError: if Trame or PyVista are not installed.
     """
     generic_params = {
         "amplitude": {"cmap": "turbo", "centred_clim": False, "clim": [0, 1]},
