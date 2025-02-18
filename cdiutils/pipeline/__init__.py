@@ -19,7 +19,10 @@ __class_func_submodules__ = {
     "get_params_from_variables": "parameters"
 }
 
-__all__ = list(__class_func_submodules__)
+__all__ = [
+    "Pipeline", "BcdiPipeline",
+    "PipelinePlotter", "get_params_from_variables"
+]
 
 
 def __getattr__(name):

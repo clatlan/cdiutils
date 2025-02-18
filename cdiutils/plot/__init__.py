@@ -39,7 +39,8 @@ __all__ = [
     "add_labels",
     "save_fig",
     "white_interior_ticks_labels",
-] + list(__submodules__) + list(__class_func_submodules__)
+]
+__all__ += list(__submodules__) + list(__class_func_submodules__)
 
 
 def __getattr__(name):
