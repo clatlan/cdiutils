@@ -22,7 +22,7 @@ class PipelinePlotter:
 
     @classmethod
     def detector_data(
-            self,
+            cls,
             det_data: np.ndarray,
             voxels: dict = None,
             full_det_data: np.ndarray = None,
