@@ -168,9 +168,11 @@ class PipelinePlotter:
                 color="w", lw=0.5
             )
         else:
-            plot_params = {"marker": "x", "markersize": 4, "linestyle": "None"}
-            plot_params["color"] = "green"
-            plot_params["label"] = "com"
+            plot_params = {
+                "marker": "x", "markersize": 4, "linestyle": "None",
+                "color": "green", "label": "com"
+            }
+
             if style == "max":
                 plot_params["color"] = "red"
                 plot_params["label"] = "max"
