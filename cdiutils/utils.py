@@ -1204,9 +1204,9 @@ def get_centred_slices(
     if shift is None:
         shift = (0, ) * len(shape)
     slices = []
-    for i in range(len(shape)):
+    for i, element in enumerate(shape):
         s = [slice(None)] * len(shape)
-        s[i] = shape[i] // 2 + shift[i]
+        s[i] = element // 2 + shift[i]
         slices.append(tuple(s))
     return slices
 
