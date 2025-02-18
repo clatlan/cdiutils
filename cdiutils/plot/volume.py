@@ -423,14 +423,8 @@ def save_rotating_contours(
         rotation_axis: str = "z",
         n_frames: int = 18,
         initial_view: dict[str, float] = None,
-        kwargs_mesh: dict[str, float | str | bool] = {
-            "cmap": "viridis",
-            "opacity": 0.2,
-            "show_edges": False,
-            "style": "wireframe",
-            "log_scale": False,
-        },
-        window_size: list[int] = [1100, 700],
+        kwargs_mesh: dict[str, float | str | bool] = None,
+        window_size: list[int] = None,
         plot_title: str = "3D view",
 ):
     """
@@ -471,6 +465,18 @@ def save_rotating_contours(
 
     # Ensure the save directory exists
     os.makedirs(save_directory, exist_ok=True)
+
+    if window_size is None:
+        window_size = [1100, 700]
+
+    if kwargs_mesh is None:
+        kwargs_mesh = {
+            "cmap": "viridis",
+            "opacity": 0.2,
+            "show_edges": False,
+            "style": "wireframe",
+            "log_scale": False,
+        }
 
     # Create the grid and contours
     nx, ny, nz = scalar_field.shape
