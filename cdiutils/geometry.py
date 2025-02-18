@@ -75,9 +75,13 @@ class Geometry:
         if "sixs" in beamline_setup.lower():
             return cls(
                 sample_circles=["x-", "y+"],  # mu, omega
-                detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE OF THE COMMENT
-                detector_axis0_orientation="x-" if "2022" in beamline_setup.lower() else "y-",
-                detector_axis1_orientation="y-" if "2022" in beamline_setup.lower() else "x+",
+                detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE
+                detector_axis0_orientation=(
+                    "x-" if "2022" in beamline_setup.lower() else "y-"
+                ),
+                detector_axis1_orientation=(
+                    "y-" if "2022" in beamline_setup.lower() else "x+"
+                ),
                 beam_direction=[1, 0, 0],
                 name="SIXS"
             )
@@ -91,9 +95,10 @@ class Geometry:
                 name="NanoMAX"
             )
         if beamline_setup.lower() == "cristal":
+            # OK FOR omega/delta but not for the two others
             return cls(
                 sample_circles=["x-", "y+"],  # omega, phi
-                detector_circles=["y+", "x-"],  # gamma, delta  OK FOR omega/delta but not for the two others
+                detector_circles=["y+", "x-"],  # gamma, delta
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
@@ -103,7 +108,7 @@ class Geometry:
         if beamline_setup.lower() == "id27":
             return cls(
                 sample_circles=["x-", "y-"],  # In plane rotation only
-                detector_circles=["y-", "x-"],  # There is no circle, these values are dummy
+                detector_circles=["y-", "x-"],  # no circle, values dummy
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
