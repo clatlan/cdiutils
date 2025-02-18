@@ -283,8 +283,11 @@ class CXIFile:
                 f"Unknown group_type ({group_type}), must be in "
                 f"{GROUP_ATTRIBUTES.keys()}"
             )
-        default = GROUP_ATTRIBUTES.get(group_type).get("default")
-        nx_class = GROUP_ATTRIBUTES.get(group_type).get("nx_class")
+        if group_type in GROUP_ATTRIBUTES:
+            default = GROUP_ATTRIBUTES.get(group_type).get("default")
+            nx_class = GROUP_ATTRIBUTES.get(group_type).get("nx_class")
+        else:
+            raise KeyError(f"No {group_type} in GROUP_ATTRIBUTES.")
 
         group_name = f"{group_type}_{index}"
         path = f"{self._current_entry}/{group_name}"
