@@ -486,4 +486,3 @@ class Pipeline(ABC):
         if return_text:
             return pretty_text
         return None
-
