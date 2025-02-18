@@ -276,7 +276,8 @@ class Loader(ABC):
     def load_det_calib_params(self):
         pass
 
-    def load_detector_shape(self):
+    @staticmethod
+    def load_detector_shape():
         return None
 
     def get_detector_name(self) -> str:

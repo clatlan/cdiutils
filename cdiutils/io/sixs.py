@@ -176,7 +176,8 @@ class SIXSLoader(H5TypeLoader):
 
         return angles
 
-    def _get_detector_key_path(self, h5file: h5py.File) -> str:
+    @staticmethod
+    def _get_detector_key_path(h5file: h5py.File) -> str:
         """
         Get the key path for the detector data.
 

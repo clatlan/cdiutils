@@ -123,7 +123,8 @@ class Pipeline(ABC):
                 f"Creating the dump directory at: {dump_dir}")
             os.makedirs(dump_dir, exist_ok=True)
 
-    def _init_logger(self) -> logging.Logger:
+    @staticmethod
+    def _init_logger() -> logging.Logger:
         # Remove all handlers associated with the root logger (Jupyter
         # default).
         for handler in logging.root.handlers[:]:
@@ -265,7 +266,8 @@ class Pipeline(ABC):
             )
             raise e
 
-    def _get_job_id(self, stdout: str) -> str:
+    @staticmethod
+    def _get_job_id(stdout: str) -> str:
         """Extract the job ID from sbatch output."""
         for line in stdout.splitlines():
             if "Submitted batch job" in line:
@@ -401,7 +403,8 @@ class Pipeline(ABC):
             self.logger.error(f"Error checking job status: {e.stderr}")
             raise
 
-    def _parse_sacct_output(self, line: str) -> tuple[str, str]:
+    @staticmethod
+    def _parse_sacct_output(line: str) -> tuple[str, str]:
         """Parse the sacct output line and return the state and exit code."""
         parts = line.split()
         if len(parts) >= 3:

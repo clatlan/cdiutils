@@ -621,6 +621,7 @@ class PipelinePlotter:
             save_fig(fig, save, transparent=False)
         return fig
 
+    @staticmethod
     def plot_final_object_fft(
             obj: np.ndarray,
             voxel_size: tuple,
