@@ -66,6 +66,14 @@ class JobFailedError(Exception):
 
 
 class Pipeline(ABC):
+    """
+    The main class for handling pipelines in the context of cdi. It is
+    not intended for direct use, and should be derived for a specific
+    application.
+
+    Args:
+        ABC (_type_): _description_
+    """
     def __init__(
             self,
             params: dict = None,

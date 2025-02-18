@@ -493,6 +493,7 @@ def h5_safe_load(func: Callable) -> Callable:
 
 
 class H5TypeLoader(Loader):
+    """A child class of Loader for H5-type loaders."""
     def __init__(
             self,
             experiment_file_path: str,

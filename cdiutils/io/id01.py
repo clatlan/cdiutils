@@ -359,6 +359,7 @@ def safe(func):
 
 # TODO: Implement roi parameter for detector, motors and mask methods
 class SpecLoader(Loader):
+    """A loader for loading .spec files."""
 
     angle_names = {
         "sample_outofplane_angle": "eta",
