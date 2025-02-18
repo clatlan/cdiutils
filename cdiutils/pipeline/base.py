@@ -57,17 +57,14 @@ class LoggerWriter:
         """
         flush method is needed for compatibility with `sys.stdout`.
         """
-        pass  # needed for compatibility with `sys.stdout`.
 
 
 class JobCancelledError(Exception):
     """Custom exception to handle job cancellations by the user."""
-    pass
 
 
 class JobFailedError(Exception):
     """Custom exception to handle job failure."""
-    pass
 
 
 class Pipeline(ABC):
