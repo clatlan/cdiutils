@@ -1096,20 +1096,17 @@ class Interpolator3D:
     ) -> None:
         """Find the extents in 3D of a given tuple of grid."""
         extent_axis0 = int(
-            # np.rint(
             np.ceil(
                 (grid_axis0.max() - grid_axis0.min())
                 / self.target_voxel_size[0]
             )
         )
         extent_axis1 = int(
-            # np.rint(
             np.ceil(
                 (grid_axis1.max() - grid_axis1.min())
                 / self.target_voxel_size[1])
         )
         extent_axis2 = int(
-            # np.rint(
             np.ceil(
                 (grid_axis2.max() - grid_axis2.min())
                 / self.target_voxel_size[2])

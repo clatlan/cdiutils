@@ -197,11 +197,7 @@ class ID27Loader(H5TypeLoader):
         return detector_names[0]
 
     @h5_safe_load
-    def load_det_calib_params(
-            self,
-            scan: int = None,
-            sample_name: str = None
-    ) -> dict:
+    def load_det_calib_params() -> dict:
         """
         Load the detector calibration parameters from the scan directly.
         Note that this will only provide the direct beam position, the
@@ -210,46 +206,6 @@ class ID27Loader(H5TypeLoader):
         notebook.
         """
         return None  # Data in id27 files are not reliable.
-        # scan, sample_name = self._check_scan_sample(scan, sample_name)
-       
-        # key_path = f"{sample_name}_{scan}.1/instrument/calibration/"
-
-        # params = {}
-        # # First retrieve the data stored in the metadata
-        # try:
-        #     params["distance"] = float(self.h5file[key_path + "distance"][()])
-
-        #     if self.detector_name in ("eiger", "eiger9m", "e9m"):
-        #         params["pwidth1"], params["pwidth2"] = 75e-6, 75e-6
-
-        #     # Take care of the direct beam position
-        #     center = self.h5file[key_path + "center"][()]
-        #     center = tuple(
-        #         float(c)
-        #         for c in center.decode("utf-8").strip("()").split(", ")
-        #     )
-        #     params["cch1"], params["cch2"] = -center[0], center[1]
-
-        #     # Now correct the distance, cch1, cch2 with eigx, eigy, eigz
-        #     key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
-        #     params["cch1"] += (
-        #         (float(self.h5file[key_path + "eigz"][()]) -5.0647) * 1e-3  # to m
-        #         // 75e-6  # pixel size in metres
-        #     )
-        #     params["cch2"] += (
-        #         float(self.h5file[key_path + "eigy"][()]) * 1e-3  # to m
-        #         // 75e-6  # pixel size in metres
-        #     )
-        #     params["distance"] += float(self.h5file[key_path + "eigx"][()]) - 231.92
-        #     params["distance"] *= 1e-3  # Convert from mm to metres
-
-        # except KeyError as e:
-        #     raise KeyError(
-        #         f"key_path is wrong (key_path='{key_path}'). "
-        #         "Are sample_name, scan number or detector name correct?"
-        #     ) from e
-
-        # return params
 
     @h5_safe_load
     def load_detector_shape(

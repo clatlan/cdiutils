@@ -519,9 +519,7 @@ class PipelinePlotter:
                 cmap = plt.get_cmap(cmap)
                 cmap.set_bad("#30123bff")
             shape = array.shape
-            # plot_params = {
-            #     "vmin": vmin, "vmax": vmax, "origin": "lower", "cmap": cmap,
-            # }
+
             norm = Normalize(vmin, vmax)
             plot_params = {
                 "norm": norm, "data_centre": (0, 0, 0), "support": support,

@@ -227,7 +227,6 @@ class Pipeline(ABC):
                     stderr=subprocess.PIPE,
                     cwd=working_dir,  # Change to this directory first
                     text=True,  # Ensures stdout/stderr are str, not bytes
-                    # shell=True,
                     env=os.environ.copy()
             ) as proc:
                 stdout, stderr = proc.communicate()
@@ -440,7 +439,6 @@ class Pipeline(ABC):
         """
         self.interrupted = True  # Set flag to interrupt monitoring
         self.cancel_job(job_id)
-        # self.logger.info(f"Job {job_id} was cancelled by the user.")
         raise JobCancelledError(
             "Keyboard interruption. "
             f"Job {job_id} was cancelled by the user."

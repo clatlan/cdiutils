@@ -520,7 +520,6 @@ def save_rotating_contours(
         # Save the current frame
         filename = os.path.join(save_directory, f"frame_{i:03d}.png")
         plotter.screenshot(filename)
-        # plotter.show()
 
     plotter.close()
 

@@ -236,10 +236,6 @@ class CXIFile:
         return self._entry_counters[entry][group_type] + 1
 
     def _increment_index(self, entry: str, group_type: str) -> int:
-        # if group_type not in self._entry_counters[entry]:
-        #     self._entry_counters[entry][group_type] = 1
-        # else:
-        #     self._entry_counters[entry][group_type] += 1
         self._entry_counters[entry][group_type] = self._get_next_index(
             entry, group_type
         )

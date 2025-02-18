@@ -84,13 +84,10 @@ class SIXSLoader(H5TypeLoader):
         """
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
-        # path = self._get_file_path(scan, sample_name)
-        # key_path = "com/scan_data/test_image"
         key_path = self._get_detector_key_path(self.h5file)
 
         roi = self._check_roi(roi)
 
-        # with h5py.File(path) as h5file:
         if rocking_angle_binning:
             # we first apply the roi for axis1 and axis2
             data = self.h5file[key_path][(slice(None), roi[1], roi[2])]

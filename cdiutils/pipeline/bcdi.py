@@ -935,7 +935,6 @@ retrieval is also computed and will be used in the post-processing stage."""
                     stderr=subprocess.PIPE,
                     cwd=cwd,  # Change to this directory
                     text=True,  # Ensures stdout/stderr are str, not bytes
-                    # shell=True,
                     env=os.environ.copy(),
                     bufsize=1
             ) as proc:
@@ -1175,80 +1174,6 @@ reconstruction (best solution)."""
 
             path = cxi.create_cxi_image(data=modes, process_4="process_4")
             cxi.get_node(path).attrs["description"] = "Mode decomposition"
-
-    def _save_mode_as_h5(
-            self,
-            mode: np.ndarray,
-            mode_weights: float,
-            candidates: list[str]
-    ) -> None:
-        path = self.pynx_phasing_dir + "mode.h5"
-        self.logger.info(f"Saving mode analysis to {path}")
-
-        with h5py.File(path, "w") as file:
-            # NeXus
-            file.attrs["default"] = "entry_1"
-            file.attrs["creator"] = "cdiutils"
-            file.attrs["HDF5_Version"] = h5py.version.hdf5_version
-            file.attrs["h5py_version"] = h5py.version.version
-
-            entry_1 = file.create_group("entry_1")
-            entry_1.create_dataset(
-                "program_name", data=f"cdiutils {__version__}"
-            )
-            entry_1.attrs["NX_class"] = "NXentry"
-            entry_1.attrs["default"] = "data_1"
-
-            image_1 = entry_1.create_group("image_1")
-            image_1.create_dataset(
-                "data",
-                data=mode,
-                chunks=True,
-                shuffle=True,
-                compression="gzip"
-            )
-            image_1.attrs["NX_class"] = "NXdata"
-            image_1.attrs["interpretation"] = "image"
-            image_1["title"] = "Solutions modes"
-
-            data_1 = file["/entry_1/image_1"]
-            process_1 = data_1.create_group("process_1")
-            process_1.attrs["NX_class"] = "NXprocess"
-            process_1.attrs["label"] = "Mode decomposition information"
-            process_1.create_dataset("program", data="cdiutils")
-            process_1.create_dataset("version", data=f"{__version__}")
-            process_1.create_dataset("candidates", data=candidates)
-            if candidates[0].endswith(".cxi"):
-                # Try to copy the original pynx process information
-                with h5py.File(candidates[0]["file_name"], "r") as h0:
-                    if "/entry_last/image_1/process_1" in h0:
-                        h0.copy(
-                            "/entry_last/image_1/process_1",
-                            data_1, name="process_2"
-                        )
-                        data_1["process_2"].attrs["label"] = (
-                            "Process information for the Original CDI "
-                            "reconstruction (best solution)"
-                        )
-
-            # Add shortcut to the main data
-            data_1 = entry_1.create_group("data_1")
-            data_1["data"] = h5py.SoftLink("/entry_1/image_1/data")
-            data_1.attrs["NX_class"] = "NXdata"
-            data_1.attrs["signal"] = "data"
-            data_1.attrs["interpretation"] = "image"
-            data_1.attrs["label"] = "modes"
-            data_1["title"] = "Solutions modes"
-
-            # Add weights
-            data_2 = entry_1.create_group("data_2")
-            ds = data_2.create_dataset("data", data=mode_weights)
-            ds.attrs["long_name"] = "Relative weights of modes"
-            data_2.attrs["NX_class"] = "NXdata"
-            data_2.attrs["signal"] = "data"
-            data_2.attrs["interpretation"] = "spectrum"
-            data_2.attrs["label"] = "modes relative weights"
-            data_2["title"] = "Modes relative weights"
 
     @Pipeline.process
     def postprocess(self, **params) -> None:
