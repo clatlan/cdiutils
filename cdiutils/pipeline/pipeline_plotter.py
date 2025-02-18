@@ -567,7 +567,7 @@ class PipelinePlotter:
             cell_text = [[
                 np.array2string(
                     np.array(voxel_size),
-                    formatter={"float_kind": lambda x: "%.2f" % x, }
+                    formatter={"float_kind": lambda x: f"{x:.2f}", }
                 )]
             ] + [[v] for v in table_info.values()]
             n_cols = len(list(table_info.keys())) + 1
