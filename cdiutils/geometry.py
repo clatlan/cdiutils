@@ -136,10 +136,10 @@ class Geometry:
     def __repr__(self) -> str:
         return (
             f"{self.name} geometry:\n"
-            f"{self.sample_circles = }\n"
-            f"{self.detector_circles = }\n"
-            f"{self.detector_axis0_orientation = }\n"
-            f"{self.detector_axis1_orientation = }\n"
-            f"{self.beam_direction = }\n"
-            f"{self.is_cxi = }\n"
+            f"{self.sample_circles =}\n"
+            f"{self.detector_circles =}\n"
+            f"{self.detector_axis0_orientation =}\n"
+            f"{self.detector_axis1_orientation =}\n"
+            f"{self.beam_direction =}\n"
+            f"{self.is_cxi =}\n"
         )
