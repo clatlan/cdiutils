@@ -96,7 +96,7 @@ class PostProcessor:
         )
 
         support_processor = SupportProcessor(
-            parameters=support_parameters,
+            params=support_parameters,
             data=normalise(np.abs(complex_object_pre_crop)),
             isosurface=isosurface,
             nan_values=False
