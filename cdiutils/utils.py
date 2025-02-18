@@ -36,7 +36,6 @@ def bin_along_axis(
     Returns:
         np.ndarray: binned data.
     """
-
     if binning_factor == 1 or binning_factor is None:
         return data  # No binning required
 
@@ -1001,7 +1000,6 @@ def find_isosurface(
     :return: the isosurface value and the figure in which the histogram
     was plotted
     """
-
     # normalise and flatten the amplitude
     flattened_amplitude = normalise(amplitude).ravel()
 
@@ -1254,7 +1252,6 @@ def kde_from_histogram(
         tuple[np.ndarray, np.ndarray]: x values used to compute the KDE
             estimate, the y value (KDE estimate)
     """
-
     # Check if the histogram is density or not by checking the sum of
     # the counts
     bin_widths = np.diff(bin_edges)

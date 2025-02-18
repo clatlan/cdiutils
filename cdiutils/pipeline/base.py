@@ -216,7 +216,6 @@ class Pipeline(ABC):
 
     def submit_job(self, job_file: str, working_dir: str) -> tuple[str, str]:
         """Submit a job to SLURM as a subprocess."""
-
         # Set up signal handler for keyboard interrupt (Ctrl + C)
         signal.signal(
             signal.SIGINT, lambda sig, frame: self._handle_interrupt(job_id)

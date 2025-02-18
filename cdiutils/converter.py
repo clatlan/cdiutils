@@ -538,7 +538,6 @@ class SpaceConverter():
         orthogonalise detector data of the reciprocal space to the lab
         (xu) frame.
         """
-
         if self.shape != data.shape:
             raise ValueError(
                 f"The shape of the data to orthogonalise {data.shape} must "

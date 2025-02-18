@@ -259,7 +259,6 @@ class PipelinePlotter:
         Returns:
             float: the fwhm is required else None.
         """
-
         # Resample the histogram to calculate the kernel density estimate
         bin_centres = (bin_edges[:-1] + bin_edges[1:]) / 2
         bin_width = bin_edges[1] - bin_edges[0]
@@ -329,7 +328,6 @@ class PipelinePlotter:
         Returns:
             tuple[plt.Figure, plt.Axes]: the figure and axes.
         """
-
         support = np.nan_to_num(support)
         bulk = binary_erosion(support)
         surface = support - bulk
