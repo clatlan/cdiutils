@@ -425,11 +425,11 @@ def save_rotating_contours(
         initial_view: dict[str, float] = None,
         kwargs_mesh: dict[str, float | str | bool] = None,
         window_size: list[int] = None,
-        plot_title: str = "3D view",
 ):
     """
     Generate and save images of a 3D scalar field contour plot with
     rotations around a specified axis.
+
 
     Parameters
     ----------
@@ -455,8 +455,6 @@ def save_rotating_contours(
         settings provided).
     window_size : list[int], optional
         Size of the rendering window in pixels (default is [1100, 700]).
-    plot_title : str, optional
-        Title for the 3D plot (default is "3D view").
 
     Returns
     -------
