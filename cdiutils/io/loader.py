@@ -173,7 +173,7 @@ class Loader(ABC):
         if all(isinstance(e, slice) for e in roi):
             if len(roi) == 2:
                 return (slice(None), roi[0], roi[1])
-            elif len(roi) == 3:
+            if len(roi) == 3:
                 return roi
         if len(roi) == 4 or len(roi) == 6:
             if all(isinstance(e, (int, np.integer)) for e in roi):
@@ -470,15 +470,16 @@ class Loader(ABC):
             axes[0, 1].set_title("Intensity slice")
             axes[1, 1].set_title("Intensity sum")
             fig.suptitle(title)
-            if return_fig:
-                return fig
-            return None
         elif data.ndim == 2:
             pass
-        raise ValueError(
-            f"Invalid data shape (detector_data.shape={data.shape})."
-            "Should be 2D or 3D."
-        )
+        else:
+            raise ValueError(
+                f"Invalid data shape (detector_data.shape={data.shape})."
+                "Should be 2D or 3D."
+            )
+        if return_fig:
+            return fig
+        return None
 
 
 def h5_safe_load(func: Callable) -> Callable:
@@ -503,20 +504,6 @@ class H5TypeLoader(Loader):
         self.experiment_file_path = experiment_file_path
         if detector_name is None:
             self.detector_name = self.get_detector_name()
-            # if sample_name is not None:
-            #     self.detector_name = self.get_detector_name()
-            #     print(
-            #         "Detector name automatically found "
-            #         f"('{self.detector_name}')."
-            #     )
-            # else:
-            #     print(
-            #         "detector_name is not provided, cannot automatically find "
-            #         "it since sample_name is not provided either.\n"
-            #         "Will set detector_name to "
-            #         f"'{self.authorised_detector_names[0]}'."
-            #     )
-            #     self.detector_name = self.authorised_detector_names[0]
         else:
             self.detector_name = detector_name
 

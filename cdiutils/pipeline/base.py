@@ -253,10 +253,10 @@ class Pipeline(ABC):
                     )
                     output_file = f"slurm-{job_id}.out"
                     return job_id, os.path.join(working_dir, output_file)
-                else:
-                    raise ValueError(
-                        "Failed to extract job ID from sbatch output."
-                    )
+
+                raise ValueError(
+                    "Failed to extract job ID from sbatch output."
+                )
 
         except subprocess.CalledProcessError as e:
             # Log the error if the job submission fails

@@ -111,14 +111,13 @@ class CXIFile:
             return data
 
         # If the node is a group, recursively read its contents
-        elif isinstance(node, h5py.Group):
+        if isinstance(node, h5py.Group):
             if node.attrs.get("original_type") == "inhomogeneous_list":
                 return [self[f"{path}/{key}"] for key in node.keys()]
             return {key: self[f"{path}/{key}"] for key in node.keys()}
 
         # If neither, raise an error as a fallback
-        else:
-            raise TypeError(f"Unsupported node type at path '{path}'")
+        raise TypeError(f"Unsupported node type at path '{path}'")
 
     def __setitem__(self, entry: str, data):
         """Allow adding data to an entry with cxi[entry] = data."""
@@ -158,8 +157,7 @@ class CXIFile:
         """
         if path in self:
             return self.file[path]
-        else:
-            raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
+        raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
 
     def copy(
             self,

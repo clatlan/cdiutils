@@ -119,21 +119,21 @@ def convert_np_arrays(**data) -> dict:
             return tuple(convert_value(v) for v in value)
 
         # Handle numpy scalar types.
-        elif isinstance(value, (np.integer, np.int32, np.int64)):
+        if isinstance(value, (np.integer, np.int32, np.int64)):
             return int(value)
-        elif isinstance(value, (np.floating, np.float32, np.float64)):
+        if isinstance(value, (np.floating, np.float32, np.float64)):
             return float(value)
-        elif isinstance(value, (np.bool_, bool)):
+        if isinstance(value, (np.bool_, bool)):
             return bool(value)
-        elif isinstance(value, (np.str_, str)):
+        if isinstance(value, (np.str_, str)):
             return str(value)
 
         # Handle nested lists or tuples.
-        elif isinstance(value, (list, tuple)):
+        if isinstance(value, (list, tuple)):
             return type(value)(convert_value(v) for v in value)
 
         # If value is a dictionary, convert its contents recursively.
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return convert_np_arrays(**value)
 
         # Return the value as is if no conversion is needed.
