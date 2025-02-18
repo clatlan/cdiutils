@@ -55,9 +55,9 @@ class LoggerWriter:
 
     def flush(self):
         """
-        Flush method is needed for compatibility with `sys.stdout`.
+        flush method is needed for compatibility with `sys.stdout`.
         """
-        pass
+        pass  # needed for compatibility with `sys.stdout`.
 
 
 class JobCancelledError(Exception):
