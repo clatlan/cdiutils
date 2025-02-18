@@ -120,7 +120,8 @@ def adjust_to_valid_shape(
 ) -> int:
     """Find the nearest valid shape value."""
     if maxprime < n:
-        assert n > 1
+        if n <= 1:
+            raise ValueError("n<=1, cannot be adjusted.")
         while not is_valid_shape(n, maxprime, required_dividers):
             n = n - 1 if decrease else n + 1
             if n == 0:
