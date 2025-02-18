@@ -1168,7 +1168,7 @@ def oversampling_from_diffraction(
             suggestion for the rebin factors
     """
     autocorrelation = np.abs(ifftshift(fftn(fftshift(data))))
-    support = (autocorrelation > support_threshold * np.max(autocorrelation))
+    support = autocorrelation > support_threshold * np.max(autocorrelation)
 
     oversampling_ratio = get_oversampling_ratios(support=support)
 
@@ -1233,7 +1233,7 @@ def hot_pixel_filter(
             set to 0 and the mask (1 for hot pixel, 0 otherwise).
     """
     data_median = median_filter(data, size=kernel_size)
-    mask = (data < threshold * (data_median + 1))
+    mask = data < threshold * (data_median + 1)
     cleaned_data = data * mask
     return cleaned_data, np.logical_not(mask)
 
@@ -1283,7 +1283,7 @@ def kde_from_histogram(
     else:
         # Reconstruct the data from histogram counts and bin edges
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_width = bin_edges[1] - bin_edges[0]
         reconstructed_data = np.repeat(bin_centers, counts)
 
         # Calculate KDE using the reconstructed data
