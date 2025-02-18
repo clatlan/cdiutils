@@ -183,12 +183,13 @@ class ID27Loader(H5TypeLoader):
     def get_detector_name(self) -> str:
         key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
         detector_names = []
-        authorised_names = ("eiger")
         for key in self.h5file[key_path]:
-            if key in authorised_names:
+            if key in self.authorised_detector_names:
                 detector_names.append(key)
         if len(detector_names) == 0:
-            raise ValueError(f"No detector name found in {authorised_names}")
+            raise ValueError(
+                f"No detector name found in{self.authorised_detector_names}"
+            )
         elif len(detector_names) > 1:
             raise ValueError(
                 f"Several detector names found ({detector_names}).\n"
