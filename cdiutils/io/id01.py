@@ -453,7 +453,7 @@ class SpecLoader(Loader):
 
         positioners = self.specfile[f"{scan}.1/instrument/positioners"]
 
-        angles = {key: None for key in SpecLoader.angle_names.keys()}
+        angles = {key: None for key in SpecLoader.angle_names}
         for angle, name in SpecLoader.angle_names.items():
             try:
                 angles[angle] = positioners[name][roi]

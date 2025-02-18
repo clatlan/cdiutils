@@ -489,7 +489,7 @@ class PipelinePlotter:
             if support is not None and key != "amplitude":
                 array = support * array
 
-            if key in PLOT_CONFIGS.keys():
+            if key in PLOT_CONFIGS:
                 cmap = PLOT_CONFIGS[key]["cmap"]
                 # check if vmin and vmax are given | not
                 if unique_vmin is None or unique_vmax is None:
