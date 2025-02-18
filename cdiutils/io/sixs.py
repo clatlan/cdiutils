@@ -5,9 +5,7 @@ from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 
 
 class SIXSLoader(H5TypeLoader):
-    """
-    A class for loading data from SIXS beamline experiments.
-    """
+    """A class for loading data from SIXS beamline experiments."""
 
     angle_names = {
         "sample_outofplane_angle": "mu",

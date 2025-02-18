@@ -5,9 +5,7 @@ from cdiutils.io import Loader
 
 
 class P10Loader(Loader):
-    """
-    A class for loading data from P10 beamline experiments.
-    """
+    """A class for loading data from P10 beamline experiments."""
 
     angle_names = {
         "sample_outofplane_angle": "om",

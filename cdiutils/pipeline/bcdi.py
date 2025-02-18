@@ -128,9 +128,7 @@ class BcdiPipeline(Pipeline):
 
     @classmethod
     def from_file(cls, path: str) -> "BcdiPipeline":
-        """
-        Factory method to create a BcdiPipeline instance from a file.
-        """
+        """Factory method to create a BcdiPipeline instance from a file."""
         if path.endswith(".cxi"):
             params, converter = cls.load_from_cxi(path)
         elif path.endswith(".yml") or path.endswith(".yaml"):
@@ -704,9 +702,7 @@ class BcdiPipeline(Pipeline):
         return cropped_detector_data, roi
 
     def _save_parameter_file(self) -> None:
-        """
-        Save the parameters used during the analysis.
-        """
+        """Save the parameters used during the analysis."""
         output_file_path = f"{self.dump_dir}/S{self.scan}_parameters.yml"
 
         self.params = convert_np_arrays(**self.params)

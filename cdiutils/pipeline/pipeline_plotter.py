@@ -16,9 +16,7 @@ from cdiutils.plot.slice import plot_contour, plot_volume_slices
 
 
 class PipelinePlotter:
-    """
-    A class to provide key plotting methods used in (Bcdi)Pipeline.
-    """
+    """A class to provide key plotting methods used in (Bcdi)Pipeline."""
 
     @classmethod
     def detector_data(

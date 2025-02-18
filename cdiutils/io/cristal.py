@@ -1,6 +1,4 @@
-"""
-Loader for the Cristal beamline at SOLEIL.
-"""
+"""Loader for the Cristal beamline at SOLEIL."""
 
 
 import numpy as np

@@ -1046,9 +1046,7 @@ class Interpolator3D:
             shape: np.ndarray | list | tuple,
             scale: np.ndarray | list | tuple = None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Return the a zero-centred meshgrid with the 'ij' indexing.
-        """
+        """Return the a zero-centred meshgrid with the 'ij' indexing."""
 
         if scale is None:
             scale = [1, 1, 1]

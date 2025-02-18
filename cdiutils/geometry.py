@@ -39,9 +39,7 @@ class Geometry:
         self.is_cxi = is_cxi
 
     def to_dict(self) -> dict:
-        """
-        Return the attributes of the Geometry instance as a dictionary.
-        """
+        """Return the attributes of the Geometry instance as a dictionary."""
         return self.__dict__.copy()
 
     @classmethod

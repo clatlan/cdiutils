@@ -204,9 +204,7 @@ class CXIFile:
         self.file.copy(source_path, dest_file, name=dest_path, **kwargs)
 
     def set_entry(self, index: int = None) -> str:
-        """
-        Create or switch to a specific entry group (e.g., 'entry_1').
-        """
+        """Create or switch to a specific entry group (e.g., 'entry_1')."""
         if index is None:
             # Get the next available index
             index = 1

@@ -54,9 +54,7 @@ class LoggerWriter:
             self.logger.log(self.level, "\n" + wrapped_message + "\n")
 
     def flush(self):
-        """
-        flush method is needed for compatibility with `sys.stdout`.
-        """
+        """flush method is needed for compatibility with `sys.stdout`."""
 
 
 class JobCancelledError(Exception):
@@ -445,9 +443,7 @@ class Pipeline(ABC):
             self,
             file_path: str = None
     ) -> dict:
-        """
-        Load the parameters from the configuration files.
-        """
+        """Load the parameters from the configuration files."""
         if file_path is None:
             file_path = self.param_file_path
 

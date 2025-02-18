@@ -52,9 +52,7 @@ def save_as_vti(
         origin: tuple = (0, 0, 0),
         **np_arrays: dict[np.ndarray]
 ) -> None:
-    """
-    Save numpy arrays to .vti file.
-    """
+    """Save numpy arrays to .vti file."""
     if not IS_VTK_AVAILABLE:
         raise VtkImportError
     voxel_size = tuple(voxel_size)
