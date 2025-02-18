@@ -143,7 +143,7 @@ class VolumeViewer:
         initial_clim = cls.generic_params[initial_active_scalar].get("clim")
         if cls.generic_params[initial_active_scalar]["centred_clim"]:
             initial_clim = (
-                -np.max(data[initial_active_scalar]), 
+                -np.max(data[initial_active_scalar]),
                 np.max(data[initial_active_scalar])
             )
 
@@ -206,7 +206,7 @@ class VolumeViewer:
             else:
                 clim_range = cls.generic_params[scalar_field].get("clim")
 
-            mesh_actor.mapper.scalar_range = clim_range            
+            mesh_actor.mapper.scalar_range = clim_range    
 
             # Update colormap selection dynamically
             state.cmap = cmap

@@ -38,7 +38,7 @@ extensions = [
 ]
 
 # Automatically generate stub files
-autosummary_generate = True  
+autosummary_generate = True
 autodoc_member_order = "bysource"  # Keeps methods in order of appearance
 
 

@@ -199,7 +199,7 @@ class CXIFile:
         # Determine the destination path
         if dest_path is None:
             # Use the same name if dest_path is not specified
-            dest_path = source_path 
+            dest_path = source_path
         # Perform the copy operation
         self.file.copy(source_path, dest_file, name=dest_path, **kwargs)
 
@@ -540,7 +540,7 @@ def save_as_cxi(output_path: str, **to_be_saved: dict) -> None:
         to_be_saved (dict): the data to save in the CXI file.
     """
     if len(to_be_saved) == 0:
-            raise ValueError("No data to save. No file created.")
+        raise ValueError("No data to save. No file created.")
     with CXIFile(output_path, "w") as cxi:
         cxi.stamp()
         cxi.set_entry()

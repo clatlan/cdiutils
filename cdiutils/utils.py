@@ -134,7 +134,7 @@ def ensure_pynx_shape(
         maxprime: int = 13,
         required_dividers: tuple[int] = (2,),
         decrease: bool = True,
-        verbose: bool = False 
+        verbose: bool = False
 ) -> tuple | np.ndarray | list:
     """
     Ensure shape dimensions comply with Pynx constraints.
@@ -476,7 +476,7 @@ def crop_at_center(
 
 def compute_distance_from_com(
         data: np.ndarray,
-        com: tuple or list or np.ndarray = None
+        com: tuple | list | np.ndarray = None
 ) -> np.ndarray:
     """
     Return a np.ndarray of the same shape of the provided data.
@@ -1298,10 +1298,7 @@ def kde_from_histogram(
     return x, y
 
 
-def valid_args_only(
-        params: dict,
-        function: callable
-) -> dict:
+def valid_args_only(params: dict, function: callable) -> dict:
     return {
         k: v for k, v in params.items()
         if k in inspect.getfullargspec(function).args

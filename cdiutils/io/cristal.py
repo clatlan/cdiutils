@@ -114,7 +114,9 @@ class CristalLoader(H5TypeLoader):
 
         angles = {}
         for angle, name in CristalLoader.angle_names.items():
-            angles[angle] = float(self.h5file[key_path_template.format(name)][()])
+            angles[angle] = float(
+                self.h5file[key_path_template.format(name)][()]
+            )
 
         # Get the motor name used for the rocking curve
         rocking_motor = self.h5file[

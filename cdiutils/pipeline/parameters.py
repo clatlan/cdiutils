@@ -93,7 +93,7 @@ AUTHORIZED_KEYS = {
         "nb_nghbs_min": 0,
         "index_to_display": None,
         "display_f_e_c": 'facet',
-        "size": 10, 
+        "size": 10,
     }
 }
 
@@ -155,7 +155,7 @@ def check_params(params: dict) -> None:
             if value == "REQUIRED":
                 raise ValueError(f"Parameter '{name}' is required.")
             params.update({name: value})
-    
+
     for subdict in ("pynx", "support", "facets"):
         for name, value in AUTHORIZED_KEYS[subdict].items():
             if name not in params[subdict] or params[subdict][name] is None:
