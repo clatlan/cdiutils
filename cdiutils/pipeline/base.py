@@ -454,7 +454,7 @@ class Pipeline(ABC):
             file_path = self.param_file_path
 
         with open(file_path, "r", encoding="utf8") as file:
-            params = yaml.load(
+            params = yaml.safe_load(
                 file,
                 Loader=yaml.FullLoader
             )
