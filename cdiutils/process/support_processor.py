@@ -11,20 +11,21 @@ import json
 
 from cdiutils.utils import make_support
 
+
 class SupportProcessor:
     """
     A class to bundle all functions needed to determine 
     the surface, the support, and anylyse the facets.
     """
-    
+
     def __init__(
             self,
             params: dict,
             data: np.ndarray = None,
-            isosurface: float=0.1,
+            isosurface: float = 0.1,
     ) -> None:
-        
-        #Parameters
+
+        # parameters
         self.params = params
 
         self.isosurface = None
@@ -33,13 +34,13 @@ class SupportProcessor:
         self.derivative_threshold = None
         self.raw_process = None
         self.input_parameters = None
-        
+
         if self.params["support_path"] is None:
             self.isosurface = isosurface
             self.order_of_derivative = self.params["order_of_derivative"]
             self.raw_process = self.params["raw_process"]
 
-        #Global variables
+        # Global variables
 
         self.amplitude = None
 
@@ -73,9 +74,7 @@ class SupportProcessor:
                                  " or support_method='isosurface'"
                 )
             if self.params["support_method"] == "amplitude_variation":
-                if (self.order_of_derivative == "gradient" 
-                    or self.order_of_derivative == "laplacian"
-                ):
+                if self.order_of_derivative in ("gradient", "laplacian"):
                     self.path_order = (f'{self.path_surface}'
                                            f'{self.order_of_derivative}/'
                     )
@@ -530,7 +529,6 @@ class SupportProcessor:
         return (abs(np.dot(b-a,v_unitaire)) 
                 + (N+1)*npnorm( (b-a) - np.dot(b-a,v_unitaire)*v_unitaire )
         )
-        #return npnorm(b-a)
 
     def permutation(self, vect, mark):
         a, b, c = vect
