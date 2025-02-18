@@ -45,8 +45,6 @@ autodoc_member_order = "bysource"  # Keeps methods in order of appearance
 templates_path = ['_templates']
 exclude_patterns = []
 
-
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -68,10 +66,3 @@ html_theme_options = {
     "navbar_align": "left",
     # "primary_sidebar_end": ["indices.html", "sidebar-ethical-ads.html"]
 }
-
-# html_sidebars = {
-#     "**": ["globaltoc.html", "sidebar-nav-bs"],
-#     # "**": ["localtoc.html"],
-#     # "**": ["sidebar-nav-bs"],
-#     # "<page_pattern>": ["index", "manual-intro", "tutorials", "manual"]
-# }
