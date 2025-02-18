@@ -504,10 +504,9 @@ class BcdiPipeline(Pipeline):
                     "The automatic loading of energy is not yet implemented"
                     f"for this setup ({self.params['beamline_setup']} = )."
                 )
-            else:
-                self.logger.info(
-                    f"Energy successfully loaded ({self.params['energy']} eV)."
-                )
+            self.logger.info(
+                f"Energy successfully loaded ({self.params['energy']} eV)."
+            )
         if self.params["det_calib_params"] is None:
             self.logger.info(
                 "\ndet_calib_params not provided, will try to find them. "
@@ -522,11 +521,10 @@ class BcdiPipeline(Pipeline):
                     f"('{self.params['beamline_setup']}'), you must provide "
                     "them."
                 )
-            else:
-                self.logger.info(
-                    "det_calib_params successfully loaded:\n"
-                    f"{self.params['det_calib_params']}"
-                    )
+            self.logger.info(
+                "det_calib_params successfully loaded:\n"
+                f"{self.params['det_calib_params']}"
+                )
 
     def _light_load(self) -> list:
         """

@@ -76,7 +76,7 @@ class ID01Loader(H5TypeLoader):
             raise ValueError(
                 f"No detector name found in {self.authorised_detector_names}"
             )
-        elif len(detector_names) > 1:
+        if len(detector_names) > 1:
             raise ValueError(
                 f"Several detector names found ({detector_names}).\n"
                 "Not handled yet."
