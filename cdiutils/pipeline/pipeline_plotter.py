@@ -81,12 +81,12 @@ class PipelinePlotter:
                     )
 
                 for ax, p in zip(axes[i].flat, ((2, 1), (2, 0), (0, 1))):
-                    self._plot_markers(
+                    cls._plot_markers(
                         ax, *[voxels[frame]["ref"][i] for i in p]
                     )
                     for style in ("max", "com"):
                         if voxels[frame][style] is not None:
-                            self._plot_markers(
+                            cls._plot_markers(
                                 ax,
                                 *[voxels[frame][style][i] for i in p],
                                 style=style
@@ -115,17 +115,17 @@ class PipelinePlotter:
                 new_ax.imshow(im.get_array(), cmap=im.get_cmap(), norm=norm)
 
             for ax, p in zip(axes.flat, ((2, 1), (2, 0), (0, 1))):
-                self._plot_markers(
+                cls._plot_markers(
                     ax, *[voxels["cropped"]["ref"][i] for i in p]
                 )
                 vox = sub_get(voxels, "cropped", "max")
                 if vox is not None:
-                    self._plot_markers(
+                    cls._plot_markers(
                         ax, *[vox[i] for i in p], style="max"
                     )
                 vox = sub_get(voxels, "cropped", "com")
                 if vox is not None:
-                    self._plot_markers(
+                    cls._plot_markers(
                         ax, *[vox[i] for i in p], style="com"
                     )
 
