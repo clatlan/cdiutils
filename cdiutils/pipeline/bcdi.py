@@ -48,9 +48,6 @@ from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 from .base import Pipeline
 from .parameters import check_params, convert_np_arrays
 
-# to save version in files:
-from cdiutils import __version__
-
 
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
@@ -114,12 +111,16 @@ class BcdiPipeline(Pipeline):
         # Define base attributes
         self.detector_data: np.ndarray = None
         self.cropped_detector_data: np.ndarray = None
+        self.orthogonalised_intensity: np.ndarray = None
         self.mask: np.ndarray = None
         self.angles: dict = None
         self.converter: SpaceConverter = None
         self.result_analyser: PhasingResultAnalyser = None
         self.reconstruction: np.ndarray = None
         self.structural_props: dict = None
+
+        # the list of phase retrieval results
+        self.phasing_results = []
 
         # For storing data that later saved in the cxi files
         self.extra_info: dict = {}
