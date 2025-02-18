@@ -250,6 +250,7 @@ class P10Loader(Loader):
                 words = line.split()
                 if "fmbenergy" in words:
                     return float(words[-1])
+        return None
 
     def load_det_calib_params(self) -> dict:
         return None
