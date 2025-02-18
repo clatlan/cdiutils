@@ -200,10 +200,9 @@ class P10Loader(Loader):
                     if name in words:
                         if "=" in words:
                             angles[name] = float(words[-1])
-                        if "Col" in words:
-                            if rocking_angle_column is None:
-                                rocking_angle_column = int(words[1]) - 1
-                                rocking_angle = words[2]
+                        if "Col" in words and rocking_angle_column is None:
+                            rocking_angle_column = int(words[1]) - 1
+                            rocking_angle = words[2]
 
             for line in lines:
                 line = line.strip()

@@ -82,14 +82,15 @@ class SpaceConverter():
         if isinstance(size, (numbers.Number)):
             size = tuple(np.repeat(size, len(self._shape)))
 
-        if self.direct_lab_interpolator is not None:
-            if (
-                    not np.array_equal(
-                        size, self.direct_lab_interpolator.target_voxel_size)
-                    and self._q_space_transitions is not None
-            ):
-                print("Reinitialising the direct space interpolator")
-                self.init_interpolator(size, space="direct")
+        if (
+                self.direct_lab_interpolator is not None
+                and not np.array_equal(
+                    size, self.direct_lab_interpolator.target_voxel_size
+                )
+                and self._q_space_transitions is not None
+        ):
+            print("Reinitialising the direct space interpolator")
+            self.init_interpolator(size, space="direct")
         self._direct_lab_voxel_size = size
 
     @property

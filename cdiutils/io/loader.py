@@ -175,9 +175,11 @@ class Loader(ABC):
                 return (slice(None), roi[0], roi[1])
             if len(roi) == 3:
                 return roi
-        if len(roi) == 4 or len(roi) == 6:
-            if all(isinstance(e, (int, np.integer)) for e in roi):
-                return CroppingHandler.roi_list_to_slices(roi)
+        if (
+            (len(roi) == 4 or len(roi) == 6)
+            and all(isinstance(e, (int, np.integer)) for e in roi)
+        ):
+            return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text)
 
     def _check_scan_sample(
