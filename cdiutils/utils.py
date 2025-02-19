@@ -1,5 +1,4 @@
 import inspect
-from typing import Optional
 import warnings
 
 import numpy as np
@@ -9,8 +8,181 @@ import seaborn as sns
 import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
 from scipy.stats import gaussian_kde
-import textwrap
-import xrayutilities as xu
+
+from cdiutils.plot.formatting import save_fig
+
+
+def bin_along_axis(
+        data: np.ndarray | list,
+        binning_factor: int,
+        binning_method: str = "sum",
+        axis: int = 0
+) -> np.ndarray:
+    """
+    Bin n-dimensional data along a specified axis using the specified
+    method (mean, sum, median, max).
+
+    Args:
+        data (np.ndarray | list): n-dimensional data to be binned.
+        binning_factor (int): the number of elements per bin.
+        binning_method (str, optional): the binning method, either
+            "mean", "sum", "median", or "max". Defaults to "sum".
+        axis (int, optional): the axis along which to perform binning.
+            Defaults to 0.
+
+    Raises:
+        ValueError: if the binning_method is unknown.
+
+    Returns:
+        np.ndarray: binned data.
+    """
+    if binning_factor == 1 or binning_factor is None:
+        return data  # No binning required
+
+    if isinstance(data, list):
+        data = np.array(data)
+        axis = 0
+
+    original_dim = data.shape[axis]
+    nb_of_bins = original_dim // binning_factor
+    remaining = original_dim % binning_factor
+
+    # Reshape data for easy binning, ignore leftover data for now.
+    # Move the axis to the front for easier manipulation.
+    reshaped_data = np.moveaxis(data, axis, 0)
+    full_bins_data = reshaped_data[:nb_of_bins * binning_factor].reshape(
+        nb_of_bins, binning_factor, *reshaped_data.shape[1:]
+    )
+
+    # Get the binning operation
+    if binning_method == "mean":
+        operation = np.mean
+        binned_data = np.mean(full_bins_data, axis=1)
+    elif binning_method == "sum":
+        operation = np.sum
+        binned_data = np.sum(full_bins_data, axis=1)
+    elif binning_method == "max":
+        operation = np.max
+    elif binning_method == "median":
+        operation = np.median
+    else:
+        raise ValueError(f"Unsupported binning method: {binning_method}")
+
+    binned_data = operation(full_bins_data, axis=1)
+
+    # Handle the remaining (leftover data that doesn't fit perfectly
+    # into a bin)
+    if remaining > 0:
+        remaining_data = reshaped_data[-remaining:]
+        remaining_bin = operation(remaining_data, axis=0)
+        binned_data = np.concatenate(
+            [binned_data, np.expand_dims(remaining_bin, axis=0)], axis=0
+        )
+
+    # Move the axis back to its original position
+    return np.moveaxis(binned_data, 0, axis)
+
+
+def get_prime_factors(n: int) -> list[int]:
+    """Return the prime factors of the given integer."""
+    i = 2
+    factors = []
+    while i * i <= n:
+        if n % i:
+            i += 1
+        else:
+            n //= i
+            factors.append(i)
+    if n > 1:
+        factors.append(n)
+    return factors
+
+
+def is_valid_shape(
+        n: int,
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,)
+) -> bool:
+    """Check if n meets Pynx shape constraints."""
+    factors = get_prime_factors(n)
+    return (
+        max(factors) <= maxprime
+        and all(n % k == 0 for k in required_dividers)
+    )
+
+
+def adjust_to_valid_shape(
+        n: int,
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,),
+        decrease: bool = True
+) -> int:
+    """Find the nearest valid shape value."""
+    if maxprime < n:
+        if n <= 1:
+            raise ValueError("n<=1, cannot be adjusted.")
+        while not is_valid_shape(n, maxprime, required_dividers):
+            n = n - 1 if decrease else n + 1
+            if n == 0:
+                raise ValueError("No valid shape found")
+    return n
+
+
+def ensure_pynx_shape(
+        shape: int | tuple | list | np.ndarray,
+        maxprime: int = 13,
+        required_dividers: tuple[int] = (2,),
+        decrease: bool = True,
+        verbose: bool = False
+) -> tuple | np.ndarray | list:
+    """
+    Ensure shape dimensions comply with Pynx constraints.
+    This function has been adapted from the PyNX library. See:
+    pynx.utils.math.smaller_primes.
+
+    Args:
+        shape (int | tuple | list | np.ndarray): the shape to adjust.
+        maxprime (int, optional): the maximum prime factor allowed.
+            Defaults to 13.
+        required_dividers (tuple, optional): the required dividers.
+            Defaults to (4,).
+        decrease (bool, optional): whether to decrease the shape.
+            Defaults to True.
+        verbose (bool, optional): whether to print messages.
+
+    Raises:
+        TypeError: if the shape is not an int, list, tuple, or
+            numpy array.
+
+    Returns:
+        tuple | np.ndarray | list: the adjusted shape.
+    """
+    if isinstance(shape, int):
+        adjusted_shape = adjust_to_valid_shape(
+            shape, maxprime, required_dividers, decrease
+        )
+    elif isinstance(shape, (list, tuple, np.ndarray)):
+        adjusted_shape = [
+            adjust_to_valid_shape(dim, maxprime, required_dividers, decrease)
+            for dim in shape
+        ]
+        adjusted_shape = (
+            np.array(adjusted_shape) if isinstance(shape, np.ndarray)
+            else type(shape)(adjusted_shape)
+        )
+    else:
+        raise TypeError("Shape must be an int, list, tuple, or numpy array")
+
+    if verbose:
+        if adjusted_shape != tuple(shape):
+            print(
+                f"PyNX needs a different shape to comply with gpu-based FFT, "
+                f"requested shape {tuple(shape)} will be cropped to "
+                f"{adjusted_shape}."
+            )
+        else:
+            print("Shape already in agreement with pynx shape conventions.")
+    return adjusted_shape
 
 
 def energy_to_wavelength(energy: float) -> float:
@@ -27,22 +199,18 @@ def energy_to_wavelength(energy: float) -> float:
     return (cts.c * cts.h) / (cts.e * energy)
 
 
-def pretty_print(text: str, max_char_per_line: int = 79) -> None:
-    """Print text with a frame of stars."""
+def wavelength_to_energy(wavelength: float) -> float:
+    """
+    Find the energy in eV that wavelength in metre (not angstrom!)
+    corresponds to.
 
-    pretty_text = "\n".join(
-        [
-            "",
-            "*" * (max_char_per_line+4),
-            *[
-                f"* {w[::-1].center(max_char_per_line)[::-1]} *"
-                for w in textwrap.wrap(text, width=max_char_per_line)
-            ],
-            "*" * (max_char_per_line+4),
-            "",
-        ]
-    )
-    print(pretty_text)
+    Args:
+        wavelength (float): the wavelength in metre to convert.
+
+    Returns:
+        float: the energy in eV.
+    """
+    return (cts.c * cts.h) / (cts.e * wavelength)
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
@@ -87,7 +255,7 @@ def make_support(
         nan_values: bool = False
 ) -> np.ndarray:
     """Create a support using the provided isosurface value."""
-    data = normalize(data)
+    data = normalise(data)
     return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
 
 
@@ -107,7 +275,7 @@ def v1_to_v2_rotation_matrix(
         v1: np.ndarray,
         v2: np.ndarray
 ) -> np.ndarray:
-    """ 
+    """
     Rotation matrix around axis v1xv2
     """
     vec_rot_axis = np.cross(v1, v2)
@@ -126,11 +294,11 @@ def v1_to_v2_rotation_matrix(
     return r
 
 
-def normalize(
+def normalise(
         data: np.ndarray,
         zero_centered: bool = False
 ) -> np.ndarray:
-    """Normalize a np.ndarray so the values are between 0 and 1."""
+    """Normalise a np.ndarray so the values are between 0 and 1."""
     if zero_centered:
         abs_max = np.max([np.abs(np.min(data)), np.abs(np.max(data))])
         vmin, vmax = -abs_max, abs_max
@@ -141,12 +309,8 @@ def normalize(
     return (data - vmin) / ptp
 
 
-def basic_filter(data, maplog_min_value=3.5):
-    return np.power(xu.maplog(data, maplog_min_value, 0), 10)
-
-
-def normalize_complex_array(array: np.ndarray) -> np.ndarray:
-    """Normalize a array of complex numbers."""
+def normalise_complex_array(array: np.ndarray) -> np.ndarray:
+    """Normalise a array of complex numbers."""
     shifted_array = array - array.real.min() - 1j*array.imag.min()
     return shifted_array/np.abs(shifted_array).max()
 
@@ -156,10 +320,10 @@ def find_max_pos(data: np.ndarray) -> tuple:
     return np.unravel_index(data.argmax(), data.shape)
 
 
-def shape_for_safe_centered_cropping(
-        data_shape: tuple or np.ndarray or list,
-        position: tuple or np.ndarray or list,
-        final_shape: Optional[tuple] = None
+def shape_for_safe_centred_cropping(
+        data_shape: tuple | np.ndarray | list,
+        position: tuple | np.ndarray | list,
+        final_shape: tuple = None
 ) -> tuple:
     """
     Utility function that finds the smallest shape that allows a safe
@@ -255,17 +419,17 @@ def symmetric_pad(
             f"output_shape length ({len(output_shape)}) should match of input "
             f"data dimension ({data.ndim})."
         )
-    widths = []
+    pad_widths = []
     for current_s, output_s in zip(data.shape, output_shape):
-        widths.append((output_s - current_s) // 2)
+        if output_s < current_s:
+            pad_widths.append((0, 0))
+        else:
+            pad_left = (output_s - current_s) // 2
+            pad_right = pad_left + (output_s - current_s) % 2
+            pad_widths.append((pad_left, pad_right))
     return np.pad(
         data,
-        pad_width=tuple(
-            (
-                widths[i],
-                widths[i] + (output_shape[i] - data.shape[i]) % 2
-            ) for i in range(data.ndim)
-        ),
+        pad_width=pad_widths,
         mode="constant",
         constant_values=values
     )
@@ -311,7 +475,7 @@ def crop_at_center(
 
 def compute_distance_from_com(
         data: np.ndarray,
-        com: tuple or list or np.ndarray = None
+        com: tuple | list | np.ndarray = None
 ) -> np.ndarray:
     """
     Return a np.ndarray of the same shape of the provided data.
@@ -331,6 +495,21 @@ def compute_distance_from_com(
         distance_matrix[x, y, z] = distance
 
     return distance_matrix
+
+
+def num_to_nan(data: np.ndarray, num: int | float = 0):
+    """
+    Replace all occurrences of 'num' in the array with np.nan.
+
+    Args:
+        data (np.ndarray): NumPy array.
+        num (int | float, optional): The number to replace with np.nan
+            Defaults to 0.
+
+    Returns:
+        A new NumPy array with 'num' replaced by np.nan.
+    """
+    return np.where(data == num, np.nan, data)
 
 
 def zero_to_nan(
@@ -443,8 +622,8 @@ class CroppingHandler:
 
     @staticmethod
     def get_position(
-            data: np.ndarray, method: str | tuple[int, ...]
-    ) -> tuple[int, ...]:
+            data: np.ndarray, method: str | tuple[int]
+    ) -> tuple[int]:
         """
         Get the position of the reference voxel based on the centering
         method.
@@ -466,7 +645,7 @@ class CroppingHandler:
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
             com = center_of_mass(data)
-            return tuple(int(round(e)) for e in com)
+            return tuple(np.nan if np.isnan(e) else int(round(e)) for e in com)
         elif (
             isinstance(method, (list, tuple))
             and all(isinstance(e, (int, np.int64)) for e in method)
@@ -571,7 +750,7 @@ class CroppingHandler:
         return roi
 
     @classmethod
-    def chain_centering(
+    def chain_centring(
             cls,
             data: np.ndarray,
             output_shape: tuple[int, ...],
@@ -579,14 +758,14 @@ class CroppingHandler:
             verbose: bool = False
     ) -> tuple[np.ndarray, tuple[int, ...]]:
         """
-        Apply sequential centering methods to the input data and return
-        the cropped and centered data along with the position of the
+        Apply sequential centring methods to the input data and return
+        the cropped and centred data along with the position of the
         reference voxel in the newly cropped data frame.
 
         Args:
             data: Input data array.
             output_shape: Desired output shape after cropping.
-            methods: list of sequential centering methods. Each method
+            methods: list of sequential centring methods. Each method
                 can be "max" for maximum intensity, "com" for center of
                 mass, or a tuple of coordinates representing the voxel
                 position.
@@ -604,28 +783,20 @@ class CroppingHandler:
         # For the first method the data are not masked
         masked_data = data
         position = None
-        if verbose:
-            print("Chain centering:")
+        msg = ""
         for method in methods:
             # position is found in the masked data
             position = cls.get_position(masked_data, method)
-            if verbose:
-                print(f"\t- {method}: {position}, value: {data[position]}")
+            msg += f"\t- {method}: {position}, value: {data[position]}\n"
 
             # get the roi
             roi = cls.get_roi(output_shape, position, data.shape)
 
             # mask the data values which are outside roi
             masked_data = cls.get_masked_data(data, roi=roi)
-        # if (
-        #         methods[-1] == "com"
-        #         and (position != cls.get_position(masked_data, "com"))
-        # ):
-        #     warnings.warn(
-        #         "\n"
-        #         "The center of the final box does not correspond to the com."
-        #         "\nYou might want to keep looking for it."
-        #     )
+        if verbose:
+            print("Chain centring:\n" + msg)
+
         # actual position along which the data are centered using roi
         position = tuple(
             (start + stop) // 2
@@ -636,10 +807,10 @@ class CroppingHandler:
         return cropped_data.copy(), position, cropped_position, roi
 
     @classmethod
-    def force_centered_cropping(
+    def force_centred_cropping(
             cls,
             data: np.ndarray,
-            where: str | tuple = "center",
+            where: str | tuple = "centre",
             output_shape: tuple = None,
             verbose: bool = False
     ) -> np.ndarray:
@@ -652,13 +823,13 @@ class CroppingHandler:
         if output_shape is None:
             output_shape = data.shape
 
-        if where == "center":
+        if where == "centre":
             where = tuple(e // 2 for e in data.shape)
 
         position = cls.get_position(data, where)
         shape = data.shape
         safe_shape = np.array(
-            shape_for_safe_centered_cropping(
+            shape_for_safe_centred_cropping(
                 shape,
                 position,
                 output_shape
@@ -670,7 +841,7 @@ class CroppingHandler:
             else:
                 print(
                     "Required shape for cropping at the center is"
-                    f"{safe_shape}"
+                    f"{safe_shape}."
                 )
         plus_one = np.where((safe_shape % 2 == 0), 0, 1)
         crop = [
@@ -777,8 +948,8 @@ def find_suitable_array_shape(
     elif support.ndim == 2:
         if len(pad) != 2:
             raise ValueError(
-                f"Length of pad ({len(pad) = }) must be equal to support "
-                f"dimensions ({support.ndim = })"
+                f"Length of pad ({len(pad) = }) must be equal to support "  # noqa E251
+                f"dimensions ({support.ndim = })"  # noqa E251
             )
         shape = get_2d_shape(support, pad)
 
@@ -811,25 +982,26 @@ def find_isosurface(
         nbins: int = 100,
         sigma_criterion: float = 3,
         plot: bool = False,
-        show: bool = False
+        show: bool = False,
+        save: str = None
 ) -> tuple[float, matplotlib.axes.Axes] | float:
     """
     Estimate the isosurface from the amplitude distribution
 
     :param amplitude: the 3D amplitude volume (np.array)
     :param nbins: the number of bins to considerate when making the
-    histogram (Optional, int)
+    histogram (optional, int)
     :param sigma_criterion: the factor to compute the isosurface which is
     calculated as: mu - sigma_criterion * sigma. By default set to 3.
-    (Optional, float)
+    (optional, float)
     :param show: whether or not to show the the figure
+    :param save: where to save the figure is plotted
 
     :return: the isosurface value and the figure in which the histogram
     was plotted
     """
-
-    # normalize and flatten the amplitude
-    flattened_amplitude = normalize(amplitude).ravel()
+    # normalise and flatten the amplitude
+    flattened_amplitude = normalise(amplitude).ravel()
 
     counts, bins = np.histogram(flattened_amplitude, bins=nbins)
 
@@ -865,8 +1037,8 @@ def find_isosurface(
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
-        figsize = (5.812, 3.592)  # golden ratio
-        fig, ax = matplotlib.pyplot.subplots(1, 1, figsize=figsize)
+        figsize = (6, 4)  # (5.812, 3.592)  # golden ratio
+        fig, ax = matplotlib.pyplot.subplots(1, 1, layout="tight", figsize=figsize)
         ax.bar(
             bin_centres,
             counts,
@@ -903,9 +1075,11 @@ def find_isosurface(
 
         ax.set_xlabel(r"normalised amplitude")
         ax.set_ylabel("counts")
-        ax.legend()
+        ax.legend(frameon=False)
         fig.suptitle(r"Reconstructed amplitude distribution")
         fig.tight_layout()
+        if save is not None:
+            save_fig(fig, save, transparent=False)
         if show:
             matplotlib.pyplot.show()
         return float(isosurface), fig
@@ -945,7 +1119,8 @@ def get_oversampling_ratios(
                 "isosurface (default to 0.3) value"
             )
         support = make_support(np.abs(direct_space_object), isosurface)
-
+    if support.sum() < 1:
+        return None
     support_indices = np.where(support == 1)
     size_per_dim = (
         np.max(support_indices, axis=1)
@@ -991,17 +1166,21 @@ def oversampling_from_diffraction(
             suggestion for the rebin factors
     """
     autocorrelation = np.abs(ifftshift(fftn(fftshift(data))))
-    support = (autocorrelation > support_threshold * np.max(autocorrelation))
+    support = autocorrelation > support_threshold * np.max(autocorrelation)
 
     oversampling_ratio = get_oversampling_ratios(support=support)
 
     return oversampling_ratio
 
 
-def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
+def get_centred_slices(
+        shape: tuple | list | np.ndarray,
+        shift: tuple | list = None
+) -> list:
     """
-    Compute the slices that enable selecting the centre of the axis. It
-    returns a list of len(shape) tuples made of len(shape) slices.
+    Compute the slices that allows to select the centre of each axis. It
+    returns a list of len(shape) tuples made of len(shape) slices. The
+    shift allows to shift the centred the slices by the amount provided.
     Ex:
         * if shape = (25, 48), will return
     [(12, slice(None, None, None)), (slice(None, None, None), 24)]
@@ -1013,15 +1192,19 @@ def get_centred_slices(shape: tuple | list | np.ndarray) -> list:
 
     Args:
         shape (tuple | list | np.ndarray): the shape of the np.ndarray
-            you want to select the centre of.
+            of which you want to select the centre.
+        shift (tuple | list): a shift in the slice selection with
+            respect to the centre.
 
     Returns:
         list: the list of tuples made of slices.
     """
+    if shift is None:
+        shift = (0, ) * len(shape)
     slices = []
-    for i in range(len(shape)):
+    for i, element in enumerate(shape):
         s = [slice(None)] * len(shape)
-        s[i] = shape[i] // 2
+        s[i] = element // 2 + shift[i]
         slices.append(tuple(s))
     return slices
 
@@ -1038,17 +1221,17 @@ def hot_pixel_filter(
         data (np.ndarray): the input data.
         threshold (float, optional): the threshold to determine the
             mask. Mask pixels that are threshold times higher than
-            neighboring pixels. Defaults to 1e2.
+            neighbouring pixels. Defaults to 1e2.
         kernel_size (int, optional): the size of the kernel to compute
             the median filter. It corresponds to the size parameter of
-            scipy.ndimage.median_filter function .Defaults to 3.
+            scipy.ndimage.median_filter function. Defaults to 3.
 
     Returns:
         tuple[np.ndarray, np.ndarray]: the cleaned data, hot pixel are
             set to 0 and the mask (1 for hot pixel, 0 otherwise).
     """
     data_median = median_filter(data, size=kernel_size)
-    mask = (data < threshold * (data_median + 1))
+    mask = data < threshold * (data_median + 1)
     cleaned_data = data * mask
     return cleaned_data, np.logical_not(mask)
 
@@ -1069,7 +1252,6 @@ def kde_from_histogram(
         tuple[np.ndarray, np.ndarray]: x values used to compute the KDE
             estimate, the y value (KDE estimate)
     """
-
     # Check if the histogram is density or not by checking the sum of
     # the counts
     bin_widths = np.diff(bin_edges)
@@ -1098,7 +1280,7 @@ def kde_from_histogram(
     else:
         # Reconstruct the data from histogram counts and bin edges
         bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_width = bin_edges[1] - bin_edges[0]
         reconstructed_data = np.repeat(bin_centers, counts)
 
         # Calculate KDE using the reconstructed data
@@ -1113,57 +1295,8 @@ def kde_from_histogram(
     return x, y
 
 
-def valid_args_only(
-        params: dict,
-        function: callable
-) -> dict:
+def valid_args_only(params: dict, function: callable) -> dict:
     return {
         k: v for k, v in params.items()
         if k in inspect.getfullargspec(function).args
     }
-
-def distance_voxel(a,b):
-    return np.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)
-
-def rotation_x(alpha):
-    c=np.cos(alpha)
-    s=np.sin(alpha)
-    return np.array([[1,0,0],
-                     [0,c,-s],
-                     [0,s,c]])
-
-def rotation_y(alpha):
-    c=np.cos(alpha)
-    s=np.sin(alpha)
-    return np.array([[c,0,s],
-                     [0,1,0],
-                     [-s,0,c]])
-
-def rotation_z(alpha):
-    c=np.cos(alpha)
-    s=np.sin(alpha)
-    return np.array([[c,-s,0],
-                     [s,c,0],
-                     [0,0,1]])
-
-def rotation(u, alpha):
-    ux, uy, uz = u
-    c=np.cos(alpha)
-    s=np.sin(alpha)
-    return np.array([[ux**2*(1-c)+c, ux*uy*(1-c)-uz*s, ux*uz*(1-c)+uy*s],
-                     [ux*uy*(1-c)+uz*s, uy**2*(1-c)+c, uy*uz*(1-c)-ux*s],
-                     [ux*uz*(1-c)-uy*s, uy*uz*(1-c)+ux*s, uz**2*(1-c)+c]])
-
-
-def error_metrics(v1, v2):
-    return np.sqrt((v2[0]-v1[0])**2 + (v2[1]-v1[1])**2 + (v2[2]-v1[2])**2)
-
-def retrieve_original_index(normalized_index, dict_authorized_coord_index):
-    index_min = [0, 0, 0]
-    error_min = error_metrics(normalized_index, index_min)
-    for index in dict_authorized_coord_index.keys():
-        error = error_metrics(normalized_index, index)
-        if error < error_min:
-            index_min = index
-            error_min = error
-    return dict_authorized_coord_index[index_min]

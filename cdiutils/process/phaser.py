@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
 import shutil
+from scipy.fft import fftn, fftshift, ifftshift
 from scipy.stats import gaussian_kde
 from scipy.ndimage import fourier_shift
 from skimage.registration import phase_cross_correlation
@@ -40,14 +40,11 @@ except ImportError:
     IS_PYNX_AVAILABLE = False
     CDI_Type = None
 
-from cdiutils.plot import get_plot_configs, get_figure_size, add_colorbar
-from cdiutils.utils import get_centred_slices, valid_args_only
+from cdiutils.plot import get_plot_configs, add_colorbar
+from cdiutils.utils import get_centred_slices, valid_args_only, CroppingHandler
 from cdiutils.process.postprocessor import PostProcessor
 
 
-PYNX_ERROR_TEXT = (
-        "'pynx' is not installed, PyNXPhaser is not available."
-    )
 DEFAULT_PYNX_PARAMS = {
 
     # support-related params
@@ -58,6 +55,8 @@ DEFAULT_PYNX_PARAMS = {
     "method": "rms",
     "force_shrink": False,
     "update_border_n": 0,
+    "smooth_width_begin": 2,
+    "smooth_width_end": 0.5,
 
     # object initialisation
     # "support": "auto",
@@ -76,15 +75,26 @@ DEFAULT_PYNX_PARAMS = {
     "positivity": False,
     "confidence_interval_factor_mask_min": 0.5,
     "confidence_interval_factor_mask_max": 1.2,
+    "detwin": False
 
 }
 
 
+class PynNXImportError(Exception):
+    """Custom exception to handle Pynx import error."""
+
+    def __init__(self, msg: str = None) -> None:
+        _msg = "'PyNX' is not installed on the current machine."
+        if msg is not None:
+            _msg += "\n" + msg
+        super().__init__(_msg)
+
+
 class PyNXPhaser:
     """
-    A class to employ PyNX phasing algorithms whithout bothering
-    too much with the initialisation and parameters. This class will
-    use generic PyNX parameters but they can also be provided upon
+    A class for using PyNX's phasing algorithms without worrying
+    too much about the initialisation and the parameters. This class
+    uses generic PyNX parameters but they can also be provided upon
     instanciation.
     """
 
@@ -113,14 +123,14 @@ class PyNXPhaser:
              is of no use.
         """
         if not IS_PYNX_AVAILABLE:
-            raise ModuleNotFoundError(PYNX_ERROR_TEXT)
+            raise PynNXImportError
         self.iobs = fftshift(iobs)
 
         self.mask = None
         if mask is not None:
             self.mask = fftshift(mask)
 
-        # get the pynx parameters from the default and update them with
+        # Get the pynx parameters from the default and update them with
         # those provided by the user
         # not elegant, but works...
         self.params = copy.deepcopy(DEFAULT_PYNX_PARAMS)
@@ -287,7 +297,7 @@ class PyNXPhaser:
     ) -> None:
         """
         Initialise the CDI object. This will first update the
-        self.params dicitonary and run the private method _init_cdi().
+        self.params dictionary and run the private method _init_cdi().
 
 
         Args:
@@ -349,7 +359,7 @@ class PyNXPhaser:
         Run the reconstruction algorithm.
 
         Args:
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             cdi (CDI_Type, optional): a cdi object you might to work on,
@@ -398,7 +408,7 @@ class PyNXPhaser:
 
                     except SupportTooLarge:
                         print(
-                            "Support is too large, reduce it. "
+                            "Support is too large, shrinking it. "
                             f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative /= (
@@ -407,7 +417,7 @@ class PyNXPhaser:
                         attempt += 1
                     except SupportTooSmall:
                         print(
-                            "Support is too small, enlarge it. "
+                            "Support is too small, making it bigger. "
                             f"Attempt #{attempt + 1}"
                         )
                         self.support_update.threshold_relative *= (
@@ -447,7 +457,7 @@ class PyNXPhaser:
         else:
             if self.cdi_list is None or not self.cdi_list:
                 raise ValueError(
-                    "CDI object are not itialised, init_cdi should be True."
+                    "CDI object are not initialised, init_cdi should be True."
 
                 )
         for i, cdi in enumerate(self.cdi_list):
@@ -477,7 +487,7 @@ class PyNXPhaser:
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             selection_method (str, optional): The metric used to select
-                the best reconstrucion. Defaults to "sharpness".
+                the best reconstruction. Defaults to "sharpness".
             init_cdi (bool, optional): whether to initialise the cdi
                 object or not. Defaults to True.
 
@@ -493,7 +503,7 @@ class PyNXPhaser:
         else:
             if self.cdi_list is None or self.cdi_list == []:
                 raise ValueError(
-                    "CDI object are not itialised, init_cdi should be True."
+                    "CDI object are not initialised, init_cdi should be True."
                 )
         if selection_method not in ("sharpness", "mean_to_max"):
             raise ValueError(
@@ -549,7 +559,7 @@ class PyNXPhaser:
             spaces (str, optional): Whether reciprocal or direct space.
                 Defaults to "both".
             axis (int, optional): What slice to plot. Defaults to 0.
-            title (str, optional): A tite for the plot. Defaults to None.
+            title (str, optional): A title for the plot. Defaults to None.
         """
         # Check the dimension of the object, whether 2D or 3D
         if cdi.get_obj().ndim == 2:
@@ -583,7 +593,7 @@ class PyNXPhaser:
 
         elif spaces == "both":
             quantities["calculated_intensity"] = np.abs(
-                fftshift(fftn(cdi.get_obj().copy()))[the_slice]
+                ifftshift(fftn(cdi.get_obj().copy()))[the_slice]
             ) ** 2
 
             iobs = cdi.get_iobs(shift=True).copy()[the_slice]
@@ -598,7 +608,9 @@ class PyNXPhaser:
         nrows, ncols = (1, 3) if spaces == "direct" else (2, 2)
         update = False
         if axes is None:
-            fig, axes = plt.subplots(nrows, ncols, figsize=(3, 3))
+            fig, axes = plt.subplots(
+                nrows, ncols, layout="tight", figsize=(3, 3)
+            )
         else:
             update = True
             if len(axes) != nrows * ncols:
@@ -651,14 +663,13 @@ class PyNXPhaser:
             ax.xaxis.set_ticks_position("bottom")
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
-        fig.tight_layout()
         return axes
 
 
 class PhasingResultAnalyser:
     """
     This class provided utility function for phase retrieval results
-    anaylis.
+    analysis.
     """
     def __init__(
             self,
@@ -700,6 +711,33 @@ class PhasingResultAnalyser:
         self._sorted_phasing_results = None
         self.result_paths = []
         self.best_candidates = []
+
+    @property
+    def metrics(self) -> dict:
+        if self._metrics is None:
+            return None
+        metrics = {m: {} for m in self._metrics}
+        for m in self._metrics:
+            for path in self._metrics[m]:
+                if os.path.exists(path):
+                    run = path.split("/")[-1]
+                    metrics[m][run] = self._metrics[m][path]
+                else:
+                    metrics[m][path] = self._metrics[m][path]
+        return metrics
+
+    @property
+    def sorted_phasing_results(self) -> dict:
+        if self._sorted_phasing_results is None:
+            return None
+        sorted_results = {}
+        for path in self._sorted_phasing_results:
+            if os.path.exists(path):
+                run = path.split("/")[-1]
+                sorted_results[run] = self._sorted_phasing_results[path]
+            else:
+                sorted_results[path] = self._sorted_phasing_results[path]
+        return sorted_results
 
     def find_phasing_results(self) -> None:
         """
@@ -877,8 +915,7 @@ class PhasingResultAnalyser:
             ]
 
         if plot:
-            figsize = get_figure_size(scale=0.75)
-            figure, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
+            figure, ax = plt.subplots(1, 1, layout="tight", figsize=(6, 3))
             colors = {
                 m: c for m, c in zip(
                     self._metrics,
@@ -903,18 +940,20 @@ class PhasingResultAnalyser:
                 )
             ax.set_ylabel("Normalised metric")
             ax.set_xlabel("Run number")
-            figure.legend(
-                frameon=False,
-                loc="upper center",
-                bbox_to_anchor=(0.5, 0.915),
-                ncol=len(criteria)
+
+            # Shrink current axis by 20%
+            box = ax.get_position()
+            ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+            # Put a legend to the right of the current axis
+            ax.legend(
+                loc="center left", bbox_to_anchor=(1, 0.5), frameon=False
             )
             figure.suptitle(
                 "Phasing result analysis (the lower the better)\n"
             )
         print(
-            "[INFO] the sorted list of runs using sorting_criterion "
-            f"'{sorting_criterion}' is:\n{runs}"
+            f"[INFO] the sorted list of runs using '{sorting_criterion}' "
+            f"sorting_criterion is:\n{runs}."
         )
 
         if plot_phasing_results and plot:
@@ -1026,7 +1065,7 @@ class PhasingResultAnalyser:
             np.ndarray: the main mode.
         """
         if not IS_PYNX_AVAILABLE:
-            raise ValueError(PYNX_ERROR_TEXT)
+            raise PynNXImportError
 
         if self.best_candidates:
             result_keys = self.best_candidates
@@ -1067,7 +1106,7 @@ class PhasingResultAnalyser:
         )
         if verbose:
             print(f"First mode represents {mode_weights[0] * 100:6.3f} %")
-        return modes[0]
+        return modes, mode_weights
 
     @staticmethod
     def plot_phasing_result(
@@ -1097,10 +1136,12 @@ class PhasingResultAnalyser:
         direct_space_phase = np.angle(data)
 
         if data.ndim == 3:
-            figsize = get_figure_size(scale=0.75, subplots=(3, 3))
-            figure, axes = plt.subplots(2, 3, figsize=figsize, layout="tight")
-
-            slices = get_centred_slices(data.shape)
+            figure, axes = plt.subplots(
+                2, 3, figsize=(6, 4), layout="constrained"
+            )
+            com = CroppingHandler.get_position(support, "com")
+            shift = tuple(com[i] - support.shape[i] // 2 for i in range(3))
+            slices = get_centred_slices(data.shape, shift)
             for i in range(3):
                 rcp_im = axes[0, i].matshow(
                     np.sum(reciprocal_space_data, axis=i),
@@ -1123,7 +1164,7 @@ class PhasingResultAnalyser:
                         cmap="turbo"
                     )
 
-                if support.sum() > 0:
+                if support[slices[i]].sum() > 0:
                     axes[1, i].set_xlim(
                         np.nonzero(support[slices[i]].sum(axis=0))[0][[0, -1]]
                         + np.array([-5, 5])
@@ -1135,14 +1176,13 @@ class PhasingResultAnalyser:
             figure.colorbar(rcp_im, ax=axes[0, 2], extend="both")
             figure.colorbar(direct_space_im, ax=axes[1, 2], extend="both")
 
-            axes[0, 1].set_title("Intensity sum (a.u.)")
+            axes[0, 1].set_title("Intensity projection (a.u.)")
             axes[1, 1].set_title(
                 "Phase (rad)" if plot_phase else "Amplitude (a.u.)"
             )
 
         if data.ndim == 2:
-            figsize = get_figure_size(scale=0.750, subplots=(1, 2))
-            figure, axes = plt.subplots(1, 2, figsize=figsize, layout="tight")
+            figure, axes = plt.subplots(1, 2, figsize=(4, 2), layout="tight")
 
             rcp_im = axes[0].matshow(
                 reciprocal_space_data,
@@ -1189,7 +1229,6 @@ class PhasingResultAnalyser:
             ax.set_yticks([])
 
         figure.suptitle(title)
-        figure.tight_layout()
     plt.show()
 
     @staticmethod
@@ -1201,7 +1240,7 @@ class PhasingResultAnalyser:
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Implementation of the check-up for the twin image problem as
-        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa 
         The function takes two reconstructions, one is considered a
         reference. After the two reconstuctions being registered, their
         phase in the Fourier space are compared (difference). The same

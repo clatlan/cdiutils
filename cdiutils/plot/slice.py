@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 from mpl_toolkits.axes_grid1 import AxesGrid
 import numpy as np
-import xrayutilities as xu
 import warnings
 
 from cdiutils.utils import (
@@ -16,39 +15,90 @@ from cdiutils.plot.formatting import (
     get_x_y_limits_extents,
     set_x_y_limits_extents,
     XU_VIEW_PARAMETERS,
-    CXI_VIEW_PARAMETERS
+    CXI_VIEW_PARAMETERS,
+    NATURAL_VIEW_PARAMETERS
 )
 
 
 def plot_volume_slices(
         data: np.ndarray,
         support: np.ndarray = None,
-        voxel_size=None,
-        data_centre=None,
+        voxel_size: tuple | list = None,
+        data_centre: tuple | list = None,
         views: tuple[str] = None,
-        convention="cxi",
+        convention: str = None,
         title: str = None,
         equal_limits: bool = True,
+        slice_shift: tuple | list = None,
+        integrate: bool = False,
+        show: bool = True,
         **plot_params
 ) -> tuple[plt.Figure, plt.Axes]:
-    _plot_params = {
-        "cmap": "turbo",
-    }
+    """
+    Generic function for plotting 2D slices (cross section or sum, with
+    option 'integrate') of 3D volumes. The slices are plotted according
+    to the specified views and conventions. If not specified, natural
+    views are plotted in matrix convention (x-axis: 2nd dim, y-axis:
+    1st dim), i.e:
+    * first slice: taken at the centre of axis0
+    * second slice: taken at the centre of axis1
+    * third slice: taken at the centre of axis2
+
+    Args:
+        data (np.ndarray): the data to plot.
+        support (np.ndarray, optional): a support for the data. Defaults
+            to None.
+        voxel_size (tuple | list, optional): the voxel size to modify
+            the aspect ratio accordingly. Defaults to None.
+        data_centre (tuple | list, optional): the centre to take the
+            data at. Defaults to None.
+        views (tuple[str], optional): the views for each plot according
+            to the provided convention. If None default views of the
+            specified convention are plotted. Defaults to None.
+        convention (str, optional): the convention employed to plot the
+            multiple slices, if views not specified, will set the
+            default views for the specified convention, i.e.:
+            ("x-", "y-", "z-") for XU convention and ("z+", "y-", "x+")
+            for the CXI convention. If None, natural views are plotted.
+            Defaults to None.
+        title (str, optional): the title of the plot. Defaults to None.
+        equal_limits (bool, optional): whether to have the same limit
+            extend for all axes. Defaults to True.
+        slice_shift (tuple | list, optional): the shift in the slice
+            selection, by default will use the centre for each dim.
+            Defaults to None.
+        integrate (bool, optional): whether to sum the data instead of
+            taking the slice. Defaults to False.
+        show (bool, optional): whether to show the plot. Defaults to
+            True. False might be useful if the function is only used for
+            generating the axes that are then redrawn afterwards.
+        **plot_params: additional plot params that will be parsed into
+            the matplotlib imshow() function.
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: the generated figure and axes.
+    """
+    _plot_params = {"cmap": "turbo"}
 
     if plot_params:
         _plot_params.update(plot_params)
 
-    if convention.lower() in ("xu", "lab"):
-        view_params = XU_VIEW_PARAMETERS.copy()
+    view_params = CXI_VIEW_PARAMETERS.copy()
+    if convention is None:
+        if views is None:  # Simplest case, no swapping, no flipping etc.
+            # For the default behaviour we use the 'natural views'
+            view_params = NATURAL_VIEW_PARAMETERS.copy()
+            views = ("dim0", "dim1", "dim2")
+    elif convention.lower() in ("xu", "lab"):
+        view_params = XU_VIEW_PARAMETERS.copy()  # overwrite the params
         if views is None:
             views = ("x-", "y-", "z-")
     elif convention.lower() == "cxi":
-        view_params = CXI_VIEW_PARAMETERS.copy()
         if views is None:
             views = ("z+", "y-", "x+")
 
-    slices = get_centred_slices(data.shape)
-    # TODO: better handling of shape
+    slices = get_centred_slices(data.shape, shift=slice_shift)
+
     shape = data.shape
     if support is not None:
         shape = extract_reduced_shape(support)
@@ -62,7 +112,7 @@ def plot_volume_slices(
     figure, axes = plt.subplots(1, 3, layout="tight", figsize=(6, 2))
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
-        to_plot = data[slices[i]]
+        to_plot = data.sum(axis=i) if integrate else data[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
 
@@ -78,6 +128,10 @@ def plot_volume_slices(
             )
 
     figure.suptitle(title)
+    if show:
+        plt.show()
+    else:
+        plt.close(figure)
     return figure, axes
 
 
@@ -447,223 +501,6 @@ def plot_3d_volume_slices(
     if show:
         plt.show()
     return fig if return_fig else None
-
-
-def plot_support_contour(
-        amplitudes,
-        supports,
-        isosurfaces,
-        conditions,
-        scan_ref,
-        threshold,
-        contour_linewidths=2.5,
-        contour_colors=("azure", "deepskyblue"),
-        **kwargs
-    ):
-    scan_digits = list(amplitudes.keys())
-    
-    filtered_amplitudes = {
-        scan: np.where(amplitudes[scan] < isosurfaces[scan], np.nan, amplitudes[scan])
-    for scan in scan_digits
-    }
-
-    filtered_amp_fig = plot_3D_volume_slices(
-        *filtered_amplitudes.values(),
-        titles=list(conditions.values()),
-        vmin=threshold,
-        vmax=1,
-        **kwargs
-    )
-
-    support_ref = supports[scan_ref]
-    shape = support_ref.shape
-
-    for i, ax in enumerate(filtered_amp_fig.axes):
-        if i < len(scan_digits):
-            X, Y = np.meshgrid(
-                np.arange(0, shape[2]), (np.arange(0, shape[1])))
-            ax.contour(
-                X,
-                Y,
-                support_ref[shape[0] // 2],
-                levels=[0, 1],
-                linewidths=contour_linewidths,
-                colors=contour_colors[0] ,
-
-            )
-            if i % len(scan_digits) != 0:
-                ax.contour(
-                    X,
-                    Y,
-                    supports[scan_digits[i]][shape[0] // 2],
-                    levels=[0, 1],
-                    linewidths=contour_linewidths,
-                    colors=contour_colors[1],
-
-                )
-        elif i < 2*len(scan_digits):
-            X, Y = np.meshgrid(np.arange(0, shape[2]), (np.arange(0, shape[0])))
-            ax.contour(
-                X,
-                Y,
-                support_ref[:, shape[1] // 2, :],
-                levels=[0, 1],
-                linewidths=contour_linewidths,
-                colors=contour_colors[0],
-
-            )
-            if i % len(scan_digits) != 0:
-                ax.contour(
-                    X,
-                    Y,
-                    supports[scan_digits[i%len(scan_digits)]][:, shape[1] // 2, :],
-                    levels=[0, 1],
-                    linewidths=contour_linewidths,
-                    colors=contour_colors[1],
-                )
-        elif i < 3*len(scan_digits):
-            X, Y = np.meshgrid(np.arange(0, shape[1]), (np.arange(0, shape[0])))
-            ax.contour(
-                X,
-                Y,
-                support_ref[..., shape[2] // 2],
-                levels=[0, 0.1],
-                linewidths=contour_linewidths,
-                colors=contour_colors[0],
-
-            )
-            if i % len(scan_digits) != 0:
-                ax.contour(
-                    X,
-                    Y,
-                    supports[scan_digits[i%len(scan_digits)]][..., shape[2] // 2],
-                    levels=[0, 1],
-                    linewidths=contour_linewidths,
-                    colors=contour_colors[1],
-                )
-    return filtered_amp_fig
-
-
-
-def plot_diffraction_patterns(
-        intensities,
-        gridders,
-        titles=None,
-        data_stacking="vertical",
-        figsize=(8, 8),
-        aspect_ratio="equal",
-        maplog_min=3,
-        levels=100,
-        xlim=None,
-        ylim=None,
-        zlim=None,
-        show=True,
-        cmap="turbo",
-        angstrom_symbol=r"\si{\angstrom}"
-):
-    if len(intensities) != len(gridders):
-        print("lists intensities and gridders must have the same length")
-        return None
-
-    no_title = True
-    if titles is not None and len(titles) != len(intensities):
-        print("lists intensities and titles must have the same length")
-    elif titles is not None:
-        no_title = False
-
-    if data_stacking not in ["vertical", "horizontal"]:
-        print("data_stacking should be 'vertical' or 'horizontal'")
-        return None
-
-    fig, axes = plt.subplots(
-        len(intensities) if data_stacking == "vertical" else 3,
-        3 if data_stacking == "vertical" else len(intensities),
-        figsize=figsize,
-        squeeze=False
-    )
-
-    for i, (intensity, (qx, qy, qz)) in enumerate(zip(intensities, gridders)):
-        log_intensity = xu.maplog(intensity, maplog_min, 0)
-
-        if data_stacking == "vertical":
-            ax_coord = (i, 0)
-            increment = (0, 1)
-        else:
-            ax_coord = (0, i)
-            increment = (1, 0)
-
-        summed_intensity = log_intensity.sum(axis=2).T
-        normalized_intensity = (
-            (summed_intensity - np.min(summed_intensity))
-            / np.ptp(summed_intensity)
-        )
-        cnt = axes[ax_coord].contourf(
-            qx, qy, summed_intensity, levels=levels, cmap=cmap
-        )
-        try:
-            axes[ax_coord].set_xlabel(r"$Q_X (" + angstrom_symbol + r"^{-1})$")
-        except ValueError:
-            angstrom_symbol = r"\AA"
-            axes[ax_coord].set_xlabel(r"$Q_X (" + angstrom_symbol + r"^{-1})$")
-        axes[ax_coord].set_ylabel(r"$Q_Y (" + angstrom_symbol + r"^{-1})$")
-        for c in cnt.collections:
-            c.set_edgecolor("face")
-        if xlim is not None:
-            axes[ax_coord].set_xlim(xlim[0], xlim[1])
-        if ylim is not None:
-            axes[ax_coord].set_ylim(ylim[0], ylim[1])
-        if not no_title and data_stacking == "horizontal":
-            axes[ax_coord].set_title(titles[i])
-
-        ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
-        summed_intensity = log_intensity.sum(axis=1).T
-        normalized_intensity = (
-            (summed_intensity - np.min(summed_intensity))
-            / np.ptp(summed_intensity)
-        )
-        cnt = axes[ax_coord].contourf(
-            qx, qz, summed_intensity, levels=levels, cmap=cmap
-        )
-        axes[ax_coord].set_xlabel(r"$Q_X (" + angstrom_symbol + r"^{-1})$")
-        axes[ax_coord].set_ylabel(r"$Q_Z (" + angstrom_symbol + r"^{-1})$")
-        for c in cnt.collections:
-            c.set_edgecolor("face")
-
-        if xlim is not None:
-            axes[ax_coord].set_xlim(xlim[0], xlim[1])
-        if zlim is not None:
-            axes[ax_coord].set_ylim(zlim[0], zlim[1])
-        if not no_title and data_stacking == "vertical":
-            axes[ax_coord].set_title(titles[i])
-
-        ax_coord = tuple([sum(t) for t in zip(ax_coord, increment)])
-        summed_intensity = log_intensity.sum(axis=0).T
-        normalized_intensity = (
-            (summed_intensity - np.min(summed_intensity))
-            / np.ptp(summed_intensity)
-        )
-        cnt = axes[ax_coord].contourf(
-            qy, qz, normalized_intensity, levels=levels, cmap=cmap
-        )
-        axes[ax_coord].set_xlabel(r"$Q_Y (" + angstrom_symbol + r"^{-1})$")
-        axes[ax_coord].set_ylabel(r"$Q_Z (" + angstrom_symbol + r"^{-1})$")
-        for c in cnt.collections:
-            c.set_edgecolor("face")
-        if ylim is not None:
-            axes[ax_coord].set_xlim(ylim[0], ylim[1])
-        if zlim is not None:
-            axes[ax_coord].set_ylim(zlim[0], zlim[1])
-
-        if aspect_ratio:
-            for ax in axes.ravel():
-                ax.set_aspect(aspect_ratio)
-
-    fig.tight_layout()
-    if show:
-        plt.show()
-        return fig, cnt
-    else:
-        return fig, cnt
 
 
 def plot_contour(

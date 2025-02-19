@@ -1,8 +1,9 @@
+# flake8: noqa, E501
 import matplotlib
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
-import colorcet
+import colorcet  # noqa, F401
 
 
 # Planes are given with the indexing convention,
@@ -100,6 +101,25 @@ XU_VIEW_PARAMETERS = {
 }
 
 
+# Planes are given with the indexing convention,
+# i.e. [n, m] -> x-axis = m, y-axis = n
+NATURAL_VIEW_PARAMETERS = {
+    "dim0": {"axis": 0, "plane": [1, 2], "xaxis_points_left": False},
+    "dim1": {"axis": 1, "plane": [0, 2], "xaxis_points_left": False},
+    "dim2": {"axis": 2, "plane": [0, 1], "xaxis_points_left": False}
+}
+
+
+def save_fig(fig: matplotlib.figure.Figure, path: str, **kwargs) -> None:
+    default_params = {
+        "bbox_inches": "tight",
+        "dpi": 200,
+        "transparent": True
+    }
+    default_params.update(kwargs)
+    fig.savefig(path, **default_params)
+
+
 def add_labels(
         axes: matplotlib.axes.Axes,
         views: tuple[str] = None,
@@ -157,7 +177,13 @@ def get_x_y_limits_extents(
     return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
 
 
-def set_x_y_limits_extents(ax, extents, limits, plane, xaxis_points_left=False):
+def set_x_y_limits_extents(
+        ax: matplotlib.axes.Axes,
+        extents: list | tuple,
+        limits: list | tuple,
+        plane: list | tuple,
+        xaxis_points_left: bool = False
+) -> None:
     image = ax.images[0]
     image.origin = "lower"
     extent = extents[plane[1]] + extents[plane[0]]
