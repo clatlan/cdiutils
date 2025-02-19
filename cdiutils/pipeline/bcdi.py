@@ -1580,10 +1580,9 @@ reconstruction (best solution)."""
                     cxi.softlink(f"entry_1/{key}", path)
 
         # save as npz
-        to_save_as_npz = {**self.extra_info, **self.structural_props}
-        np.savez(
-            f"{self.dump_dir}/S{self.scan}_postprocessed_data.npz",
-            **to_save_as_npz
+        np.savez_compressed(
+            f"{self.dump_dir}/S{self.scan}_structural_properties.npz",
+            **self.structural_props
         )
 
         # Save as vti
