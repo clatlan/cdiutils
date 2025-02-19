@@ -216,7 +216,7 @@ class SIXSLoader(H5TypeLoader):
         return None
 
     @h5_safe_load
-    def load_energy(self, scan: int = None) -> tuple:
+    def load_energy(self, scan: int = None) -> float:
         """
         Load the energy of the beamline.
 
@@ -230,3 +230,7 @@ class SIXSLoader(H5TypeLoader):
         key_path = "com/SIXS/i14-c-c02-op-mono/energy"
 
         return self.h5file[key_path][()].item() * 1e3
+
+    @h5_safe_load
+    def load_detector_shape(self, scan: int = None) -> tuple:
+        return None

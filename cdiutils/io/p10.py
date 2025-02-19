@@ -252,3 +252,6 @@ class P10Loader(Loader):
 
     def load_det_calib_params(self) -> dict:
         return None
+
+    def load_detector_shape(self, scan: int = None) -> tuple:
+        return None

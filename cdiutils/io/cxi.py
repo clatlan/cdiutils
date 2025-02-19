@@ -37,6 +37,7 @@ class CXIFile:
     see:
     https://raw.githubusercontent.com/cxidb/CXI/master/cxi_file_format.pdf
     """
+
     IMAGE_MEMBERS = (
         "title", "data", "data_error", "data_space", "data_type", "detector_",
         "dimensionality", "image_center", "image_size", "is_fft_shifted",

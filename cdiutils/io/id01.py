@@ -472,5 +472,8 @@ class SpecLoader(Loader):
     def load_det_calib_params(self) -> dict:
         return None
 
-    def load_energy(self) -> tuple:
+    def load_energy(self) -> float:
+        return None
+
+    def load_detector_shape(self) -> tuple:
         return None

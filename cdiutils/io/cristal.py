@@ -158,3 +158,7 @@ class CristalLoader(H5TypeLoader):
     def load_det_calib_params(self, scan: int = None) -> dict:
         scan, _ = self._check_scan_sample(scan)
         return None
+
+    @h5_safe_load
+    def load_detector_shape(self, scan: int) -> tuple:
+        return None

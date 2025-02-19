@@ -99,7 +99,6 @@ class PostProcessor:
             params=support_parameters,
             data=normalise(np.abs(complex_object_pre_crop)),
             isosurface=isosurface,
-            nan_values=False
         )
         support, surface = support_processor.support_calculation()
 

@@ -59,12 +59,10 @@ class LoggerWriter:
 
 
 class JobCancelledError(Exception):
-
     """Custom exception to handle job cancellations by the user."""
 
 
 class JobFailedError(Exception):
-
     """Custom exception to handle job failure."""
 
 
@@ -456,10 +454,7 @@ class Pipeline(ABC):
             file_path = self.param_file_path
 
         with open(file_path, "r", encoding="utf8") as file:
-            params = yaml.safe_load(
-                file,
-                Loader=yaml.FullLoader
-            )
+            params = yaml.safe_load(file)
         return params
 
     @staticmethod

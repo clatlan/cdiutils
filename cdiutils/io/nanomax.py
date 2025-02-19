@@ -86,7 +86,6 @@ class NanoMAXLoader(H5TypeLoader):
         """
         # Where to find the data.
         key_path = (
-            # "_".join((sample_name, str(scan)))
             f"/entry/measurement/{self.detector_name}/frames"
         )
         roi = self._check_roi(roi)
@@ -169,4 +168,8 @@ class NanoMAXLoader(H5TypeLoader):
         return self.h5file["entry/snapshots/post_scan/energy"][0]
 
     def load_det_calib_params(self) -> dict:
+        return None
+
+    @h5_safe_load
+    def load_detector_shape(self, scan: int = None) -> tuple:
         return None

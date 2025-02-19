@@ -198,7 +198,7 @@ class ID27Loader(H5TypeLoader):
         return detector_names[0]
 
     @h5_safe_load
-    def load_det_calib_params() -> dict:
+    def load_det_calib_params(self) -> dict:
         """
         Load the detector calibration parameters from the scan directly.
         Note that this will only provide the direct beam position, the

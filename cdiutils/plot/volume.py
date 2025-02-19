@@ -232,7 +232,7 @@ class VolumeViewer:
             else:
                 clim_range = cls.generic_params[scalar_field].get("clim")
 
-            mesh_actor.mapper.scalar_range = clim_range    
+            mesh_actor.mapper.scalar_range = clim_range
 
             # Update colormap selection dynamically
             state.cmap = cmap
@@ -268,13 +268,7 @@ class VolumeViewer:
             scalar_field: np.ndarray,
             isosurfaces: list[float] | np.ndarray,
             initial_view: dict[str, float] = None,
-            kwargs_mesh: dict[str, float | str | bool] = {
-                "cmap": "viridis",
-                "opacity": 0.2,
-                "show_edges": False,
-                "style": "wireframe",
-                "log_scale": False,
-            },
+            kwargs_mesh: dict[str, float | str | bool] = None,
             scalar_field_name: str = "Values",
             window_size: list[int] = None,
             plot_title: str = "3D view",
@@ -377,6 +371,15 @@ class VolumeViewer:
 
         if window_size is None:
             window_size = [1100, 700]
+
+        if kwargs_mesh is None:
+            kwargs_mesh = {
+                "cmap": "viridis",
+                "opacity": 0.2,
+                "show_edges": False,
+                "style": "wireframe",
+                "log_scale": False,
+            }
 
         # Create grid for PyVista
         nx, ny, nz = scalar_field.shape
@@ -519,11 +522,11 @@ class VolumeViewer:
         for i in range(n_frames):
             # Rotate the view
             if rotation_axis == "x":
-                plotter.camera.Elevation(angle_step)  # Rotate around the x-axis
+                plotter.camera.Elevation(angle_step)  # Rotate around x-axis
             elif rotation_axis == "y":
-                plotter.camera.Azimuth(angle_step)  # Rotate around the y-axis
+                plotter.camera.Azimuth(angle_step)  # Rotate around y-axis
             elif rotation_axis == "z":
-                plotter.camera.Roll(angle_step)  # Rotate around the z-axis
+                plotter.camera.Roll(angle_step)  # Rotate around z-axis
             else:
                 raise ValueError("rotation_axis must be 'x', 'y', or 'z'")
 

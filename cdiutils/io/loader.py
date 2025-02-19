@@ -278,8 +278,8 @@ class Loader(ABC):
     def load_det_calib_params(self):
         pass
 
-    @staticmethod
-    def load_detector_shape():
+    @abstractmethod
+    def load_detector_shape(self):
         return None
 
     def get_detector_name(self) -> str:
@@ -494,6 +494,7 @@ def h5_safe_load(func: Callable) -> Callable:
 
 class H5TypeLoader(Loader):
     """A child class of Loader for H5-type loaders."""
+
     def __init__(
             self,
             experiment_file_path: str,

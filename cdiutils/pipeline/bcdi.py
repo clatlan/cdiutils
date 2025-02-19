@@ -50,7 +50,6 @@ from .parameters import check_params, convert_np_arrays
 
 
 class PyNXScriptError(Exception):
-
     """Custom exception to handle pynx script failure."""
 
 
