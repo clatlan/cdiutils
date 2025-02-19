@@ -1580,7 +1580,7 @@ reconstruction (best solution)."""
 
         # save as npz
         to_save_as_npz = {**self.extra_info, **self.structural_props}
-        np.savez_compressed(
+        np.savez(
             f"{self.dump_dir}/S{self.scan}_postprocessed_data.npz",
             **to_save_as_npz
         )
