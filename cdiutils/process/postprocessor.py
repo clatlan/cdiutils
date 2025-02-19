@@ -6,7 +6,8 @@ Author:
 """
 
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftn, ifftshift
+from scipy.fft import fftn, fftshift, ifftn, ifftshift
+from scipy.ndimage import binary_erosion
 from skimage.restoration import unwrap_phase
 from skimage.filters import window
 from sklearn.linear_model import LinearRegression
@@ -76,7 +77,9 @@ class PostProcessor:
                 where=com,
                 output_shape=final_shape
             )
-            return complex_object, support, None
+            bulk = binary_erosion(support)
+            surface = support - bulk
+            return complex_object, support, surface
 
         support_pre_crop = make_support(
             normalise(np.abs(complex_object)),
@@ -468,7 +471,7 @@ class PostProcessor:
         return {
             "amplitude": amplitude,
             "support": nan_to_zero(support),
-            "surface": nan_to_zero(surface) if surface is not None else nan_to_zero(support),
+            "surface": nan_to_zero(surface),
             "phase": nan_to_zero(phase),
             "displacement": nan_to_zero(displacement),
             "displacement_gradient": nan_to_zero(displacement_gradient),
