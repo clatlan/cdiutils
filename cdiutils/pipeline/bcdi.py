@@ -37,6 +37,7 @@ from cdiutils.utils import (
 
 # Plot function specifically made for the pipeline.
 from .pipeline_plotter import PipelinePlotter
+from cdiutils.plot.stats import strain_statistics
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 
@@ -1357,7 +1358,7 @@ reconstruction (best solution)."""
             cmap=RED_TO_TEAL,
             **displacement_gradient_plots
         )
-        _, _, means, fwhms = PipelinePlotter.strain_statistics(
+        _, _, means, fwhms = strain_statistics(
             self.structural_props["het_strain_from_dspacing"],
             self.structural_props["support"],
             title=f"Strain statistics, {sample_scan}",

@@ -18,12 +18,15 @@ __submodules__ = {
     "slice",
     "volume"
     "interactive",
+    "stats"
 }
 
 __class_func_submodules__ = {
     "Plotter": "interactive",
     "plot_volume_slices": "slice",
-    "VolumeViewer": "volume"
+    "VolumeViewer": "volume",
+    "plot_histogram": "stats",
+    "strain_statistics": "stats",
 }
 
 __all__ = [
