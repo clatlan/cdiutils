@@ -644,6 +644,9 @@ class CroppingHandler:
         if method == "max":
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
+            if isinstance(data, np.ma.MaskedArray):
+                # data must be filled to account for the mask values
+                data = data.filled(0)
             com = center_of_mass(data)
             return tuple(np.nan if np.isnan(e) else int(round(e)) for e in com)
         elif (
@@ -659,8 +662,7 @@ class CroppingHandler:
 
     @classmethod
     def get_masked_data(
-        cls, data: np.ndarray,
-        roi: list[int]
+            cls, data: np.ndarray, roi: list[int]
     ) -> np.ma.MaskedArray:
         """
         Get the masked data array based on the region of interest (ROI).
@@ -802,7 +804,7 @@ class CroppingHandler:
             (start + stop) // 2
             for start, stop in zip(roi[::2], roi[1::2])
         )
-        cropped_data = masked_data.data[cls.roi_list_to_slices(roi)]
+        cropped_data = data[cls.roi_list_to_slices(roi)]
         cropped_position = tuple(p - r for p, r in zip(position, roi[::2]))
         return cropped_data.copy(), position, cropped_position, roi
 
