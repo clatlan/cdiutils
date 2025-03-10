@@ -17,7 +17,7 @@ import numpy as np
 from tabulate import tabulate
 import yaml
 
-# General cdiutils classes, to handle loading, beamline geometry and
+# General cdiutils classes, to handle loading/saving, beamline geometry and
 # space conversion.
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
@@ -35,11 +35,12 @@ from cdiutils.utils import (
     normalise
 )
 
-# Plot function specifically made for the pipeline.
+# Plot functions.
 from .pipeline_plotter import PipelinePlotter
 from cdiutils.plot.stats import strain_statistics
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
+from cdiutils.plot.slice import plot_volume_slices
 
 from cdiutils.process.phaser import PhasingResultAnalyser, PynNXImportError
 from cdiutils.process.postprocessor import PostProcessor
@@ -1012,6 +1013,62 @@ retrieval is also computed and will be used in the post-processing stage."""
             plot_phasing_results=plot_phasing_results,
             plot_phase=plot_phase
         )
+
+    def generate_support_from(
+            self,
+            run: int | str = "best",
+            output_path: str = None,
+            verbose: bool = True
+    ) -> None:
+        """
+        Generate the support from the best run or a specific run. The
+        support is saved in a .cxi file in the pynx_phasing_dir by
+        default, but another output path can be provided. This allows to
+        directly use the support when re-running the phase retrieval by
+        simply specifying:
+        `support = bcdi_pipeline.pynx_phasing_dir + "support.cxi"`.
+        The verbosity is set to True by default and also plots the
+        generated support.
+
+        Args:
+            run (int | str, optional): the run to generate the support
+                from, either a int or the string `"best"`. Defaults to
+                "best".
+            output_path (str, optional): the output path to save the
+                support to If None, will save to the `pynx_phasing_dir`.
+                Defaults to None.
+            verbose (bool, optional): whether to print info and plot the
+                support. Defaults to True.
+        """
+        if run == "best":
+            selected_path = next(
+                iter(self.result_analyser._sorted_phasing_results)
+            )
+        else:
+            if not self.result_analyser.result_paths:
+                self.result_analyser.find_phasing_results()
+            for path in self.result_analyser.result_paths:
+                if run == int(path.split("Run")[1][:4]):
+                    selected_path = path
+
+        with CXIFile(selected_path) as cxi:
+            support = cxi["entry_1/image_1/support"]
+
+        if output_path is None:
+            output_path = self.pynx_phasing_dir + "support.cxi"
+
+        with CXIFile(output_path, "w") as cxi:
+            cxi.stamp()
+            path = cxi.create_cxi_group("image")
+            cxi.create_cxi_dataset(path + "/mask", support)
+
+        if verbose:
+            self.logger.info(
+                "Support generated from Run : "
+                f"{int(selected_path.split("Run")[1][:4])}, i.e. file:\n"
+                f"{selected_path}\nand saved to:\n{output_path}"
+            )
+            plot_volume_slices(support, cmap="gray")
 
     def select_best_candidates(
             self,
