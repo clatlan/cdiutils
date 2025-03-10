@@ -6,6 +6,7 @@ Authors:
 """
 
 # Built-in dependencies.
+import copy
 import glob
 import os
 from string import Template
@@ -48,7 +49,11 @@ from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
-from .parameters import check_params, convert_np_arrays
+from .parameters import (
+    validate_and_fill_params,
+    convert_np_arrays,
+    DEFAULT_PIPELINE_PARAMS
+)
 
 
 class PyNXScriptError(Exception):
@@ -90,7 +95,7 @@ class BcdiPipeline(Pipeline):
         """
         super().__init__(params, param_file_path)
 
-        check_params(self.params)
+        self.params = validate_and_fill_params(self.params)
 
         self.scan = self.params["scan"]
         self.sample_name = self.params["sample_name"]
@@ -879,8 +884,6 @@ retrieval is also computed and will be used in the post-processing stage."""
             PyNXScriptError: if the pynx script fails.
             e: if the subprocess fails.
         """
-        if pynx_params is not None:
-            self.params["pynx"].update(pynx_params)
         if clear_former_results:
             self.logger.info("Removing former results.\n")
             files = glob.glob(self.pynx_phasing_dir + "/*Run*.cxi")
@@ -892,11 +895,16 @@ retrieval is also computed and will be used in the post-processing stage."""
         pynx_input_path = (
             self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
         )
+        # handle pynx params, merge defaults + user inputs
+        self.params["pynx"] = self._merge_pynx_params(pynx_params)
 
-        # Update the data and mask paths in self.params.
+        # dynamically assign data and mask paths if not set by the user
         for name in ("data", "mask"):
-            path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
-            self.params["pynx"][name] = path
+            if self.params["pynx"][name] is None:
+                self.params["pynx"][name] = (
+                    f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
+                    ".npz"
+                )
 
         # Make the pynx input file.
         with open(pynx_input_path, "w", encoding="utf8") as file:
@@ -923,6 +931,26 @@ retrieval is also computed and will be used in the post-processing stage."""
                     f"No command provided. Will use the default: {cmd}"
                 )
             self._run_cmd(cmd, self.pynx_phasing_dir)
+
+    @staticmethod
+    def _merge_pynx_params(user_pynx_params: dict) -> dict:
+        """
+        Merge user-specified pynx parameters with default pynx
+        parameters. User-defined values override defaults.
+
+        Args:
+            user_pynx_params (dict): contains user-specified values for
+                pynx.
+        Returns:
+            dict: merged pynx parameters.
+        """
+        # deep copy to avoid modifying global defaults
+        merged_pynx = copy.deepcopy(DEFAULT_PIPELINE_PARAMS["pynx"])
+
+        # override defaults with user-provided values
+        merged_pynx.update(user_pynx_params)
+
+        return merged_pynx
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
         try:
