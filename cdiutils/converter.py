@@ -306,9 +306,7 @@ class SpaceConverter():
             detector_inplane_angle,
             detector_outofplane_angle
         )
-        qx = np.array(qx)
-        qy = np.array(qy)
-        qz = np.array(qz)
+
         self._q_space_transitions = np.asarray([qx, qy, qz])
         self._shape = self._q_space_transitions.shape[1:]
 
