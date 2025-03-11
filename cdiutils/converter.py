@@ -300,14 +300,14 @@ class SpaceConverter():
             **det_calib_params
         )
 
-        qx, qy, qz = self.hxrd.Ang2Q.area(
+        self._q_space_transitions = self.hxrd.Ang2Q.area(
             sample_outofplane_angle,
             sample_inplane_angle,
             detector_inplane_angle,
             detector_outofplane_angle
         )
+        self._q_space_transitions = np.asarray(self._q_space_transitions)
 
-        self._q_space_transitions = np.asarray([qx, qy, qz])
         self._shape = self._q_space_transitions.shape[1:]
 
         self.angles = {
