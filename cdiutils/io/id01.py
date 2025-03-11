@@ -245,28 +245,6 @@ class ID01Loader(H5TypeLoader):
         # order !
         return dict(zip(formatted_angles.keys(), formatted_values))
 
-        #     print(
-        #         "No rocking angle found. Will return the raw angles with no "
-        #         "binning nor cropping."
-        #     )
-        #     return formatted_angles
-        # if rocking_angle_binning:
-
-        #     formatted_angles[
-        #         self.rocking_angle
-        #     ] = self.bin_rocking_angle_values(
-        #         formatted_angles[self.rocking_angle], rocking_angle_binning
-        #     )
-        # # take care of the roi
-        # roi = self._check_roi(roi)
-        # roi = roi[0]
-
-        # formatted_angles[
-        #     self.rocking_angle
-        # ] = formatted_angles[self.rocking_angle][roi]
-
-        # return formatted_angles
-
     @h5_safe_load
     def load_energy(
             self,
