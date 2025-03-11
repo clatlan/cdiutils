@@ -287,6 +287,7 @@ class BcdiPipeline(Pipeline):
 
         # Initialise SpaceConverter, later used for orthogonalisation
         geometry = Geometry.from_setup(self.params["beamline_setup"])
+        print(type(self.params["energy"]), self.params["energy"])
         self.converter = SpaceConverter(
             geometry=geometry,
             det_calib_params=self.params["det_calib_params"],
@@ -510,9 +511,20 @@ class BcdiPipeline(Pipeline):
                     "The automatic loading of energy is not yet implemented"
                     f"for this setup ({self.params['beamline_setup']} = )."
                 )
-            self.logger.info(
-                f"Energy successfully loaded ({self.params['energy']} eV)."
-            )
+            if isinstance(self.params["energy"], (list, np.ndarray)):
+                self.logger.info(
+                    "The current scan is an energy scan. The average energy is"
+                    f" {np.mean(self.params["energy"]):3f} eV."
+                )
+                self.params["energy"] = loader.format_scanned_counters(
+                    self.params["energy"],
+                    scan_axis_roi=roi[0] if roi is not None else roi,
+                    rocking_angle_binning=self.params["rocking_angle_binning"]
+                )
+            else:
+                self.logger.info(
+                    f"Energy successfully loaded ({self.params['energy']} eV)."
+                )
         if self.params["det_calib_params"] is None:
             self.logger.info(
                 "\ndet_calib_params not provided, will try to find them. "
@@ -706,6 +718,10 @@ class BcdiPipeline(Pipeline):
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
                 self.angles[key] = value[np.s_[roi[0]:roi[1]]]
+
+        # if energy scan, crop the energy values according to the roi
+        if isinstance(self.params["energy"], (list, np.ndarray)):
+            self.params["energy"] = self.params["energy"][np.s_[roi[0]:roi[1]]]
 
         return cropped_detector_data, roi
 
