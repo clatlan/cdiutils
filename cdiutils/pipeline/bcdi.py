@@ -287,7 +287,6 @@ class BcdiPipeline(Pipeline):
 
         # Initialise SpaceConverter, later used for orthogonalisation
         geometry = Geometry.from_setup(self.params["beamline_setup"])
-        print(type(self.params["energy"]), self.params["energy"])
         self.converter = SpaceConverter(
             geometry=geometry,
             det_calib_params=self.params["det_calib_params"],
