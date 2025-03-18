@@ -43,8 +43,8 @@ class P10Loader(Loader):
                 aliens. Defaults to None.
         """
         self.experiment_data_dir_path = experiment_data_dir_path
-        self.detector_name = detector_name
         super().__init__(scan, sample_name, flat_field, alien_mask)
+        self.detector_name = detector_name
 
         if hutch.lower() == "eh2":
             self.angle_names["sample_outofplane_angle"] = "samth"
