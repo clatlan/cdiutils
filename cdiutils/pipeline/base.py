@@ -213,6 +213,38 @@ class Pipeline(ABC):
         """Enable wrapping."""
         sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
 
+    def _subprocess_run(
+            self,
+            cmd: str | list[str]
+    ) -> subprocess.CompletedProcess:
+        """
+        Run a subprocess command and return the result.
+
+        Args:
+            cmd (str | list[str]): The command to run.
+
+        Raises:
+            subprocess.CalledProcessError: If the command fails.
+
+        Returns:
+            subprocess.CompletedProcess: The result of the subprocess.
+        """
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            self.logger.error(f"Command {cmd} failed: {result.stderr}")
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                result.args,
+                output=result.stdout,
+                stderr=result.stderr
+            )
+        return result
+
     def submit_job(self, job_file: str, working_dir: str) -> tuple[str, str]:
         """Submit a job to SLURM as a subprocess."""
         # Set up signal handler for keyboard interrupt (Ctrl + C)
@@ -271,26 +303,12 @@ class Pipeline(ABC):
         """Extract the job ID from sbatch output."""
         for line in stdout.splitlines():
             if "Submitted batch job" in line:
-                # The job ID is the last part of the line
-                return line.split()[-1]
+                return line.split()[-1]  # last element of the line
         return None
 
     def is_job_running(self, job_id: str) -> bool:
         """Check if the job is still running using squeue."""
-        result = subprocess.run(
-            ["squeue", "--job", job_id],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if result.returncode != 0:
-            self.logger.error(f"squeue error: {result.stderr}")
-            raise subprocess.CalledProcessError(
-                result.returncode,
-                result.args,
-                output=result.stdout,
-                stderr=result.stderr
-            )
+        result = self._subprocess_run(["squeue", "--job", job_id])
         return job_id in result.stdout  # Job is running if job_id is found
 
     def stream_job_output(self, job_id: str, output_file: str) -> None:
@@ -324,113 +342,115 @@ class Pipeline(ABC):
                     if line:
                         self.logger.job(line.strip())
                     else:
-                        time.sleep(2)  # Sleep briefly before checking again
+                        time.sleep(0.5)  # Sleep briefly before checking again
 
         except FileNotFoundError:
             self.logger.error(f"Output file {output_file} not found.")
             raise
 
-    def monitor_job(self, job_id: str, output_file: str) -> None:
-        """Monitor the job status using squeue and sacct."""
-        try:
-            # Start monitoring the job and streaming output
-            while not self.interrupted:
-                if not self.is_job_running(job_id):
-                    self.logger.info("Checking final status...")
-                    break
+    def monitor_job(
+            self,
+            job_id: str,
+            output_file: str,
+            retries: int = 10,
+            delay: int = 1
+    ) -> None:
+        """
+        Monitor the job and stream its output in real time. Check the
+        final status of the job and raise an exception if the job
+        fails.
 
-                # Job is still running, stream the output file
-                # self.logger.info(f"Job {job_id} is running...")
-                self.stream_job_output(job_id, output_file)
+        Args:
+            job_id (str): The job ID to monitor.
+            output_file (str): The path to the output file.
+            retries (int, optional): Number of retries to check the job
+                state if it remains in RUNNING state but is no longer in
+                the queue. Defaults to 10.
+            delay (int, optional): Delay in seconds between retries.
+                Defaults to 1.
 
-            # After job finishes, check final status
-            if not self.interrupted:
-                self.check_job_status(job_id)
+        Raises:
+            JobFailedError: If the job fails.
+        """
+        # Start monitoring the job and streaming output
+        while not self.interrupted:
+            if not self.is_job_running(job_id):
+                self.logger.info("Checking final status...")
+                break
 
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error monitoring job: {e.stderr}")
-            raise
+            # Job is still running, stream the output file
+            self.stream_job_output(job_id, output_file)
 
-    def check_job_status(self, job_id: str) -> None:
-        """Check the final job status using sacct."""
-        try:
-            result = subprocess.run(
-                [
-                    "sacct", "-j", job_id,
-                    "--format=JobID,State,ExitCode", "--noheader"
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-
-            if result.returncode != 0:
-                self.logger.error(f"sacct error: {result.stderr}")
-                raise subprocess.CalledProcessError(
-                    result.returncode,
-                    result.args,
-                    output=result.stdout,
-                    stderr=result.stderr
+        # After job finishes, check final status
+        if not self.interrupted:
+            state, exit_code = self.get_job_state(job_id)
+            attempt = 0
+            while state == "RUNNING" and attempt < retries:
+                self.logger.info(
+                    f"Job {job_id} is still in RUNNING state but not "
+                    f"found in queue. Rechecking the state in {delay} "
+                    f"second(s)..."
+                )
+                time.sleep(delay)
+                state, exit_code = self.get_job_state(job_id)
+                attempt += 1
+            if state == "COMPLETED":
+                self.logger.info(
+                    f"Job {job_id} completed successfully with "
+                    f"exit code: {exit_code}"
+                )
+                return
+            elif state == "FAILED":
+                raise JobFailedError(
+                    f"Job {job_id} failed with exit code: {exit_code}."
+                    f"See {output_file} for more details."
+                )
+            else:
+                self.logger.warning(
+                    f"Job {job_id} finished with unexpected state: {state}."
                 )
 
-            # Parse the sacct output to check the job's final state
-            for line in result.stdout.splitlines():
-                if job_id in line:
-                    state, exit_code = self._parse_sacct_output(line)
-                    self.logger.info(
-                        f"Job {job_id} finished with state: {state} and exit "
-                        f"code: {exit_code}"
-                    )
+    def get_job_state(self, job_id: str) -> tuple[str, str]:
+        """
+        Get the job state and exit code using sacct.
 
-                    if state == "COMPLETED":
-                        self.logger.info(
-                            f"Job {job_id} completed successfully."
-                        )
-                    else:
-                        self.logger.error(
-                            f"Job {job_id} failed with state: {state} and exit"
-                            f" code: {exit_code}"
-                        )
-                        raise JobFailedError
-                        # Shall we raise an error here?
-                    return
+        Args:
+            job_id (str): The job ID to check.
 
-            # If no matching job ID is found in sacct
-            self.logger.error(f"Failed to find job {job_id} in sacct output.")
+        Raises:
+            ValueError: If the job is not found in sacct.
+
+        Returns:
+             tuple[str, str]: The job state and exit code.
+        """
+        result = self._subprocess_run(
+            [
+                "sacct", "-j", job_id,
+                "--format=JobID,State,ExitCode", "--noheader"
+            ]
+        )
+        state, exit_code = None, None
+
+        # Parse the sacct output to check the job's final state
+        for line in result.stdout.splitlines():
+            if job_id in line:
+                parts = line.split()
+                if len(parts) >= 3:
+                    state = parts[1]
+                    exit_code = parts[2]
+                    break
+        if state is None or exit_code is None:
             raise ValueError(f"Job {job_id} not found in sacct.")
-
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error checking job status: {e.stderr}")
-            raise
-
-    @staticmethod
-    def _parse_sacct_output(line: str) -> tuple[str, str]:
-        """Parse the sacct output line and return the state and exit code."""
-        parts = line.split()
-        if len(parts) >= 3:
-            state = parts[1]
-            exit_code = parts[2]
-            return state, exit_code
-        return None, None
+        return state, exit_code
 
     def cancel_job(self, job_id: str) -> None:
         """Cancel the SLURM job using scancel."""
         try:
             self.logger.info(f"\n\nCancelling job {job_id}...")
-            result = subprocess.run(
-                ["scancel", job_id],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-
-            if result.returncode != 0:
-                self.logger.error(
-                    f"Failed to cancel job {job_id}: {result.stderr}"
-                )
-
+            _ = self._subprocess_run(["scancel", job_id])
+            self.logger.info(f"Job {job_id} cancelled successfully.")
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error cancelling job: {e.stderr}")
+            self.logger.error(f"Failed to cancel job {job_id}: {e.stderr}")
             raise
 
     def _handle_interrupt(self, job_id: str) -> None:
