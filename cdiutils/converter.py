@@ -30,7 +30,7 @@ class SpaceConverter():
             energy: float = None,
             roi: list = None,
             shape: tuple = None,
-            q_space_shift: tuple = None,
+            q_lab_shift: tuple = None,
             q_lab_matrix: np.ndarray = None,
             direct_lab_matrix: np.ndarray = None,
             direct_lab_voxel_size: tuple = None
@@ -40,7 +40,7 @@ class SpaceConverter():
         self.energy = energy
         self.roi = roi
         self.angles: dict = None
-        self.q_space_shift = q_space_shift
+        self.q_lab_shift = q_lab_shift
 
         self.q_lab_interpolator: Interpolator3D = None
         self.direct_lab_interpolator: Interpolator3D = None
@@ -109,7 +109,7 @@ class SpaceConverter():
     def to_dict(self) -> dict:
         d = {
                 k: self.__dict__[k] for k in (
-                    "energy", "roi", "q_space_shift", "_shape", "angles",
+                    "energy", "roi", "q_lab_shift", "_shape", "angles",
                     "det_calib_params"
                 )
         }
@@ -145,7 +145,7 @@ class SpaceConverter():
                 "program_name", data=f"cdiutils {__version__}"
             )
             # Store basic attributes as datasets
-            for key in ("energy", "roi", "q_space_shift", "shape"):
+            for key in ("energy", "roi", "q_lab_shift", "shape"):
                 if attributes.get(key) is None:
                     attributes[key] = np.nan
                 file.create_dataset(key, data=attributes[key])
@@ -196,7 +196,7 @@ class SpaceConverter():
             # Load basic attributes
             attributes = {
                 k: file[k][()]
-                for k in ("energy", "roi", "q_space_shift", "shape")
+                for k in ("energy", "roi", "q_lab_shift", "shape")
             }
             # Handle dictionaries
             attributes.update(
@@ -423,7 +423,7 @@ class SpaceConverter():
 
         # Using the Interpolator3D requires the centring of the q
         # values, here we save the shift in q for later use
-        q_space_shift = np.array([
+        q_lab_shift = np.array([
             q_space_transitions[i][shift_voxel]
             for i in range(3)
         ])
@@ -431,7 +431,7 @@ class SpaceConverter():
         # center of the Bragg peak is (0, 0, 0) A-1
         for i in range(3):
             q_space_transitions[i] = (
-                q_space_transitions[i] - q_space_shift[i]
+                q_space_transitions[i] - q_lab_shift[i]
             )
 
         # reshape the grid so rows correspond to x, y and z coordinates,
@@ -440,7 +440,7 @@ class SpaceConverter():
                 3,
                 q_space_transitions[0].size
         )
-        self.q_space_shift = q_space_shift
+        self.q_lab_shift = q_lab_shift
         return q_space_transitions
 
     def init_interpolator(
@@ -667,7 +667,7 @@ class SpaceConverter():
 
         grid = [
             self.q_lab_interpolator.target_grid[i]
-            + self.q_space_shift[i]
+            + self.q_lab_shift[i]
             for i in range(3)
         ]
         if arrangement in ("l", "list"):
