@@ -33,7 +33,7 @@ from cdiutils.utils import (
     hot_pixel_filter,
     get_oversampling_ratios,
     find_isosurface,
-    normalise
+    normalise,
 )
 
 # Plot functions.
@@ -52,7 +52,7 @@ from .base import Pipeline
 from .parameters import (
     validate_and_fill_params,
     convert_np_arrays,
-    DEFAULT_PIPELINE_PARAMS
+    DEFAULT_PIPELINE_PARAMS,
 )
 
 
@@ -79,9 +79,9 @@ class BcdiPipeline(Pipeline):
     class_isosurface = 0.1
 
     def __init__(
-            self,
-            params: dict = None,
-            param_file_path: str = None,
+        self,
+        params: dict = None,
+        param_file_path: str = None,
     ):
         """
         Initialisation method.
@@ -180,14 +180,12 @@ class BcdiPipeline(Pipeline):
     @staticmethod
     def _build_converter_from_cxi(cxi: CXIFile):
         converter_params = {
-            "geometry": Geometry.from_setup(
-                cxi["entry_1/geometry_1/name"]
-            ),
+            "geometry": Geometry.from_setup(cxi["entry_1/geometry_1/name"]),
             "det_calib_params": cxi["entry_1/detector_1/calibration"],
             "roi": cxi["entry_1/result_1/roi"],
             "energy": cxi["entry_1/source_1/energy"],
             "shape": cxi["entry_1/image_1/image_size"],
-            "q_space_shift": cxi["entry_1/result_2/q_space_shift"],
+            "q_lab_shift": cxi["entry_1/result_2/q_lab_shift"],
             "q_lab_matrix": cxi[
                 "entry_1/result_2/transformation_matrices/q_lab"
             ],
@@ -263,9 +261,7 @@ class BcdiPipeline(Pipeline):
                     f"{self.voi['full']['ref'] = }."  # noqa E251, E202
                 )
         # print out the oversampling ratio and rebin factor suggestion
-        ratios = oversampling_from_diffraction(
-            self.cropped_detector_data
-        )
+        ratios = oversampling_from_diffraction(self.cropped_detector_data)
         if ratios is None:
             self.logger.info("Could not estimate the oversampling.")
         else:
@@ -276,7 +272,7 @@ class BcdiPipeline(Pipeline):
                     [f"axis{i}: {ratios[i]:.1f}" for i in range(len(ratios))]
                 )
                 + ". If low-strain crystal, you can set PyNX 'rebin' parameter"
-                " to (" + ", ".join([f"{r//2}" for r in ratios]) + ")"
+                " to (" + ", ".join([f"{r // 2}" for r in ratios]) + ")"
             )
 
         # position of the max and com in the cropped detector frame
@@ -291,14 +287,19 @@ class BcdiPipeline(Pipeline):
             geometry=geometry,
             det_calib_params=self.params["det_calib_params"],
             energy=self.params["energy"],
-            roi=roi[2:]
+            roi=roi[2:],
         )
         self.converter.init_q_space(**self.angles)
 
         # Initialise the fancy table with the columns
         table = [
-            ["voxel", "uncrop. det. pos.", "crop. det. pos.",
-             "dspacing (A)", "lat. par. (A)"]
+            [
+                "voxel",
+                "uncrop. det. pos.",
+                "crop. det. pos.",
+                "dspacing (A)",
+                "lat. par. (A)",
+            ]
         ]
 
         # get the position of the reference, max and det voxels in the
@@ -326,9 +327,13 @@ class BcdiPipeline(Pipeline):
                     )
                 )
             table.append(
-                [pos, det_voxel, cropped_det_voxel,
-                 f"{self.atomic_params['dspacing'][pos]:.5f}",
-                 f"{self.atomic_params['lattice_parameter'][pos]:.5f}"]
+                [
+                    pos,
+                    det_voxel,
+                    cropped_det_voxel,
+                    f"{self.atomic_params['dspacing'][pos]:.5f}",
+                    f"{self.atomic_params['lattice_parameter'][pos]:.5f}",
+                ]
             )
 
         self._unwrap_logs()  # Turn off wrapping for structured output
@@ -346,7 +351,7 @@ class BcdiPipeline(Pipeline):
             )
             self.orthogonalised_intensity = (
                 self.converter.orthogonalise_to_q_lab(
-                     self.cropped_detector_data, method="xrayutilities"
+                    self.cropped_detector_data, method="xrayutilities"
                 )
             )
             # we must orthogonalise the mask and orthogonalised_intensity must
@@ -366,7 +371,7 @@ class BcdiPipeline(Pipeline):
             self.converter.init_interpolator(
                 direct_lab_voxel_size=self.params["voxel_size"],
                 space="both",
-                verbose=True
+                verbose=True,
             )
             if self.params["voxel_size"] is not None:
                 self.logger.info(
@@ -378,8 +383,7 @@ class BcdiPipeline(Pipeline):
             # do it later
             self.orthogonalised_intensity = (
                 self.converter.orthogonalise_to_q_lab(
-                    self.cropped_detector_data,
-                    method="cdiutils"
+                    self.cropped_detector_data, method="cdiutils"
                 )
             )
 
@@ -401,7 +405,7 @@ class BcdiPipeline(Pipeline):
                 "Detector data preprocessing (slices), "
                 f"{self.sample_name}, S{self.scan}"
             ),
-            save=dump_file_tmpl.format("slices")
+            save=dump_file_tmpl.format("slices"),
         )
         PipelinePlotter.detector_data(
             self.cropped_detector_data,
@@ -412,7 +416,7 @@ class BcdiPipeline(Pipeline):
                 "Detector data preprocessing (projection), "
                 f"{self.sample_name}, S{self.scan}"
             ),
-            save=dump_file_tmpl.format("sum")
+            save=dump_file_tmpl.format("sum"),
         )
 
         # Plot the reciprocal space data in the detector and lab frames
@@ -424,7 +428,7 @@ class BcdiPipeline(Pipeline):
                 r"From detector frame to q lab frame"
                 f", {self.sample_name}, S{self.scan}"
             ),
-            save=dump_file_tmpl.format("orthogonalisation")
+            save=dump_file_tmpl.format("orthogonalisation"),
         )
 
         # Save the data and the parameters in the dump directory, and
@@ -436,9 +440,8 @@ class BcdiPipeline(Pipeline):
     def _from_2d_to_3d_shape(self) -> tuple:
         if len(self.params["preprocess_shape"]) == 2:
             self.params["preprocess_shape"] = (
-                (self.detector_data.shape[0], )
-                + self.params["preprocess_shape"]
-            )
+                self.detector_data.shape[0],
+            ) + self.params["preprocess_shape"]
 
     def _load(self, roi: tuple[slice] = None) -> None:
         """
@@ -455,9 +458,16 @@ class BcdiPipeline(Pipeline):
         # Make the loader using the factory method, only parse the
         # parameters relevant to the Loader class, to make them explicit.
         loader_keys = (
-            "beamline_setup", "scan", "sample_name", "experiment_file_path",
-            "experiment_data_dir_path", "detector_data_path",
-            "edf_file_template", "detector_name", "alien_mask", "flat_field",
+            "beamline_setup",
+            "scan",
+            "sample_name",
+            "experiment_file_path",
+            "experiment_data_dir_path",
+            "detector_data_path",
+            "edf_file_template",
+            "detector_name",
+            "alien_mask",
+            "flat_field",
         )
         loader = Loader.from_setup(**{k: self.params[k] for k in loader_keys})
 
@@ -467,12 +477,11 @@ class BcdiPipeline(Pipeline):
                 raise ValueError(
                     "The automatic detection of the detector name is not"
                     "yet implemented for this setup"
-                    f"({self.params['beamline_setup']} = )."
+                    f"({self.params['beamline_setup']})."
                 )
 
         self.detector_data = loader.load_detector_data(
-            roi=roi,
-            rocking_angle_binning=self.params["rocking_angle_binning"]
+            roi=roi, rocking_angle_binning=self.params["rocking_angle_binning"]
         )
         if roi is not None:
             shape = loader.load_detector_shape()
@@ -484,41 +493,37 @@ class BcdiPipeline(Pipeline):
             )
 
         self.angles = loader.load_motor_positions(
-            roi=roi,
-            rocking_angle_binning=self.params["rocking_angle_binning"]
+            roi=roi, rocking_angle_binning=self.params["rocking_angle_binning"]
         )
         self.mask = loader.get_mask(
             channel=self.detector_data.shape[0],
             detector_name=self.params["detector_name"],
-            roi=(slice(None), roi[1], roi[2]) if roi else None
+            roi=(slice(None), roi[1], roi[2]) if roi else None,
         )
         if loader.get_alien_mask() is not None:
             self.logger.info("Alien mask provided. Will update detector mask.")
             alien_mask = loader.get_alien_mask(roi)
             self.mask = np.where(self.mask + alien_mask > 0, 1, 0)
 
-        if any(
-                data is None
-                for data in (self.detector_data, self.angles)
-        ):
+        if any(data is None for data in (self.detector_data, self.angles)):
             raise ValueError("Something went wrong during data loading.")
 
         if self.params["energy"] is None:
             self.params["energy"] = loader.load_energy()
             if self.params["energy"] is None:
                 raise ValueError(
-                    "The automatic loading of energy is not yet implemented"
-                    f"for this setup ({self.params['beamline_setup']} = )."
+                    "The automatic loading of energy is not yet implemented "
+                    f"for this setup ({self.params['beamline_setup']})."
                 )
             if isinstance(self.params["energy"], (list, np.ndarray)):
                 self.logger.info(
                     "The current scan is an energy scan. The average energy is"
-                    f" {np.mean(self.params["energy"]):3f} eV."
+                    f" {np.mean(self.params['energy']):3f} eV."
                 )
                 self.params["energy"] = loader.format_scanned_counters(
                     self.params["energy"],
                     scan_axis_roi=roi[0] if roi is not None else roi,
-                    rocking_angle_binning=self.params["rocking_angle_binning"]
+                    rocking_angle_binning=self.params["rocking_angle_binning"],
                 )
             else:
                 self.logger.info(
@@ -541,7 +546,7 @@ class BcdiPipeline(Pipeline):
             self.logger.info(
                 "det_calib_params successfully loaded:\n"
                 f"{self.params['det_calib_params']}"
-                )
+            )
 
     def _light_load(self) -> list:
         """
@@ -559,8 +564,8 @@ class BcdiPipeline(Pipeline):
             list: the roi associated to the cropped_detector_data.
         """
         if (
-                len(self.params["preprocess_shape"]) != 3
-                and self.params["rocking_angle_binning"] is None
+            len(self.params["preprocess_shape"]) != 3
+            and self.params["rocking_angle_binning"] is None
         ):
             self.params["rocking_angle_binning"] = 1
             self.logger.warning(
@@ -577,15 +582,15 @@ class BcdiPipeline(Pipeline):
                 "want to crop the data at. Ex: [(100, 200, 200)]."
             )
         if (
-                len(self.voi["full"]["ref"]) == 2
-                and len(self.params["preprocess_shape"]) == 3
+            len(self.voi["full"]["ref"]) == 2
+            and len(self.params["preprocess_shape"]) == 3
         ):
-            self.params["preprocess_shape"] = (
-                self.params["preprocess_shape"][1:]
-            )
+            self.params["preprocess_shape"] = self.params["preprocess_shape"][
+                1:
+            ]
         elif (
-                len(self.voi["full"]["ref"]) == 3
-                and len(self.params["preprocess_shape"]) == 2
+            len(self.voi["full"]["ref"]) == 3
+            and len(self.params["preprocess_shape"]) == 2
         ):
             self.voi["full"]["ref"] = self.voi["full"]["ref"][1:]
 
@@ -607,9 +612,8 @@ class BcdiPipeline(Pipeline):
         # dimension length.
         if len(self.voi["full"]["ref"]) == 2:  # covers both cases
             self.voi["full"]["ref"] = (
-                (self.detector_data.shape[0] // 2, )
-                + tuple(self.voi["full"]["ref"])
-            )
+                self.detector_data.shape[0] // 2,
+            ) + tuple(self.voi["full"]["ref"])
             self._from_2d_to_3d_shape()
             shape = ensure_pynx_shape(self.params["preprocess_shape"])
             roi = CroppingHandler.get_roi(shape, self.voi["full"]["ref"])
@@ -628,8 +632,8 @@ class BcdiPipeline(Pipeline):
 
         # find the position in the cropped detector frame
         self.voi["cropped"]["ref"] = tuple(
-                p - r if r else p  # if r is None, p-r must be p
-                for p, r in zip(self.voi["full"]["ref"], roi[::2])
+            p - r if r else p  # if r is None, p-r must be p
+            for p, r in zip(self.voi["full"]["ref"], roi[::2])
         )
         self.voi["full"]["max"], self.voi["full"]["com"] = None, None
 
@@ -682,12 +686,12 @@ class BcdiPipeline(Pipeline):
             cropped_detector_data,
             self.voi["full"]["ref"],
             self.voi["cropped"]["ref"],
-            roi
+            roi,
         ) = CroppingHandler.chain_centring(
-                detector_data,
-                self.params["preprocess_shape"],
-                methods=self.params["voxel_reference_methods"],
-                verbose=True
+            detector_data,
+            self.params["preprocess_shape"],
+            methods=self.params["voxel_reference_methods"],
+            verbose=True,
         )
         self._wrap_logs()  # Turn wrapping back on for regular logs
 
@@ -716,11 +720,13 @@ class BcdiPipeline(Pipeline):
         # that correspond to the requested roi
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                self.angles[key] = value[np.s_[roi[0]:roi[1]]]
+                self.angles[key] = value[np.s_[roi[0] : roi[1]]]
 
         # if energy scan, crop the energy values according to the roi
         if isinstance(self.params["energy"], (list, np.ndarray)):
-            self.params["energy"] = self.params["energy"][np.s_[roi[0]:roi[1]]]
+            self.params["energy"] = self.params["energy"][
+                np.s_[roi[0] : roi[1]]
+            ]
 
         return cropped_detector_data, roi
 
@@ -742,8 +748,7 @@ class BcdiPipeline(Pipeline):
 
         # Save the cropped detector data and mask in pynx phasing dir
         for name, data in zip(
-                ("data", "mask"),
-                (self.cropped_detector_data, self.mask)
+            ("data", "mask"), (self.cropped_detector_data, self.mask)
         ):
             path = f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}.npz"
             np.savez(path, data=data)
@@ -757,7 +762,7 @@ class BcdiPipeline(Pipeline):
             path = cxi.create_cxi_group(
                 "process",
                 command="cdiutils.BcdiPipeline.preprocess()",
-                comment="Pipeline preprocessing step"
+                comment="Pipeline preprocessing step",
             )
             cxi.softlink(f"{path}/program", "/creator")
             cxi.softlink(f"{path}/version", "/version")
@@ -769,7 +774,7 @@ class BcdiPipeline(Pipeline):
             detector = {
                 "description": self.params["detector_name"],
                 "mask": self.mask[0],
-                "calibration": self.params["det_calib_params"]
+                "calibration": self.params["det_calib_params"],
             }
             path = cxi.create_cxi_group("detector", **detector)
             cxi.softlink(f"{path}/distance", f"{path}/calibration/distance")
@@ -791,10 +796,14 @@ the reciprocal space. From this, the average d-spacing and lattice parameter
 are computed. The matrix to orthogonalise the reconstructed object after phase
 retrieval is also computed and will be used in the post-processing stage."""
             results = self.converter.to_dict()
-            results = {k: results[k] for k in (
-                "q_space_shift", "transformation_matrices",
-                "direct_lab_voxel_size"
-            )}
+            results = {
+                k: results[k]
+                for k in (
+                    "q_lab_shift",
+                    "transformation_matrices",
+                    "direct_lab_voxel_size",
+                )
+            }
             atomic_params = self.atomic_params.copy()
             atomic_params["units"] = "angstrom"
             q_lab = self.q_lab_pos.copy()
@@ -803,10 +812,16 @@ retrieval is also computed and will be used in the post-processing stage."""
                 qx, qy, qz = self.converter.get_xu_q_lab_regular_grid()
             else:
                 qx, qy, qz = self.converter.get_q_lab_regular_grid()
-            results.update({
-                "atomic_parameters": atomic_params, "q_lab": q_lab,
-                "description": msg, "qx_xu": qx, "qy_xu": qy, "qz_xu": qz
-            })
+            results.update(
+                {
+                    "atomic_parameters": atomic_params,
+                    "q_lab": q_lab,
+                    "description": msg,
+                    "qx_xu": qx,
+                    "qy_xu": qy,
+                    "qz_xu": qz,
+                }
+            )
             path = cxi.create_cxi_group("result", **results)
             cxi.softlink(path + "/process_1", "entry_1/process_1")
             exp_path = self.params["experiment_file_path"]
@@ -815,7 +830,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "sample_name",
                 sample_name=self.sample_name,
                 experiment_file_path=exp_path,
-                experiment_identifier=exp_path.split("/")[-1].split(".")[0]
+                experiment_identifier=exp_path.split("/")[-1].split(".")[0],
             )
             cxi.create_cxi_group("parameters", **self.params)
             cxi.create_cxi_group(
@@ -826,14 +841,14 @@ retrieval is also computed and will be used in the post-processing stage."""
                 data_type="cropped detector data",
                 data_space="reciprocal",
                 mask=self.mask[0],
-                process_1="process_1"
+                process_1="process_1",
             )
             cxi.softlink("entry_1/cropped_detector_data", path)
             path = cxi.create_cxi_image(
                 self.orthogonalised_intensity,
                 data_type="orthogonalised detector data",
                 data_space="reciprocal",
-                process_1="process_1"
+                process_1="process_1",
             )
             cxi.softlink("entry_1/orthogonalised_detector_data", path)
 
@@ -860,24 +875,24 @@ retrieval is also computed and will be used in the post-processing stage."""
                     "number_of_nodes": 2,
                     "data_path": self.pynx_phasing_dir,
                     "SLURM_JOBID": "$SLURM_JOBID",
-                    "SLURM_NTASKS": "$SLURM_NTASKS"
+                    "SLURM_NTASKS": "$SLURM_NTASKS",
                 }
             )
         with open(
-                self.pynx_phasing_dir + "/pynx-id01-cdi.slurm",
-                "w",
-                encoding="utf8"
+            self.pynx_phasing_dir + "/pynx-id01-cdi.slurm",
+            "w",
+            encoding="utf8",
         ) as file:
             file.write(pynx_slurm_text)
 
     @Pipeline.process
     def phase_retrieval(
-            self,
-            jump_to_cluster: bool = False,
-            pynx_slurm_file_template: str = None,
-            clear_former_results: bool = False,
-            cmd: str = None,
-            **pynx_params
+        self,
+        jump_to_cluster: bool = False,
+        pynx_slurm_file_template: str = None,
+        clear_former_results: bool = False,
+        cmd: str = None,
+        **pynx_params,
     ) -> None:
         """
         Run the phase retrieval using pynx either by submitting a job to
@@ -907,9 +922,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 os.remove(f)
             self.phasing_results = []
 
-        pynx_input_path = (
-            self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
-        )
+        pynx_input_path = self.pynx_phasing_dir + "/pynx-cdi-inputs.txt"
         # handle pynx params, merge defaults + user inputs
         self.params["pynx"] = self._merge_pynx_params(pynx_params)
 
@@ -931,7 +944,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             self._make_slurm_file(pynx_slurm_file_template)
             job_id, output_file = self.submit_job(
                 job_file="pynx-id01-cdi.slurm",
-                working_dir=self.pynx_phasing_dir
+                working_dir=self.pynx_phasing_dir,
             )
             self.monitor_job(job_id, output_file)
 
@@ -970,13 +983,13 @@ retrieval is also computed and will be used in the post-processing stage."""
     def _run_cmd(self, cmd: str, cwd: str) -> None:
         try:
             with subprocess.Popen(
-                    ["bash", "-l", "-c", cmd],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    cwd=cwd,  # Change to this directory
-                    text=True,  # Ensures stdout/stderr are str, not bytes
-                    env=os.environ.copy(),
-                    bufsize=1
+                ["bash", "-l", "-c", cmd],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=cwd,  # Change to this directory
+                text=True,  # Ensures stdout/stderr are str, not bytes
+                env=os.environ.copy(),
+                bufsize=1,
             ) as proc:
                 # Stream stdout
                 for line in iter(proc.stdout.readline, ""):
@@ -1004,12 +1017,12 @@ retrieval is also computed and will be used in the post-processing stage."""
             raise e
 
     def analyse_phasing_results(
-            self,
-            sorting_criterion: str = "mean_to_max",
-            plot: bool = True,
-            plot_phasing_results: bool = True,
-            plot_phase: bool = False,
-            init_analyser: bool = True
+        self,
+        sorting_criterion: str = "mean_to_max",
+        plot: bool = True,
+        plot_phasing_results: bool = True,
+        plot_phase: bool = False,
+        init_analyser: bool = True,
     ) -> None:
         """
         Wrapper for analyse_phasing_results method of
@@ -1054,14 +1067,14 @@ retrieval is also computed and will be used in the post-processing stage."""
             sorting_criterion=sorting_criterion,
             plot=plot,
             plot_phasing_results=plot_phasing_results,
-            plot_phase=plot_phase
+            plot_phase=plot_phase,
         )
 
     def generate_support_from(
-            self,
-            run: int | str = "best",
-            output_path: str = None,
-            verbose: bool = True
+        self,
+        run: int | str = "best",
+        output_path: str = None,
+        verbose: bool = True,
     ) -> None:
         """
         Generate the support from the best run or a specific run. The
@@ -1108,15 +1121,13 @@ retrieval is also computed and will be used in the post-processing stage."""
         if verbose:
             self.logger.info(
                 "Support generated from Run : "
-                f"{int(selected_path.split("Run")[1][:4])}, i.e. file:\n"
+                f"{int(selected_path.split('Run')[1][:4])}, i.e. file:\n"
                 f"{selected_path}\nand saved to:\n{output_path}"
             )
             plot_volume_slices(support, cmap="gray")
 
     def select_best_candidates(
-            self,
-            nb_of_best_sorted_runs: int = None,
-            best_runs: list = None
+        self, nb_of_best_sorted_runs: int = None, best_runs: list = None
     ) -> None:
         """
         A function wrapper for
@@ -1142,14 +1153,13 @@ retrieval is also computed and will be used in the post-processing stage."""
                 " BcdiPipeline.analyse_phasing_results() first."
             )
         self.result_analyser.select_best_candidates(
-            nb_of_best_sorted_runs,
-            best_runs
+            nb_of_best_sorted_runs, best_runs
         )
 
     @Pipeline.process
     def mode_decomposition(
-            self,
-            cmd: str = None,
+        self,
+        cmd: str = None,
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
@@ -1183,10 +1193,10 @@ retrieval is also computed and will be used in the post-processing stage."""
             self._save_pynx_results(self.pynx_phasing_dir + "mode.h5")
 
     def _save_pynx_results(
-            self,
-            mode_path: str = None,
-            modes: list = None,
-            mode_weights: list = None
+        self,
+        mode_path: str = None,
+        modes: list = None,
+        mode_weights: list = None,
     ) -> None:
         if mode_path is not None:
             with h5py.File(mode_path) as file:
@@ -1211,7 +1221,7 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "process",
                 comment="PyNX phasing.",
                 description="""Process information for the original CDI
-reconstruction (best solution)."""
+reconstruction (best solution).""",
             )
             if best_candidates:
                 with h5py.File(best_candidates[0], "r") as f:
@@ -1220,36 +1230,37 @@ reconstruction (best solution)."""
                             f.copy(
                                 f"/entry_last/image_1/process_1/{key}",
                                 cxi.get_node(path),
-                                name=key
+                                name=key,
                             )
 
             path = cxi.create_cxi_group(
                 "result",
-                description=f"Check results out in {self.pynx_phasing_dir}"
+                description=f"Check results out in {self.pynx_phasing_dir}",
             )
             cxi.softlink(f"{path}/process_1", "/entry_1/process_1")
 
             cxi.create_cxi_group(
                 "process",
                 command="cdiutils.BcdiPipeline.analyse_phasing_results()",
-                comment="Pipeline phase retrieval results analysis step."
+                comment="Pipeline phase retrieval results analysis step.",
             )
             path = cxi.create_cxi_group(
                 "result",
                 description="Sort the phasing results according to criterion.",
                 sorted_results=sorted_results,
-                metrics=metrics
+                metrics=metrics,
             )
             cxi.softlink(f"{path}/process_2", "/entry_1/process_2")
 
             cxi.create_cxi_group(
                 "process",
                 command="cdiutils.BcdiPipeline.select_best_candidates()",
-                comment="Best candidate selection"
+                comment="Best candidate selection",
             )
             path = cxi.create_cxi_group(
-                "result", description="Only selected best candidates",
-                best_candidates=best_candidates
+                "result",
+                description="Only selected best candidates",
+                best_candidates=best_candidates,
             )
             cxi.softlink(f"{path}/process_3", "/entry_1/process_3")
 
@@ -1259,12 +1270,12 @@ reconstruction (best solution)."""
                     "pynx-cdi-analysis / "
                     "cdiutils.pipeline.BcdiPipeline.mode_decomposition()"
                 ),
-                comment="Mode decomposition"
+                comment="Mode decomposition",
             )
             path = cxi.create_cxi_group(
                 "result",
                 description="The weights of each calculated mode.",
-                mode_weights=mode_weights
+                mode_weights=mode_weights,
             )
             cxi.softlink(f"{path}/process_4", "/entry_1/process_4")
 
@@ -1324,8 +1335,7 @@ reconstruction (best solution)."""
                 f"{self.params['apodize']} filter."
             )
             self.reconstruction = PostProcessor.apodize(
-                self.reconstruction,
-                window_type=self.params["apodize"]
+                self.reconstruction, window_type=self.params["apodize"]
             )
 
         # First compute the histogram of the amplitude to get an
@@ -1339,7 +1349,7 @@ reconstruction (best solution)."""
             nbins=100,
             sigma_criterion=3,
             plot=True,  # plot and return the figure,
-            save=f"{self.dump_dir}/S{self.scan}_amplitude_distribution.png"
+            save=f"{self.dump_dir}/S{self.scan}_amplitude_distribution.png",
         )
         # store the estimated isosurface
         self.extra_info["estimated_isosurface"] = isosurface
@@ -1383,13 +1393,18 @@ reconstruction (best solution)."""
             hkl=self.params["hkl"],
             voxel_size=self.params["voxel_size"],
             phase_factor=-1,  # it came out of pynx.cdi
-            handle_defects=self.params["handle_defects"]
+            handle_defects=self.params["handle_defects"],
         )
 
         to_plot = {
             k: self.structural_props[k]
-            for k in ["amplitude", "phase", "displacement",
-                      "het_strain", "lattice_parameter"]
+            for k in [
+                "amplitude",
+                "phase",
+                "displacement",
+                "het_strain",
+                "lattice_parameter",
+            ]
         }
         # plot and save the detector data in the full detector frame and
         # final frame
@@ -1406,7 +1421,7 @@ reconstruction (best solution)."""
             "Averaged Lat. Par. (Å)": (
                 self.extra_info["averaged_lattice_parameter"]
             ),
-            "Averaged d-spacing (Å)": self.extra_info["averaged_dspacing"]
+            "Averaged d-spacing (Å)": self.extra_info["averaged_dspacing"],
         }
         PipelinePlotter.summary_plot(
             title=f"Summary figure, {sample_scan}",
@@ -1415,7 +1430,7 @@ reconstruction (best solution)."""
             voxel_size=self.params["voxel_size"],
             convention=self.params["orientation_convention"],
             save=dump_file_tmpl.format("summary_plot"),
-            **to_plot
+            **to_plot,
         )
         PipelinePlotter.summary_plot(
             title=f"Strain check figure, {sample_scan}",
@@ -1427,15 +1442,17 @@ reconstruction (best solution)."""
                 k: self.structural_props[k]
                 for k in [
                     "het_strain",
-                    "het_strain_from_dspacing", "het_strain_with_ramp"
+                    "het_strain_from_dspacing",
+                    "het_strain_with_ramp",
                 ]
-            }
+            },
         )
 
         axis_names = [r"z_{cxi}", r"y_{cxi}", r"x_{cxi}"]
         denom = (
             "du_"
-            + "{" + f"{''.join([str(e) for e in self.params['hkl']])}"
+            + "{"
+            + f"{''.join([str(e) for e in self.params['hkl']])}"
             + "}"
         )
         titles = [f"${denom}/d{axis_names[i]}$" for i in range(3)]
@@ -1443,26 +1460,25 @@ reconstruction (best solution)."""
             titles[i]: self.structural_props["displacement_gradient"][i]
             for i in range(3)
         }
-        ptp_value = (
-            np.nanmax(self.structural_props["displacement_gradient"][0])
-            - np.nanmin(self.structural_props["displacement_gradient"][0])
-        )
+        ptp_value = np.nanmax(
+            self.structural_props["displacement_gradient"][0]
+        ) - np.nanmin(self.structural_props["displacement_gradient"][0])
         PipelinePlotter.summary_plot(
             title=f"Shear displacement, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
             convention=self.params["orientation_convention"],
             save=dump_file_tmpl.format("shear_displacement"),
-            unique_vmin=-ptp_value/2,
-            unique_vmax=ptp_value/2,
+            unique_vmin=-ptp_value / 2,
+            unique_vmax=ptp_value / 2,
             cmap=RED_TO_TEAL,
-            **displacement_gradient_plots
+            **displacement_gradient_plots,
         )
         _, _, means, fwhms = strain_statistics(
             self.structural_props["het_strain_from_dspacing"],
             self.structural_props["support"],
             title=f"Strain statistics, {sample_scan}",
-            save=dump_file_tmpl.format("strain_statistics")
+            save=dump_file_tmpl.format("strain_statistics"),
         )
         self.extra_info["strain_means"] = means
         self.extra_info["strain_fwhms"] = fwhms
@@ -1475,7 +1491,7 @@ reconstruction (best solution)."""
             vmax=np.nanmax(np.abs(self.structural_props["het_strain"])),
             cbar_title=r"Strain (%)",
             title=f"3D views of the strain, {sample_scan}",
-            save=dump_file_tmpl.format("3d_strain_views")
+            save=dump_file_tmpl.format("3d_strain_views"),
         )
 
         # Load the orthogonalised peak
@@ -1483,13 +1499,11 @@ reconstruction (best solution)."""
         with CXIFile(path, "r") as cxi:
             ortho_exp_intensity = cxi["entry_1/data_2/data"][()]
             exp_q_grid = tuple(
-                cxi[f"entry_1/result_2/{k}_xu"][()]
-                for k in ("qx", "qy", "qz")
+                cxi[f"entry_1/result_2/{k}_xu"][()] for k in ("qx", "qy", "qz")
             )
         # To compare, we must make sure we are back in XU convention.
-        obj = (
-            self.structural_props["amplitude"]
-            * np.exp(-1j*self.structural_props["phase"])
+        obj = self.structural_props["amplitude"] * np.exp(
+            -1j * self.structural_props["phase"]
         )
         voxel_size = self.params["voxel_size"]
         if self.params["orientation_convention"].lower() == "cxi":
@@ -1499,21 +1513,18 @@ reconstruction (best solution)."""
         PipelinePlotter.plot_final_object_fft(
             obj,
             voxel_size,
-            self.converter.q_space_shift,
+            self.converter.q_lab_shift,
             ortho_exp_intensity,
             exp_q_grid,
             title=f"FFT of final object vs. experimental data, {sample_scan}",
-            save=f"{self.dump_dir}/S{self.scan}_final_object_fft.png"
+            save=f"{self.dump_dir}/S{self.scan}_final_object_fft.png",
         )
 
         self._save_postprocessed_data()
         self._save_parameter_file()
 
     def _load_reconstruction(
-            self,
-            path: str,
-            centre: bool = False,
-            isosurface: float = None
+        self, path: str, centre: bool = False, isosurface: float = None
     ) -> np.ndarray:
         with CXIFile(path, "r") as cxi:
             reconstruction = cxi["entry_1/data_1/data"][0]
@@ -1577,11 +1588,13 @@ reconstruction (best solution)."""
             # if 1D, make it 3D
             if isinstance(
                 self.params["voxel_size"],
-                (float, int, np.floating, np.integer)
+                (float, int, np.floating, np.integer),
             ):
-                self.params["voxel_size"] = tuple(np.repeat(
-                    self.params["voxel_size"], self.reconstruction.ndim
-                ))
+                self.params["voxel_size"] = tuple(
+                    np.repeat(
+                        self.params["voxel_size"], self.reconstruction.ndim
+                    )
+                )
             if self.params["orientation_convention"].lower() == "cxi":
                 # Set the direct space interpolator voxel size with XU
                 # convention.
@@ -1602,7 +1615,7 @@ reconstruction (best solution)."""
                 "process",
                 description=msg,
                 comment="Data post-processing",
-                command="cdiutils.BcdiPipeline.postprocess()"
+                command="cdiutils.BcdiPipeline.postprocess()",
             )
             cxi.softlink(f"{path}/program", "/creator")
             cxi.softlink(f"{path}/version", "/version")
@@ -1614,7 +1627,7 @@ reconstruction (best solution)."""
                     self.extra_info["voxel_size_from_extent"]
                 ),
                 voxel_size=self.params["voxel_size"],
-                units="nm"
+                units="nm",
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
@@ -1628,7 +1641,7 @@ reconstruction (best solution)."""
             path = cxi.create_cxi_group(
                 "result",
                 description="Oversampling estimation",
-                oversampling_ratios=self.extra_info["oversampling_ratios"]
+                oversampling_ratios=self.extra_info["oversampling_ratios"],
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
@@ -1639,7 +1652,7 @@ reconstruction (best solution)."""
                 lattice_parameter=self.extra_info[
                     "averaged_lattice_parameter"
                 ],
-                units="angstrom"
+                units="angstrom",
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
@@ -1648,7 +1661,7 @@ reconstruction (best solution)."""
                 description="Strain statistics",
                 strain_averages=self.extra_info["strain_means"],
                 strain_fwhms=self.extra_info["strain_fwhms"],
-                units="%"
+                units="%",
             )
             cxi.softlink(f"{path}/process_1", "entry_1/process_1")
 
@@ -1657,7 +1670,10 @@ reconstruction (best solution)."""
             if os.path.isfile(prep_path):
                 with CXIFile(prep_path, "r") as f:
                     for group in (
-                            "detector_1", "geometry_1", "sample_1", "source_1"
+                        "detector_1",
+                        "geometry_1",
+                        "sample_1",
+                        "source_1",
                     ):
                         try:
                             f.copy(
@@ -1675,14 +1691,14 @@ reconstruction (best solution)."""
                         data=data,
                         data_space="Direct space",
                         title=key,
-                        process_1="process_1"
+                        process_1="process_1",
                     )
                     cxi.softlink(f"entry_1/{key}", path)
 
         # save as npz
         np.savez_compressed(
             f"{self.dump_dir}/S{self.scan}_structural_properties.npz",
-            **self.structural_props
+            **self.structural_props,
         )
 
         # Save as vti
@@ -1690,9 +1706,14 @@ reconstruction (best solution)."""
             to_save_as_vti = {
                 k: self.structural_props[k]
                 for k in [
-                    "amplitude", "support", "phase", "displacement",
-                    "het_strain", "het_strain_from_dspacing",
-                    "lattice_parameter", "dspacing"
+                    "amplitude",
+                    "support",
+                    "phase",
+                    "displacement",
+                    "het_strain",
+                    "het_strain_from_dspacing",
+                    "lattice_parameter",
+                    "dspacing",
                 ]
             }
             to_save_as_vti["amplitude"] = normalise(
@@ -1703,13 +1724,16 @@ reconstruction (best solution)."""
             # the NP to avoid nan values that are annoying for 3D
             # visualisation
             for k in (
-                    "het_strain", "het_strain_from_dspacing", "dspacing",
-                    "lattice_parameter", "displacement"
+                "het_strain",
+                "het_strain_from_dspacing",
+                "dspacing",
+                "lattice_parameter",
+                "displacement",
             ):
                 to_save_as_vti[k] = np.where(
                     np.isnan(to_save_as_vti[k]),
                     np.nanmean(to_save_as_vti[k]),
-                    to_save_as_vti[k]
+                    to_save_as_vti[k],
                 )
 
             # save to vti file
@@ -1719,7 +1743,7 @@ reconstruction (best solution)."""
                 cxi_convention=(
                     self.params["orientation_convention"].lower() == "cxi"
                 ),
-                **to_save_as_vti
+                **to_save_as_vti,
             )
         else:
             self.logger.info(
