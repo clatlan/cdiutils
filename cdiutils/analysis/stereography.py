@@ -20,7 +20,7 @@ def pole_figure(
         intensity: np.ndarray,
         grid: list,
         axis: str = "2",
-        radius_mean: float = None,
+        radius: float = None,
         dr: float = None,
         resolution: int = 250,
         figsize: tuple = (4, 4),
@@ -63,12 +63,12 @@ def pole_figure(
             Defaults to "2", giving the standard upper hemisphere
             projection onto the xy-plane.
 
-        radius_mean (float, optional): Radius of the spherical shell to
+        radius (float, optional): Radius of the spherical shell to
             select data from, centered at origin.
             If None, uses 0.25 * the maximum radial distance in the data
             Defaults to None.
         dr (float, optional): Thickness of the spherical shell.
-            If None, uses 0.01 * radius_mean. Defaults to None.
+            If None, uses 0.01 * radius. Defaults to None.
         resolution (int, optional): Resolution of the output 2D grid
             (number of points per dimension). Defaults to 250.
         figsize(tuple, optional): Size of the figure. Defaults to
@@ -144,20 +144,20 @@ def pole_figure(
     ))
 
     # set default radius and thickness if not provided
-    if radius_mean is None:
-        radius_mean = 0.25 * np.max(radii)  # A quarter of the max radius
+    if radius is None:
+        radius = 0.25 * np.max(radii)  # A quarter of the max radius
     if dr is None:
-        dr = 0.01 * radius_mean
+        dr = 0.01 * radius
 
     if verbose:
         print(
-            f"Selected radius: {radius_mean:.3f} and spherical "
+            f"Selected radius: {radius:.3f} and spherical "
             f"shell thickness: {dr:.5f}"
         )
 
     shell_mask = np.logical_and(
-        radii > (radius_mean - dr/2),
-        radii < (radius_mean + dr/2)
+        radii > (radius - dr/2),
+        radii < (radius + dr/2)
     )
 
     # plot the filtered data if requested
@@ -207,7 +207,7 @@ def pole_figure(
     if shell_intensity.size == 0:
         raise ValueError(
             "No data points found in the specified radius shell. "
-            "Try adjusting radius_mean or dr."
+            "Try adjusting radius or dr."
         )
 
     # calculate stereographic projection coordinates
@@ -224,9 +224,9 @@ def pole_figure(
     # for upper hemisphere, project from south pole (opposite pole)
     # for lower hemisphere, project from north pole (opposite pole)
     if select_upper_hemisphere:
-        denominator = radius_mean + masked_coordinates[projection_axis]
+        denominator = radius + masked_coordinates[projection_axis]
     else:
-        denominator = radius_mean - masked_coordinates[projection_axis]
+        denominator = radius - masked_coordinates[projection_axis]
 
     # avoid division by zero
     safe_denominator = np.where(
