@@ -88,6 +88,24 @@ def pole_figure(
         tuple: (grid_x, grid_y, projected_intensity): The projected 2D
             grid coordinates and intensity values. Also returns
             (fig, ax): The figure and axis objects.
+    
+    Example:
+        >>> from cdiutils.analysis import pole_figure
+        >>> import numpy as np
+        >>> intensity = np.random.random((100, 100, 100))
+        >>> grid = [np.linspace(-1, 1, 100), np.linspace(-1, 1, 100), np.linspace(-1, 1, 100)]
+
+        >>> (grid_x, grid_y, projected_intensity), (fig, ax) = pole_figure(
+            intensity=intensity,
+            grid=grid,
+            axis="2",
+            radius=0.5,
+            dr=0.01,
+            resolution=300,
+            title="Pole Figure Example",
+            verbose=True
+        )
+        >>> plt.show()
     """
     # parse the axis parameter - handle as a string first
     if not isinstance(axis, str):
