@@ -22,6 +22,7 @@ from .utils import (
 
 __submodules__ = {
     "utils",
+    "analysis",
     "geometry",
     "converter",
     "io",
