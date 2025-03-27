@@ -1,4 +1,6 @@
 # flake8: noqa, E501
+import warnings
+
 import matplotlib
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -560,6 +562,22 @@ def add_colorbar(
                 "mappable."
             )
         mappable = ax.images[0]
+    
+    # check if vmin and vmax from the normalisation object are valid
+    norm = mappable.norm
+    vmin, vmax = norm.vmin, norm.vmax
+     # Handle LogNorm-specific issues
+    if isinstance(norm, matplotlib.colors.LogNorm):
+        if vmin is None or vmax is None or vmin <= 0 or vmax <= 0:
+            warnings.warn(
+                "Invalid vmin or vmax detected for LogNorm. "
+                "LogNorm requires vmin and vmax to be strictly positive. "
+                "Skipping colorbar creation.",
+                UserWarning
+            )
+            return None  # skip colorbar if LogNorm is invalid
+        
+    
     fig = ax.get_figure()
     cax = make_axes_locatable(ax).append_axes(loc, size=size, pad=pad)
     cax.tick_params(labelsize=label_size)
