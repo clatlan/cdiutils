@@ -308,6 +308,55 @@ class Loader(ABC):
             "the provided angles dictionary."
         )
 
+    @staticmethod
+    def format_scanned_counters(
+            *counters: float | np.ndarray | list,
+            scan_axis_roi: tuple[slice] = None,
+            rocking_angle_binning: int = None,
+    ):
+        """
+        Format scanned counters (e.g., angles, energy, or other motor
+        positions). Handles ROI selection and binning for scanned data.
+
+        Args:
+            counters (float | np.ndarray | list): one or more counters
+                to format.
+            scan_axis_roi (tuple[slice], optional): the region of
+                interest. Defaults to None.
+            rocking_angle_binning (int, optional): binning factor along
+                the rocking curve axis.
+
+        Returns:
+            tuple or single value: if multiple values are provided,
+            returns a tuple of formatted values. If only one value is
+            provided, returns that value directly.
+        """
+
+        formatted_counters = []
+        for counter in counters:
+            if isinstance(counter, (list, np.ndarray)):
+                formatted_counter = np.array(counter)  # ensure it's an ndarray
+
+                # apply binning if required
+                if rocking_angle_binning:
+                    formatted_counter = bin_along_axis(
+                        formatted_counter, rocking_angle_binning, "mean"
+                    )
+
+                # apply ROI slicing if available
+                if scan_axis_roi is not None:
+                    formatted_counter = formatted_counter[scan_axis_roi]
+
+            else:  # handle scalar values (floats)
+                formatted_counter = float(counter)  # ensure it's a float
+
+            formatted_counters.append(formatted_counter)
+
+        if len(formatted_counters) == 1:
+            return formatted_counters[0]
+
+        return tuple(formatted_counters)
+
     @classmethod
     def get_mask(
             cls,

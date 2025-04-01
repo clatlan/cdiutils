@@ -1,10 +1,10 @@
-import warnings
-
+from collections.abc import Mapping  # more flexible than dict
 import numpy as np
+import warnings
 
 from cdiutils.utils import energy_to_wavelength
 
-AUTHORIZED_KEYS = {
+DEFAULT_PIPELINE_PARAMS = {
     # Formerly the "metadata"
     "beamline_setup": "REQUIRED",
     "scan": "REQUIRED",
@@ -54,7 +54,8 @@ AUTHORIZED_KEYS = {
         "support_smooth_width_end": 0.5,
         "support_post_expand": None,  # (-1, 1)
         "support_update_border_n": None,
-        "psf": "pseudo-voigt,0.5,0.1,10",
+        "algorithm": None,
+        "psf": None,  # "pseudo-voigt,0.5,0.1,10",
         "nb_raar": 500,
         "nb_hio": 300,
         "nb_er": 200,
@@ -68,9 +69,6 @@ AUTHORIZED_KEYS = {
         "beta": 0.9,
         "detwin": True,
         "rebin": "1, 1, 1",
-        "detector_distance": None,
-        "pixel_size_detector": None,
-        "wavelength": None,
         "verbose": 100,
         "output_format": "cxi",
         "live_plot": False,
@@ -96,6 +94,105 @@ AUTHORIZED_KEYS = {
         "size": 10,
     }
 }
+
+
+# cache the valid keys once, instead of recomputing every time
+_VALID_KEYS_CACHE = None  # global variable to store keys
+
+
+def validate_and_fill_params(
+        user_params: dict,
+        defaults: dict = DEFAULT_PIPELINE_PARAMS
+) -> dict:
+    """
+    Validate user parameters against DEFAULT_PIPELINE_PARAMS. Ensures
+    required parameters are present and fills in missing optional ones.
+
+    Args:
+        user_params (dict): dict of user-provided parameters.
+        defaults (dict, optional): default pipeline parameters (can be
+            nested). Defaults to DEFAULT_PIPELINE_PARAMS.
+
+    Raises:
+        ValueError: if a required parameter is missing.
+
+    Returns:
+        dict: new dictionary with defaults filled in
+    """
+    filled_params = {}
+
+    for key, default in defaults.items():
+        user_value = user_params.get(key, None)
+
+        # handle nested dictionaries recursively
+        if isinstance(default, Mapping):
+            if user_value is None:
+                user_value = {}  # create an empty dict if missing
+            filled_params[key] = validate_and_fill_params(user_value, default)
+
+        # check for required parameters
+        elif default == "REQUIRED" and user_value is None:
+            raise ValueError(f"Missing required parameter: '{key}'")
+
+        # use user value or fallback to default
+        else:
+            filled_params[key] = (
+                user_value if user_value is not None else default
+            )
+
+    # warn for unexpected parameters
+    known_keys = set(defaults.keys())  # optimised for membership tests
+    for key in user_params:
+        if key not in known_keys:
+            warnings.warn(
+                f"Parameter '{key}' is unknown and will not be used.",
+                UserWarning
+            )
+
+    return filled_params
+
+
+def collect_keys(d: dict) -> set:
+    """Recursively collect all keys from a nested dictionary."""
+    keys = set(d.keys())
+    for value in d.values():
+        if isinstance(value, Mapping):
+            keys |= collect_keys(value)
+    return keys
+
+
+def isparameter(string: str) -> bool:
+    """
+    Check if a string is a valid parameter name in
+    DEFAULT_PIPELINE_PARAMS.
+    """
+    global _VALID_KEYS_CACHE  # use the global cache
+
+    if _VALID_KEYS_CACHE is None:  # compute only once
+        _VALID_KEYS_CACHE = collect_keys(DEFAULT_PIPELINE_PARAMS)
+
+    return string in _VALID_KEYS_CACHE
+
+
+def get_params_from_variables(
+            dir_list: list,
+            globals_dict: dict
+) -> dict:
+    """
+    Return a dictionary of parameters whose keys are authorized by the
+    DEFAULT_PIPELINE_PARAMS list.
+    """
+    params = {"pynx": {}, "facets": {}, "support": {}}
+    for e in dir_list:
+        if e in DEFAULT_PIPELINE_PARAMS:
+            params[e] = globals_dict[e]
+        elif e in DEFAULT_PIPELINE_PARAMS["pynx"]:
+            params["pynx"][e] = globals_dict[e]
+        elif e in DEFAULT_PIPELINE_PARAMS["facets"]:
+            params["facets"][e] = globals_dict[e]
+        elif e in DEFAULT_PIPELINE_PARAMS["support"]:
+            params["support"][e] = globals_dict[e]
+    return params
 
 
 def convert_np_arrays(**data) -> dict:
@@ -143,71 +240,3 @@ def convert_np_arrays(**data) -> dict:
     return {
         key: convert_value(value) for key, value in data.items()
     }
-
-
-def check_params(params: dict) -> None:
-    """
-    Check parameters given by user, handle when parameters are
-    required or not provided.
-    """
-    for name, value in AUTHORIZED_KEYS.items():
-        if name not in params or params[name] is None:
-            if value == "REQUIRED":
-                raise ValueError(f"Parameter '{name}' is required.")
-            params.update({name: value})
-
-    for subdict in ("pynx", "support", "facets"):
-        for name, value in AUTHORIZED_KEYS[subdict].items():
-            if name not in params[subdict] or params[subdict][name] is None:
-                # None of these parameters are required.
-                params[subdict].update({name: value})
-        for name in params[subdict]:
-            if not isparameter(name):
-                warnings.warn(
-                    f"Parameter '{name}' is unknown, will not be used")
-    for name in params:
-        if not isparameter(name):
-            warnings.warn(
-                f"Parameter '{name}' is unknown, will not be used."
-            )
-
-
-def fill_pynx_params(params: dict) -> None:
-    params["pynx"]["pixel_size_detector"] = (
-        params["det_calib_params"]["pwidth1"]
-    )
-    params["pynx"]["detector_distance"] = (
-        params["det_calib_params"]["distance"]
-    )
-    params["pynx"]["wavelength"] = energy_to_wavelength(
-        params["energy"]
-    )
-
-
-def isparameter(string: str):
-    """Return whether or not the given string is in AUTHORIZED_KEYS."""
-    authorised = list(AUTHORIZED_KEYS.keys())
-    for key in ("pynx", "support", "facets"):
-        authorised += list(AUTHORIZED_KEYS[key].keys())
-    return string in authorised
-
-
-def get_params_from_variables(
-            dir_list: list,
-            globals_dict: dict
-) -> dict:
-    """
-    Return a dictionary of parameters whose keys are authorized by the
-    AUTHORIZED_KEYS list.
-    """
-    params = {"pynx": {}, "facets": {}, "support": {}}
-    for e in dir_list:
-        if e in AUTHORIZED_KEYS:
-            params[e] = globals_dict[e]
-        elif e in AUTHORIZED_KEYS["pynx"]:
-            params["pynx"][e] = globals_dict[e]
-        elif e in AUTHORIZED_KEYS["facets"]:
-            params["facets"][e] = globals_dict[e]
-        elif e in AUTHORIZED_KEYS["support"]:
-            params["support"][e] = globals_dict[e]
-    return params

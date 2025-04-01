@@ -71,6 +71,13 @@ exclude = ["images"]
     "examples/detector_calibration.ipynb"
 ]
 
+[tool.black]
+line-length = 79
+
+[tool.ruff]
+line-length = 79
+extend-include = ["*.ipynb"]
+
 
 [project.scripts]
 prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"

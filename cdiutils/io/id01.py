@@ -205,49 +205,45 @@ class ID01Loader(H5TypeLoader):
 
         Args:
             scan (int, optional): the scan number. Defaults to None.
-            sample_name (str, optional): the sample name.
-                Defaults to None.
+            sample_name (str, optional): the sample name. Defaults to
+                None.
             roi (tuple[slice], optional): the region of interest.
                 Defaults to None.
-            rocking_angle_binning (int, optional): the factor for the
-                binning along the rocking curve axis. Defaults to None.
+            rocking_angle_binning (int, optional): binning factor along
+                the rocking curve axis. Defaults to None.
 
         Returns:
-            dict: the four diffractometer angles.
+            dict: the formatted diffractometer angles.
         """
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         angles = self.load_angles(
             key_path=f"{sample_name}_{scan}.1/instrument/positioners/"
         )
 
+        # ensure angles dictionary has correct keys and defaults to 0.0
+        # if missing
         formatted_angles = {
-            key: angles[name] if angles.get(name) is not None else 0.
+            key: angles.get(name, 0.0)
             for key, name in ID01Loader.angle_names.items()
         }
         try:
             self.rocking_angle = self.get_rocking_angle(formatted_angles)
         except ValueError:
-            print(
-                "No rocking angle found. Will return the raw angles with no "
-                "binning nor cropping."
-            )
-            return formatted_angles
-        if rocking_angle_binning:
+            print("No rocking angle found.")
 
-            formatted_angles[
-                self.rocking_angle
-            ] = self.bin_rocking_angle_values(
-                formatted_angles[self.rocking_angle], rocking_angle_binning
-            )
-        # take care of the roi
-        roi = self._check_roi(roi)
-        roi = roi[0]
+        scan_axis_roi = self._check_roi(roi)[0]
 
-        formatted_angles[
-            self.rocking_angle
-        ] = formatted_angles[self.rocking_angle][roi]
+        # format the angles and map them back to their corresponding keys
+        formatted_values = self.format_scanned_counters(
+            *formatted_angles.values(),
+            scan_axis_roi=scan_axis_roi,
+            rocking_angle_binning=rocking_angle_binning
+        )
 
-        return formatted_angles
+        # return a dictionary mapping original angle keys to their
+        # formatted values. This is possible because Python maintains
+        # order !
+        return dict(zip(formatted_angles.keys(), formatted_values))
 
     @h5_safe_load
     def load_energy(
@@ -258,7 +254,10 @@ class ID01Loader(H5TypeLoader):
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
         try:
-            return float(self.h5file[key_path + "mononrj"][()] * 1e3)
+            energy = self.h5file[key_path + "mononrj"][()] * 1e3
+            if isinstance(energy, np.ndarray):
+                return energy
+            return float(energy)
         except KeyError:
             warnings.warn(f"Energy not found at {key_path + 'mononrj'}. ")
             return None
