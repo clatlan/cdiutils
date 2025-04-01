@@ -38,7 +38,7 @@ from cdiutils.utils import (
 
 # Plot functions.
 from .pipeline_plotter import PipelinePlotter
-from cdiutils.plot.stats import strain_statistics
+from cdiutils.analysis.stats import strain_statistics
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 from cdiutils.plot.slice import plot_volume_slices
