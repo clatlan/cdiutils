@@ -63,23 +63,19 @@ class ID01Loader(H5TypeLoader):
         self.h5file = self.h5file
         key_path = self.sample_name + "_1.1/measurement/"
         detector_names = []
-        try:
-            for key in self.h5file[key_path]:
-                if key in self.authorised_detector_names:
-                    detector_names.append(key)
-        except KeyError as e:
-            raise KeyError(
-                "Could not load detector name, because something went "
-                "wrong with the first scan of the dataset."
-            ) from e
+        for key in self.authorised_detector_names:
+            if key in self.h5file[key_path]:
+                detector_names.append(key)
+        msg = "Please provide a detector_name (str)."
         if len(detector_names) == 0:
             raise ValueError(
-                f"No detector name found in {self.authorised_detector_names}"
+                f"No detector name found in {self.authorised_detector_names}\n"
+                f"{msg}"
             )
         if len(detector_names) > 1:
             raise ValueError(
                 f"Several detector names found ({detector_names}).\n"
-                "Not handled yet."
+                f"Not handled yet.\n{msg}"
             )
         return detector_names[0]
 
