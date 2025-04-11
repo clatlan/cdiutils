@@ -2,7 +2,7 @@ import inspect
 import warnings
 
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
+from scipy.fft import fftshift, ifftshift, fft2, ifft2, fftn
 import matplotlib
 import seaborn as sns
 import scipy.constants as cts
@@ -211,6 +211,129 @@ def wavelength_to_energy(wavelength: float) -> float:
         float: the energy in eV.
     """
     return (cts.c * cts.h) / (cts.e * wavelength)
+
+
+def fill_up_support(support: np.ndarray) -> np.ndarray:
+    """
+    Fill up the support using the convex hull of the support.
+
+    Args:
+        support (np.ndarray): The binary support array to fill up.
+
+    Returns:
+        np.ndarray: The filled support array.
+    """
+    convex_support = np.zeros(support.shape)
+
+    for axis in range(support.ndim):
+        cumulative_sum = np.cumsum(support, axis=axis)
+        reversed_cumulative_sum = np.flip(
+            np.cumsum(np.flip(support, axis=axis), axis=axis),
+            axis=axis
+        )
+        combined_support = cumulative_sum * reversed_cumulative_sum
+        convex_support[combined_support != 0] = 1
+
+    return convex_support
+
+
+def angular_spectrum_propagation(
+        wavefront: np.ndarray,
+        z: float,
+        wavelength: float,
+        dx: float,
+        m: float = 1,
+        verbose: bool = False
+) -> np.ndarray:
+    """
+    Computes the near-field propagation of a wavefront using the Angular
+    Spectrum Method.
+
+    Parameters:
+        wavefront (np.ndarray): 2D or 3D complex array representing the
+            wavefront, assumed to be fftshifted.
+        z (float): Propagation distance.
+        wavelength (float): Wavelength of the wavefront.
+        dx (float): Pixel size in the spatial domain.
+        m (float, optional): Magnification factor to handle the pixel
+            size of the propagated wavefront (default is 1).
+        verbose (bool): whether to print z limits. 
+
+    Returns:
+        np.ndarray: Propagated wavefront at distance z.
+    """
+    if z == 0:
+        return wavefront
+
+    # Handle 2D and 3D input wavefronts
+    if wavefront.ndim == 2:
+        # Convert 2D to 3D with one slice
+        wavefront_stack = wavefront[np.newaxis, ...]
+    elif wavefront.ndim == 3:
+        wavefront_stack = wavefront
+    else:
+        raise ValueError("Input wavefront must be a 2D or 3D array.")
+
+    nz, ny, nx = wavefront_stack.shape
+
+    min_dist = max(abs((m - 1) / m), abs(m - 1)) * nx * dx ** 2 / wavelength
+    max_dist = abs(m) * nx * dx ** 2 / wavelength
+
+    if verbose:
+        print(
+            "Near field magnified propagation: "
+            f"{min_dist:.4e} < |{z=:.4e}| < {max_dist:.4e}?"
+        )
+
+    # Spatial coordinates in the source plane
+    x = fftshift(np.arange(-nx//2, nx//2) * dx)
+    y = fftshift(np.arange(-ny//2, ny//2) * dx)
+    Y, X = np.meshgrid(x, y, indexing="ij")
+
+    # Spatial frequency coordinates (or Fourier coordinates)
+    fx = np.fft.fftfreq(nx, dx)
+    fy = np.fft.fftfreq(ny, dx)
+    FY, FX = np.meshgrid(fx, fy, indexing="ij")
+
+    # Quadratic phase factor in the source plane
+    Q1 = np.exp(1j * np.pi / (wavelength * z) * (1 - m) * (X**2 + Y**2))
+
+    # Propagation kernel in the Fourier domain
+    Q2 = np.exp(-1j * np.pi * wavelength * z / m * (FX**2 + FY**2))
+
+    # Quadratic phase factor in the observation plane
+    Q3 = np.exp(1j * np.pi / (wavelength * z) * (m - 1) * m * (X**2 + Y**2))
+
+    # Initialise the output array for the propagated wavefront
+    propagated_wavefront = np.zeros_like(wavefront_stack, dtype=complex)
+
+    # Process each 2D slice in the stack
+    for j in range(nz):
+        wavefront_slice = wavefront_stack[j, :, :]
+
+        # Apply the source plane quadratic phase (Q1)
+        wavefront_mod = wavefront_slice * Q1
+
+        # Fourier transform of the modified wavefront slice
+        wavefront_ft = fft2(wavefront_mod, norm="ortho")
+
+        # Apply the propagation kernel (Q2)
+        wavefront_ft_propagated = wavefront_ft * Q2
+
+        # Inverse Fourier transform to get the propagated wavefront
+        propagated_slice = ifft2(wavefront_ft_propagated, norm="ortho")
+
+        # Apply the observation plane quadratic phase (Q3)
+        propagated_slice = propagated_slice * Q3
+
+        # Store the result in the output array
+        propagated_wavefront[j, :, :] = propagated_slice
+
+    # If the input was 2D, return a 2D array
+    if wavefront.ndim == 2:
+        return np.squeeze(propagated_wavefront)
+
+    return propagated_wavefront
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
