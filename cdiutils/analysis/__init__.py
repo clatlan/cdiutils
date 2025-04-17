@@ -1,7 +1,8 @@
-from .stats import strain_statistics
+from .stats import get_histogram, plot_histogram
 from .stereography import pole_figure
 
 __all__ = [
-    "strain_statistics",
+    "get_histogram",
+    "plot_histogram",
     "pole_figure"
 ]

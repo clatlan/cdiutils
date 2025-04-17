@@ -11,6 +11,7 @@ from cdiutils.plot.formatting import (
     white_interior_ticks_labels
 )
 from cdiutils.plot.slice import plot_contour, plot_volume_slices
+from cdiutils.analysis.stats import get_histogram, plot_histogram
 
 
 class PipelinePlotter:
@@ -470,3 +471,151 @@ class PipelinePlotter:
         if save is not None:
             save_fig(fig, save, transparent=False)
         return fig, axes
+
+    @staticmethod
+    def strain_statistics(
+            strain: np.ndarray,
+            support: np.ndarray,
+            bins: np.ndarray | int = 50,
+            colors: dict = None,
+            title: str = "",
+            save: str = None
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot a strain statistics graph displaying distribution of strain
+        for the overall object, the bulk or the surface of the object.
+
+        Args:
+            strain (np.ndarray): the strain data.
+            support (np.ndarray): the associated support.
+            bins (np.ndarray | int, optional): the bins as accepted in
+                numpy.histogram function. Defaults to 50.
+            colors (dict, optional): the dictionary of colours.
+                Defaults to None.
+            title (str, optional): the title of the figure.
+            save: (str, optional): the path where to save the figure.
+
+        Returns:
+            tuple[plt.Figure, plt.Axes]: the figure and axes.
+        """
+        # Get the histograms with density=False to get counts
+        histograms, kdes, means, _ = get_histogram(
+                data=strain,
+                support=support,
+                bins=bins,
+                density=False,
+                region="all"
+        )
+
+        # Get the histogram with density=True to get probability density
+        density_histograms, density_kdes, density_means, _ = get_histogram(
+            data=strain,
+            support=support,
+            bins=bins,
+            density=True,
+            region="all"
+        )
+        # Update the histograms, kdes and means dictionnary
+        histograms["bulk_density"] = density_histograms["bulk"]
+        histograms["surface_density"] = density_histograms["surface"]
+        kdes["bulk_density"] = density_kdes["bulk"]
+        kdes["surface_density"] = density_kdes["surface"]
+        means["bulk_density"] = density_means["bulk"]
+        means["surface_density"] = density_means["surface"]
+
+        if colors is None:
+            colors = {
+                "overall": "lightcoral",
+                "bulk": "orange",
+                "bulk_density": "orange",
+                "surface": "dodgerblue",
+                "surface_density": "dodgerblue",
+            }
+        mosaic = """ABC
+        DDD"""
+        figure, axes = plt.subplot_mosaic(
+            mosaic, layout="tight", figsize=(6, 4)
+        )
+        fwhms = {}
+        # First plot the three histograms separately
+        for e, key in zip(("overall", "bulk", "surface"), ("A", "B", "C")):
+            fwhms[e] = plot_histogram(
+                axes[key], *histograms[e], *kdes[e], color=colors[e],
+                bar_args={"edgecolor": "w"},
+                kde_args={
+                    "fill": True, "fill_alpha": 0.45, "color": "k", "lw": 0.2
+                },
+            )
+
+            # Plot the mean
+            axes[key].plot(
+                means[e], 0, color=colors[e], ms=4,
+                markeredgecolor="k", marker="o", mew=0.5,
+                label=f"Mean = {means[e]:.4f} %"
+            )
+
+        # Plot the density histograms for bulk and surface on the same subplot
+        for e in ("bulk_density", "surface_density"):
+            fwhms[e] = plot_histogram(
+                axes["D"], *histograms[e], *kdes[e], color=colors[e],
+                bar_args={"edgecolor": "w"},
+                kde_args={
+                    "fill": True, "fill_alpha": 0.45, "color": "k", "lw": 0.2
+                }
+            )
+
+            axes["D"].plot(
+                means[e], 0, color=colors[e], ms=4,
+                markeredgecolor="k", marker="o", mew=0.5,
+                label=f"Mean = {means[e]:.4f} %"
+            )
+
+        for key in (("A", "B", "C")):
+            axes[key].set_ylabel(r"Counts")
+            handles, labels = axes[key].get_legend_handles_labels()
+            handles = handles[1:-1]
+            labels = labels[1:-1]
+            axes[key].legend(
+                handles, labels,
+                frameon=False,
+                loc="upper center",  bbox_to_anchor=(0.25, 0.8, 0.5, 0.5),
+                fontsize=6, markerscale=0.7,
+                ncols=1
+            )
+
+        axes["D"].set_ylabel(r"Normalised counts")
+        handles, labels = axes["D"].get_legend_handles_labels()
+        handles = [handles[i] for i in [1, 2, 4, 5]]
+        labels = [labels[i] for i in [1, 2, 4, 5]]
+        # Shrink current axis by 20%
+        box = axes["D"].get_position()
+        axes["D"].set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        axes["D"].legend(
+            handles, labels,
+            frameon=False,
+            loc="center left", bbox_to_anchor=(1, 0.5),
+            # loc="right", bbox_to_anchor=(1.5, 0.25, 0.5, 0.5),
+            fontsize=6, markerscale=0.7
+        )
+        axes["D"].set_title("Density distributions")
+
+        axes["A"].set_xlabel(
+            r"Overall strain, $\varepsilon$ (%)", color=colors["overall"]
+        )
+        axes["B"].set_xlabel(
+            r"Bulk strain, $\varepsilon_{\text{bulk}}$ (%)",
+            color=colors["bulk"]
+        )
+        axes["C"].set_xlabel(
+            r"Surface strain, $\varepsilon_{\text{surface}}$ (%)",
+            color=colors["surface"]
+        )
+        axes["D"].set_xlabel(
+            r"$\varepsilon_{\text{bulk}}$, $\varepsilon_{\text{surface}}$ (%)"
+        )
+
+        figure.suptitle(title)
+        if save:
+            save_fig(figure, path=save, transparent=False)
+
+        return figure, axes, means, fwhms
