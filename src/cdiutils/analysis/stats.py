@@ -135,7 +135,7 @@ def find_isosurface(
     left_HM_index = max_index - (right_HM_index - max_index)
 
     fwhm = x[right_HM_index] - x[left_HM_index]
-    sigma_estimate = fwhm / 2*np.sqrt(2*np.log(2))
+    sigma_estimate = fwhm / (2 * np.sqrt(2 * np.log(2)))
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
     if plot or show:
