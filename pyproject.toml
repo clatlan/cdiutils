@@ -71,6 +71,9 @@ package-dir = {"" = "src"}
     "../examples/detector_calibration.ipynb"
 ]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.black]
 line-length = 79
 
@@ -80,7 +83,7 @@ extend-include = ["*.ipynb"]
 
 
 [project.scripts]
-prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"
-prepare_detector_calibration = "scripts.prepare_detector_calibration:main"
+prepare_bcdi_notebooks = "cdiutils.scripts.prepare_bcdi_notebooks:main"
+prepare_detector_calibration = "cdiutils.scripts.prepare_detector_calibration:main"
 
 
