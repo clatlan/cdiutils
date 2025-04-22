@@ -2,14 +2,10 @@ import inspect
 import warnings
 
 import numpy as np
-from numpy.fft import fftn, fftshift, ifftshift
+from scipy.fft import fftshift, ifftshift, fft2, ifft2, fftn
 import matplotlib
-import seaborn as sns
 import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
-from scipy.stats import gaussian_kde
-
-from cdiutils.plot.formatting import save_fig
 
 
 def bin_along_axis(
@@ -211,6 +207,129 @@ def wavelength_to_energy(wavelength: float) -> float:
         float: the energy in eV.
     """
     return (cts.c * cts.h) / (cts.e * wavelength)
+
+
+def fill_up_support(support: np.ndarray) -> np.ndarray:
+    """
+    Fill up the support using the convex hull of the support.
+
+    Args:
+        support (np.ndarray): The binary support array to fill up.
+
+    Returns:
+        np.ndarray: The filled support array.
+    """
+    convex_support = np.zeros(support.shape)
+
+    for axis in range(support.ndim):
+        cumulative_sum = np.cumsum(support, axis=axis)
+        reversed_cumulative_sum = np.flip(
+            np.cumsum(np.flip(support, axis=axis), axis=axis),
+            axis=axis
+        )
+        combined_support = cumulative_sum * reversed_cumulative_sum
+        convex_support[combined_support != 0] = 1
+
+    return convex_support
+
+
+def angular_spectrum_propagation(
+        wavefront: np.ndarray,
+        z: float,
+        wavelength: float,
+        dx: float,
+        m: float = 1,
+        verbose: bool = False
+) -> np.ndarray:
+    """
+    Computes the near-field propagation of a wavefront using the Angular
+    Spectrum Method.
+
+    Parameters:
+        wavefront (np.ndarray): 2D or 3D complex array representing the
+            wavefront, assumed to be fftshifted.
+        z (float): Propagation distance.
+        wavelength (float): Wavelength of the wavefront.
+        dx (float): Pixel size in the spatial domain.
+        m (float, optional): Magnification factor to handle the pixel
+            size of the propagated wavefront (default is 1).
+        verbose (bool): whether to print z limits. 
+
+    Returns:
+        np.ndarray: Propagated wavefront at distance z.
+    """
+    if z == 0:
+        return wavefront
+
+    # Handle 2D and 3D input wavefronts
+    if wavefront.ndim == 2:
+        # Convert 2D to 3D with one slice
+        wavefront_stack = wavefront[np.newaxis, ...]
+    elif wavefront.ndim == 3:
+        wavefront_stack = wavefront
+    else:
+        raise ValueError("Input wavefront must be a 2D or 3D array.")
+
+    nz, ny, nx = wavefront_stack.shape
+
+    min_dist = max(abs((m - 1) / m), abs(m - 1)) * nx * dx ** 2 / wavelength
+    max_dist = abs(m) * nx * dx ** 2 / wavelength
+
+    if verbose:
+        print(
+            "Near field magnified propagation: "
+            f"{min_dist:.4e} < |{z=:.4e}| < {max_dist:.4e}?"
+        )
+
+    # Spatial coordinates in the source plane
+    x = fftshift(np.arange(-nx//2, nx//2) * dx)
+    y = fftshift(np.arange(-ny//2, ny//2) * dx)
+    Y, X = np.meshgrid(x, y, indexing="ij")
+
+    # Spatial frequency coordinates (or Fourier coordinates)
+    fx = np.fft.fftfreq(nx, dx)
+    fy = np.fft.fftfreq(ny, dx)
+    FY, FX = np.meshgrid(fx, fy, indexing="ij")
+
+    # Quadratic phase factor in the source plane
+    Q1 = np.exp(1j * np.pi / (wavelength * z) * (1 - m) * (X**2 + Y**2))
+
+    # Propagation kernel in the Fourier domain
+    Q2 = np.exp(-1j * np.pi * wavelength * z / m * (FX**2 + FY**2))
+
+    # Quadratic phase factor in the observation plane
+    Q3 = np.exp(1j * np.pi / (wavelength * z) * (m - 1) * m * (X**2 + Y**2))
+
+    # Initialise the output array for the propagated wavefront
+    propagated_wavefront = np.zeros_like(wavefront_stack, dtype=complex)
+
+    # Process each 2D slice in the stack
+    for j in range(nz):
+        wavefront_slice = wavefront_stack[j, :, :]
+
+        # Apply the source plane quadratic phase (Q1)
+        wavefront_mod = wavefront_slice * Q1
+
+        # Fourier transform of the modified wavefront slice
+        wavefront_ft = fft2(wavefront_mod, norm="ortho")
+
+        # Apply the propagation kernel (Q2)
+        wavefront_ft_propagated = wavefront_ft * Q2
+
+        # Inverse Fourier transform to get the propagated wavefront
+        propagated_slice = ifft2(wavefront_ft_propagated, norm="ortho")
+
+        # Apply the observation plane quadratic phase (Q3)
+        propagated_slice = propagated_slice * Q3
+
+        # Store the result in the output array
+        propagated_wavefront[j, :, :] = propagated_slice
+
+    # If the input was 2D, return a 2D array
+    if wavefront.ndim == 2:
+        return np.squeeze(propagated_wavefront)
+
+    return propagated_wavefront
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
@@ -979,115 +1098,6 @@ def extract_reduced_shape(
     return shape
 
 
-def find_isosurface(
-        amplitude: np.ndarray,
-        nbins: int = 100,
-        sigma_criterion: float = 3,
-        plot: bool = False,
-        show: bool = False,
-        save: str = None
-) -> tuple[float, matplotlib.axes.Axes] | float:
-    """
-    Estimate the isosurface from the amplitude distribution
-
-    :param amplitude: the 3D amplitude volume (np.array)
-    :param nbins: the number of bins to considerate when making the
-    histogram (optional, int)
-    :param sigma_criterion: the factor to compute the isosurface which is
-    calculated as: mu - sigma_criterion * sigma. By default set to 3.
-    (optional, float)
-    :param show: whether or not to show the the figure
-    :param save: where to save the figure is plotted
-
-    :return: the isosurface value and the figure in which the histogram
-    was plotted
-    """
-    # normalise and flatten the amplitude
-    flattened_amplitude = normalise(amplitude).ravel()
-
-    counts, bins = np.histogram(flattened_amplitude, bins=nbins)
-
-    # remove the background
-    background_value = bins[
-        np.where(counts == counts.max())[0] + 1 + nbins//20
-    ]
-    filtered_amplitude = flattened_amplitude[
-        flattened_amplitude > background_value
-    ]
-
-    # redo the histogram with the filtered amplitude
-    counts, bins = np.histogram(filtered_amplitude, bins=nbins, density=True)
-    bin_centres = (bins[:-1] + bins[1:]) / 2
-    bin_size = bin_centres[1] - bin_centres[0]
-
-    # fit the amplitude distribution
-    kernel = gaussian_kde(filtered_amplitude)
-    x = np.linspace(0, 1, 1000)
-    fitted_counts = kernel(x)
-
-    max_index = np.argmax(fitted_counts)
-    right_gaussian_part = np.where(x >= x[max_index], fitted_counts, 0)
-
-    # find the closest indexes
-    right_HM_index = np.argmin(
-        np.abs(right_gaussian_part - fitted_counts.max() / 2)
-    )
-    left_HM_index = max_index - (right_HM_index - max_index)
-
-    fwhm = x[right_HM_index] - x[left_HM_index]
-    sigma_estimate = fwhm / 2*np.sqrt(2*np.log(2))
-    isosurface = x[max_index] - sigma_criterion * sigma_estimate
-
-    if plot or show:
-        figsize = (6, 4)  # (5.812, 3.592)  # golden ratio
-        fig, ax = matplotlib.pyplot.subplots(1, 1, layout="tight", figsize=figsize)
-        ax.bar(
-            bin_centres,
-            counts,
-            width=bin_size,
-            color="dodgerblue",
-            alpha=0.9,
-            edgecolor=(0, 0, 0, 0.25),
-            label=r"amplitude distribution"
-        )
-        sns.kdeplot(
-            filtered_amplitude,
-            ax=ax,
-            alpha=0.3,
-            fill=True,
-            color="navy",
-            label=r"density estimate"
-        )
-        ax.axvspan(
-            x[left_HM_index],
-            x[right_HM_index],
-            edgecolor="k",
-            facecolor="green",
-            alpha=0.2,
-            label="FWHM"
-        )
-        ax.plot(
-            [isosurface, isosurface],
-            [0, fitted_counts[(np.abs(x - isosurface)).argmin()]],
-            solid_capstyle="round",
-            color="lightcoral",
-            lw=5,
-            label=fr"isosurface estimated at {isosurface:0.3f}"
-        )
-
-        ax.set_xlabel(r"normalised amplitude")
-        ax.set_ylabel("counts")
-        ax.legend(frameon=False)
-        fig.suptitle(r"Reconstructed amplitude distribution")
-        fig.tight_layout()
-        if save is not None:
-            save_fig(fig, save, transparent=False)
-        if show:
-            matplotlib.pyplot.show()
-        return float(isosurface), fig
-    return float(isosurface)
-
-
 def get_oversampling_ratios(
     support: np.ndarray = None,
     direct_space_object: np.ndarray = None,
@@ -1236,65 +1246,6 @@ def hot_pixel_filter(
     mask = data < threshold * (data_median + 1)
     cleaned_data = data * mask
     return cleaned_data, np.logical_not(mask)
-
-
-def kde_from_histogram(
-        counts: np.ndarray,
-        bin_edges: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Compute the Kernel Density Estimate (KDE) from histogram counts and
-    bin edges provided by numpy.histogram function.
-
-    Args:
-        counts (np.ndarray): the number of elements in each bin.
-        bin_edges (np.ndarray): the limits of each bin.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: x values used to compute the KDE
-            estimate, the y value (KDE estimate)
-    """
-    # Check if the histogram is density or not by checking the sum of
-    # the counts
-    bin_widths = np.diff(bin_edges)
-    is_density = np.isclose(np.sum(counts * bin_widths), 1.0)
-
-    if is_density:
-        # When density=True, use the bin edges to reconstruct the data
-        # for KDE
-        data = []
-        for count, left_edge, right_edge in zip(
-                counts, bin_edges[:-1], bin_edges[1:]
-        ):
-            data.extend(
-                np.random.uniform(
-                    left_edge,
-                    right_edge,
-                    int(count * len(counts) * (right_edge - left_edge))
-                )
-            )
-        data = np.array(data)
-
-        kde = gaussian_kde(data)
-        x = np.linspace(min(bin_edges), max(bin_edges))
-        y = kde(x)
-
-    else:
-        # Reconstruct the data from histogram counts and bin edges
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-        bin_width = bin_edges[1] - bin_edges[0]
-        reconstructed_data = np.repeat(bin_centers, counts)
-
-        # Calculate KDE using the reconstructed data
-        kde = gaussian_kde(reconstructed_data)
-        # Evaluate KDE
-        x = np.linspace(bin_edges.min(), bin_edges.max())
-        y = kde.pdf(x)
-
-        # Scale the KDE values to match the original counts
-        y *= len(reconstructed_data) * bin_width
-
-    return x, y
 
 
 def valid_args_only(params: dict, function: callable) -> dict:

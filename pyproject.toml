@@ -58,18 +58,19 @@ vtk = ["vtk>=9.0.1"]
 Homepage = "https://github.com/clatlan/cdiutils"
 
 
-[tool.setuptools.packages.find]
-where = ["."]  # list of folders that contain the packages (["."] by default)
-exclude = ["images"]
+[tool.setuptools]
+packages = ["cdiutils"]
+package-dir = {"" = "src"}
 
 
 [tool.setuptools.package-data]
 "cdiutils" = [
     "pipeline/pynx-id01-cdi_template.slurm",
-    "examples/bcdi_pipeline.ipynb",
-    "examples/step_by_step_bcdi_analysis.ipynb",
-    "examples/detector_calibration.ipynb"
+    "templates/bcdi_pipeline.ipynb",
+    "templates/step_by_step_bcdi_analysis.ipynb",
+    "templates/detector_calibration.ipynb"
 ]
+
 
 [tool.black]
 line-length = 79
@@ -80,7 +81,7 @@ extend-include = ["*.ipynb"]
 
 
 [project.scripts]
-prepare_bcdi_notebooks = "scripts.prepare_bcdi_notebooks:main"
-prepare_detector_calibration = "scripts.prepare_detector_calibration:main"
+prepare_bcdi_notebooks = "cdiutils.scripts.prepare_bcdi_notebooks:main"
+prepare_detector_calibration = "cdiutils.scripts.prepare_detector_calibration:main"
 
 

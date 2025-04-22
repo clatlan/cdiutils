@@ -32,13 +32,13 @@ from cdiutils.utils import (
     ensure_pynx_shape,
     hot_pixel_filter,
     get_oversampling_ratios,
-    find_isosurface,
     normalise,
+    fill_up_support
 )
+from cdiutils.analysis.stats import find_isosurface
 
 # Plot functions.
 from .pipeline_plotter import PipelinePlotter
-from cdiutils.analysis.stats import strain_statistics
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 from cdiutils.plot.slice import plot_volume_slices
@@ -1074,6 +1074,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         self,
         run: int | str = "best",
         output_path: str = None,
+        fill: bool = False,
         verbose: bool = True,
     ) -> None:
         """
@@ -1093,6 +1094,8 @@ retrieval is also computed and will be used in the post-processing stage."""
             output_path (str, optional): the output path to save the
                 support to If None, will save to the `pynx_phasing_dir`.
                 Defaults to None.
+            fill (bool, optional): whether to fill the support if it
+                contains holes.
             verbose (bool, optional): whether to print info and plot the
                 support. Defaults to True.
         """
@@ -1109,6 +1112,9 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         with CXIFile(selected_path) as cxi:
             support = cxi["entry_1/image_1/support"]
+        
+        if fill:
+            filled_support = fill_up_support(support)
 
         if output_path is None:
             output_path = self.pynx_phasing_dir + "support.cxi"
@@ -1116,7 +1122,9 @@ retrieval is also computed and will be used in the post-processing stage."""
         with CXIFile(output_path, "w") as cxi:
             cxi.stamp()
             path = cxi.create_cxi_group("image")
-            cxi.create_cxi_dataset(path + "/mask", support)
+            cxi.create_cxi_dataset(
+                path + "/mask", filled_support if fill else support
+            )
 
         if verbose:
             self.logger.info(
@@ -1124,7 +1132,11 @@ retrieval is also computed and will be used in the post-processing stage."""
                 f"{int(selected_path.split('Run')[1][:4])}, i.e. file:\n"
                 f"{selected_path}\nand saved to:\n{output_path}"
             )
-            plot_volume_slices(support, cmap="gray")
+            plot_volume_slices(support, cmap="gray", title="Support")
+            if fill:
+                plot_volume_slices(
+                    filled_support, cmap="gray", title="Filled support"
+                )
 
     def select_best_candidates(
         self, nb_of_best_sorted_runs: int = None, best_runs: list = None
@@ -1474,7 +1486,7 @@ reconstruction (best solution).""",
             cmap=RED_TO_TEAL,
             **displacement_gradient_plots,
         )
-        _, _, means, fwhms = strain_statistics(
+        _, _, means, fwhms = PipelinePlotter.strain_statistics(
             self.structural_props["het_strain_from_dspacing"],
             self.structural_props["support"],
             title=f"Strain statistics, {sample_scan}",

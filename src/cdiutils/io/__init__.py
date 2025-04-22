@@ -6,6 +6,7 @@ from .sixs import SIXSLoader
 from .cristal import CristalLoader
 from .nanomax import NanoMAXLoader
 from .cxi import CXIFile, save_as_cxi, load_cxi
+from .cxi_explorer import CXIExplorer
 from .vtk import save_as_vti
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "CristalLoader",
     "NanoMAXLoader",
     "CXIFile",
+    "CXIExplorer",
     "save_as_cxi",
     "load_cxi",
     "save_as_vti",

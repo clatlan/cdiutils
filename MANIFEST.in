@@ -1,3 +1,2 @@
-include examples/analyze_bcdi_data.ipynb
-include cdiutils/process/pynx-id01cdi_template.slurm
 include README.md
+include examples/*.ipynb

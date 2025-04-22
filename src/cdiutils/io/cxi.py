@@ -44,7 +44,7 @@ class CXIFile:
         "mask", "process_", "reciprocal_coordinates", "source_"
     )
 
-    def __init__(self, file_path: str, mode: str = "a"):
+    def __init__(self, file_path: str, mode: str = "r"):
         self.file_path = file_path
         self.mode = mode
         self.file = None
@@ -61,10 +61,12 @@ class CXIFile:
     def current_entry(self) -> None:
         return self._current_entry
 
-    def open(self):
+    def open(self, mode: str = None):
         """Open the CXI file."""
+        if mode is None:
+            mode = self.mode
         if self.file is None:
-            self.file = h5py.File(self.file_path, self.mode)
+            self.file = h5py.File(self.file_path, mode)
         return self
 
     def close(self):
