@@ -2,6 +2,7 @@
 import warnings
 
 import matplotlib
+import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
@@ -112,7 +113,7 @@ NATURAL_VIEW_PARAMETERS = {
 }
 
 
-def save_fig(fig: matplotlib.figure.Figure, path: str, **kwargs) -> None:
+def save_fig(fig: plt.Figure, path: str, **kwargs) -> None:
     default_params = {
         "bbox_inches": "tight",
         "dpi": 200,
@@ -123,7 +124,7 @@ def save_fig(fig: matplotlib.figure.Figure, path: str, **kwargs) -> None:
 
 
 def add_labels(
-        axes: matplotlib.axes.Axes,
+        axes: plt.Axes,
         views: tuple[str] = None,
         space: str = "direct",
         convention: str = "cxi"
@@ -180,7 +181,7 @@ def get_x_y_limits_extents(
 
 
 def set_x_y_limits_extents(
-        ax: matplotlib.axes.Axes,
+        ax: plt.Axes,
         extents: list | tuple,
         limits: list | tuple,
         plane: list | tuple,
@@ -313,7 +314,7 @@ def set_plot_configs():
     PERCENT_SYMBOL = None
     PLOT_CONFIGS = None
 
-    if matplotlib.rcParams["text.usetex"]:
+    if plt.rcParams["text.usetex"]:
         ANGSTROM_SYMBOL = r"$\si{\angstrom}$"
         PERCENT_SYMBOL = r"\%"
     else:
@@ -432,10 +433,10 @@ def update_plot_params(
             "ytick.labelsize": 8,
             "legend.fontsize": 8,
         }
-    matplotlib.pyplot.rcParams.update(parameters)
+    plt.rcParams.update(parameters)
     if usetex:
         if use_siunitx:
-            matplotlib.pyplot.rcParams.update(
+            plt.rcParams.update(
                 {
                     'text.latex.preamble': (
                         r'\usepackage{siunitx}'
@@ -452,7 +453,7 @@ def update_plot_params(
                 }
             )
         else:
-            matplotlib.pyplot.rcParams.update(
+            plt.rcParams.update(
                 {
                     "text.usetex": usetex,
                     "text.latex.preamble": "",
@@ -463,13 +464,13 @@ def update_plot_params(
             )
 
     # in any case
-    matplotlib.pyplot.rcParams.update(
+    plt.rcParams.update(
         {
             "image.cmap": "turbo",
             "figure.dpi": 200,
         }
     )
-    matplotlib.pyplot.rcParams.update(**kwargs)
+    plt.rcParams.update(**kwargs)
 
 
 def get_figure_size(
@@ -521,7 +522,7 @@ def get_figure_size(
 
 
 def add_colorbar(
-    ax: matplotlib.axes.Axes,
+    ax: plt.Axes,
     mappable: matplotlib.cm.ScalarMappable = None,
     loc: str = "right",
     size: str = "5%",
@@ -535,7 +536,7 @@ def add_colorbar(
     package (https://gitlab.esrf.fr/id01-science/id01-sxdm-utils/).
 
     Args:
-        ax (matplotlib.axes.Axes): the axes to which the colorbar will
+        ax (plt.Axes): the axes to which the colorbar will
             be added.
         mappable (matplotlib.cm.ScalarMappable, optional): the mappable
             object that the colorbar will be based on. If None, will
@@ -591,7 +592,7 @@ def add_colorbar(
 
 
 def two_spine_frameless_ax(
-        ax: matplotlib.axes.Axes,
+        ax: plt.Axes,
         left_spine_pos: float,
         bottom_spine_pos: float
 ) -> None:
@@ -616,9 +617,9 @@ def two_spine_frameless_ax(
 
 
 def plot_background(
-        ax: matplotlib.axes.Axes,
+        ax: plt.Axes,
         grey_background_opacity=0
-) -> matplotlib.axes.Axes:
+) -> plt.Axes:
     """Plot a grey background and a grid"""
 
     ax.grid(True, linestyle="--", linewidth=0.5, zorder=0)
@@ -628,7 +629,7 @@ def plot_background(
 
 
 def white_interior_ticks_labels(
-        ax: matplotlib.axes.Axes,
+        ax: plt.Axes,
         xtick_pad: int = -15,
         ytick_pad: int = -25
 ) -> None:
