@@ -9,19 +9,16 @@ package.
 import argparse
 import os
 import shutil
+from importlib import resources
 
 
-def find_examples_dir() -> str:
-    """Locate the examples folder relative to this script."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.abspath(os.path.join(script_dir, "../examples"))
+def get_templates_path():
+    """Locate the templates folder bundled with the package."""
+    return str(resources.files("cdiutils").joinpath("templates"))
 
 
 def main() -> None:
     helptext = "try -h or --help to see usage."
-
-    # Locate the examples directory
-    examples_dir = find_examples_dir()
 
     parser = argparse.ArgumentParser(
         prog="prepare_detector_calibration",
@@ -46,8 +43,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Locate the examples directory
+    templates_dir = get_templates_path()
+
     # Path to the notebook in the examples directory
-    notebook_path = os.path.join(examples_dir, "detector_calibration.ipynb")
+    notebook_path = os.path.join(templates_dir, "detector_calibration.ipynb")
 
     if not os.path.exists(notebook_path):
         raise FileNotFoundError(

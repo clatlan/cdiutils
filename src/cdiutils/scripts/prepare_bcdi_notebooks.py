@@ -8,19 +8,16 @@ notebooks required for BCDI analysis using cdiutils package.
 import argparse
 import os
 import shutil
+from importlib import resources
 
 
-def find_examples_dir() -> str:
-    """Locate the examples folder relative to this script."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.abspath(os.path.join(script_dir, "../examples"))
+def get_templates_path():
+    """Locate the templates folder bundled with the package."""
+    return str(resources.files("cdiutils").joinpath("templates"))
 
 
 def main() -> None:
     helptext = "try -h or --help to see usage."
-
-    # Locate the examples directory
-    examples_dir = find_examples_dir()
 
     parser = argparse.ArgumentParser(
         prog="prepare_bcdi_notebooks",
@@ -43,10 +40,13 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Locate the examples directory
+    templates_dir = get_templates_path()
+
     # Update paths to notebooks in the examples directory
-    bcdi_notebook = os.path.join(examples_dir, "bcdi_pipeline.ipynb")
+    bcdi_notebook = os.path.join(templates_dir, "bcdi_pipeline.ipynb")
     step_by_step_notebook = os.path.join(
-        examples_dir, "step_by_step_bcdi_analysis.ipynb"
+        templates_dir, "step_by_step_bcdi_analysis.ipynb"
     )
 
     if (
@@ -55,7 +55,7 @@ def main() -> None:
     ):
         raise FileNotFoundError(
             "Examples notebooks not found. "
-            f"Expected location: {examples_dir}\n" + helptext
+            f"Expected location: {templates_dir}\n" + helptext
         )
 
     path = os.getcwd()

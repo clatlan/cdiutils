@@ -66,13 +66,11 @@ package-dir = {"" = "src"}
 [tool.setuptools.package-data]
 "cdiutils" = [
     "pipeline/pynx-id01-cdi_template.slurm",
-    "../examples/bcdi_pipeline.ipynb",
-    "../examples/step_by_step_bcdi_analysis.ipynb",
-    "../examples/detector_calibration.ipynb"
+    "templates/bcdi_pipeline.ipynb",
+    "templates/step_by_step_bcdi_analysis.ipynb",
+    "templates/detector_calibration.ipynb"
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.black]
 line-length = 79
