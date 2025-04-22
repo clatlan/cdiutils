@@ -172,14 +172,14 @@ def plot_multiple_volume_slices(
             dataset.
         data_stacking (str, optional): How to arrange plots ("vertical"
             or "horizontal"). Defaults to "vertical".
-        pvs_args (dict, optional): Dictionary of parameters for 
+        pvs_args (dict, optional): Dictionary of parameters for
             plot_volume_slices.
         cbar_args (dict, optional): Dictionary of colorbar parameters.
         xlim (tuple, optional): Custom x-axis limits (min, max) to apply
             to all plots.
         ylim (tuple, optional): Custom y-axis limits (min, max) to apply
             to all plots.
-        remove_ticks (bool, optional): Whether to remove ticks between 
+        remove_ticks (bool, optional): Whether to remove ticks between
             subplots. Defaults to False.
         figsize (tuple, optional): Figure size. If None, calculated
             based on data.
