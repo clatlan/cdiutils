@@ -58,17 +58,17 @@ vtk = ["vtk>=9.0.1"]
 Homepage = "https://github.com/clatlan/cdiutils"
 
 
-[tool.setuptools.packages.find]
-where = ["."]  # list of folders that contain the packages (["."] by default)
-exclude = ["images"]
+[tool.setuptools]
+packages = ["cdiutils"]
+package-dir = {"" = "src"}
 
 
 [tool.setuptools.package-data]
 "cdiutils" = [
     "pipeline/pynx-id01-cdi_template.slurm",
-    "examples/bcdi_pipeline.ipynb",
-    "examples/step_by_step_bcdi_analysis.ipynb",
-    "examples/detector_calibration.ipynb"
+    "../examples/bcdi_pipeline.ipynb",
+    "../examples/step_by_step_bcdi_analysis.ipynb",
+    "../examples/detector_calibration.ipynb"
 ]
 
 [tool.black]
