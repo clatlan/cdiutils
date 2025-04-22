@@ -62,6 +62,11 @@ class ID01Loader(H5TypeLoader):
     def get_detector_name(self) -> str:
         self.h5file = self.h5file
         key_path = self.sample_name + "_1.1/measurement/"
+        if key_path not in self.h5file:
+            raise KeyError(
+                f"The key path '{key_path}' does not exist in the HDF5 file. "
+                f"Ensure that the file structure matches the expected format."
+            )
         detector_names = []
         for key in self.authorised_detector_names:
             if key in self.h5file[key_path]:
