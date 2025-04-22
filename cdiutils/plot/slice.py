@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib
 from mpl_toolkits.axes_grid1 import AxesGrid
+from matplotlib.image import AxesImage
 import numpy as np
 import warnings
 
@@ -135,6 +136,411 @@ def plot_volume_slices(
     return figure, axes
 
 
+def plot_multiple_volume_slices(
+        *data_arrays: np.ndarray,
+        data_labels: list[str] = None,
+        supports: list[np.ndarray] = None,
+        voxel_sizes: list = None,
+        data_centres: list = None,
+        slice_shifts: list = None,
+        data_stacking: str = "horizontal",
+        pvs_args: dict = None,
+        cbar_args: dict = None,
+        xlim: tuple = None,
+        ylim: tuple = None,
+        remove_ticks: bool = False,
+        figsize: tuple = None,
+        title: str = None,
+        show: bool = True,
+        **plot_params
+) -> plt.Figure:
+    """
+    Plot 2D slices of multiple 3D volumes with customizable layout.
+    This function uses plot_volume_slices as a building block to create
+    a composite figure comparing multiple datasets.
+
+    Args:
+        *data_arrays (np.ndarray): Multiple 3D arrays to plot.
+        data_labels (list[str], optional): Labels for each dataset.
+        supports (list[np.ndarray], optional): Support masks for each
+            dataset.
+        voxel_sizes (list, optional): List of voxel sizes for each
+            dataset.
+        data_centres (list, optional): List of data centers for each
+            dataset.
+        slice_shifts (list, optional): List of slice shifts for each
+            dataset.
+        data_stacking (str, optional): How to arrange plots ("vertical"
+            or "horizontal"). Defaults to "vertical".
+        pvs_args (dict, optional): Dictionary of parameters for 
+            plot_volume_slices.
+        cbar_args (dict, optional): Dictionary of colorbar parameters.
+        xlim (tuple, optional): Custom x-axis limits (min, max) to apply
+            to all plots.
+        ylim (tuple, optional): Custom y-axis limits (min, max) to apply
+            to all plots.
+        remove_ticks (bool, optional): Whether to remove ticks between 
+            subplots. Defaults to False.
+        figsize (tuple, optional): Figure size. If None, calculated
+            based on data.
+        title (str, optional): Overall figure title.
+        show (bool, optional): Whether to display the figure. Defaults
+            to True.
+        **plot_params: Additional plotting parameters passed to
+            plot_volume_slices.
+
+    Returns:
+        plt.Figure: The generated figure.
+    """
+    # Validate inputs
+    n_datasets = len(data_arrays)
+    if n_datasets == 0:
+        raise ValueError("At least one dataset must be provided")
+
+    # Setup pvs_args with defaults
+    _pvs_args = {
+        "views": None,
+        "convention": None,
+        "equal_limits": True,
+        "integrate": False,
+        "show": False  # Always False since we manage display ourselves
+    }
+    if pvs_args:
+        _pvs_args.update(pvs_args)
+
+    # Add any additional plot parameters
+    _pvs_args.update(plot_params)
+
+    # Determine the view labels based on convention
+    convention = _pvs_args.get("convention")
+    convention = convention.lower() if convention is not None else None
+
+    if convention == "cxi":  # Default CXI views
+        view_labels = ["z+ (-x, y)", "y- (-x, z)", "x+ (z, y)"]
+    elif convention in ("xu", "lab"):  # Default XU views
+        view_labels = ["x- (y, z)", "y- (x, z)", "z- (x, y)"]
+    else:
+        # Fallback to generic labels for unknown convention
+        view_labels = [f"View {i+1}" for i in range(3)]
+
+    # Use specified views if provided
+    if _pvs_args.get("views") is not None:
+        view_labels = _pvs_args["views"]
+
+    # Setup input lists with proper defaults
+    input_lists = _prepare_input_lists(
+        n_datasets, data_labels, supports, voxel_sizes,
+        data_centres, slice_shifts
+    )
+
+    # Set up colorbar arguments
+    show_cbar = False
+    if cbar_args:
+        show_cbar = True  # if cbar_args is provided, we show cbar
+        if "show" in cbar_args:
+            show_cbar = cbar_args.pop("show")  # Override "show" if specified
+        _cbar_args = {
+            "location": "right",
+            "title": None,
+            "extend": "both",
+            "ticks": None,
+            "size": "5%",
+            "pad": "3%"
+        }
+        if cbar_args.get("location", "right") == "bottom":
+            _cbar_args["pad"] = "10%"
+        _cbar_args.update(cbar_args)
+
+    # Determine layout parameters
+    stacking_vertical = data_stacking.lower() in ("vertical", "v")
+
+    # First get individual plots using plot_volume_slices
+    individual_plots = _generate_individual_plots(
+        data_arrays, input_lists, _pvs_args
+    )
+
+    # the number of views is 3 because we are plotting 3 slices
+    n_views = 3
+
+    # Determine grid layout based on stacking direction
+    nrows, ncols = (
+        (n_datasets, n_views) if stacking_vertical else (n_views, n_datasets)
+    )
+
+    # Determine figure size if not provided
+    if figsize is None:
+        figsize = (n_datasets, n_views)  # horizontal stacking
+        if stacking_vertical:
+            figsize = (n_views, n_datasets)
+
+    # Create the composite figure using AxesGrid
+    composite_fig = plt.figure(figsize=figsize)
+    grid = AxesGrid(
+        composite_fig,
+        111,
+        nrows_ncols=(nrows, ncols),
+        axes_pad=0.05,
+        share_all=False,
+        cbar_mode="single" if show_cbar else None,
+        cbar_location=_cbar_args["location"] if show_cbar else "right",
+        cbar_size=_cbar_args["size"] if show_cbar else None,
+        cbar_pad=_cbar_args["pad"] if show_cbar else None,
+    )
+
+    # Track global min/max for colorbar
+    vmin_global, vmax_global = float("inf"), float("-inf")
+    images = []
+
+    # Copy each plot from individual figures to the composite figure
+    for dataset_idx, (fig, axes) in enumerate(individual_plots):
+        for view_idx, ax in enumerate(axes):
+            if stacking_vertical:
+                grid_idx = dataset_idx * n_views + view_idx
+            else:  # horizontal stacking
+                grid_idx = view_idx * n_datasets + dataset_idx
+
+            target_ax = grid[grid_idx]
+            target_im = _copy_image_to_axes(ax.get_images()[0], target_ax)
+            images.append(target_im)
+
+            # Update global min/max for colorbar
+            vmin, vmax = target_im.get_clim()
+            vmin_global = min(vmin_global, vmin)
+            vmax_global = max(vmax_global, vmax)
+
+            # Copy axis limits and other properties
+            target_ax.set_xlim(ax.get_xlim())
+            target_ax.set_ylim(ax.get_ylim())
+
+            # Apply custom x and y limits if provided
+            if (
+                xlim is not None
+                and input_lists["voxel_sizes"][dataset_idx] is not None
+            ):
+                target_ax.set_xlim(xlim)
+            if (
+                ylim is not None
+                and input_lists["voxel_sizes"][dataset_idx] is not None
+            ):
+                target_ax.set_ylim(ylim)
+
+            # Add dataset and view labels
+            _add_axis_labels(
+                target_ax,
+                stacking_vertical,
+                view_idx,
+                dataset_idx,
+                input_lists["data_labels"][dataset_idx],
+                view_labels[view_idx]
+                if view_idx < len(view_labels)
+                else f"View {view_idx + 1}",
+            )
+
+        # Close the individual figure to free memory
+        plt.close(fig)
+
+    # Ensure all images use the same color scale
+    for im in images:
+        im.set_clim(vmin_global, vmax_global)
+
+    # Remove ticks between subplots
+    for i in range(nrows):
+        for j in range(ncols):
+            ax = grid[i * ncols + j]
+            if remove_ticks:
+                ax.set_xticks([])
+                ax.set_yticks([])
+            else:
+                if j != 0:  # Remove y-ticks for all columns except the first
+                    ax.tick_params(
+                        axis="y", which="both", left=False, right=False,
+                        labelleft=False
+                    )
+                if i != nrows - 1:  # Remove x-ticks for all rows except last
+                    ax.tick_params(
+                        axis="x", which="both", bottom=False, top=False,
+                        labelbottom=False
+                    )
+
+    # Add colorbar if requested
+    if show_cbar and images:
+        # Check for unsupported colorbar positions
+        if _cbar_args["location"] in ("left", "top"):
+            raise NotImplementedError(
+                "Colorbar location 'top' and 'left' are not currently "
+                "supported. Please use 'right', 'bottom'."
+            )
+
+        cbar = grid.cbar_axes[0].colorbar(
+            images[0], extend=_cbar_args['extend']
+        )
+
+        if _cbar_args["title"]:
+            orientation = (
+                "horizontal" if _cbar_args["location"] == "bottom"
+                else "vertical"
+            )
+
+            if orientation == "vertical":
+                # For vert. colorbar, rotate the title and position it properly
+                if _cbar_args["location"] == "right":
+                    cbar.ax.set_ylabel(
+                        _cbar_args["title"], rotation=270,
+                        labelpad=10, va="bottom"
+                    )
+                    # Adjust the y label position to align with colorbar
+                    cbar.ax.yaxis.set_label_position("right")
+            else:  # horizontal
+                if _cbar_args["location"] == "bottom":
+                    cbar.ax.set_xlabel(
+                        _cbar_args["title"], ha="center", labelpad=5
+                    )
+
+        if _cbar_args["ticks"] is not None:
+            cbar.set_ticks(_cbar_args["ticks"])
+
+    # Add overall title if provided
+    if title:
+        composite_fig.suptitle(title, fontsize=10, y=1.02)
+
+    # Show or close the figure
+    if show:
+        plt.show()
+    else:
+        plt.close(composite_fig)
+
+    return composite_fig
+
+
+def _prepare_input_lists(
+        n_datasets: int,
+        data_labels: list[str] | None,
+        supports: list[np.ndarray] | None,
+        voxel_sizes: list[tuple[float, float, float]] | None,
+        data_centres: list[tuple[float, float, float]] | None,
+        slice_shifts: list[tuple[int, int, int]] | None
+) -> dict[str, list]:
+    """Prepare lists of inputs with proper defaults."""
+    result = {
+        "data_labels": (
+            data_labels if data_labels and len(data_labels) == n_datasets
+            else [f"Dataset {i + 1}" for i in range(n_datasets)]
+        ),
+        "supports": (
+            supports if supports and len(supports) == n_datasets
+            else [None] * n_datasets
+        ),
+        "voxel_sizes": (
+            voxel_sizes if voxel_sizes and len(voxel_sizes) == n_datasets
+            else [None] * n_datasets
+        ),
+        "data_centres": (
+            data_centres if data_centres and len(data_centres) == n_datasets
+            else [None] * n_datasets
+        ),
+        "slice_shifts": (
+            slice_shifts if slice_shifts and len(slice_shifts) == n_datasets
+            else [None] * n_datasets
+        ),
+    }
+    return result
+
+
+def _copy_image_to_axes(
+        src_image: AxesImage,
+        target_ax: plt.Axes
+) -> AxesImage:
+    """Copy an image from one axes to another, preserving properties."""
+    array = src_image.get_array()
+    cmap = src_image.get_cmap()
+    norm = src_image.norm
+    extent = src_image.get_extent()
+    origin = src_image.origin
+    new_image = target_ax.imshow(
+        array, cmap=cmap, norm=norm, extent=extent, origin=origin
+    )
+    return new_image
+
+
+def _add_axis_labels(
+    ax: plt.Axes,
+    stacking_vertical: bool,
+    view_idx: int,
+    dataset_idx: int,
+    data_label: str,
+    view_label: str
+) -> None:
+    """Add dataset and view labels to the appropriate axes."""
+    if stacking_vertical:
+        # Always show data labels on the left side
+        if view_idx == 0:
+            ax.annotate(
+                data_label,
+                xy=(0, 0.5),
+                xytext=(-12, 0),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="right",
+                va="center",
+                fontweight="bold",
+            )
+
+        # View labels at the top instead of the bottom for vert. stacking
+        if dataset_idx == 0:  # First row (top) instead of last row (bottom)
+            ax.annotate(
+                view_label,
+                xy=(0.5, 1),
+                xytext=(0, 12),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+            )
+    else:
+        # For horizontal stacking, keep as is
+        if view_idx == 0:
+            ax.annotate(
+                data_label,
+                xy=(0.5, 1),
+                xytext=(0, 12),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontweight="bold",
+            )
+        if dataset_idx == 0:
+            ax.annotate(
+                view_label,
+                xy=(0, 0.5),
+                xytext=(-12, 0),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="right",
+                va="center",
+            )
+
+
+def _generate_individual_plots(
+    data_arrays: list[np.ndarray],
+    input_lists: dict,
+    pvs_args: dict
+) -> list[tuple[plt.Figure, np.ndarray]]:
+    """Generate individual plots using plot_volume_slices."""
+    individual_plots = []
+    for i, data in enumerate(data_arrays):
+        dataset_params = pvs_args.copy()
+        dataset_params.update({
+            "support": input_lists["supports"][i],
+            "voxel_size": input_lists["voxel_sizes"][i],
+            "data_centre": input_lists["data_centres"][i],
+            "slice_shift": input_lists["slice_shifts"][i]
+        })
+        fig, axes = plot_volume_slices(data, **dataset_params)
+        individual_plots.append((fig, axes))
+    return individual_plots
+
+
 def plot_slices(
         *data: list[np.ndarray],
         slice_labels: list = None,
@@ -200,9 +606,7 @@ def plot_slices(
                 to_plot = to_plot * nan_supports[i]
             else:
                 to_plot = to_plot * nan_supports
-        # params = {
-        #     "vmin": vmin, "vmax": vmax, "cmap": cmap, "origin": origin, "norm": 
-        # }
+
         im = grid[i].matshow(
             to_plot,
             vmin=vmin,
@@ -275,232 +679,6 @@ def plot_slices(
     if show:
         plt.show()
     return figure
-
-
-def plot_3d_volume_slices(
-        *data: list[np.ndarray],
-        slice_labels: list[str] = None,
-        shapes: list[tuple] = None,
-        nan_supports: list[np.ndarray] = None,
-        figsize: tuple[float] = None,
-        cmap: str | matplotlib.colors.Colormap = "turbo",
-        vmin: float = None,
-        vmax: float = None,
-        alphas: list[np.ndarray] = None,
-        log_scale: bool = False,
-        do_sum: bool = False,
-        suptitle: str = None,
-        show: bool = True,
-        return_fig: bool = False,
-        show_cbar: bool = True,
-        cbar_title: str = None,
-        cbar_location: str = "top",
-        cbar_extend: str = "both",
-        cbar_ticks: list = None,
-        aspect_ratios: dict = None,
-        norm: matplotlib.colors.Normalize = None,
-        data_stacking="vertical",
-        slice_names=[
-            r"(xy)$_{cxi}$ slice",
-            r"(xz)$_{cxi}$ slice",
-            r"(yz)$_{cxi}$ slice"
-        ],
-        **plot_params
-):
-    """
-    Plot 2D slices of a 3D volume data in three directions.
-
-    :param *data: the 3D data to plot (np.array). Several 3D matrices
-    may be given. For each matrice, three slices are plotted.
-    :param slice_labels: list of slice_labels corresponding to the given 3D
-    matrices (list). Must be the same length as the number of provided
-    *data. Otherwise, no slice_labels will be displayed. Default: None.
-    :param figsize: figure size (tuple). Default: (6, 4).
-    :param cmap: the matplotlib colormap (str) used for the colorbar
-    (default: "turbo").
-    :param vmin: the minimum value (float) for the color scale
-    (default: None).
-    :param vmax: the maximum value (float) for the color scale
-    (default: None).
-    :param log_scale: whether or not the scale is logaritmhic (bool).
-    Default: False.
-    :param suptitle: global title of the figure (str). Default: None.
-    :param show: whether or not to show the figure (bool). If False, the
-    figure is not displayed but returned.
-    :param data_stacking: stacking direction for the slice plot (str).
-    Can only be "vertical" or "horizontal", default: "vertical".
-    :param slice_names: the name of the slices (list of str). For each
-    *data, three slices are plotted, this str are the name of each
-    slice.
-    :return: figure if show is false.
-    """
-
-    if figsize is None:
-        if data_stacking in ("vertical", "v"):
-            figsize = (18, 4 * len(data))
-        else:
-            figsize = (6 * len(data), 12)
-    fig = plt.figure(figsize=figsize)
-
-    if log_scale:
-        if norm is not None:
-            print("norm provided, will not use log_scale.")
-            log_scale = False            
-    if norm is None:
-        if vmin is None:
-            vmin = None if do_sum or len(data) > 1 else np.nanmin(data)
-        if vmax is None:
-            vmax = None if do_sum or len(data) > 1 else np.nanmax(data)
-    else:
-        vmin = vmax = None
-
-    if data_stacking in ("vertical", "v"):
-        nrows_ncols = (len(data), 3)
-    elif data_stacking in ("horizontal", "h"):
-        nrows_ncols = (3, len(data))
-    else:
-        raise ValueError(
-            "data_stacking should be 'vertical', 'v', 'horizontal' or 'h'.")
-    if slice_labels is None:
-        slice_labels = ["" for i in range(len(data))]
-    elif len(slice_labels) != len(data):
-        print(
-            "Number of slice_labels should be identical to number of *data.\n"
-            "slice_labels won't be displayed.")
-        slice_labels = ["" for i in range(len(data))]
-    
-    grid = AxesGrid(
-        fig,
-        111,
-        nrows_ncols=nrows_ncols,
-        axes_pad=0.05,
-        cbar_mode="single" if show_cbar else None,
-        cbar_location=cbar_location,
-        cbar_pad=0.25 if show_cbar else None,
-        cbar_size=0.2 if show_cbar else None
-    )
-
-    for i, plot in enumerate(data):
-        if log_scale:
-            norm = matplotlib.colors.LogNorm(plot.min(), plot.max())
-        if nan_supports is not None:
-            if isinstance(nan_supports, list):
-                plot = plot * nan_supports[i]
-            else:
-                plot = plot * nan_supports
-        if not shapes:
-            shape = plot.shape
-        else:
-            shape = shapes[i]
-
-        if data_stacking in ("vertical", "v"):
-            ind1 = 3 * i
-            ind2 = 3 * i + 1
-            ind3 = 3 * i + 2
-        else:
-            ind1 = i
-            ind2 = i + len(data)
-            ind3 = i + 2 * len(data)
-        im = grid[ind1].matshow(
-            np.sum(plot, axis=0) if do_sum else plot[shape[0]//2,],
-            cmap=cmap,
-            vmin=vmin,
-            vmax=vmax,
-            origin="lower",
-            aspect=aspect_ratios["yz"] if aspect_ratios else "auto",
-            norm=norm,
-            alpha=None if alphas is None else alphas[i][shape[0]//2,],
-            **plot_params
-        )
-        grid[ind2].matshow(
-            np.sum(plot, axis=1) if do_sum else plot[:, shape[1]//2, :],
-            cmap=cmap,
-            vmin=vmin,
-            vmax=vmax,
-            origin="lower",
-            aspect=aspect_ratios["xz"] if aspect_ratios else "auto",
-            norm=norm,
-            alpha=None if alphas is None else alphas[i][:, shape[1]//2, :],
-            **plot_params
-        )
-        grid[ind3].matshow(
-            np.sum(plot, axis=2) if do_sum else plot[:, :, shape[2]//2],
-            cmap=cmap,
-            vmin=vmin,
-            vmax=vmax,
-            origin="lower",
-            aspect=aspect_ratios["xy"] if aspect_ratios else "auto",
-            norm=norm,
-            alpha=None if alphas is None else alphas[i][:, :, shape[2]//2],
-            **plot_params
-        )
-
-        if data_stacking in ("vertical", "v"):
-            grid[ind1].annotate(
-                slice_labels[i] if slice_labels is not None else "",
-                xy=(0.2, 0.5),
-                xytext=(-grid[ind1].yaxis.labelpad - 2, 0),
-                xycoords=grid[ind1].yaxis.label,
-                textcoords='offset points',
-                ha='right',
-                va='center'
-            )
-        else:
-            grid[ind3].annotate(
-                slice_labels[i] if slice_labels is not None else "",
-                xy=(0.5, 0.9),
-                xytext=(0, -grid[ind3].xaxis.labelpad - 2),
-                xycoords=grid[ind3].xaxis.label,
-                textcoords='offset points',
-                ha='center',
-                va='top'
-            )
-
-    for i, slice_name in enumerate(slice_names):
-        if data_stacking == "vertical":
-            ind = 3*(len(data)-1) + i
-            grid[ind].annotate(
-                slice_name,
-                xy=(0.5, 0.2),
-                xytext=(0, -grid[ind].xaxis.labelpad - 2),
-                xycoords=grid[ind].xaxis.label,
-                textcoords='offset points',
-                ha='center',
-                va='top'
-            )
-
-        else:
-            ind = i * len(data)
-            grid[ind].annotate(
-                slice_name,
-                xy=(0.2, 0.5),
-                xytext=(-grid[ind].yaxis.labelpad - 2, 0),
-                xycoords=grid[ind].yaxis.label,
-                textcoords='offset points',
-                ha='right',
-                va='center'
-            )
-
-    for i, ax in enumerate(grid):
-        ax.axes.xaxis.set_ticks([])
-        ax.axes.yaxis.set_ticks([])
-    if show_cbar:
-        ticklocation = (
-            "bottom" if cbar_location in ("top", "bottom") else "auto"
-        )
-        cbar = grid.cbar_axes[0].colorbar(
-            im,
-            extend=cbar_extend,
-            ticklocation=ticklocation
-        )
-        grid.cbar_axes[0].set_title(cbar_title)
-        if cbar_ticks:
-            cbar.set_ticks(cbar_ticks)
-            cbar.set_ticklabels(cbar_ticks)
-    fig.suptitle(suptitle)
-    if show:
-        plt.show()
-    return fig if return_fig else None
 
 
 def plot_contour(
