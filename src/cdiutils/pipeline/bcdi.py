@@ -32,10 +32,10 @@ from cdiutils.utils import (
     ensure_pynx_shape,
     hot_pixel_filter,
     get_oversampling_ratios,
-    find_isosurface,
     normalise,
     fill_up_support
 )
+from cdiutils.analysis.stats import find_isosurface
 
 # Plot functions.
 from .pipeline_plotter import PipelinePlotter
