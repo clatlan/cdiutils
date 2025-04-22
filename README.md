@@ -68,11 +68,15 @@ Once data are processed, the `BcdiPipeline` instance saves the data in .npz, .cx
 
 ## BCDI reconstruction analysis
 If want to analyse and compare your reconstructions, check out the example notebook [bcdi_reconstruction_analysis.ipynb](https://github.com/clatlan/cdiutils/blob/master/examples/bcdi_reconstruction_analysis.ipynb) in the `examples` folder. This notebook provides a comprehensive overview of the analysis process, including:
-* **Slice plots of any quantity you like across different conditions:**
+* **Slice plots of any quantity you like (here phase) across different conditions:**
+  ![](https://github.com/clatlan/cdiutils/blob/master/images/multi_slice_plots_phase.png)
+
 
 * **Reciprocal space plots in the orthogonal frame (lab frame)**
+  ![](https://github.com/clatlan/cdiutils/blob/master/images/reciprocal_space_q_lab.png)
 
 * **Histogram plots of any quantity you like across different conditions:**
+  ![](https://github.com/clatlan/cdiutils/blob/master/images/strain_histograms.png)
 
 
 ## Cross section quiver
