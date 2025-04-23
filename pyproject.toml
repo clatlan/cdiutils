@@ -59,9 +59,10 @@ Homepage = "https://github.com/clatlan/cdiutils"
 
 
 [tool.setuptools]
-packages = ["cdiutils"]
 package-dir = {"" = "src"}
 
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 "cdiutils" = [
