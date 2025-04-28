@@ -59,29 +59,64 @@ class ID01Loader(H5TypeLoader):
         )
 
     @h5_safe_load
-    def get_detector_name(self) -> str:
+    def get_detector_name(
+            self,
+            start_scan: int = 1,
+            max_attempts: int = 5
+    ) -> str:
+        """
+        Get the detector name from the HDF5 file by searching through
+        available scans.
+
+        Args:
+            start_scan (int): The scan number to start searching from.
+            Defaults to 1.
+            max_attempts (int): Maximum number of scan numbers to try.
+            Defaults to 5.
+
+        Returns:
+            str: The detector name found in the file.
+
+        Raises:
+            ValueError: If no detector is found after max_attempts, or
+            if multiple detectors are found.
+            KeyError: If the key path structure is invalid.
+        """
         self.h5file = self.h5file
-        key_path = self.sample_name + "_1.1/measurement/"
-        if key_path not in self.h5file:
-            raise KeyError(
-                f"The key path '{key_path}' does not exist in the HDF5 file. "
-                f"Ensure that the file structure matches the expected format."
+
+        msg = "Please provide a detector_name (str)."
+
+        # Try to find the detector name in the current scan number
+        key_path = f"{self.sample_name}_{start_scan}.1/measurement/"
+
+        # If we've exceeded max attempts, raise an error
+        if start_scan > max_attempts:
+            raise ValueError(
+                f"No detector found after checking {max_attempts} scans.\n"
+                f"{msg}"
             )
+
+        # Check if the key path exists
+        if key_path not in self.h5file:
+            # Try the next scan number recursively
+            return self.get_detector_name(start_scan + 1, max_attempts)
+
+        # Look for detector names in the current scan
         detector_names = []
         for key in self.authorised_detector_names:
             if key in self.h5file[key_path]:
                 detector_names.append(key)
-        msg = "Please provide a detector_name (str)."
+
         if len(detector_names) == 0:
-            raise ValueError(
-                f"No detector name found in {self.authorised_detector_names}\n"
-                f"{msg}"
-            )
+            # Try the next scan number recursively
+            return self.get_detector_name(start_scan + 1, max_attempts)
+
         if len(detector_names) > 1:
             raise ValueError(
                 f"Several detector names found ({detector_names}).\n"
                 f"Not handled yet.\n{msg}"
             )
+
         return detector_names[0]
 
     @h5_safe_load
