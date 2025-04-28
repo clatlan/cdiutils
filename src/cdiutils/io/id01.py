@@ -82,7 +82,6 @@ class ID01Loader(H5TypeLoader):
             if multiple detectors are found.
             KeyError: If the key path structure is invalid.
         """
-        self.h5file = self.h5file
 
         msg = "Please provide a detector_name (str)."
 
