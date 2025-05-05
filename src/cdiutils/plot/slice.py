@@ -32,6 +32,7 @@ def plot_volume_slices(
         equal_limits: bool = True,
         slice_shift: tuple | list = None,
         integrate: bool = False,
+        opacity: np.ndarray = None,
         show: bool = True,
         **plot_params
 ) -> tuple[plt.Figure, plt.Axes]:
@@ -70,6 +71,9 @@ def plot_volume_slices(
             Defaults to None.
         integrate (bool, optional): whether to sum the data instead of
             taking the slice. Defaults to False.
+        opacity (np.ndarray, optional): the opacity 3D array of the
+            data. Defaults to None. If constant opacity is required, use
+            the 'alpha' parameter.
         show (bool, optional): whether to show the plot. Defaults to
             True. False might be useful if the function is only used for
             generating the axes that are then redrawn afterwards.
@@ -114,11 +118,18 @@ def plot_volume_slices(
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
         to_plot = data.sum(axis=i) if integrate else data[slices[i]]
+        _plot_params["alpha"] = np.ones_like(to_plot)
+        if opacity is not None:
+            _plot_params["alpha"] = opacity[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
+            _plot_params["alpha"] = np.swapaxes(
+                _plot_params["alpha"], 1, 0
+            )
 
         if view_params[v]["xaxis_points_left"]:
             to_plot = to_plot[np.s_[:, ::-1]]
+            _plot_params["alpha"] = _plot_params["alpha"][np.s_[:, ::-1]]
 
         axes[i].imshow(to_plot, **_plot_params)
         add_colorbar(axes[i], axes[i].images[0])
