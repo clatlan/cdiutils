@@ -3,6 +3,7 @@ from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
     InterpIobsMask
 from pynx.cdi.runner.runner import default_params as params
 from pynx.utils.math import smaller_primes
+from pynx.utils import rebin as bin_data
 
 import numpy as np
 import glob
@@ -24,11 +25,131 @@ from IPython.display import display
 
 class TabPhaseRetrieval(widgets.VBox):
     """
-    Regroups all the parameters needed to use the operators in a notebook.
+    A widget-based graphical user interface (GUI) for interactive phase
+    retrieval using PyNX.
 
-    The goal is to have an interactive use of PyNX.
+    This class provides a comprehensive set of widgets to configure and
+    execute phase retrieval algorithms in a Jupyter Notebook environment.
+    It allows users to set parameters, select input files, and run
+    iterative algorithms for coherent diffraction imaging (CDI). The GUI
+    is designed to facilitate an interactive workflow for phase retrieval
+    tasks.
+
+    Attributes:
+    -----------
+    header : str
+        A brief header describing the purpose of the tab.
+    box_style : str
+        The CSS style applied to the widget container.
+    parent_folder : widgets.Dropdown
+        Dropdown to select the parent folder containing input files.
+    iobs : widgets.Dropdown
+        Dropdown to select the observed intensity dataset file.
+    mask : widgets.Dropdown
+        Dropdown to select the mask file.
+    support : widgets.Dropdown
+        Dropdown to select the support file.
+    obj : widgets.Dropdown
+        Dropdown to select the object file.
+    auto_center_resize : widgets.Checkbox
+        Checkbox to enable or disable automatic centering and resizing of
+        input data.
+    max_size : widgets.BoundedIntText
+        Input field to specify the maximum array size for cropping.
+    support_threshold : widgets.Text
+        Input field to specify the support threshold.
+    support_only_shrink : widgets.Checkbox
+        Checkbox to enable or disable support shrinking.
+    support_update_period : widgets.BoundedIntText
+        Input field to specify the period for support updates.
+    support_smooth_width : widgets.Text
+        Input field to specify the smoothing width for support updates.
+    support_post_expand : widgets.Text
+        Input field to specify post-expansion parameters for the support.
+    support_method : widgets.Dropdown
+        Dropdown to select the method for support updates (e.g., "max",
+        "average", "rms").
+    psf : widgets.Checkbox
+        Checkbox to enable or disable the use of a point spread function
+        (PSF).
+    psf_model : widgets.Dropdown
+        Dropdown to select the PSF model (e.g., "gaussian", "lorentzian",
+        "pseudo-voigt").
+    fwhm : widgets.FloatText
+        Input field to specify the full-width at half maximum (FWHM) for
+        the PSF.
+    eta : widgets.FloatText
+        Input field to specify the eta parameter for the pseudo-voigt PSF
+        model.
+    psf_filter : widgets.Dropdown
+        Dropdown to select the PSF filter type (e.g., "None", "hann",
+        "tukey").
+    update_psf : widgets.BoundedIntText
+        Input field to specify the frequency of PSF updates.
+    nb_hio : widgets.BoundedIntText
+        Input field to specify the number of Hybrid Input-Output (HIO)
+        iterations.
+    nb_raar : widgets.BoundedIntText
+        Input field to specify the number of Relaxed Averaged Alternating
+        Reflections (RAAR) iterations.
+    nb_er : widgets.BoundedIntText
+        Input field to specify the number of Error Reduction (ER)
+        iterations.
+    nb_ml : widgets.BoundedIntText
+        Input field to specify the number of Maximum Likelihood (ML)
+        iterations.
+    nb_run : widgets.BoundedIntText
+        Input field to specify the number of phase retrieval runs.
+    filter_criteria : widgets.Dropdown
+        Dropdown to select the criteria for filtering reconstruction
+        results.
+    nb_run_keep : widgets.BoundedIntText
+        Input field to specify the number of runs to keep after filtering.
+    live_plot : widgets.BoundedIntText
+        Input field to specify the frequency of live plotting during
+        phase retrieval.
+    plot_axis : widgets.Dropdown
+        Dropdown to select the axis used for live plots.
+    verbose : widgets.BoundedIntText
+        Input field to specify the verbosity level of the output.
+    rebin : widgets.Text
+        Input field to specify rebinning parameters for the input data.
+    positivity : widgets.Checkbox
+        Checkbox to enable or disable positivity constraints.
+    beta : widgets.FloatText
+        Input field to specify the beta parameter for HIO and RAAR
+        algorithms.
+    detwin : widgets.Checkbox
+        Checkbox to enable or disable detwinning.
+    calc_llk : widgets.BoundedIntText
+        Input field to specify the interval for log-likelihood
+        calculations.
+    zero_mask : widgets.Dropdown
+        Dropdown to specify whether to force mask pixels to zero.
+    mask_interp : widgets.Text
+        Input field to specify interpolation parameters for the mask.
+    run_phase_retrieval : widgets.ToggleButtons
+        Toggle buttons to start or stop the phase retrieval process.
+    run_pynx_tools : widgets.ToggleButtons
+        Toggle buttons to run additional PyNX tools (e.g., modes
+        decomposition, filtering).
+
+    Methods:
+    --------
+    pynx_folder_handler(change: Any) -> None
+        Handles changes to the parent folder and updates file lists.
+    pynx_psf_handler(change: Any) -> None
+        Handles changes to the PSF settings and enables/disables related
+        widgets.
+    pynx_peak_shape_handler(change: Any) -> None
+        Handles changes to the PSF peak shape and enables/disables the eta
+        parameter.
+    run_pynx_handler(change: Any) -> None
+        Handles changes to the phase retrieval toggle buttons and enables
+        or disables widgets accordingly.
+    stand_alone(energy, detector_distance, pixel_size_detector) -> None
+        Displays the GUI as a standalone widget in a Jupyter Notebook.
     """
-
     def __init__(self, box_style="", work_dir=None):
         """
 
@@ -48,7 +169,7 @@ class TabPhaseRetrieval(widgets.VBox):
             layout=widgets.Layout(width='90%', height="35px")
         )
 
-        if work_dir == None:
+        if work_dir is None:
             work_dir = os.getcwd()
 
         self.parent_folder = widgets.Dropdown(
@@ -529,7 +650,6 @@ class TabPhaseRetrieval(widgets.VBox):
             layout=widgets.Layout(width='90%', height="35px")
         )
 
-
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
                 ('No phase retrieval', False),
@@ -737,17 +857,19 @@ class TabPhaseRetrieval(widgets.VBox):
         """
         Handles changes related to the psf.
 
-        The function takes the `change` argument, which is expected to contain information
-        related to the change event. If `change` has a `new` attribute, the value of `change`
+        The function takes the `change` argument, which is
+        expected to contain information related to the change event.
+        If `change` has a `new` attribute, the value of `change`
         is set to `change.new`.
 
-        The function disables or enables a number of widget objects (`self.psf_model`,
-        `self.fwhm`, `self.eta`, `self.psf_filter`, and `self.update_psf`) based on the value
-        of `change`. If `change` is truthy, the widgets are enabled. If `change` is falsy,
-        the widgets are disabled.
+        The function disables or enables a number of widget objects
+        (`self.psf_model`, `self.fwhm`, `self.eta`, `self.psf_filter`,
+        and `self.update_psf`) based on the value of `change`.
+        If `change` is truthy, the widgets are enabled.
+        If `change` is falsy, the widgets are disabled.
 
-        The function also calls `self.pynx_peak_shape_handler` with the `change` argument set
-        to `self.psf_model.value`.
+        The function also calls `self.pynx_peak_shape_handler` with
+        the `change` argument set to `self.psf_model.value`.
 
         Parameters
         ----------
@@ -1116,9 +1238,9 @@ def init_phase_retrieval_tab(
         params["live_plot"] = False
     params["plot_axis"] = plot_axis
 
-    params["energy"] = energy # KEv
+    params["energy"] = energy  # KeV
     params["wavelength"] = 1.2399 * 1e-6 / params["energy"]
-    params["detector_distance"] = detector_distance # m
+    params["detector_distance"] = detector_distance  # m
     params["pixel_size_detector"] = np.round(
         pixel_size_detector * 1e-6, 6)
 
@@ -1129,7 +1251,8 @@ def init_phase_retrieval_tab(
             scan = int(parent_folder.split("/")[-3].replace("S", ""))
             params["scan"] = scan
             print("Scan n°", scan)
-        except:
+        except Exception as E:
+            print(E)
             print("Could not get scan nb...")
             scan = 0
 
@@ -1138,7 +1261,8 @@ def init_phase_retrieval_tab(
         print("\tCXI input: detector distance = %8.2f m" %
               params["detector_distance"])
         print(
-            f"\tCXI input: detector pixel size = {params['pixel_size_detector']} m")
+            "\tCXI input: detector pixel size = "
+            f"{params['pixel_size_detector']} m")
         print(
             f"\tLog likelihood is updated every {calc_llk} iterations."
         )
@@ -1212,9 +1336,10 @@ def init_phase_retrieval_tab(
 
                 # Interpolate the detector gaps
                 if params["live_plot"]:
-                    cdi = ShowCDI(plot_axis=params["plot_axis"]) * InterpIobsMask(
-                        params["mask_interp"][0],
-                        params["mask_interp"][1],
+                    cdi = ShowCDI(
+                        plot_axis=params["plot_axis"]) * InterpIobsMask(
+                            params["mask_interp"][0],
+                            params["mask_interp"][1],
                     ) * cdi
                 else:
                     cdi = InterpIobsMask(
@@ -1229,14 +1354,18 @@ def init_phase_retrieval_tab(
                     params["sup_init"] = "autocorrelation"
                     if not params["live_plot"]:
                         cdi = ScaleObj() * AutoCorrelationSupport(
-                            threshold=params["support_autocorrelation_threshold"],
-                            verbose=True) * cdi
+                            threshold=params[
+                                "support_autocorrelation_threshold"],
+                            verbose=True
+                            ) * cdi
 
                     else:
-                        cdi = ShowCDI(plot_axis=params["plot_axis"]) * ScaleObj() \
-                            * AutoCorrelationSupport(
-                            threshold=params["support_autocorrelation_threshold"],
-                            verbose=True) * cdi
+                        cdi = ShowCDI(plot_axis=params["plot_axis"]) \
+                                * ScaleObj() * AutoCorrelationSupport(
+                                threshold=params[
+                                    "support_autocorrelation_threshold"],
+                                verbose=True
+                                ) * cdi
                 else:
                     params["sup_init"] = "support"
 
@@ -1266,7 +1395,7 @@ def init_phase_retrieval_tab(
                                 cdi = InitPSF(
                                     model=params["psf_model"],
                                     fwhm=params["fwhm"],
-                                    filter=None,  # None for now bc experimental
+                                    filter=None,
                                 ) * cdi
 
                             elif psf_model == "pseudo-voigt":
@@ -1426,17 +1555,14 @@ def init_phase_retrieval_tab(
                             )**params["support_update_period"]
                             ) ** er_power * cdi
 
-                    fn = "{}/result_scan_{}_run_{}_FLLK_{:.4}_support_threshold_{:.4}_shape_{}_{}_{}_{}.cxi".format(
-                        params["parent_folder"],
-                        params["scan"],
-                        i,
-                        cdi.get_llk(normalized=True)[
-                            3],  # check pynx for this
-                        threshold_relative,
-                        cdi.iobs.shape[0],
-                        cdi.iobs.shape[1],
-                        cdi.iobs.shape[2],
-                        params["sup_init"],
+                    fn = (
+                        f"{params['parent_folder']}/"
+                        f"result_scan_{params['scan']}_run_{i}_"
+                        f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
+                        f"support_threshold_{threshold_relative:.4f}_"
+                        f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
+                        f"_{cdi.iobs.shape[2]}_"
+                        f"{params['sup_init']}.cxi"
                     )
 
                     reconstruction_file_list.append(fn)
@@ -1449,7 +1575,9 @@ def init_phase_retrieval_tab(
 
                 except SupportTooLarge:
                     print(
-                        "Threshold value probably too low, support too large too continue")
+                        "The threshold value is probably too low,"
+                        " since the support is too large to continue"
+                    )
 
             # If filter, filter data
             if filter_criteria:
@@ -1775,15 +1903,20 @@ def list_files(
     glob_pattern: str = "*FLLK*.cxi",
     verbose: bool = False
 ) -> List[str]:
-    """List all files in a specified folder that match a specified glob pattern and sort by creation time.
+    """List all files in a specified folder that match a specified
+     glob pattern, and sort by creation time.
 
     Args:
         folder (str): The path to the folder where the files are located.
-        glob_pattern (str, optional): A string that specifies the pattern of the filenames to match. Default is "*FLLK*.cxi".
-        verbose (bool, optional): If set to True, the function will print the filenames and their creation timestamps to the console. Default is False.
+        glob_pattern (str, optional): A string that specifies the pattern
+            of the filenames to match. Default is "*FLLK*.cxi".
+        verbose (bool, optional): If set to True, the function will print
+            the filenames and their creation timestamps to the console.
+            Default is False.
 
     Returns:
-        list: A list of file paths that match the specified pattern and are sorted by creation time (most recent first).
+        list: A list of file paths that match the specified pattern and
+            are sorted by creation time (most recent first).
 
     Example:
         file_list = list_files("/path/to/folder", verbose=True)
@@ -1834,13 +1967,15 @@ def filter_reconstructions(
 
     Args:
         folder (str): Parent folder to cxi files
-        nb_run_keep (int): The number of the best run results to keep in the end
-            according to the `filter_criteria`.
-        nb_run (Optional[int], optional): The number of times to run the optimization.
-            If `None`, it is equal to the number of files detected. Defaults to `None`.
-        filter_criteria (str, optional): The criteria based on which the best solutions
-            will be chosen. Possible values are "standard_deviation", "FLLK",
-            "standard_deviation_FLLK", "FLLK_standard_deviation". Defaults to "FLLK".
+        nb_run_keep (int): The number of the best run results to keep in
+            the end according to the `filter_criteria`.
+        nb_run (Optional[int], optional): The number of times to run the
+            optimization. If `None`, it is equal to the number of files
+            detected. Defaults to `None`.
+        filter_criteria (str, optional): The criteria based on which the
+            best solutions will be chosen. Possible values are
+            "standard_deviation", "FLLK", "standard_deviation_FLLK",
+            "FLLK_standard_deviation". Defaults to "FLLK".
 
     Returns:
         None
@@ -1850,18 +1985,22 @@ def filter_reconstructions(
         nb_run_keep: int
     ) -> None:
         """
-        Use the standard deviation of the reconstructed object as filtering criteria.
+        Use the standard deviation of the reconstructed object as
+        filtering criteria.
 
-        The function computes the standard deviation of the object modulus for each of the input `cxi_files`, and
-        removes the `cxi_files` with the highest standard deviations until only `nb_run_keep` remain. The files are
-        removed by removing the corresponding file on disk.
+        The function computes the standard deviation of the object
+        modulus for each of the input `cxi_files`, and removes the
+        `cxi_files` with the highest standard deviations until only
+        `nb_run_keep` remain. The other files are deleted.
 
         Parameters
         ----------
         cxi_files : List[str]
-            A list of strings representing the paths to the `cxi` files to be filtered.
+            A list of strings representing the paths to the `cxi`
+            files to be filtered.
         nb_run_keep : int
-            The number of `cxi` files to keep after filtering. The files with the lowest standard deviation will be kept.
+            The number of `cxi` files to keep after filtering.
+            The files with the lowest standard deviation will be kept.
 
         Returns
         -------
@@ -1918,7 +2057,8 @@ def filter_reconstructions(
 
         Args:
             cxi_files: A list of paths to CXI files.
-            nb_run_keep: The number of files to keep, based on their FLLK values.
+            nb_run_keep: The number of files to keep, based on their FLLK
+                values.
 
         Returns:
             None. The function modifies the list of `cxi_files` in place by
@@ -1937,7 +2077,8 @@ def filter_reconstructions(
         for filename in cxi_files:
             print(f"\t{os.path.basename(filename)}")
             with h5py.File(filename, "r") as f:
-                fllk = f["entry_1/image_1/process_1/results/free_llk_poisson"][...]
+                fllk = f[
+                    "entry_1/image_1/process_1/results/free_llk_poisson"][...]
                 filtering_criteria_value[filename] = fllk
 
         # Sort files
@@ -2099,12 +2240,12 @@ def run_modes_decomposition(
         )
     try:
         os.system(
-            "{}/pynx-cdi-analysis {}/{} --modes 1 --modes_output {}/modes_gui.h5".format(
+            "{}/pynx-cdi-analysis {}/{} --modes 1 --modes_output {}".format(
                 quote(path_scripts),
                 quote(folder),
                 glob_pattern,
                 quote(folder),
-            )
+            ) + "/modes_gui.h5"
         )
     except KeyboardInterrupt:
         print("Decomposition into modes stopped by user...")
