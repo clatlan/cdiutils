@@ -1347,7 +1347,7 @@ def init_phase_retrieval_tab(
     params["psf_model"] = psf_model
     params["fwhm"] = fwhm
     params["eta"] = eta
-    params["psf_filter"] = None
+    params["psf_filter"] = psf_filter
     params["update_psf"] = update_psf
 
     params["nb_raar"] = nb_raar
@@ -1557,7 +1557,7 @@ def init_phase_retrieval_tab(
                                 update_psf=params["update_psf"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             ) ** (nb_raar // 2) * cdi
                             cdi = ER(
@@ -1566,7 +1566,7 @@ def init_phase_retrieval_tab(
                                 update_psf=params["update_psf"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             ) ** nb_er * cdi
 
@@ -1585,7 +1585,7 @@ def init_phase_retrieval_tab(
                                 show_cdi=params["live_plot"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             )**params["support_update_period"]
                             ) ** hio_power * cdi
@@ -1595,7 +1595,7 @@ def init_phase_retrieval_tab(
                                 show_cdi=params["live_plot"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             )**params["support_update_period"]
                             ) ** raar_power * cdi
@@ -1605,7 +1605,7 @@ def init_phase_retrieval_tab(
                                 cdi = InitPSF(
                                     model=params["psf_model"],
                                     fwhm=params["fwhm"],
-                                    filter=None,
+                                    filter=params["psf_filter"],
                                 ) * cdi
 
                             elif psf_model == "pseudo-voigt":
@@ -1613,7 +1613,7 @@ def init_phase_retrieval_tab(
                                     model=params["psf_model"],
                                     fwhm=params["fwhm"],
                                     eta=params["eta"],
-                                    filter=None,
+                                    filter=params["psf_filter"],
                                 ) * cdi
 
                             cdi = (sup * RAAR(
@@ -1623,7 +1623,7 @@ def init_phase_retrieval_tab(
                                 update_psf=params["update_psf"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             )**params["support_update_period"]
                             ) ** raar_power * cdi
@@ -1633,7 +1633,7 @@ def init_phase_retrieval_tab(
                                 update_psf=params["update_psf"],
                                 plot_axis=params["plot_axis"],
                                 positivity=params["positivity"],
-                                psf_filter=None,
+                                psf_filter=params["psf_filter"],
                                 zero_mask=params["zero_mask"],
                             )**params["support_update_period"]
                             ) ** er_power * cdi
@@ -1738,7 +1738,7 @@ def init_phase_retrieval_tab(
                 "Phase retrieval stopped by user, `.cxi` file list below."
             )
 
-        cxi_files_list = list_files(
+        __ = list_files(
             folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
