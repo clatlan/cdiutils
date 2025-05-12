@@ -1,7 +1,6 @@
 from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
     InitPSF, ShowCDI, HIO, RAAR, ER, SupportTooLarge, CDI, InitFreePixels, \
     InterpIobsMask
-from pynx.cdi.runner.runner import default_params as params
 from pynx.utils.math import smaller_primes
 from pynx.utils.array import rebin as bin_data
 
@@ -13,14 +12,13 @@ from datetime import datetime
 from numpy.fft import fftshift
 from scipy.ndimage import center_of_mass
 from shlex import quote
-from IPython.display import clear_output
+from IPython.display import clear_output, display
 from ast import literal_eval
 from typing import Tuple, Union, Optional, List, Any
 import h5py
 
 import ipywidgets as widgets
 from ipywidgets import interactive
-from IPython.display import display
 
 
 class PhaseRetrievalGUI(widgets.VBox):
@@ -1321,7 +1319,7 @@ def init_phase_retrieval_tab(
     :param detector_distance: detector distance (meters)
     """
     # Assign attributes
-    params = dict()
+    params = {}
     params["parent_folder"] = parent_folder
     params["iobs"] = parent_folder + iobs
     if mask != "":
@@ -2047,7 +2045,8 @@ def list_files(
     glob_pattern: str = "*FLLK*.cxi",
     verbose: bool = False
 ) -> List[str]:
-    """List all files in a specified folder that match a specified
+    """
+    List all files in a specified folder that match a specified
      glob pattern, and sort by creation time.
 
     Args:
@@ -2097,7 +2096,8 @@ def filter_reconstructions(
     nb_run: Optional[int] = None,
     filter_criteria: str = "FLLK"
 ) -> None:
-    """Filter the phase retrieval output based on a specified parameter.
+    """
+    Filter the phase retrieval output based on a specified parameter.
 
     The function filters phase retrieval output based on specified criteria,
     such as "FLLK" or "standard deviation". The user can run multiple
@@ -2149,7 +2149,6 @@ def filter_reconstructions(
         Returns
         -------
         None
-
         """
         filtering_criteria_value = {}
 
@@ -2193,7 +2192,8 @@ def filter_reconstructions(
         cxi_files: List[str],
         nb_run_keep: int
     ) -> None:
-        """Filter `cxi_files` using the free log-likelihood (FLLK) values.
+        """
+        Filter `cxi_files` using the free log-likelihood (FLLK) values.
 
         The `cxi_files` are filtered based on the FLLK values calculated from
         the reconstructed object using poisson statistics. The files with the
