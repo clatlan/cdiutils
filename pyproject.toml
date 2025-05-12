@@ -50,7 +50,6 @@ dependencies = [
     "panel",
     "tornado",
     "ipywidgets",
-    "shlex",
     "datetime",
 ]
 

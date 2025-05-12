@@ -14,7 +14,6 @@ tabulate
 xrayutilities>=1.7.3
 ipyvolume
 ipywidgets
-shlex
 datetime
 ipython_genutils
 bokeh
