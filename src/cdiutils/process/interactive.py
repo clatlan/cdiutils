@@ -1366,7 +1366,7 @@ def init_phase_retrieval_tab(
         "zero_mask": {"True": True, "False": False, "auto": False}[
             zero_mask],
 
-        "live_plot": not (live_plot == 0),
+        "live_plot": live_plot if live_plot != 0 else False,
         "plot_axis": plot_axis,
 
         "energy": energy,  # KeV
