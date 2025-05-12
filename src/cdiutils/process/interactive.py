@@ -152,7 +152,128 @@ class TabPhaseRetrieval(widgets.VBox):
     """
     def __init__(self, box_style="", work_dir=None):
         """
+        Initialize the TabPhaseRetrieval class.
 
+        This method sets up the graphical user interface (GUI) for phase
+        retrieval by defining and initializing various widgets.
+        These widgets allow users to configure parameters, select input
+        files, and control the execution of phase retrieval algorithms.
+        The GUI is designed to work in a Jupyter Notebook environment.
+
+        Parameters:
+        -----------
+        box_style : str, optional
+            The CSS style applied to the widget container. Default is an empty
+            string.
+        work_dir : str, optional
+            The working directory where input files are located. If not
+            provided, the current working directory is used.
+
+        Attributes:
+        -----------
+        header : str
+            A brief header describing the purpose of the tab.
+        box_style : str
+            The CSS style applied to the widget container.
+        parent_folder : widgets.Dropdown
+            Dropdown to select the parent folder containing input files.
+        iobs : widgets.Dropdown
+            Dropdown to select the observed intensity dataset file.
+        mask : widgets.Dropdown
+            Dropdown to select the mask file.
+        support : widgets.Dropdown
+            Dropdown to select the support file.
+        obj : widgets.Dropdown
+            Dropdown to select the object file.
+        auto_center_resize : widgets.Checkbox
+            Checkbox to enable or disable automatic centering and resizing of
+            input data.
+        max_size : widgets.BoundedIntText
+            Input field to specify the maximum array size for cropping.
+        support_threshold : widgets.Text
+            Input field to specify the support threshold.
+        support_only_shrink : widgets.Checkbox
+            Checkbox to enable or disable support shrinking.
+        support_update_period : widgets.BoundedIntText
+            Input field to specify the period for support updates.
+        support_smooth_width : widgets.Text
+            Input field to specify the smoothing width for support updates.
+        support_post_expand : widgets.Text
+            Input field to specify post-expansion parameters for the support.
+        support_method : widgets.Dropdown
+            Dropdown to select the method for support updates (e.g., "max",
+            "average", "rms").
+        psf : widgets.Checkbox
+            Checkbox to enable or disable the use of a point spread function
+            (PSF).
+        psf_model : widgets.Dropdown
+            Dropdown to select the PSF model (e.g., "gaussian", "lorentzian",
+            "pseudo-voigt").
+        fwhm : widgets.FloatText
+            Input field to specify the full-width at half maximum (FWHM) for
+            the PSF.
+        eta : widgets.FloatText
+            Input field to specify the eta parameter for the pseudo-voigt PSF
+            model.
+        psf_filter : widgets.Dropdown
+            Dropdown to select the PSF filter type (e.g., "None", "hann",
+            "tukey").
+        update_psf : widgets.BoundedIntText
+            Input field to specify the frequency of PSF updates.
+        nb_hio : widgets.BoundedIntText
+            Input field to specify the number of Hybrid Input-Output (HIO)
+            iterations.
+        nb_raar : widgets.BoundedIntText
+            Input field to specify the number of Relaxed Averaged Alternating
+            Reflections (RAAR) iterations.
+        nb_er : widgets.BoundedIntText
+            Input field to specify the number of Error Reduction (ER)
+            iterations.
+        nb_ml : widgets.BoundedIntText
+            Input field to specify the number of Maximum Likelihood (ML)
+            iterations.
+        nb_run : widgets.BoundedIntText
+            Input field to specify the number of phase retrieval runs.
+        filter_criteria : widgets.Dropdown
+            Dropdown to select the criteria for filtering reconstruction
+            results.
+        nb_run_keep : widgets.BoundedIntText
+            Input field to specify the number of runs to keep after filtering.
+        live_plot : widgets.BoundedIntText
+            Input field to specify the frequency of live plotting during phase
+            retrieval.
+        plot_axis : widgets.Dropdown
+            Dropdown to select the axis used for live plots.
+        verbose : widgets.BoundedIntText
+            Input field to specify the verbosity level of the output.
+        rebin : widgets.Text
+            Input field to specify rebinning parameters for the input data.
+        positivity : widgets.Checkbox
+            Checkbox to enable or disable positivity constraints.
+        beta : widgets.FloatText
+            Input field to specify the beta parameter for HIO and RAAR
+            algorithms.
+        detwin : widgets.Checkbox
+            Checkbox to enable or disable detwinning.
+        calc_llk : widgets.BoundedIntText
+            Input field to specify the interval for log-likelihood
+            calculations.
+        zero_mask : widgets.Dropdown
+            Dropdown to specify whether to force mask pixels to zero.
+        mask_interp : widgets.Text
+            Input field to specify interpolation parameters for the mask.
+        run_phase_retrieval : widgets.ToggleButtons
+            Toggle buttons to start or stop the phase retrieval process.
+        run_pynx_tools : widgets.ToggleButtons
+            Toggle buttons to run additional PyNX tools (e.g., modes
+            decomposition, filtering).
+
+        Notes:
+        ------
+        - The method also assigns event handlers to widgets to dynamically
+            update the GUI based on user interactions.
+        - The `children` attribute is populated with all the widgets, defining
+            the layout of the GUI.
         """
         super(TabPhaseRetrieval, self).__init__()
 
@@ -958,6 +1079,29 @@ class TabPhaseRetrieval(widgets.VBox):
                 change=self.psf.value)
 
     def stand_alone(self, energy, detector_distance, pixel_size_detector):
+        """
+        Display the TabPhaseRetrieval GUI as a standalone widget in a Jupyter
+        Notebook.
+
+        This method creates an interactive widget interface for configuring and
+        running phase retrieval algorithms. It combines the TabPhaseRetrieval
+        widget with an interactive function (`init_phase_retrieval_tab`) that
+        collects user inputs and executes the phase retrieval process.
+
+        Parameters:
+        -----------
+        energy : float
+            The energy of the experiment in keV.
+        detector_distance : float
+            The distance between the detector and the sample in meters.
+        pixel_size_detector : float
+            The pixel size of the detector in micrometers.
+
+        Returns:
+        --------
+        None
+            Displays the GUI in the Jupyter Notebook environment.
+        """
         init_phase_retrieval_tab_gui = interactive(
             init_phase_retrieval_tab,
             parent_folder=self.parent_folder,
