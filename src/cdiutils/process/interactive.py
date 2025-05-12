@@ -24,6 +24,7 @@ from ipywidgets import interactive
 
 class PhaseRetrievalGUI(widgets.VBox):
     """
+
     A widget-based graphical user interface (GUI) for interactive phase
     retrieval using PyNX.
 
