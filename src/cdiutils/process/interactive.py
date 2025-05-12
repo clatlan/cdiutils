@@ -1387,14 +1387,14 @@ def init_phase_retrieval_tab(
             print("Could not get scan nb...")
             scan = 0
 
-        print("\tCXI input: Energy = %8.2f eV" % process_parameters["energy"])
-        print(f"\tCXI input: Wavelength = {process_parameters['wavelength']*1e10} A")
-        print("\tCXI input: detector distance = %8.2f m" %
-              process_parameters["detector_distance"])
         print(
+            f"\tCXI input: Energy = {process_parameters['energy']:.2f} eV"
+            "\tCXI input: Wavelength = "
+            f"{process_parameters['wavelength'] * 1e10:.2f} A"
+            "\tCXI input: detector distance = "
+            f"{process_parameters['detector_distance']:.2f} m"
             "\tCXI input: detector pixel size = "
-            f"{process_parameters['pixel_size_detector']} m")
-        print(
+            f"{process_parameters['pixel_size_detector']} m"
             f"\tLog likelihood is updated every {calc_llk} iterations."
         )
 
