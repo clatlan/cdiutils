@@ -49,6 +49,9 @@ dependencies = [
     "bokeh",
     "panel",
     "tornado",
+    "ipywidgets",
+    "shlex",
+    "datetime",
 ]
 
 [project.optional-dependencies]
