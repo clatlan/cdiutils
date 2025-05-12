@@ -1830,17 +1830,20 @@ def initialize_cdi_operator(
                 f"with {nb} pixels masked ({mask_percentage:0.3f}%)"
             )
         elif mask.endswith(".npz"):
-            try:
-                mask = np.load(mask)[
-                    "mask"].astype(np.int8)
-                nb = mask.sum()
-                mask_percentage = nb * 100 / mask.size
-                print(
-                    f"\tCXI input: loading mask, "
-                    f"with {nb} pixels masked ({mask_percentage:0.3f}%)"
-                )
-            except KeyError:
-                print("\t\"mask\" key does not exist.")
+            for key in ["mask", "data"]:
+                try:
+                    mask = np.load(mask)[key].astype(np.int8)
+                    nb = mask.sum()
+                    mask_percentage = nb * 100 / mask.size
+                    print(
+                        f"\tCXI input: loading mask, "
+                        f"with {nb} pixels masked ({mask_percentage:0.3f}%)"
+                    )
+                    break
+                except KeyError:
+                    print(f"\t\"{key}\" key does not exist.")
+            else:
+                print("\t--> Could not load mask array.")
 
         if rebin != (1, 1, 1):
             mask = bin_data(mask, rebin)
@@ -1856,26 +1859,15 @@ def initialize_cdi_operator(
             support = np.load(support)
             print("\tCXI input: loading support")
         elif support.endswith(".npz"):
-            try:
-                support = np.load(support)["data"]
-                print("\tCXI input: loading support")
-            except (FileNotFoundError, ValueError):
-                print("\tFile not supported or does not exist.")
-            except KeyError:
-                print("\t\"data\" key does not exist.")
+            for key in ["data", "support", "obj"]:
                 try:
-                    support = np.load(support)["support"]
+                    support = np.load(support)[key]
                     print("\tCXI input: loading support")
+                    break
                 except KeyError:
-                    print("\t\"support\" key does not exist.")
-                    try:
-                        support = np.load(support)["obj"]
-                        print("\tCXI input: loading support")
-                    except KeyError:
-                        print(
-                            "\t\"obj\" key does not exist."
-                            "\t--> Could not load support array."
-                        )
+                    print(f"\t\"{key}\" key does not exist.")
+            else:
+                print("\t--> Could not load support array.")
 
         if rebin != (1, 1, 1):
             support = bin_data(support, rebin)
