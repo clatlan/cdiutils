@@ -618,7 +618,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             ],
             value="FLLK_standard_deviation",
             description='Filtering criteria',
-            layout=widgets.Layout(width='50%'),
+            layout=widgets.Layout(width='60%'),
             style={'description_width': 'initial'}
         )
 
