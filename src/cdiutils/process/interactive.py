@@ -23,7 +23,6 @@ from ipywidgets import interactive
 
 class PhaseRetrievalGUI(widgets.VBox):
     """
-
     A widget-based graphical user interface (GUI) for interactive phase
     retrieval using PyNX.
 
@@ -149,6 +148,7 @@ class PhaseRetrievalGUI(widgets.VBox):
     stand_alone(energy, detector_distance, pixel_size_detector) -> None
         Displays the GUI as a standalone widget in a Jupyter Notebook.
     """
+
     def __init__(self, box_style="", work_dir=None):
         """
         Initialize the PhaseRetrievalGUI class.
@@ -1366,7 +1366,7 @@ def init_phase_retrieval_tab(
         "zero_mask": {"True": True, "False": False, "auto": False}[
             zero_mask],
 
-        "live_plot": False if live_plot == 0 else True,
+        "live_plot": not (live_plot == 0),
         "plot_axis": plot_axis,
 
         "energy": energy,  # KeV
@@ -1434,6 +1434,9 @@ def init_phase_retrieval_tab(
                         iobs.split("/")[-1].split(".")[0]
                     )
 
+                    cxi_filename = f"{parent_folder}/pynx_input_operator_"\
+                        f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+
                     save_cdi_operator_as_cxi(
                         cdi_operator=cdi,
                         path_to_cxi=cxi_filename,
@@ -1468,8 +1471,8 @@ def init_phase_retrieval_tab(
 
                 # Interpolate the detector gaps
                 if process_parameters["live_plot"]:
-                    cdi = ShowCDI(
-                        plot_axis=process_parameters["plot_axis"]) * InterpIobsMask(
+                    cdi = ShowCDI(plot_axis=process_parameters["plot_axis"]) \
+                        * InterpIobsMask(
                             process_parameters["mask_interp"][0],
                             process_parameters["mask_interp"][1],
                     ) * cdi
@@ -1492,12 +1495,14 @@ def init_phase_retrieval_tab(
                             ) * cdi
 
                     else:
-                        cdi = ShowCDI(plot_axis=process_parameters["plot_axis"]) \
-                                * ScaleObj() * AutoCorrelationSupport(
+                        cdi = ShowCDI(
+                            plot_axis=process_parameters["plot_axis"]
+                            ) * ScaleObj() \
+                             * AutoCorrelationSupport(
                                 threshold=process_parameters[
                                     "support_autocorrelation_threshold"],
                                 verbose=True
-                                ) * cdi
+                            ) * cdi
                 else:
                     process_parameters["sup_init"] = "support"
 
