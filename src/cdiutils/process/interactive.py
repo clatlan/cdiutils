@@ -23,7 +23,7 @@ from ipywidgets import interactive
 from IPython.display import display
 
 
-class TabPhaseRetrieval(widgets.VBox):
+class PhaseRetrievalGUI(widgets.VBox):
     """
     A widget-based graphical user interface (GUI) for interactive phase
     retrieval using PyNX.
@@ -152,7 +152,7 @@ class TabPhaseRetrieval(widgets.VBox):
     """
     def __init__(self, box_style="", work_dir=None):
         """
-        Initialize the TabPhaseRetrieval class.
+        Initialize the PhaseRetrievalGUI class.
 
         This method sets up the graphical user interface (GUI) for phase
         retrieval by defining and initializing various widgets.
@@ -275,7 +275,7 @@ class TabPhaseRetrieval(widgets.VBox):
         - The `children` attribute is populated with all the widgets, defining
             the layout of the GUI.
         """
-        super(TabPhaseRetrieval, self).__init__()
+        super(PhaseRetrievalGUI, self).__init__()
 
         # Brief header describing the tab
         self.header = 'Phase retrieval'
@@ -1080,11 +1080,11 @@ class TabPhaseRetrieval(widgets.VBox):
 
     def stand_alone(self, energy, detector_distance, pixel_size_detector):
         """
-        Display the TabPhaseRetrieval GUI as a standalone widget in a Jupyter
+        Display the PhaseRetrievalGUI GUI as a standalone widget in a Jupyter
         Notebook.
 
         This method creates an interactive widget interface for configuring and
-        running phase retrieval algorithms. It combines the TabPhaseRetrieval
+        running phase retrieval algorithms. It combines the PhaseRetrievalGUI
         widget with an interactive function (`init_phase_retrieval_tab`) that
         collects user inputs and executes the phase retrieval process.
 
