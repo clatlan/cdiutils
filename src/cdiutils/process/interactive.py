@@ -1456,7 +1456,7 @@ def init_phase_retrieval_tab(
                         process_parameters["support_threshold"][0],
                         process_parameters["support_threshold"][1]
                     )
-                print(f"Threshold: {threshold_relative}")
+                print(f"Threshold: {threshold_relative:.4f}")
 
                 # Create support object
                 sup = SupportUpdate(
