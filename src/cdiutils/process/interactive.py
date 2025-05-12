@@ -3,6 +3,7 @@ from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
     InterpIobsMask
 from pynx.utils.math import smaller_primes
 from pynx.utils.array import rebin as bin_data
+from pynx.cdi.runner.runner import default_params
 
 import numpy as np
 import glob
@@ -1319,72 +1320,60 @@ def init_phase_retrieval_tab(
     :param detector_distance: detector distance (meters)
     """
     # Assign attributes
-    params = {}
-    params["parent_folder"] = parent_folder
-    params["iobs"] = parent_folder + iobs
-    if mask != "":
-        params["mask"] = parent_folder + mask
-    else:
-        params["mask"] = ""
-    if support != "":
-        params["support"] = parent_folder + support
-    else:
-        params["support"] = ""
-    if obj != "":
-        params["obj"] = parent_folder + obj
-    else:
-        params["obj"] = ""
-    params["auto_center_resize"] = auto_center_resize
-    params["max_size"] = max_size
+    params = {
+        "parent_folder": parent_folder,
+        "iobs": parent_folder + iobs,
+        "mask": parent_folder + mask if mask != "" else "",
+        "support": parent_folder + support if support != "" else "",
+        "obj": parent_folder + obj if obj != "" else "",
 
-    params["support_only_shrink"] = support_only_shrink
-    params["support_update_period"] = support_update_period
-    params["support_method"] = support_method
+        "auto_center_resize": auto_center_resize,
+        "max_size": max_size,
 
-    params["psf"] = psf
-    params["psf_model"] = psf_model
-    params["fwhm"] = fwhm
-    params["eta"] = eta
-    params["psf_filter"] = psf_filter
-    params["update_psf"] = update_psf
+        "support_only_shrink": support_only_shrink,
+        "support_update_period": support_update_period,
+        "support_method": support_method,
 
-    params["nb_raar"] = nb_raar
-    params["nb_hio"] = nb_hio
-    params["nb_er"] = nb_er
-    params["nb_ml"] = nb_ml
-    params["nb_run"] = nb_run
+        "psf": psf,
+        "psf_model": psf_model,
+        "fwhm": fwhm,
+        "eta": eta,
+        "psf_filter": psf_filter,
+        "update_psf": update_psf,
 
-    params["filter_criteria"] = filter_criteria
-    params["nb_run_keep"] = nb_run_keep
-    params["live_plot"] = live_plot
-    params["verbose"] = verbose
-    params["positivity"] = positivity
-    params["beta"] = beta
-    params["detwin"] = detwin
-    params["calc_llk"] = calc_llk
-    params["zero_mask"] = zero_mask
+        "nb_raar": nb_raar,
+        "nb_hio": nb_hio,
+        "nb_er": nb_er,
+        "nb_ml": nb_ml,
+        "nb_run": nb_run,
 
-    # Extract dict, list and tuple from strings
-    params["support_threshold"] = literal_eval(support_threshold)
-    params["support_autocorrelation_threshold"] = literal_eval(
-        support_autocorrelation_threshold)
-    params["support_smooth_width"] = literal_eval(support_smooth_width)
-    params["support_post_expand"] = literal_eval(support_post_expand)
-    params["rebin"] = literal_eval(rebin)
-    params["mask_interp"] = literal_eval(mask_interp)
-    # Convert zero_mask parameter
-    params["zero_mask"] = {"True": True, "False": False, "auto": False}[
-            zero_mask]
+        "filter_criteria": filter_criteria,
+        "nb_run_keep": nb_run_keep,
+        "verbose": verbose,
+        "positivity": positivity,
+        "beta": beta,
+        "detwin": detwin,
+        "calc_llk": calc_llk,
 
-    if params["live_plot"] == 0:
-        params["live_plot"] = False
-    params["plot_axis"] = plot_axis
+        "support_threshold": literal_eval(support_threshold),
+        "support_autocorrelation_threshold": literal_eval(
+            support_autocorrelation_threshold),
+        "support_smooth_width": literal_eval(support_smooth_width),
+        "support_post_expand": literal_eval(support_post_expand),
+        "rebin": literal_eval(rebin),
+        "mask_interp": literal_eval(mask_interp),
 
-    params["energy"] = energy  # KeV
-    params["wavelength"] = 1.2399 * 1e-6 / params["energy"]
-    params["detector_distance"] = detector_distance  # m
-    params["pixel_size_detector"] = np.round(
-        pixel_size_detector * 1e-6, 6)
+        "zero_mask": {"True": True, "False": False, "auto": False}[
+            zero_mask],
+
+        "live_plot": False if live_plot == 0 else True,
+        "plot_axis": plot_axis,
+
+        "energy": energy,  # KeV
+        "wavelength": 1.2399 * 1e-6 / energy,
+        "detector_distance": detector_distance,  # m
+        "pixel_size_detector": np.round(pixel_size_detector * 1e-6, 6),
+    }
 
     # Run PR with operators
     if run_phase_retrieval and not run_pynx_tools:
@@ -1763,7 +1752,7 @@ def init_phase_retrieval_tab(
         print("Cleared output.")
         clear_output(True)
 
-        cxi_files_list = list_files(
+        __ = list_files(
             folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
@@ -2036,7 +2025,7 @@ def save_cdi_operator_as_cxi(
     )
     cdi_operator.save_data_cxi(
         filename=path_to_cxi,
-        process_parameters=params,
+        process_parameters=default_params,
     )
 
 
