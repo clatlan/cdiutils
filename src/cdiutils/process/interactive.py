@@ -392,7 +392,7 @@ class TabPhaseRetrieval(widgets.VBox):
             continuous_update=False,
             indent=False,
             layout=widgets.Layout(
-                height="50px", width="15%"),
+                height="50px", width="35%"),
             icon='check'
         )
 
@@ -781,12 +781,12 @@ class TabPhaseRetrieval(widgets.VBox):
             value=False,
             tooltips=[
                 "Click to be able to change parameters",
-                "Collect parameters to run a job on slurm, will \
-                automatically apply a std deviation filter and run modes \
-                decomposition, freed the kernel",
-                "Run script on jupyter notebook environment, uses notebook\
-                 kernel, will be performed in background also but more \
-                 slowly, good if you cannot use jobs.",
+                # "Collect parameters to run a job on slurm, will \
+                # automatically apply a std deviation filter and run modes \
+                # decomposition, freed the kernel",
+                # "Run script on jupyter notebook environment, uses notebook\
+                #  kernel, will be performed in background also but more \
+                #  slowly, good if you cannot use jobs.",
                 r"Use operators on local environment, if using PSF, it is \
                 activated after 50\% of RAAR cycles"
             ],
