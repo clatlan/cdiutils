@@ -3,7 +3,7 @@ from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
     InterpIobsMask
 from pynx.cdi.runner.runner import default_params as params
 from pynx.utils.math import smaller_primes
-from pynx.utils import rebin as bin_data
+from pynx.utils.array import rebin as bin_data
 
 import numpy as np
 import glob
@@ -774,8 +774,8 @@ class TabPhaseRetrieval(widgets.VBox):
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
                 ('No phase retrieval', False),
-                ('Run batch job (slurm)', "batch"),
-                ("Run script locally", "local_script"),
+                # ('Run batch job (slurm)', "batch"),
+                # ("Run script locally", "local_script"),
                 ("Use operators", "operators"),
             ],
             value=False,
