@@ -1,8 +1,29 @@
-from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
-    InitPSF, ShowCDI, HIO, RAAR, ER, SupportTooLarge, CDI, InitFreePixels, \
-    InterpIobsMask
-from pynx.utils.math import smaller_primes
 from cdiutils.utils import bin_along_axis
+from cdiutils.process.phaser import PynNXImportError
+
+try:
+    from pynx.cdi import (
+        CDI,
+        AutoCorrelationSupport,
+        ScaleObj,
+        SupportUpdate,
+        HIO,
+        # DetwinHIO,
+        RAAR,
+        # DetwinRAAR,
+        ER,
+        # FourierApplyAmplitude,
+        SupportTooLarge,
+        # SupportTooSmall,
+        InitPSF,
+        InterpIobsMask,
+        InitFreePixels,
+        ShowCDI,
+    )
+    IS_PYNX_AVAILABLE = True
+
+except ImportError:
+    IS_PYNX_AVAILABLE = False
 
 import numpy as np
 import glob
@@ -10,7 +31,6 @@ import os
 import operator as operator_lib
 from datetime import datetime
 from numpy.fft import fftshift
-from scipy.ndimage import center_of_mass
 from shlex import quote
 from IPython.display import clear_output, display
 from ast import literal_eval
@@ -1084,6 +1104,9 @@ class PhaseRetrievalGUI(widgets.VBox):
         None
             Displays the GUI in the Jupyter Notebook environment.
         """
+        if not IS_PYNX_AVAILABLE:
+            raise PynNXImportError
+
         init_phase_retrieval_tab_gui = interactive(
             init_phase_retrieval_tab,
             parent_folder=self.parent_folder,
