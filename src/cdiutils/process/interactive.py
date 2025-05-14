@@ -1,3 +1,16 @@
+import numpy as np
+import glob
+import os
+import operator as operator_lib
+from datetime import datetime
+from numpy.fft import fftshift
+from shlex import quote
+from IPython.display import clear_output, display
+from ast import literal_eval
+import h5py
+import ipywidgets as widgets
+from ipywidgets import interactive
+
 from cdiutils.utils import bin_along_axis
 from cdiutils.process.phaser import PynNXImportError
 
@@ -24,20 +37,6 @@ try:
 
 except ImportError:
     IS_PYNX_AVAILABLE = False
-
-import numpy as np
-import glob
-import os
-import operator as operator_lib
-from datetime import datetime
-from numpy.fft import fftshift
-from shlex import quote
-from IPython.display import clear_output, display
-from ast import literal_eval
-import h5py
-
-import ipywidgets as widgets
-from ipywidgets import interactive
 
 
 class PhaseRetrievalGUI(widgets.VBox):
