@@ -68,8 +68,6 @@ class PhaseRetrievalGUI(widgets.VBox):
         Dropdown to select the support file.
     obj : widgets.Dropdown
         Dropdown to select the object file.
-    max_size : widgets.BoundedIntText
-        Input field to specify the maximum array size for cropping.
     support_threshold : widgets.Text
         Input field to specify the support threshold.
     support_only_shrink : widgets.Checkbox
@@ -200,8 +198,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             Dropdown to select the support file.
         obj : widgets.Dropdown
             Dropdown to select the object file.
-        max_size : widgets.BoundedIntText
-            Input field to specify the maximum array size for cropping.
         support_threshold : widgets.Text
             Input field to specify the support threshold.
         support_only_shrink : widgets.Checkbox
@@ -355,20 +351,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             description='Object',
             layout=widgets.Layout(width='90%'),
             style={'description_width': 'initial'}
-        )
-
-        self.max_size = widgets.BoundedIntText(
-            value=256,
-            step=1,
-            min=0,
-            max=1000,
-            layout=widgets.Layout(
-                height="50px", width="30%"),
-            continuous_update=False,
-            description='Maximum array size for cropping:',
-            readout=True,
-            style={
-                'description_width': 'initial'},
         )
 
         self.unused_label_support = widgets.HTML(
@@ -837,9 +819,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             self.mask,
             self.support,
             self.obj,
-            widgets.HBox([
-                self.max_size,
-            ]),
             self.unused_label_support,
             widgets.HBox([
                 self.support_threshold,
@@ -1114,7 +1093,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             mask=self.mask,
             support=self.support,
             obj=self.obj,
-            max_size=self.max_size,
             support_threshold=self.support_threshold,
             support_only_shrink=self.support_only_shrink,
             support_update_period=self.support_update_period,
@@ -1166,7 +1144,6 @@ def init_phase_retrieval_tab(
     mask,
     support,
     obj,
-    max_size,
     support_threshold,
     support_only_shrink,
     support_update_period,
@@ -1227,9 +1204,6 @@ def init_phase_retrieval_tab(
         0 = outside)
     :param obj: initial object. If None, it should be initialised later.
     :param mask: mask for the diffraction data (0: valid pixel, >0: masked)
-    :param max_size=256: maximum size for the array used for analysis,
-        along all dimensions. The data will be cropped to this value after
-        centering. [default: no maximum size]
     :param support_threshold: must be between 0 and 1. Only points with
         object amplitude above a value equal to relative_threshold *
         reference_value are kept in the support.
@@ -1327,8 +1301,6 @@ def init_phase_retrieval_tab(
         "support": parent_folder + support if support != "" else "",
         "obj": parent_folder + obj if obj != "" else "",
 
-        "max_size": max_size,
-
         "support_only_shrink": support_only_shrink,
         "support_update_period": support_update_period,
         "support_method": support_method,
@@ -1409,7 +1381,6 @@ def init_phase_retrieval_tab(
                 support=process_parameters["support"],
                 obj=process_parameters["obj"],
                 rebin=process_parameters['rebin'],
-                max_size=process_parameters["max_size"],
                 wavelength=process_parameters["wavelength"],
                 pixel_size_detector=process_parameters["pixel_size_detector"],
                 detector_distance=process_parameters["detector_distance"],
@@ -1772,7 +1743,6 @@ def initialize_cdi_operator(
     mask: str | None,
     support: str | None,
     obj: str | None,
-    max_size: int | None,
     wavelength: float | None,
     pixel_size_detector: float | None,
     detector_distance: float | None,
@@ -1791,7 +1761,6 @@ def initialize_cdi_operator(
     :param support: path to npz or npy that stores the support data
     :param obj: path to npz or npy that stores the object data
     :param rebin: tuple, applied to all the arrays, e.g. (1, 1, 1)
-    :param max_size: maximum size of the cropped data, optional
     :param wavelength: wavelength of the data, optional
     :param pixel_size_detector: pixel size of the detector, optional
     :param detector_distance: detector distance, optional
