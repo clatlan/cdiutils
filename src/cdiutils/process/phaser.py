@@ -179,7 +179,7 @@ class PyNXPhaser:
             "detwinhio": DetwinHIO(detwin_axis=1),
             "raar": RAAR(**operator_parameters),
             "detwinraar": DetwinRAAR(detwin_axis=1),
-            "fap": FourierApplyAmplitude(
+            "faa": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)
             )
         }
@@ -397,8 +397,8 @@ class PyNXPhaser:
                             self.support_threshold_auto_tune_factor
                         )
                         attempt += 1
-            elif instruction.lower() == "fap":
-                self.operators["fap"] * cdi
+            elif instruction.lower() == "faa":
+                self.operators["faa"] * cdi
             else:
                 raise ValueError(f"Invalid instruction ({instruction}).")
 
