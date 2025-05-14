@@ -48,9 +48,6 @@ class PhaseRetrievalGUI(widgets.VBox):
         Dropdown to select the support file.
     obj : widgets.Dropdown
         Dropdown to select the object file.
-    auto_center_resize : widgets.Checkbox
-        Checkbox to enable or disable automatic centering and resizing of
-        input data.
     max_size : widgets.BoundedIntText
         Input field to specify the maximum array size for cropping.
     support_threshold : widgets.Text
@@ -183,9 +180,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             Dropdown to select the support file.
         obj : widgets.Dropdown
             Dropdown to select the object file.
-        auto_center_resize : widgets.Checkbox
-            Checkbox to enable or disable automatic centering and resizing of
-            input data.
         max_size : widgets.BoundedIntText
             Input field to specify the maximum array size for cropping.
         support_threshold : widgets.Text
@@ -341,15 +335,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             description='Object',
             layout=widgets.Layout(width='90%'),
             style={'description_width': 'initial'}
-        )
-
-        self.auto_center_resize = widgets.Checkbox(
-            value=False,
-            description='Auto center and resize',
-            continuous_update=False,
-            indent=False,
-            layout=widgets.Layout(height="50px"),
-            icon='check'
         )
 
         self.max_size = widgets.BoundedIntText(
@@ -833,7 +818,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             self.support,
             self.obj,
             widgets.HBox([
-                self.auto_center_resize,
                 self.max_size,
             ]),
             self.unused_label_support,
@@ -1107,7 +1091,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             mask=self.mask,
             support=self.support,
             obj=self.obj,
-            auto_center_resize=self.auto_center_resize,
             max_size=self.max_size,
             support_threshold=self.support_threshold,
             support_only_shrink=self.support_only_shrink,
@@ -1160,7 +1143,6 @@ def init_phase_retrieval_tab(
     mask,
     support,
     obj,
-    auto_center_resize,
     max_size,
     support_threshold,
     support_only_shrink,
@@ -1222,10 +1204,6 @@ def init_phase_retrieval_tab(
         0 = outside)
     :param obj: initial object. If None, it should be initialised later.
     :param mask: mask for the diffraction data (0: valid pixel, >0: masked)
-    :param auto_center_resize: if used (command-line keyword) or =True,
-        the input data will be centered and cropped  so that the size of the
-        array is compatible with the (GPU) FFT library used. If 'roi' is used,
-        centering is based on ROI. [default=False]
     :param max_size=256: maximum size for the array used for analysis,
         along all dimensions. The data will be cropped to this value after
         centering. [default: no maximum size]
@@ -1326,7 +1304,6 @@ def init_phase_retrieval_tab(
         "support": parent_folder + support if support != "" else "",
         "obj": parent_folder + obj if obj != "" else "",
 
-        "auto_center_resize": auto_center_resize,
         "max_size": max_size,
 
         "support_only_shrink": support_only_shrink,
@@ -1409,7 +1386,6 @@ def init_phase_retrieval_tab(
                 support=process_parameters["support"],
                 obj=process_parameters["obj"],
                 rebin=process_parameters['rebin'],
-                auto_center_resize=process_parameters["auto_center_resize"],
                 max_size=process_parameters["max_size"],
                 wavelength=process_parameters["wavelength"],
                 pixel_size_detector=process_parameters["pixel_size_detector"],
@@ -1778,7 +1754,6 @@ def initialize_cdi_operator(
     pixel_size_detector: float | None,
     detector_distance: float | None,
     rebin: tuple[int, int, int] = (1, 1, 1),
-    auto_center_resize: bool = False,
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
     """
     Initialize the CDI operator by processing the possible inputs:
@@ -1793,7 +1768,6 @@ def initialize_cdi_operator(
     :param support: path to npz or npy that stores the support data
     :param obj: path to npz or npy that stores the object data
     :param rebin: tuple, applied to all the arrays, e.g. (1, 1, 1)
-    :param auto_center_resize: flag to automatically crop and center the data
     :param max_size: maximum size of the cropped data, optional
     :param wavelength: wavelength of the data, optional
     :param pixel_size_detector: pixel size of the detector, optional
@@ -1899,81 +1873,6 @@ def initialize_cdi_operator(
 
     else:
         obj = None
-
-    # Center and crop data
-    if auto_center_resize:
-        if iobs.ndim == 3:
-            nz0, ny0, nx0 = iobs.shape
-
-            # Find center of mass
-            z0, y0, x0 = center_of_mass(iobs)
-            print("Center of mass at:", z0, y0, x0)
-            iz0, iy0, ix0 = int(round(z0)), int(round(y0)), int(round(x0))
-
-            # Max symmetrical box around center of mass
-            nx = 2 * min(ix0, nx0 - ix0)
-            ny = 2 * min(iy0, ny0 - iy0)
-            nz = 2 * min(iz0, nz0 - iz0)
-
-            if max_size is not None:
-                nx = min(nx, max_size)
-                ny = min(ny, max_size)
-                nz = min(nz, max_size)
-
-            # Crop data to fulfill FFT size requirements
-            nz1, ny1, nx1 = smaller_primes(
-                (nz, ny, nx),
-                maxprime=7,
-                required_dividers=(2,)
-            )
-
-            print(
-                f"Centering & reshaping data: ({nz0}, {ny0}, {nx0}) -> "
-                f"({nz1}, {ny1}, {nx1})"
-            )
-            iobs = iobs[
-                iz0 - nz1 // 2:iz0 + nz1 // 2,
-                iy0 - ny1 // 2:iy0 + ny1 // 2,
-                ix0 - nx1 // 2:ix0 + nx1 // 2]
-            if mask is not None:
-                mask = mask[
-                    iz0 - nz1 // 2:iz0 + nz1 // 2,
-                    iy0 - ny1 // 2:iy0 + ny1 // 2,
-                    ix0 - nx1 // 2:ix0 + nx1 // 2]
-                print(
-                    f"Centering & reshaping mask: ({nz0}, {ny0}, {nx0}) -> "
-                    f"({nz1}, {ny1}, {nx1})"
-                )
-
-        else:
-            ny0, nx0 = iobs.shape
-
-            # Find center of mass
-            y0, x0 = center_of_mass(iobs)
-            iy0, ix0 = int(round(y0)), int(round(x0))
-            print("Center of mass (rounded) at:", iy0, ix0)
-
-            # Max symmetrical box around center of mass
-            nx = 2 * min(ix0, nx0 - ix0)
-            ny = 2 * min(iy0, ny0 - iy0)
-            if max_size is not None:
-                nx = min(nx, max_size)
-                ny = min(ny, max_size)
-                nz = min(nz, max_size)
-
-            # Crop data to fulfill FFT size requirements
-            ny1, nx1 = smaller_primes(
-                (ny, nx), maxprime=7, required_dividers=(2,))
-
-            print(
-                f"Centering & reshaping data: ({ny0}, {nx0}) -> ({ny1}, {nx1})"
-            )
-            iobs = iobs[iy0 - ny1 // 2:iy0 + ny1 //
-                        2, ix0 - nx1 // 2:ix0 + nx1 // 2]
-
-            if mask is not None:
-                mask = mask[iy0 - ny1 // 2:iy0 + ny1 //
-                            2, ix0 - nx1 // 2:ix0 + nx1 // 2]
 
     # Create cdi object with data and mask, load the main parameters
     cdi = CDI(
