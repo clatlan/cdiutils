@@ -43,7 +43,7 @@ from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.volume import plot_3d_surface_projections
 from cdiutils.plot.slice import plot_volume_slices
 
-from cdiutils.process.phaser import PhasingResultAnalyser, PynNXImportError
+from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
 from cdiutils.process.postprocessor import PostProcessor
 from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
@@ -1188,7 +1188,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             modes, mode_weights = self.result_analyser.mode_decomposition()
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
 
-        except PynNXImportError:
+        except PyNXImportError:
             self.logger.info(
                 "PyNX is not installed on the current machine. Will try to "
                 "run the provided command instead."

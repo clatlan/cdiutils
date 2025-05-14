@@ -89,7 +89,7 @@ DEFAULT_PYNX_PARAMS = {
 }
 
 
-class PynNXImportError(Exception):
+class PyNXImportError(ImportError):
     """Custom exception to handle Pynx import error."""
 
     def __init__(self, msg: str = None) -> None:
@@ -132,7 +132,7 @@ class PyNXPhaser:
              is of no use.
         """
         if not IS_PYNX_AVAILABLE:
-            raise PynNXImportError
+            raise PyNXImportError
         self.iobs = fftshift(iobs)
 
         self.mask = None
@@ -1062,7 +1062,7 @@ class PhasingResultAnalyser:
             np.ndarray: the main mode.
         """
         if not IS_PYNX_AVAILABLE:
-            raise PynNXImportError
+            raise PyNXImportError
 
         if self.best_candidates:
             result_keys = self.best_candidates
