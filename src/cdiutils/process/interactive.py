@@ -144,7 +144,7 @@ class PhaseRetrievalGUI(widgets.VBox):
     run_pynx_handler(change) -> None
         Handles changes to the phase retrieval toggle buttons and enables
         or disables widgets accordingly.
-    stand_alone(energy, detector_distance, pixel_size_detector) -> None
+    show(energy, detector_distance, pixel_size_detector) -> None
         Displays the GUI as a standalone widget in a Jupyter Notebook.
     """
 
@@ -1076,7 +1076,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             self.pynx_psf_handler(
                 change=self.psf.value)
 
-    def stand_alone(self, energy, detector_distance, pixel_size_detector):
+    def show(self, energy, detector_distance, pixel_size_detector):
         """
         Display the PhaseRetrievalGUI GUI as a standalone widget in a Jupyter
         Notebook.
