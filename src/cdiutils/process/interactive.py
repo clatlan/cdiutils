@@ -14,7 +14,6 @@ from scipy.ndimage import center_of_mass
 from shlex import quote
 from IPython.display import clear_output, display
 from ast import literal_eval
-from typing import Tuple, Union, Optional, List, Any
 import h5py
 
 import ipywidgets as widgets
@@ -134,15 +133,15 @@ class PhaseRetrievalGUI(widgets.VBox):
 
     Methods:
     --------
-    pynx_folder_handler(change: Any) -> None
+    pynx_folder_handler(change) -> None
         Handles changes to the parent folder and updates file lists.
-    pynx_psf_handler(change: Any) -> None
+    pynx_psf_handler(change) -> None
         Handles changes to the PSF settings and enables/disables related
         widgets.
-    pynx_peak_shape_handler(change: Any) -> None
+    pynx_peak_shape_handler(change) -> None
         Handles changes to the PSF peak shape and enables/disables the eta
         parameter.
-    run_pynx_handler(change: Any) -> None
+    run_pynx_handler(change) -> None
         Handles changes to the phase retrieval toggle buttons and enables
         or disables widgets accordingly.
     stand_alone(energy, detector_distance, pixel_size_detector) -> None
@@ -913,13 +912,13 @@ class PhaseRetrievalGUI(widgets.VBox):
             self.run_pynx_handler, names="value")
 
     # Define handlers
-    def pynx_folder_handler(self, change: Any) -> None:
+    def pynx_folder_handler(self, change) -> None:
         """
         Handles changes related to the pynx folder.
 
         Parameters:
         ----------
-        change (Any): The change event triggered by the observer.
+        change: The change event triggered by the observer.
 
         Returns:
         -------
@@ -973,7 +972,7 @@ class PhaseRetrievalGUI(widgets.VBox):
         # mask list
         self.mask.options = sorted_mask_list
 
-    def pynx_psf_handler(self, change: Any) -> None:
+    def pynx_psf_handler(self, change) -> None:
         """
         Handles changes related to the psf.
 
@@ -1018,13 +1017,13 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.pynx_peak_shape_handler(
             change=self.psf_model.value)
 
-    def pynx_peak_shape_handler(self, change: Any) -> None:
+    def pynx_peak_shape_handler(self, change) -> None:
         """
         Handles changes related to psf the peak shape.
 
         Parameters
         ----------
-        change : Any
+        change
             The new value of the change event.
 
         Returns
@@ -1040,13 +1039,13 @@ class PhaseRetrievalGUI(widgets.VBox):
         else:
             self.eta.disabled = False
 
-    def run_pynx_handler(self, change: Any) -> None:
+    def run_pynx_handler(self, change) -> None:
         """
         Handles changes related to the phase retrieval.
 
         Parameters
         ----------
-        change : Any
+        change
             The new value of the change event.
 
         Returns
@@ -1451,7 +1450,10 @@ def init_phase_retrieval_tab(
                 # Change support threshold for supports update
                 if isinstance(process_parameters["support_threshold"], float):
                     threshold_relative = process_parameters["support_threshold"]
-                elif isinstance(process_parameters["support_threshold"], tuple):
+                elif isinstance(
+                    process_parameters["support_threshold"],
+                    tuple
+                ):
                     threshold_relative = np.random.uniform(
                         process_parameters["support_threshold"][0],
                         process_parameters["support_threshold"][1]
@@ -1768,16 +1770,16 @@ def init_phase_retrieval_tab(
 
 def initialize_cdi_operator(
     iobs: str,
-    mask: Optional[str] = None,
-    support: Optional[str] = None,
-    obj: Optional[str] = None,
-    rebin: Tuple[int, int, int] = (1, 1, 1),
+    mask: str | None,
+    support: str | None,
+    obj: str | None,
+    max_size: int | None,
+    wavelength: float | None,
+    pixel_size_detector: float | None,
+    detector_distance: float | None,
+    rebin: tuple[int, int, int] = (1, 1, 1),
     auto_center_resize: bool = False,
-    max_size: Optional[int] = None,
-    wavelength: Optional[float] = None,
-    pixel_size_detector: Optional[float] = None,
-    detector_distance: Optional[float] = None,
-) -> Optional[Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]]:
+) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
     """
     Initialize the CDI operator by processing the possible inputs:
         - iobs
@@ -1990,7 +1992,7 @@ def initialize_cdi_operator(
 def save_cdi_operator_as_cxi(
     cdi_operator,
     path_to_cxi: str,
-    process_parameters: Optional[dict] = None,
+    process_parameters: dict | None,
 ):
     """
     We need to create a dictionnary with the parameters to save in the
@@ -2033,7 +2035,7 @@ def list_files(
     folder: str,
     glob_pattern: str = "*FLLK*.cxi",
     verbose: bool = False
-) -> List[str]:
+) -> list[str]:
     """
     List all files in a specified folder that match a specified
      glob pattern, and sort by creation time.
@@ -2082,7 +2084,7 @@ def list_files(
 def filter_reconstructions(
     folder: str,
     nb_run_keep: int,
-    nb_run: Optional[int] = None,
+    nb_run: int | None,
     filter_criteria: str = "FLLK"
 ) -> None:
     """
@@ -2114,7 +2116,7 @@ def filter_reconstructions(
         None
     """
     def filter_by_std(
-        cxi_files: List[str],
+        cxi_files: list[str],
         nb_run_keep: int
     ) -> None:
         """
@@ -2128,7 +2130,7 @@ def filter_reconstructions(
 
         Parameters
         ----------
-        cxi_files : List[str]
+        cxi_files : list[str]
             A list of strings representing the paths to the `cxi`
             files to be filtered.
         nb_run_keep : int
@@ -2178,7 +2180,7 @@ def filter_reconstructions(
         )
 
     def filter_by_FLLK(
-        cxi_files: List[str],
+        cxi_files: list[str],
         nb_run_keep: int
     ) -> None:
         """
