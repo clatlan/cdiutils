@@ -713,7 +713,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=100,
             continuous_update=False,
             description='Log likelihood update interval:',
-            layout=widgets.Layout(width="25%", height="50px"),
+            layout=widgets.Layout(width="45%", height="50px"),
             readout=True,
             style={
                 'description_width': 'initial'},
