@@ -11,7 +11,6 @@ import h5py
 import ipywidgets as widgets
 from ipywidgets import interactive
 
-from cdiutils.utils import bin_along_axis
 from cdiutils.process.phaser import PynNXImportError
 
 try:
@@ -33,6 +32,7 @@ try:
         InitFreePixels,
         ShowCDI,
     )
+    from pynx.utils.array import rebin
     IS_PYNX_AVAILABLE = True
 
 except ImportError:
@@ -123,7 +123,7 @@ class PhaseRetrievalGUI(widgets.VBox):
         Dropdown to select the axis used for live plots.
     verbose : widgets.BoundedIntText
         Input field to specify the verbosity level of the output.
-    rebin : widgets.Text
+    binning : widgets.Text
         Input field to specify rebinning parameters for the input data.
     positivity : widgets.Checkbox
         Checkbox to enable or disable positivity constraints.
@@ -253,7 +253,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             Dropdown to select the axis used for live plots.
         verbose : widgets.BoundedIntText
             Input field to specify the verbosity level of the output.
-        rebin : widgets.Text
+        binning : widgets.Text
             Input field to specify rebinning parameters for the input data.
         positivity : widgets.Checkbox
             Checkbox to enable or disable positivity constraints.
@@ -659,10 +659,10 @@ class PhaseRetrievalGUI(widgets.VBox):
                 'description_width': 'initial'},
         )
 
-        self.rebin = widgets.Text(
+        self.binning = widgets.Text(
             value="(1, 1, 1)",
             placeholder="(1, 1, 1)",
-            description='Rebin',
+            description='Binning',
             layout=widgets.Layout(width='20%', height="50px"),
             continuous_update=False,
             style={'description_width': 'initial'}
@@ -863,7 +863,7 @@ class PhaseRetrievalGUI(widgets.VBox):
                 self.verbose,
             ]),
             widgets.HBox([
-                self.rebin,
+                self.binning,
                 self.positivity,
             ]),
             widgets.HBox([
@@ -1115,7 +1115,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             live_plot=self.live_plot,
             plot_axis=self.plot_axis,
             verbose=self.verbose,
-            rebin=self.rebin,
+            binning=self.binning,
             positivity=self.positivity,
             beta=self.beta,
             detwin=self.detwin,
@@ -1166,7 +1166,7 @@ def init_phase_retrieval_tab(
     live_plot,
     plot_axis,
     verbose,
-    rebin,
+    binning,
     positivity,
     beta,
     detwin,
@@ -1330,7 +1330,7 @@ def init_phase_retrieval_tab(
             support_autocorrelation_threshold),
         "support_smooth_width": literal_eval(support_smooth_width),
         "support_post_expand": literal_eval(support_post_expand),
-        "rebin": literal_eval(rebin),
+        "binning": literal_eval(binning),
         "mask_interp": literal_eval(mask_interp),
 
         "zero_mask": {"True": True, "False": False, "auto": False}[
@@ -1379,7 +1379,7 @@ def init_phase_retrieval_tab(
                 mask=process_parameters["mask"],
                 support=process_parameters["support"],
                 obj=process_parameters["obj"],
-                rebin=process_parameters['rebin'],
+                binning=process_parameters['binning'],
                 wavelength=process_parameters["wavelength"],
                 pixel_size_detector=process_parameters["pixel_size_detector"],
                 detector_distance=process_parameters["detector_distance"],
@@ -1751,7 +1751,7 @@ def initialize_cdi_operator(
     wavelength: float | None,
     pixel_size_detector: float | None,
     detector_distance: float | None,
-    rebin: tuple[int, int, int] = (1, 1, 1),
+    binning: tuple[int, int, int] = (1, 1, 1),
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
     """
     Initialize the CDI operator by processing the possible inputs:
@@ -1765,7 +1765,7 @@ def initialize_cdi_operator(
     :param mask: path to npz or npy that stores the mask data
     :param support: path to npz or npy that stores the support data
     :param obj: path to npz or npy that stores the object data
-    :param rebin: tuple, applied to all the arrays, e.g. (1, 1, 1)
+    :param binning: tuple, applied to all the arrays, e.g. (1, 1, 1)
     :param wavelength: wavelength of the data, optional
     :param pixel_size_detector: pixel size of the detector, optional
     :param detector_distance: detector distance, optional
@@ -1783,8 +1783,8 @@ def initialize_cdi_operator(
             except KeyError:
                 print("\t\"data\" key does not exist.")
                 return None
-        if rebin != (1, 1, 1):
-            iobs = bin_along_axis(iobs, rebin)
+        if binning != (1, 1, 1):
+            iobs = rebin(iobs, binning)
             print("\tBinned data.")
 
         iobs = fftshift(iobs)
@@ -1818,8 +1818,8 @@ def initialize_cdi_operator(
             else:
                 print("\t--> Could not load mask array.")
 
-        if rebin != (1, 1, 1):
-            mask = bin_along_axis(mask, rebin)
+        if binning != (1, 1, 1):
+            mask = rebin(mask, binning)
             print("\tBinned mask.")
 
         mask = fftshift(mask)
@@ -1842,8 +1842,8 @@ def initialize_cdi_operator(
             else:
                 print("\t--> Could not load support array.")
 
-        if rebin != (1, 1, 1):
-            support = bin_along_axis(support, rebin)
+        if binning != (1, 1, 1):
+            support = rebin(support, binning)
             print("\tBinned support.")
 
         support = fftshift(support)
@@ -1862,8 +1862,8 @@ def initialize_cdi_operator(
             except KeyError:
                 print("\t\"data\" key does not exist.")
 
-        if rebin != (1, 1, 1):
-            obj = bin_along_axis(obj, rebin)
+        if binning != (1, 1, 1):
+            obj = rebin(obj, binning)
             print("\tBinned obj.")
 
         obj = fftshift(obj)
