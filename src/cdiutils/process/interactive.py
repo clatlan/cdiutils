@@ -1355,7 +1355,7 @@ def init_phase_retrieval_tab(
             print("Scan n°", scan)
         except Exception as E:
             print(E)
-            print("Could not get scan nb...")
+            print("Could not get scan nb.
             scan = 0
 
         print(
@@ -1914,7 +1914,7 @@ def save_cdi_operator_as_cxi(
     """
     print(
         "\nSaving phase retrieval parameters selected "
-        "in the PyNX tab in the cxi file ..."
+        "in the PyNX tab in the cxi file."
     )
     cdi_operator.save_data_cxi(
         filename=path_to_cxi,
@@ -2207,7 +2207,7 @@ def filter_reconstructions(
         else:
             print("No filtering")
     except KeyboardInterrupt:
-        print("File filtering stopped by user ...")
+        print("File filtering stopped.")
 
 
 def run_modes_decomposition(
