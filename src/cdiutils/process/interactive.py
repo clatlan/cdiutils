@@ -603,7 +603,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             ],
             value="FLLK_standard_deviation",
             description='Filtering criteria',
-            layout=widgets.Layout(width='60%'),
+            layout=widgets.Layout(width='50%'),
             style={'description_width': 'initial'}
         )
 
@@ -712,7 +712,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=100,
             continuous_update=False,
             description='Log likelihood update interval:',
-            layout=widgets.Layout(width="45%", height="50px"),
+            layout=widgets.Layout(width="40%", height="50px"),
             readout=True,
             style={
                 'description_width': 'initial'},
