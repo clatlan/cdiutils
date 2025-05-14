@@ -14,7 +14,7 @@ try:
         ER,
         # FourierApplyAmplitude,
         SupportTooLarge,
-        # SupportTooSmall,
+        SupportTooSmall,
         InitPSF,
         InterpIobsMask,
         InitFreePixels,
@@ -1685,8 +1685,14 @@ def init_phase_retrieval_tab(
 
                 except SupportTooLarge:
                     print(
-                        "The threshold value is probably too low,"
-                        " since the support is too large to continue"
+                        "The support is too large to continue,"
+                        "try increasing the threshold value."
+                    )
+
+                except SupportTooSmall:
+                    print(
+                        "The support is too small to continue,"
+                        "try lowering the threshold value."
                     )
 
             # If filter, filter data
