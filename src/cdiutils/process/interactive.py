@@ -1355,7 +1355,7 @@ def init_phase_retrieval_tab(
             print("Scan n°", scan)
         except Exception as E:
             print(E)
-            print("Could not get scan nb.
+            print("Could not get scan nb.")
             scan = 0
 
         print(
