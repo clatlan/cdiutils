@@ -2,7 +2,7 @@ from pynx.cdi import SupportUpdate, ScaleObj, AutoCorrelationSupport, \
     InitPSF, ShowCDI, HIO, RAAR, ER, SupportTooLarge, CDI, InitFreePixels, \
     InterpIobsMask
 from pynx.utils.math import smaller_primes
-from pynx.utils.array import rebin as bin_data
+from cdiutils.utils import bin_along_axis
 
 import numpy as np
 import glob
@@ -1813,7 +1813,7 @@ def initialize_cdi_operator(
                 print("\t\"data\" key does not exist.")
                 return None
         if rebin != (1, 1, 1):
-            iobs = bin_data(iobs, rebin)
+            iobs = bin_along_axis(iobs, rebin)
             print("\tBinned data.")
 
         iobs = fftshift(iobs)
@@ -1848,7 +1848,7 @@ def initialize_cdi_operator(
                 print("\t--> Could not load mask array.")
 
         if rebin != (1, 1, 1):
-            mask = bin_data(mask, rebin)
+            mask = bin_along_axis(mask, rebin)
             print("\tBinned mask.")
 
         mask = fftshift(mask)
@@ -1872,7 +1872,7 @@ def initialize_cdi_operator(
                 print("\t--> Could not load support array.")
 
         if rebin != (1, 1, 1):
-            support = bin_data(support, rebin)
+            support = bin_along_axis(support, rebin)
             print("\tBinned support.")
 
         support = fftshift(support)
@@ -1892,7 +1892,7 @@ def initialize_cdi_operator(
                 print("\t\"data\" key does not exist.")
 
         if rebin != (1, 1, 1):
-            obj = bin_data(obj, rebin)
+            obj = bin_along_axis(obj, rebin)
             print("\tBinned obj.")
 
         obj = fftshift(obj)
