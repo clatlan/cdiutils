@@ -961,8 +961,8 @@ class CroppingHandler:
                 print("Does not require forced-centered cropping.")
             else:
                 print(
-                    "Required shape for cropping at the center is"
-                    f"{safe_shape}."
+                    "Required shape for cropping at the center is "
+                    f"{tuple(safe_shape)}."
                 )
         plus_one = np.where((safe_shape % 2 == 0), 0, 1)
         crop = [
@@ -971,8 +971,8 @@ class CroppingHandler:
         ]
         roi = []
         for i, s in enumerate(shape):
-            roi.append(np.max([where[i]-crop[i][0], 0]))
-            roi.append(np.min([where[i]+crop[i][1], s]))
+            roi.append(np.max([position[i]-crop[i][0], 0]))
+            roi.append(np.min([position[i]+crop[i][1], s]))
 
         return data[cls.roi_list_to_slices(roi)]
 
