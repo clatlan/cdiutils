@@ -66,7 +66,7 @@ class Geometry:
                 sample_circles=["x-", "y-"],  # om (or samth), phi
                 detector_circles=["y+", "x-"],  # gam, del (or e2_t02)
                 detector_axis0_orientation="y-",
-                detector_axis1_orientation="x+",
+                detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 name="P10"
             )
