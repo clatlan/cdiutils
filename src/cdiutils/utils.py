@@ -248,14 +248,18 @@ def angular_spectrum_propagation(
 
     Parameters:
         wavefront (np.ndarray): 2D or 3D complex array representing the
-            wavefront. It can be fftshifted or not, see do_fftshift.
+            wavefront. If the input is 2D, it will be converted to 3D
+            with one slice. It can be fftshifted or not, see
+            do_fftshift.
         propagation_distance (float): Propagation distance.
         wavelength (float): Wavelength of the wavefront.
         pixel_size (float): Pixel size in the spatial domain.
         magnification (float, optional): Magnification factor to handle
             the pixel size of the propagated wavefront (default is 1).
         do_fftshift (bool, optional): whether to apply fftshift to the
-            wavefront before propagation. Defaults to True.
+            wavefront before propagation. If True, the wavefront is
+            fftshifted before propagation and ifftshifted after.
+            Defaults to True. 
         verbose (bool): whether to print z limits.
 
     Returns:
@@ -341,6 +345,10 @@ def angular_spectrum_propagation(
 
         # Store the result in the output array
         propagated_wavefront[j, :, :] = propagated_slice
+
+    # Apply ifftshift to the propagated wavefront if it was shifted
+    if do_fftshift:
+        wavefront_stack = ifftshift(wavefront_stack, axes=(-2, -1))
 
     # If the input was 2D, return a 2D array
     if wavefront.ndim == 2:
