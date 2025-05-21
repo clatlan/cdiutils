@@ -235,10 +235,11 @@ def fill_up_support(support: np.ndarray) -> np.ndarray:
 
 def angular_spectrum_propagation(
         wavefront: np.ndarray,
-        z: float,
+        propagation_distance: float,
         wavelength: float,
-        dx: float,
-        m: float = 1,
+        pixel_size: float,
+        magnification: float = 1,
+        do_fftshift: bool = True,
         verbose: bool = False
 ) -> np.ndarray:
     """
@@ -247,18 +248,20 @@ def angular_spectrum_propagation(
 
     Parameters:
         wavefront (np.ndarray): 2D or 3D complex array representing the
-            wavefront, assumed to be fftshifted.
-        z (float): Propagation distance.
+            wavefront. It can be fftshifted or not, see do_fftshift.
+        propagation_distance (float): Propagation distance.
         wavelength (float): Wavelength of the wavefront.
-        dx (float): Pixel size in the spatial domain.
-        m (float, optional): Magnification factor to handle the pixel
-            size of the propagated wavefront (default is 1).
-        verbose (bool): whether to print z limits. 
+        pixel_size (float): Pixel size in the spatial domain.
+        magnification (float, optional): Magnification factor to handle
+            the pixel size of the propagated wavefront (default is 1).
+        do_fftshift (bool, optional): whether to apply fftshift to the
+            wavefront before propagation. Defaults to True.
+        verbose (bool): whether to print z limits.
 
     Returns:
         np.ndarray: Propagated wavefront at distance z.
     """
-    if z == 0:
+    if propagation_distance == 0:
         return wavefront
 
     # Handle 2D and 3D input wavefronts
@@ -270,35 +273,49 @@ def angular_spectrum_propagation(
     else:
         raise ValueError("Input wavefront must be a 2D or 3D array.")
 
+    if do_fftshift:
+        wavefront_stack = fftshift(wavefront_stack, axes=(-2, -1))
+
     nz, ny, nx = wavefront_stack.shape
 
-    min_dist = max(abs((m - 1) / m), abs(m - 1)) * nx * dx ** 2 / wavelength
-    max_dist = abs(m) * nx * dx ** 2 / wavelength
+    min_dist = max(
+        abs((magnification - 1) / magnification), abs(magnification - 1)
+    ) * nx * pixel_size ** 2 / wavelength
+    max_dist = abs(magnification) * nx * pixel_size ** 2 / wavelength
 
     if verbose:
         print(
             "Near field magnified propagation: "
-            f"{min_dist:.4e} < |{z=:.4e}| < {max_dist:.4e}?"
+            f"{min_dist:.4e} < |{propagation_distance=:.4e}| < {max_dist:.4e}?"
         )
 
     # Spatial coordinates in the source plane
-    x = fftshift(np.arange(-nx//2, nx//2) * dx)
-    y = fftshift(np.arange(-ny//2, ny//2) * dx)
+    x = fftshift(np.arange(-nx//2, nx//2) * pixel_size)
+    y = fftshift(np.arange(-ny//2, ny//2) * pixel_size)
     Y, X = np.meshgrid(x, y, indexing="ij")
 
     # Spatial frequency coordinates (or Fourier coordinates)
-    fx = np.fft.fftfreq(nx, dx)
-    fy = np.fft.fftfreq(ny, dx)
+    fx = np.fft.fftfreq(nx, pixel_size)
+    fy = np.fft.fftfreq(ny, pixel_size)
     FY, FX = np.meshgrid(fx, fy, indexing="ij")
 
     # Quadratic phase factor in the source plane
-    Q1 = np.exp(1j * np.pi / (wavelength * z) * (1 - m) * (X**2 + Y**2))
+    Q1 = np.exp(
+        1j * np.pi / (wavelength * propagation_distance)
+        * (1 - magnification) * (X**2 + Y**2)
+    )
 
     # Propagation kernel in the Fourier domain
-    Q2 = np.exp(-1j * np.pi * wavelength * z / m * (FX**2 + FY**2))
+    Q2 = np.exp(
+        -1j * np.pi * wavelength * propagation_distance / magnification
+        * (FX**2 + FY**2)
+    )
 
     # Quadratic phase factor in the observation plane
-    Q3 = np.exp(1j * np.pi / (wavelength * z) * (m - 1) * m * (X**2 + Y**2))
+    Q3 = np.exp(
+        1j * np.pi / (wavelength * propagation_distance)
+        * (magnification - 1) * magnification * (X**2 + Y**2)
+    )
 
     # Initialise the output array for the propagated wavefront
     propagated_wavefront = np.zeros_like(wavefront_stack, dtype=complex)
