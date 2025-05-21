@@ -259,7 +259,7 @@ def angular_spectrum_propagation(
         do_fftshift (bool, optional): whether to apply fftshift to the
             wavefront before propagation. If True, the wavefront is
             fftshifted before propagation and ifftshifted after.
-            Defaults to True. 
+            Defaults to True.
         verbose (bool): whether to print z limits.
 
     Returns:
@@ -348,7 +348,7 @@ def angular_spectrum_propagation(
 
     # Apply ifftshift to the propagated wavefront if it was shifted
     if do_fftshift:
-        wavefront_stack = ifftshift(wavefront_stack, axes=(-2, -1))
+        propagated_wavefront = ifftshift(propagated_wavefront, axes=(-2, -1))
 
     # If the input was 2D, return a 2D array
     if wavefront.ndim == 2:
