@@ -11,7 +11,7 @@ import h5py
 import ipywidgets as widgets
 from ipywidgets import interactive
 
-from cdiutils.process.phaser import PynNXImportError
+from cdiutils.process.phaser import PyNXImportError, PhasingResultAnalyser
 
 try:
     from pynx.cdi import (
@@ -755,6 +755,54 @@ class PhaseRetrievalGUI(widgets.VBox):
             layout=widgets.Layout(width='90%', height="35px")
         )
 
+        self.unused_label_reconstruction_selection = widgets.HTML(
+            value="<p style='font-weight: bold;font-size:1.2em'>\
+            Options for selection</p>",
+            style={
+                'description_width': 'initial'},
+            layout=widgets.Layout(width='90%', height="35px")
+        )
+        self.filter_criteria = widgets.Dropdown(
+            options=[
+                ("No filtering", "no_filtering"),
+                ("Mean to Max", "mean_to_max"),
+                ("Standard deviation", "std"),
+                ("Free Log-likelihood (FLLK)", "llkf"),
+                ("Log-likelihood (FLLK)", "llk"),
+                ("FLLK > Standard deviation", "FLLK_standard_deviation"),
+                ("Average of all", "all")
+                # ("Standard deviation > FLLK", "standard_deviation_FLLK"),
+            ],
+            value="mean_to_max",
+            description='Filtering criteria',
+            layout=widgets.Layout(width='30%'),
+            style={'description_width': 'initial'}
+        )
+        self.plot_metrics_checkbox = widgets.Checkbox(
+            value=True,
+            description="Plot metrics",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
+        )
+        self.plot_reconstruction_checkbox = widgets.Checkbox(
+            value=True,
+            description="Plot reconstruction",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
+        )
+        self.plot_reconstruction_phase_checkbox = widgets.Checkbox(
+            value=False,
+            description="Plot reconstruction phase",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
+        )
+
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
                 ('No phase retrieval', False),
@@ -875,6 +923,13 @@ class PhaseRetrievalGUI(widgets.VBox):
             widgets.HBox([
                 self.zero_mask,
                 self.mask_interp,
+            ]),
+            self.unused_label_reconstruction_selection,
+            widgets.HBox([
+                self.filter_criteria,
+                self.plot_metrics_checkbox,
+                self.plot_reconstruction_checkbox,
+                self.plot_reconstruction_phase_checkbox,
             ]),
             self.unused_label_run_options,
             self.run_phase_retrieval,
@@ -1083,7 +1138,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             Displays the GUI in the Jupyter Notebook environment.
         """
         if not IS_PYNX_AVAILABLE:
-            raise PynNXImportError
+            raise PyNXImportError
 
         init_phase_retrieval_tab_gui = interactive(
             init_phase_retrieval_tab,
@@ -1127,6 +1182,12 @@ class PhaseRetrievalGUI(widgets.VBox):
             energy=energy,
             detector_distance=detector_distance,
             pixel_size_detector=pixel_size_detector,
+            # filter_criteria=self.filter_criteria,
+            plot_metrics_checkbox=self.plot_metrics_checkbox,
+            plot_reconstruction_checkbox=self.plot_reconstruction_checkbox,
+            plot_reconstruction_phase_checkbox=(
+                self.plot_reconstruction_phase_checkbox
+            ),
         )
 
         # Use children architecture defined in __init__.py
@@ -1179,6 +1240,9 @@ def init_phase_retrieval_tab(
     energy,
     detector_distance,
     pixel_size_detector,
+    plot_metrics_checkbox,
+    plot_reconstruction_checkbox,
+    plot_reconstruction_phase_checkbox
 ):
     """
     Get parameters values from widgets and run phase retrieval Possible
@@ -1344,6 +1408,11 @@ def init_phase_retrieval_tab(
         "wavelength": 1.2399 * 1e-6 / energy,
         "detector_distance": detector_distance,  # m
         "pixel_size_detector": np.round(pixel_size_detector * 1e-6, 6),
+        "plot_metrics_checkbox": plot_metrics_checkbox,
+        "plot_reconstruction_checkbox": plot_reconstruction_checkbox,
+        "plot_reconstruction_phase_checkbox": (
+            plot_reconstruction_phase_checkbox
+        )
     }
 
     # Run PR with operators
@@ -1718,11 +1787,25 @@ def init_phase_retrieval_tab(
 
     # Modes decomposition and solution filtering
     if run_pynx_tools and not run_phase_retrieval:
-        if run_pynx_tools == "modes":
-            run_modes_decomposition(
-                folder=process_parameters["parent_folder"],
-                path_scripts="/home/esrf/simonne/.conda/envs/p9.cdiutils/bin/",
+        result_analyser = PhasingResultAnalyser(
+                result_dir_path=process_parameters["parent_folder"]
             )
+        if run_pynx_tools == "filter":
+            print(process_parameters["plot_reconstruction_checkbox"])
+            result_analyser.analyse_phasing_results(
+                sorting_criterion="mean_to_max",
+                plot=process_parameters["plot_metrics_checkbox"],
+                plot_phasing_results=process_parameters["plot_reconstruction_checkbox"],
+                plot_phase=process_parameters["plot_reconstruction_phase_checkbox"],
+                search_pattern="*run*.cxi"
+            )
+        if run_pynx_tools == "modes":
+            modes, mode_weights = result_analyser.mode_decomposition()
+
+            # run_modes_decomposition(
+            #     folder=process_parameters["parent_folder"],
+            #     path_scripts="/home/esrf/simonne/.conda/envs/p9.cdiutils/bin/",
+            # )
 
         elif run_pynx_tools == "filter":
             filter_reconstructions(
