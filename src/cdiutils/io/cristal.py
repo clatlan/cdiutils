@@ -127,7 +127,7 @@ class CristalLoader(H5TypeLoader):
         elif "phi" in full_rocking_motor_name.lower():
             rocking_motor_name = "phi"
         else:
-            # Ii we can't determine, use the original approach
+            # If we can't determine, use the original approach
             rocking_motor_name = full_rocking_motor_name[-3:]
 
         # Get the associated motor values
