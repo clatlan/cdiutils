@@ -919,20 +919,11 @@ class PhasingResultAnalyser:
                 str(extract_run_info(run)[0]).zfill(2) 
                 for run in self._sorted_phasing_results
             ]
-
-            # runs = [
-            #     run.split("Run")[1][2:4]
-            #     for run in self._sorted_phasing_results
-            # ]
         else:
             runs = [
                 str(extract_run_info(file)[0]).zfill(2) 
                 for file in self._sorted_phasing_results
             ]
-            # runs = [
-            #     file.split("Run")[1][2:4]
-            #     for file in self._sorted_phasing_results
-            # ]
 
         if plot:
             figure, ax = plt.subplots(1, 1, layout="tight", figsize=(6, 3))
@@ -1036,7 +1027,6 @@ class PhasingResultAnalyser:
                     self.find_phasing_results(search_pattern)
                 for path in self.result_paths:
                     run_nb = extract_run_info(path)[0]
-                    # run_nb = int(path.split("Run")[1][:4])
                     if run_nb in best_runs:
                         self.best_candidates.append(path)
 
@@ -1055,13 +1045,17 @@ class PhasingResultAnalyser:
             # Remove the previous candidate files
             for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
                 os.remove(f)
+            printout_list = [
+                str(extract_run_info(f)[0]).zfill(2)
+                for f in self.best_candidates
+            ]
             print(
                 "[INFO] Best candidates selected:\n"
-                f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
+                f"{printout_list}"
             )
             for i, f in enumerate(self.best_candidates):
                 dir_name, file_name = os.path.split(f)
-                run_nb = file_name.split("Run")[1][2:4]
+                run_nb = str(extract_run_info(file_name)[0]).zfill(2)
                 scan_nb = file_name.split("_")[0]
                 file_name = (
                     f"/candidate_{i+1}-{len(self.best_candidates)}"
