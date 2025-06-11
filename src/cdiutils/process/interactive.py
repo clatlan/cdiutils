@@ -9,7 +9,7 @@ from IPython.display import clear_output, display
 from ast import literal_eval
 import h5py
 import ipywidgets as widgets
-from ipywidgets import interactive
+from ipywidgets import interactive, Layout, Button
 
 from cdiutils.process.phaser import PyNXImportError, PhasingResultAnalyser
 
@@ -811,13 +811,12 @@ class PhaseRetrievalGUI(widgets.VBox):
                 'description_width': 'initial'},
             layout=widgets.Layout(width='90%', height="35px")
         )
-        self.best_runs_widget = widgets.Text(
-            value=None,
-            placeholder="()",
+        self.best_runs_widget = widgets.SelectMultiple(
+            options=[],
+            rows=5,
             description="Best runs:",
-            layout=widgets.Layout(width='20%', height="50px"),
-            continuous_update=False,
-            style={'description_width': 'initial'}
+            style={'description_width': 'initial'},
+            layout=Layout(display="flex", flex_flow='column', width="50%")
         )
         self.number_of_best_ordered_runs_widget = widgets.BoundedIntText(
             value=5,
@@ -829,6 +828,18 @@ class PhaseRetrievalGUI(widgets.VBox):
             style={
                 'description_width': 'initial'},
         )
+        self.button_update_cxi_file_list = Button(
+            description="Update cxi file list",
+            layout=Layout(width='15%', height='35px'),
+        )
+        @self.button_update_cxi_file_list.on_click
+        def ActionSaveName(selfbutton):
+            self.best_runs_widget.options = [
+                os.path.basename(f) for f in list_files(
+                    self.parent_folder.value
+                )
+            ]
+
         # Job buttons
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
@@ -959,6 +970,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             widgets.HBox([
                 self.best_runs_widget,
                 self.number_of_best_ordered_runs_widget,
+                self.button_update_cxi_file_list,
             ]),
             self.unused_label_run_options,
             self.run_phase_retrieval,
@@ -1080,8 +1092,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             else:
                 w.disabled = True
 
-        self.pynx_peak_shape_handler(
-            change=self.psf_model.value)
+        self.pynx_peak_shape_handler(change=self.psf_model.value)
 
     def pynx_peak_shape_handler(self, change) -> None:
         """
@@ -1139,8 +1150,8 @@ class PhaseRetrievalGUI(widgets.VBox):
                 else:
                     w.disabled = False
 
-            self.pynx_psf_handler(
-                change=self.psf.value)
+            self.pynx_psf_handler(change=self.psf.value)
+
 
     def show(self, energy, detector_distance, pixel_size_detector):
         """
@@ -1168,7 +1179,7 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         if not IS_PYNX_AVAILABLE:
             raise PyNXImportError
-        print("Entering PhaseRetrievalGUI.show()")
+
         init_phase_retrieval_tab_gui = interactive(
             init_phase_retrieval_tab,
             parent_folder=self.parent_folder,
@@ -1214,27 +1225,16 @@ class PhaseRetrievalGUI(widgets.VBox):
             # filter_criteria=self.filter_criteria,
             plot_metrics_checkbox=self.plot_metrics_checkbox,
             plot_reconstruction_checkbox=self.plot_reconstruction_checkbox,
-            plot_reconstruction_phase_checkbox=(
-                self.plot_reconstruction_phase_checkbox
-            ),
+            plot_reconstruction_phase_checkbox=self.plot_reconstruction_phase_checkbox,
             best_runs_widget=self.best_runs_widget,
-            number_of_best_ordered_runs_widget=(
-                self.number_of_best_ordered_runs_widget
-            )
+            number_of_best_ordered_runs_widget=self.number_of_best_ordered_runs_widget,
         )
-        print("right after the interactive() call")
-
         # Use children architecture defined in __init__.py
         window = widgets.VBox([
             self,
             init_phase_retrieval_tab_gui.children[-1]
         ])
-        
-        print("right after the VBox() call")
-
         display(window)
-        print("right after the display() call")
-
 
 def init_phase_retrieval_tab(
     parent_folder,
@@ -1452,7 +1452,7 @@ def init_phase_retrieval_tab(
         "plot_reconstruction_phase_checkbox": (
             plot_reconstruction_phase_checkbox
         ),
-        "best_runs_widget": literal_eval(best_runs_widget),
+        "best_runs_widget": best_runs_widget,
         "number_of_best_ordered_runs_widget": (
             number_of_best_ordered_runs_widget
         ),
@@ -1822,15 +1822,7 @@ def init_phase_retrieval_tab(
 
         except KeyboardInterrupt:
             clear_output(True)
-            print(
-                "Phase retrieval stopped by user, `.cxi` file list below."
-            )
-
-        _ = list_files(
-            folder=params["parent_folder"],
-            glob_pattern="*.cxi",
-            verbose=True,
-        )
+            print("Phase retrieval stopped by user.")
 
     # Modes decomposition and solution filtering
     if run_pynx_tools and not run_phase_retrieval:
@@ -1852,11 +1844,6 @@ def init_phase_retrieval_tab(
         elif run_pynx_tools == "mode_decomposition":
             modes, mode_weights = result_analyser.mode_decomposition()
 
-            # run_modes_decomposition(
-            #     folder=params["parent_folder"],
-            #     path_scripts="/home/esrf/simonne/.conda/envs/p9.cdiutils/bin/",
-            # )
-
         # elif run_pynx_tools == "filter":
         #     filter_reconstructions(
         #         folder=params["parent_folder"],
@@ -1869,12 +1856,6 @@ def init_phase_retrieval_tab(
     if not run_phase_retrieval and not run_pynx_tools:
         print("Cleared output.")
         clear_output(True)
-
-        _ = list_files(
-            folder=params["parent_folder"],
-            glob_pattern="*.cxi",
-            verbose=True,
-        )
 
 
 def initialize_cdi_operator(
@@ -2057,7 +2038,7 @@ def save_cdi_operator_as_cxi(
     )
     cdi_operator.save_data_cxi(
         filename=path_to_cxi,
-        params=params,
+        process_parameters=params,
     )
 
 
@@ -2085,7 +2066,6 @@ def list_files(
     Example:
         file_list = list_files("/path/to/folder", verbose=True)
     """
-    print("Yo entering list_files function")
     file_list = sorted(
         glob.glob(folder + "/" + glob_pattern),
         key=os.path.getmtime,
@@ -2108,7 +2088,6 @@ def list_files(
             "################################################"
             "################################################"
         )
-    print("Yo leaving list_files function")
 
     return file_list
 
@@ -2349,70 +2328,3 @@ def filter_reconstructions(
             print("No filtering")
     except KeyboardInterrupt:
         print("File filtering stopped.")
-
-
-def run_modes_decomposition(
-    path_scripts: str,
-    folder: str
-) -> None:
-    """
-    Decomposes several phase retrieval solutions into modes, saves only
-    the first mode to save space.
-
-    All files corresponding to *FLLK* pattern are loaded, if no files are
-    loaded, trying with *LLK* pattern.
-
-    Args:
-    - path_scripts (str): absolute path to the script containing the folder
-    - folder (str): path to the folder in which the reconstructions are stored
-
-    Returns:
-    None
-
-    Raises:
-    - KeyboardInterrupt: if the decomposition into modes is stopped by the user
-
-    Example:
-    >>> run_modes_decomposition("/path/to/scripts", "/path/to/folder")
-    """
-    glob_pattern = "*FLLK*.cxi"
-    cxi_files_list = list_files(
-        folder=folder,
-        glob_pattern=glob_pattern,
-    )
-
-    if cxi_files_list == []:
-        glob_pattern = "*LLK*.cxi"
-        cxi_files_list = list_files(
-            folder=folder,
-            glob_pattern=glob_pattern,
-        )
-        if cxi_files_list == []:
-            print(
-                "Could not find any files matching the *LLK*.cxi* "
-                "or *FLLK*.cxi patterns."
-            )
-            glob_pattern = False
-
-    if isinstance(glob_pattern, str):
-        print(
-            "\n###########################################"
-            "#############################################"
-            f"\nUsing {path_scripts}/pynx-cdi-analysis"
-            f"\nUsing {folder}/{glob_pattern} files."
-            f"\nRunning: $ pynx-cdi-analysis {glob_pattern} -- modes 1"
-            f"\nOutput in {folder}/modes_gui.h5"
-            "\n###########################################"
-            "#############################################"
-        )
-    try:
-        os.system(
-            "{}/pynx-cdi-analysis {}/{} --modes 1 --modes_output {}".format(
-                quote(path_scripts),
-                quote(folder),
-                glob_pattern,
-                quote(folder),
-            ) + "/modes_gui.h5"
-        )
-    except KeyboardInterrupt:
-        print("Decomposition into modes stopped by user...")
