@@ -1358,7 +1358,7 @@ def init_phase_retrieval_tab(
     :param detector_distance: detector distance (meters)
     """
     # Assign attributes
-    process_parameters = {
+    params = {
         "parent_folder": parent_folder,
         "iobs": parent_folder + iobs,
         "mask": parent_folder + mask if mask != "" else "",
@@ -1420,7 +1420,7 @@ def init_phase_retrieval_tab(
         # Get scan nb
         try:
             scan = int(parent_folder.split("/")[-3].replace("S", ""))
-            process_parameters["scan"] = scan
+            params["scan"] = scan
             print("Scan n°", scan)
         except Exception as E:
             print(E)
@@ -1429,13 +1429,13 @@ def init_phase_retrieval_tab(
 
         print(
             "\tCXI input: Energy = "
-            f"{process_parameters['energy']:.2f} eV"
+            f"{params['energy']:.2f} eV"
             "\n\tCXI input: Wavelength = "
-            f"{process_parameters['wavelength'] * 1e10:.2f} A"
+            f"{params['wavelength'] * 1e10:.2f} A"
             "\n\tCXI input: detector distance = "
-            f"{process_parameters['detector_distance']:.2f} m"
+            f"{params['detector_distance']:.2f} m"
             "\n\tCXI input: detector pixel size = "
-            f"{process_parameters['pixel_size_detector']} m"
+            f"{params['pixel_size_detector']} m"
             f"\n\tLog likelihood is updated every {calc_llk} iterations."
         )
 
@@ -1445,14 +1445,14 @@ def init_phase_retrieval_tab(
         try:
             # Initialise the cdi operator
             raw_cdi = initialize_cdi_operator(
-                iobs=process_parameters["iobs"],
-                mask=process_parameters["mask"],
-                support=process_parameters["support"],
-                obj=process_parameters["obj"],
-                binning=process_parameters['binning'],
-                wavelength=process_parameters["wavelength"],
-                pixel_size_detector=process_parameters["pixel_size_detector"],
-                detector_distance=process_parameters["detector_distance"],
+                iobs=params["iobs"],
+                mask=params["mask"],
+                support=params["support"],
+                obj=params["obj"],
+                binning=params['binning'],
+                wavelength=params["wavelength"],
+                pixel_size_detector=params["pixel_size_detector"],
+                detector_distance=params["detector_distance"],
             )
 
             # Run phase retrieval for nb_run
@@ -1479,269 +1479,269 @@ def init_phase_retrieval_tab(
                     save_cdi_operator_as_cxi(
                         cdi_operator=cdi,
                         path_to_cxi=cxi_filename,
-                        process_parameters=process_parameters,
+                        params=params,
                     )
 
                 if i > 4:
                     print("Stopping liveplot to go faster\n")
-                    process_parameters["live_plot"] = False
+                    params["live_plot"] = False
 
                 # Change support threshold for supports update
-                if isinstance(process_parameters["support_threshold"], float):
-                    threshold_relative = process_parameters["support_threshold"]
+                if isinstance(params["support_threshold"], float):
+                    threshold_relative = params["support_threshold"]
                 elif isinstance(
-                    process_parameters["support_threshold"],
+                    params["support_threshold"],
                     tuple
                 ):
                     threshold_relative = np.random.uniform(
-                        process_parameters["support_threshold"][0],
-                        process_parameters["support_threshold"][1]
+                        params["support_threshold"][0],
+                        params["support_threshold"][1]
                     )
                 print(f"Threshold: {threshold_relative:.4f}")
 
                 # Create support object
                 sup = SupportUpdate(
                     threshold_relative=threshold_relative,
-                    smooth_width=process_parameters["support_smooth_width"],
-                    force_shrink=process_parameters["support_only_shrink"],
-                    method=process_parameters["support_method"],
-                    post_expand=process_parameters["support_post_expand"],
+                    smooth_width=params["support_smooth_width"],
+                    force_shrink=params["support_only_shrink"],
+                    method=params["support_method"],
+                    post_expand=params["support_post_expand"],
                 )
 
                 # Initialize the free pixels for FLLK
                 cdi = InitFreePixels() * cdi
 
                 # Interpolate the detector gaps
-                if process_parameters["live_plot"]:
-                    cdi = ShowCDI(plot_axis=process_parameters["plot_axis"]) \
+                if params["live_plot"]:
+                    cdi = ShowCDI(plot_axis=params["plot_axis"]) \
                         * InterpIobsMask(
-                            process_parameters["mask_interp"][0],
-                            process_parameters["mask_interp"][1],
+                            params["mask_interp"][0],
+                            params["mask_interp"][1],
                     ) * cdi
                 else:
                     cdi = InterpIobsMask(
-                        process_parameters["mask_interp"][0],
-                        process_parameters["mask_interp"][1],
+                        params["mask_interp"][0],
+                        params["mask_interp"][1],
                     ) * cdi
                     print("test3")
 
                 # Initialize the support with autocorrelation, if no
                 # support given
                 if not support:
-                    process_parameters["sup_init"] = "autocorrelation"
-                    if not process_parameters["live_plot"]:
+                    params["sup_init"] = "autocorrelation"
+                    if not params["live_plot"]:
                         cdi = ScaleObj() * AutoCorrelationSupport(
-                            threshold=process_parameters[
+                            threshold=params[
                                 "support_autocorrelation_threshold"],
                             verbose=True
                             ) * cdi
 
                     else:
                         cdi = ShowCDI(
-                            plot_axis=process_parameters["plot_axis"]
+                            plot_axis=params["plot_axis"]
                             ) * ScaleObj() \
                              * AutoCorrelationSupport(
-                                threshold=process_parameters[
+                                threshold=params[
                                     "support_autocorrelation_threshold"],
                                 verbose=True
                             ) * cdi
                 else:
-                    process_parameters["sup_init"] = "support"
+                    params["sup_init"] = "support"
 
                 # Begin phase retrieval
                 try:
                     if psf:
                         if support_update_period == 0:
                             cdi = HIO(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            ) ** process_parameters["nb_hio"] * cdi
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            ) ** params["nb_hio"] * cdi
                             cdi = RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            ) ** (process_parameters["nb_raar"] // 2) * cdi
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            ) ** (params["nb_raar"] // 2) * cdi
 
                             # PSF is introduced at 66% of HIO and RAAR
                             if psf_model != "pseudo-voigt":
                                 cdi = InitPSF(
-                                    model=process_parameters["psf_model"],
-                                    fwhm=process_parameters["fwhm"],
+                                    model=params["psf_model"],
+                                    fwhm=params["fwhm"],
                                     filter=None,
                                 ) * cdi
 
                             elif psf_model == "pseudo-voigt":
                                 cdi = InitPSF(
-                                    model=process_parameters["psf_model"],
-                                    fwhm=process_parameters["fwhm"],
-                                    eta=process_parameters["eta"],
+                                    model=params["psf_model"],
+                                    fwhm=params["fwhm"],
+                                    eta=params["eta"],
                                     filter=None,
                                 ) * cdi
 
                             cdi = RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                update_psf=process_parameters["update_psf"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                update_psf=params["update_psf"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
                             ) ** (nb_raar // 2) * cdi
                             cdi = ER(
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                update_psf=process_parameters["update_psf"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                update_psf=params["update_psf"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
                             ) ** nb_er * cdi
 
                         else:
-                            hio_power = process_parameters["nb_hio"] \
-                                // process_parameters["support_update_period"]
+                            hio_power = params["nb_hio"] \
+                                // params["support_update_period"]
                             raar_power = (
-                                process_parameters["nb_raar"] // 2) \
-                                // process_parameters["support_update_period"]
-                            er_power = process_parameters["nb_er"] \
-                                // process_parameters["support_update_period"]
+                                params["nb_raar"] // 2) \
+                                // params["support_update_period"]
+                            er_power = params["nb_er"] \
+                                // params["support_update_period"]
 
                             cdi = (sup * HIO(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** hio_power * cdi
                             cdi = (sup * RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** raar_power * cdi
 
                             # PSF is introduced after half the HIO cycles
                             if psf_model != "pseudo-voigt":
                                 cdi = InitPSF(
-                                    model=process_parameters["psf_model"],
-                                    fwhm=process_parameters["fwhm"],
-                                    filter=process_parameters["psf_filter"],
+                                    model=params["psf_model"],
+                                    fwhm=params["fwhm"],
+                                    filter=params["psf_filter"],
                                 ) * cdi
 
                             elif psf_model == "pseudo-voigt":
                                 cdi = InitPSF(
-                                    model=process_parameters["psf_model"],
-                                    fwhm=process_parameters["fwhm"],
-                                    eta=process_parameters["eta"],
-                                    filter=process_parameters["psf_filter"],
+                                    model=params["psf_model"],
+                                    fwhm=params["fwhm"],
+                                    eta=params["eta"],
+                                    filter=params["psf_filter"],
                                 ) * cdi
 
                             cdi = (sup * RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                update_psf=process_parameters["update_psf"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                update_psf=params["update_psf"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** raar_power * cdi
                             cdi = (sup * ER(
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                update_psf=process_parameters["update_psf"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                psf_filter=process_parameters["psf_filter"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                update_psf=params["update_psf"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                psf_filter=params["psf_filter"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** er_power * cdi
 
                     if not psf:
                         if support_update_period == 0:
                             cdi = HIO(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            ) ** process_parameters["nb_hio"] * cdi
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            ) ** params["nb_hio"] * cdi
                             cdi = RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            ) ** process_parameters["nb_raar"] * cdi
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            ) ** params["nb_raar"] * cdi
                             cdi = ER(
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            ) ** process_parameters["nb_er"] * cdi
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            ) ** params["nb_er"] * cdi
 
                         else:
-                            hio_power = process_parameters["nb_hio"] \
-                                // process_parameters["support_update_period"]
-                            raar_power = process_parameters["nb_raar"] \
-                                // process_parameters["support_update_period"]
-                            er_power = process_parameters["nb_er"] \
-                                // process_parameters["support_update_period"]
+                            hio_power = params["nb_hio"] \
+                                // params["support_update_period"]
+                            raar_power = params["nb_raar"] \
+                                // params["support_update_period"]
+                            er_power = params["nb_er"] \
+                                // params["support_update_period"]
 
                             cdi = (sup * HIO(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** hio_power * cdi
                             cdi = (sup * RAAR(
-                                beta=process_parameters["beta"],
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                beta=params["beta"],
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** raar_power * cdi
                             cdi = (sup * ER(
-                                calc_llk=process_parameters["calc_llk"],
-                                show_cdi=process_parameters["live_plot"],
-                                plot_axis=process_parameters["plot_axis"],
-                                positivity=process_parameters["positivity"],
-                                zero_mask=process_parameters["zero_mask"],
-                            )**process_parameters["support_update_period"]
+                                calc_llk=params["calc_llk"],
+                                show_cdi=params["live_plot"],
+                                plot_axis=params["plot_axis"],
+                                positivity=params["positivity"],
+                                zero_mask=params["zero_mask"],
+                            )**params["support_update_period"]
                             ) ** er_power * cdi
 
                     fn = (
-                        f"{process_parameters['parent_folder']}/"
-                        f"result_scan_{process_parameters['scan']}_run_{i}_"
+                        f"{params['parent_folder']}/"
+                        f"result_scan_{params['scan']}_run_{i}_"
                         f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
                         f"support_threshold_{threshold_relative:.4f}_"
                         f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
                         f"_{cdi.iobs.shape[2]}_"
-                        f"{process_parameters['sup_init']}.cxi"
+                        f"{params['sup_init']}.cxi"
                     )
 
                     reconstruction_file_list.append(fn)
@@ -1767,10 +1767,10 @@ def init_phase_retrieval_tab(
             # If filter, filter data
             if filter_criteria:
                 filter_reconstructions(
-                    folder=process_parameters["parent_folder"],
+                    folder=params["parent_folder"],
                     nb_run=None,  # Will take the amount of cxi files found
-                    nb_run_keep=process_parameters["nb_run_keep"],
-                    filter_criteria=process_parameters["filter_criteria"]
+                    nb_run_keep=params["nb_run_keep"],
+                    filter_criteria=params["filter_criteria"]
                 )
 
         except KeyboardInterrupt:
@@ -1780,7 +1780,7 @@ def init_phase_retrieval_tab(
             )
 
         __ = list_files(
-            folder=process_parameters["parent_folder"],
+            folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
         )
@@ -1788,31 +1788,31 @@ def init_phase_retrieval_tab(
     # Modes decomposition and solution filtering
     if run_pynx_tools and not run_phase_retrieval:
         result_analyser = PhasingResultAnalyser(
-                result_dir_path=process_parameters["parent_folder"]
+                result_dir_path=params["parent_folder"]
             )
         if run_pynx_tools == "filter":
-            print(process_parameters["plot_reconstruction_checkbox"])
+            print(params["plot_reconstruction_checkbox"])
             result_analyser.analyse_phasing_results(
                 sorting_criterion="mean_to_max",
-                plot=process_parameters["plot_metrics_checkbox"],
-                plot_phasing_results=process_parameters["plot_reconstruction_checkbox"],
-                plot_phase=process_parameters["plot_reconstruction_phase_checkbox"],
+                plot=params["plot_metrics_checkbox"],
+                plot_phasing_results=params["plot_reconstruction_checkbox"],
+                plot_phase=params["plot_reconstruction_phase_checkbox"],
                 search_pattern="*run*.cxi"
             )
         if run_pynx_tools == "modes":
             modes, mode_weights = result_analyser.mode_decomposition()
 
             # run_modes_decomposition(
-            #     folder=process_parameters["parent_folder"],
+            #     folder=params["parent_folder"],
             #     path_scripts="/home/esrf/simonne/.conda/envs/p9.cdiutils/bin/",
             # )
 
         elif run_pynx_tools == "filter":
             filter_reconstructions(
-                folder=process_parameters["parent_folder"],
+                folder=params["parent_folder"],
                 nb_run=None,  # Will take the amount of cxi files found
-                nb_run_keep=process_parameters["nb_run_keep"],
-                filter_criteria=process_parameters["filter_criteria"]
+                nb_run_keep=params["nb_run_keep"],
+                filter_criteria=params["filter_criteria"]
             )
 
     # Clean output
@@ -1821,7 +1821,7 @@ def init_phase_retrieval_tab(
         clear_output(True)
 
         __ = list_files(
-            folder=process_parameters["parent_folder"],
+            folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
         )
@@ -1972,7 +1972,7 @@ def initialize_cdi_operator(
 def save_cdi_operator_as_cxi(
     cdi_operator,
     path_to_cxi: str,
-    process_parameters: dict | None,
+    params: dict | None,
 ):
     """
     We need to create a dictionnary with the parameters to save in the
@@ -1996,7 +1996,7 @@ def save_cdi_operator_as_cxi(
         - iobs_is_fft_shifted: if true, input iobs (and mask if any)
         have their origin in (0,0[,0]) and will be shifted back to
         centered-versions before being saved.
-        - process_parameters: a dictionary of parameters which will
+        - params: a dictionary of parameters which will
           be saved as a NXcollection
 
     :return: Nothing, a CXI file is created.
@@ -2007,7 +2007,7 @@ def save_cdi_operator_as_cxi(
     )
     cdi_operator.save_data_cxi(
         filename=path_to_cxi,
-        process_parameters=process_parameters,
+        params=params,
     )
 
 
