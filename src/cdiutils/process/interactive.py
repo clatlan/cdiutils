@@ -282,7 +282,7 @@ class PhaseRetrievalGUI(widgets.VBox):
         - The `children` attribute is populated with all the widgets, defining
             the layout of the GUI.
         """
-        super(PhaseRetrievalGUI, self).__init__()
+        super().__init__()
 
         # Brief header describing the tab
         self.header = 'Phase retrieval'
@@ -755,29 +755,14 @@ class PhaseRetrievalGUI(widgets.VBox):
             layout=widgets.Layout(width='90%', height="35px")
         )
 
-        self.unused_label_reconstruction_selection = widgets.HTML(
+        self.unused_label_reconstruction_analysis = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
-            Options for selection</p>",
+            Options for reconstruction analysis</p>",
             style={
                 'description_width': 'initial'},
             layout=widgets.Layout(width='90%', height="35px")
         )
-        self.filter_criteria = widgets.Dropdown(
-            options=[
-                ("No filtering", "no_filtering"),
-                ("Mean to Max", "mean_to_max"),
-                ("Standard deviation", "std"),
-                ("Free Log-likelihood (FLLK)", "llkf"),
-                ("Log-likelihood (FLLK)", "llk"),
-                ("FLLK > Standard deviation", "FLLK_standard_deviation"),
-                ("Average of all", "all")
-                # ("Standard deviation > FLLK", "standard_deviation_FLLK"),
-            ],
-            value="mean_to_max",
-            description='Filtering criteria',
-            layout=widgets.Layout(width='30%'),
-            style={'description_width': 'initial'}
-        )
+
         self.plot_metrics_checkbox = widgets.Checkbox(
             value=True,
             description="Plot metrics",
@@ -802,25 +787,61 @@ class PhaseRetrievalGUI(widgets.VBox):
             layout=widgets.Layout(width="20%", height="50px"),
             icon="check"
         )
+        self.filter_criteria = widgets.Dropdown(
+            options=[
+                ("No filtering", "no_filtering"),
+                ("Mean to Max", "mean_to_max"),
+                ("Standard deviation", "std"),
+                ("Free Log-likelihood (FLLK)", "llkf"),
+                ("Log-likelihood (FLLK)", "llk"),
+                ("FLLK > Standard deviation", "FLLK_standard_deviation"),
+                ("Average of all", "all")
+                # ("Standard deviation > FLLK", "standard_deviation_FLLK"),
+            ],
+            value="mean_to_max",
+            description='Filtering criteria',
+            layout=widgets.Layout(width='30%'),
+            style={'description_width': 'initial'}
+        )
 
+        self.unused_label_reconstructions_selection = widgets.HTML(
+            value="<p style='font-weight: bold;font-size:1.2em'>\
+            Options for reconstructions selection</p>",
+            style={
+                'description_width': 'initial'},
+            layout=widgets.Layout(width='90%', height="35px")
+        )
+        self.best_runs_widget = widgets.Text(
+            value=None,
+            placeholder="()",
+            description="Best runs:",
+            layout=widgets.Layout(width='20%', height="50px"),
+            continuous_update=False,
+            style={'description_width': 'initial'}
+        )
+        self.number_of_best_ordered_runs_widget = widgets.BoundedIntText(
+            value=5,
+            layout=widgets.Layout(
+                height="50px", width="30%"),
+            continuous_update=False,
+            description="Number of best ordered runs:",
+            readout=True,
+            style={
+                'description_width': 'initial'},
+        )
+        # Job buttons
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
                 ('No phase retrieval', False),
                 # ('Run batch job (slurm)', "batch"),
                 # ("Run script locally", "local_script"),
-                ("Use operators", "operators"),
+                ("Run phase retrieval", "operators"),
             ],
             value=False,
             tooltips=[
                 "Click to be able to change parameters",
-                # "Collect parameters to run a job on slurm, will \
-                # automatically apply a std deviation filter and run modes \
-                # decomposition, freed the kernel",
-                # "Run script on jupyter notebook environment, uses notebook\
-                #  kernel, will be performed in background also but more \
-                #  slowly, good if you cannot use jobs.",
-                r"Use operators on local environment, if using PSF, it is \
-                activated after 50\% of RAAR cycles"
+                "Use operators on local environment, if using PSF, it is "
+                "activated after 50 % of RAAR cycles"
             ],
             continuous_update=False,
             button_style='',
@@ -835,16 +856,17 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.run_pynx_tools = widgets.ToggleButtons(
             options=[
                 ('No tool running', False),
-                ("Modes decomposition",
-                    "modes"),
-                ("Filter reconstructions",
-                    "filter")
+                ("Analyse results", "analyse_results"),
+                ("Select reconstructions", "select"),
+                ("Modes decomposition", "mode_decomposition"),
             ],
             value=False,
             tooltips=[
                 "Click to be able to change parameters",
-                "Run modes decomposition in data folder, selects *FLLK*.cxi\
-                 files",
+                (
+                    "Run modes decomposition in data folder, selects *FLLK*.cxi "
+                    "files"
+                ),
                 "Filter reconstructions"
             ],
             continuous_update=False,
@@ -854,8 +876,10 @@ class PhaseRetrievalGUI(widgets.VBox):
             style={
                 'description_width': 'initial'},
             icon='fast-forward',
-            description="II. Click below to filter your solutions or create a \
-            single solution after phase retrieval."
+            description=(
+                "II. Click below to analyse and select your reconstructions or"
+                " create a single solution after phase retrieval."
+            )
         )
 
         # Define children
@@ -924,12 +948,17 @@ class PhaseRetrievalGUI(widgets.VBox):
                 self.zero_mask,
                 self.mask_interp,
             ]),
-            self.unused_label_reconstruction_selection,
+            self.unused_label_reconstruction_analysis,
             widgets.HBox([
                 self.filter_criteria,
                 self.plot_metrics_checkbox,
                 self.plot_reconstruction_checkbox,
                 self.plot_reconstruction_phase_checkbox,
+            ]),
+            self.unused_label_reconstructions_selection,
+            widgets.HBox([
+                self.best_runs_widget,
+                self.number_of_best_ordered_runs_widget,
             ]),
             self.unused_label_run_options,
             self.run_phase_retrieval,
@@ -1139,7 +1168,7 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         if not IS_PYNX_AVAILABLE:
             raise PyNXImportError
-
+        print("Entering PhaseRetrievalGUI.show()")
         init_phase_retrieval_tab_gui = interactive(
             init_phase_retrieval_tab,
             parent_folder=self.parent_folder,
@@ -1188,15 +1217,23 @@ class PhaseRetrievalGUI(widgets.VBox):
             plot_reconstruction_phase_checkbox=(
                 self.plot_reconstruction_phase_checkbox
             ),
+            best_runs_widget=self.best_runs_widget,
+            number_of_best_ordered_runs_widget=(
+                self.number_of_best_ordered_runs_widget
+            )
         )
+        print("right after the interactive() call")
 
         # Use children architecture defined in __init__.py
         window = widgets.VBox([
             self,
             init_phase_retrieval_tab_gui.children[-1]
         ])
+        
+        print("right after the VBox() call")
 
         display(window)
+        print("right after the display() call")
 
 
 def init_phase_retrieval_tab(
@@ -1242,7 +1279,9 @@ def init_phase_retrieval_tab(
     pixel_size_detector,
     plot_metrics_checkbox,
     plot_reconstruction_checkbox,
-    plot_reconstruction_phase_checkbox
+    plot_reconstruction_phase_checkbox,
+    best_runs_widget,
+    number_of_best_ordered_runs_widget
 ):
     """
     Get parameters values from widgets and run phase retrieval Possible
@@ -1412,8 +1451,16 @@ def init_phase_retrieval_tab(
         "plot_reconstruction_checkbox": plot_reconstruction_checkbox,
         "plot_reconstruction_phase_checkbox": (
             plot_reconstruction_phase_checkbox
-        )
+        ),
+        "best_runs_widget": literal_eval(best_runs_widget),
+        "number_of_best_ordered_runs_widget": (
+            number_of_best_ordered_runs_widget
+        ),
     }
+
+    result_analyser = PhasingResultAnalyser(
+        result_dir_path=params["parent_folder"]
+    )
 
     # Run PR with operators
     if run_phase_retrieval and not run_pynx_tools:
@@ -1779,7 +1826,7 @@ def init_phase_retrieval_tab(
                 "Phase retrieval stopped by user, `.cxi` file list below."
             )
 
-        __ = list_files(
+        _ = list_files(
             folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
@@ -1787,10 +1834,7 @@ def init_phase_retrieval_tab(
 
     # Modes decomposition and solution filtering
     if run_pynx_tools and not run_phase_retrieval:
-        result_analyser = PhasingResultAnalyser(
-                result_dir_path=params["parent_folder"]
-            )
-        if run_pynx_tools == "filter":
+        if run_pynx_tools == "analyse_results":
             print(params["plot_reconstruction_checkbox"])
             result_analyser.analyse_phasing_results(
                 sorting_criterion="mean_to_max",
@@ -1799,7 +1843,13 @@ def init_phase_retrieval_tab(
                 plot_phase=params["plot_reconstruction_phase_checkbox"],
                 search_pattern="*run*.cxi"
             )
-        if run_pynx_tools == "modes":
+        elif run_pynx_tools == "select":
+            result_analyser.select_best_candidates(
+                nb_of_best_sorted_runs=params["number_of_best_ordered_runs_widget"],
+                best_runs=params["best_runs_widget"],
+                search_pattern="*run*.cxi"
+            )
+        elif run_pynx_tools == "mode_decomposition":
             modes, mode_weights = result_analyser.mode_decomposition()
 
             # run_modes_decomposition(
@@ -1807,20 +1857,20 @@ def init_phase_retrieval_tab(
             #     path_scripts="/home/esrf/simonne/.conda/envs/p9.cdiutils/bin/",
             # )
 
-        elif run_pynx_tools == "filter":
-            filter_reconstructions(
-                folder=params["parent_folder"],
-                nb_run=None,  # Will take the amount of cxi files found
-                nb_run_keep=params["nb_run_keep"],
-                filter_criteria=params["filter_criteria"]
-            )
+        # elif run_pynx_tools == "filter":
+        #     filter_reconstructions(
+        #         folder=params["parent_folder"],
+        #         nb_run=None,  # Will take the amount of cxi files found
+        #         nb_run_keep=params["nb_run_keep"],
+        #         filter_criteria=params["filter_criteria"]
+        #     )
 
     # Clean output
     if not run_phase_retrieval and not run_pynx_tools:
         print("Cleared output.")
         clear_output(True)
 
-        list_files(
+        _ = list_files(
             folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
@@ -2035,6 +2085,7 @@ def list_files(
     Example:
         file_list = list_files("/path/to/folder", verbose=True)
     """
+    print("Yo entering list_files function")
     file_list = sorted(
         glob.glob(folder + "/" + glob_pattern),
         key=os.path.getmtime,
@@ -2057,6 +2108,7 @@ def list_files(
             "################################################"
             "################################################"
         )
+    print("Yo leaving list_files function")
 
     return file_list
 
