@@ -3,7 +3,7 @@ import glob
 import os
 import operator as operator_lib
 from datetime import datetime
-from numpy.fft import fftshift
+from scipy.fft import fftshift
 from shlex import quote
 from IPython.display import clear_output, display
 from ast import literal_eval
@@ -1820,7 +1820,7 @@ def init_phase_retrieval_tab(
         print("Cleared output.")
         clear_output(True)
 
-        __ = list_files(
+        list_files(
             folder=params["parent_folder"],
             glob_pattern="*.cxi",
             verbose=True,
