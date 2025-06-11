@@ -20,7 +20,8 @@ from cdiutils.utils import (
     nan_to_zero,
     normalise,
     make_support,
-    hybrid_gradient
+    hybrid_gradient,
+    fill_up_support
 )
 
 from cdiutils.process.support_processor import SupportProcessor
@@ -372,7 +373,7 @@ class PostProcessor:
         amplitude = np.abs(complex_object)
         phase = np.angle(complex_object) * phase_factor
 
-        support = zero_to_nan(support)  # 0 values must be nan now
+        support = zero_to_nan(fill_up_support(support))  # 0 values must be nan now
         phase = cls.unwrap_phase(phase, support)
         phase = phase * support
         phase_with_ramp = phase.copy()  # save the 'ramped' phase for later
