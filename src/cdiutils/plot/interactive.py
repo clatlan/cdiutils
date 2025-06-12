@@ -17,7 +17,7 @@ from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 import ipywidgets as widgets
 from ipywidgets import interact, fixed
-from IPython.core.display import display, HTML
+from IPython.display import display, HTML
 import ipyvolume as ipv
 
 from bokeh.plotting import figure
