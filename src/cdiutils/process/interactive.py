@@ -111,11 +111,6 @@ class PhaseRetrievalGUI(widgets.VBox):
         iterations.
     nb_run : widgets.BoundedIntText
         Input field to specify the number of phase retrieval runs.
-    filter_criteria : widgets.Dropdown
-        Dropdown to select the criteria for filtering reconstruction
-        results.
-    nb_run_keep : widgets.BoundedIntText
-        Input field to specify the number of runs to keep after filtering.
     live_plot : widgets.BoundedIntText
         Input field to specify the frequency of live plotting during
         phase retrieval.
@@ -144,6 +139,9 @@ class PhaseRetrievalGUI(widgets.VBox):
     run_pynx_tools : widgets.ToggleButtons
         Toggle buttons to run additional PyNX tools (e.g., modes
         decomposition, filtering).
+    filter_criteria : widgets.Dropdown
+        Dropdown to select the criteria for filtering reconstruction
+        results.
 
     Methods:
     --------
@@ -158,7 +156,7 @@ class PhaseRetrievalGUI(widgets.VBox):
     run_pynx_handler(change) -> None
         Handles changes to the phase retrieval toggle buttons and enables
         or disables widgets accordingly.
-    show(energy, detector_distance, pixel_size_detector) -> None
+    show() -> None
         Displays the GUI as a standalone widget in a Jupyter Notebook.
     """
 
@@ -241,11 +239,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             iterations.
         nb_run : widgets.BoundedIntText
             Input field to specify the number of phase retrieval runs.
-        filter_criteria : widgets.Dropdown
-            Dropdown to select the criteria for filtering reconstruction
-            results.
-        nb_run_keep : widgets.BoundedIntText
-            Input field to specify the number of runs to keep after filtering.
         live_plot : widgets.BoundedIntText
             Input field to specify the frequency of live plotting during phase
             retrieval.
@@ -274,6 +267,9 @@ class PhaseRetrievalGUI(widgets.VBox):
         run_pynx_tools : widgets.ToggleButtons
             Toggle buttons to run additional PyNX tools (e.g., modes
             decomposition, filtering).
+        filter_criteria : widgets.Dropdown
+            Dropdown to select the criteria for filtering reconstruction
+            results.
 
         Notes:
         ------
@@ -287,6 +283,17 @@ class PhaseRetrievalGUI(widgets.VBox):
         # Brief header describing the tab
         self.header = 'Phase retrieval'
         self.box_style = box_style
+        
+        # Define global search pattern for cxi files
+        self.search_pattern = "*run*.cxi"
+        
+        # Define future attributes
+        self.result_analyser = None
+        self.modes = None
+        self.mode_weights = None
+
+        if work_dir is None:
+            work_dir = os.getcwd()
 
         # Define widgets
         self.unused_label_data = widgets.HTML(
@@ -296,9 +303,6 @@ class PhaseRetrievalGUI(widgets.VBox):
                 'description_width': 'initial'},
             layout=widgets.Layout(width='90%', height="35px")
         )
-
-        if work_dir is None:
-            work_dir = os.getcwd()
 
         self.parent_folder = widgets.Dropdown(
             options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
@@ -581,42 +585,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             style={
                 'description_width': 'initial'},
         )
-
-        self.unused_label_filtering = widgets.HTML(
-            value="<p style='font-weight: bold;font-size:1.2em'>\
-            Filtering criteria for reconstructions",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
-        )
-
-        self.filter_criteria = widgets.Dropdown(
-            options=[
-                ("No filtering",
-                 "no_filtering"),
-                ("Standard deviation",
-                    "standard_deviation"),
-                ("Log-likelihood (FLLK)", "FLLK"),
-                ("FLLK > Standard deviation",
-                    "FLLK_standard_deviation"),
-                # ("Standard deviation > FLLK", "standard_deviation_FLLK"),
-            ],
-            value="FLLK_standard_deviation",
-            description='Filtering criteria',
-            layout=widgets.Layout(width='50%'),
-            style={'description_width': 'initial'}
-        )
-
-        self.nb_run_keep = widgets.BoundedIntText(
-            value=10,
-            continuous_update=False,
-            description='Number of run to keep:',
-            layout=widgets.Layout(width='30%', height="50px"),
-            readout=True,
-            style={
-                'description_width': 'initial'},
-        )
-
+        
         self.unused_label_options = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Options",
@@ -762,31 +731,7 @@ class PhaseRetrievalGUI(widgets.VBox):
                 'description_width': 'initial'},
             layout=widgets.Layout(width='90%', height="35px")
         )
-
-        self.plot_metrics_checkbox = widgets.Checkbox(
-            value=True,
-            description="Plot metrics",
-            continuous_update=False,
-            indent=False,
-            layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
-        )
-        self.plot_reconstruction_checkbox = widgets.Checkbox(
-            value=True,
-            description="Plot reconstruction",
-            continuous_update=False,
-            indent=False,
-            layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
-        )
-        self.plot_reconstruction_phase_checkbox = widgets.Checkbox(
-            value=False,
-            description="Plot reconstruction phase",
-            continuous_update=False,
-            indent=False,
-            layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
-        )
+        
         self.filter_criteria = widgets.Dropdown(
             options=[
                 ("No filtering", "no_filtering"),
@@ -802,6 +747,33 @@ class PhaseRetrievalGUI(widgets.VBox):
             description='Filtering criteria',
             layout=widgets.Layout(width='30%'),
             style={'description_width': 'initial'}
+        )
+
+        self.plot_metrics_checkbox = widgets.Checkbox(
+            value=True,
+            description="Plot metrics",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
+        )
+        
+        self.plot_reconstruction_checkbox = widgets.Checkbox(
+            value=True,
+            description="Plot reconstruction",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
+        )
+        
+        self.plot_reconstruction_phase_checkbox = widgets.Checkbox(
+            value=False,
+            description="Plot reconstruction phase",
+            continuous_update=False,
+            indent=False,
+            layout=widgets.Layout(width="20%", height="50px"),
+            icon="check"
         )
 
         self.unused_label_reconstructions_selection = widgets.HTML(
@@ -836,10 +808,13 @@ class PhaseRetrievalGUI(widgets.VBox):
         def ActionSaveName(selfbutton):
             self.best_runs_widget.options = [
                 os.path.basename(f) for f in list_files(
-                    self.parent_folder.value
+                    self.parent_folder.value,
+                    self.search_pattern,
                 )
             ]
-
+            
+            self.best_runs_widget.value = ()
+    
         # Job buttons
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
@@ -874,11 +849,9 @@ class PhaseRetrievalGUI(widgets.VBox):
             value=False,
             tooltips=[
                 "Click to be able to change parameters",
-                (
-                    "Run modes decomposition in data folder, selects *FLLK*.cxi "
-                    "files"
-                ),
-                "Filter reconstructions"
+                "Analyse reconstructions",
+                "Select good reconstructions",
+                "Modes decomposition", # need to have selected first
             ],
             continuous_update=False,
             button_style='',
@@ -934,11 +907,6 @@ class PhaseRetrievalGUI(widgets.VBox):
                 self.nb_ml,
             ]),
             self.nb_run,
-            self.unused_label_filtering,
-            widgets.HBox([
-                self.filter_criteria,
-                self.nb_run_keep,
-            ]),
             self.unused_label_options,
             widgets.HBox([
                 self.live_plot,
@@ -1049,6 +1017,14 @@ class PhaseRetrievalGUI(widgets.VBox):
 
         # mask list
         self.mask.options = sorted_mask_list
+        
+        # cxi file list
+        self.best_runs_widget.options = [
+            os.path.basename(f) for f in list_files(
+                self.parent_folder.value,
+                self.search_pattern,
+            )
+        ]
 
     def pynx_psf_handler(self, change) -> None:
         """
@@ -1151,9 +1127,9 @@ class PhaseRetrievalGUI(widgets.VBox):
                     w.disabled = False
 
             self.pynx_psf_handler(change=self.psf.value)
+            
 
-
-    def show(self, energy, detector_distance, pixel_size_detector):
+    def show(self):
         """
         Display the PhaseRetrievalGUI GUI as a standalone widget in a Jupyter
         Notebook.
@@ -1162,15 +1138,6 @@ class PhaseRetrievalGUI(widgets.VBox):
         running phase retrieval algorithms. It combines the PhaseRetrievalGUI
         widget with an interactive function (`init_phase_retrieval_tab`) that
         collects user inputs and executes the phase retrieval process.
-
-        Parameters:
-        -----------
-        energy : float
-            The energy of the experiment in keV.
-        detector_distance : float
-            The distance between the detector and the sample in meters.
-        pixel_size_detector : float
-            The pixel size of the detector in micrometers.
 
         Returns:
         --------
@@ -1181,7 +1148,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             raise PyNXImportError
 
         init_phase_retrieval_tab_gui = interactive(
-            init_phase_retrieval_tab,
+            self.init_phase_retrieval_tab,
             parent_folder=self.parent_folder,
             iobs=self.iobs,
             mask=self.mask,
@@ -1205,8 +1172,6 @@ class PhaseRetrievalGUI(widgets.VBox):
             nb_er=self.nb_er,
             nb_ml=self.nb_ml,
             nb_run=self.nb_run,
-            filter_criteria=self.filter_criteria,
-            nb_run_keep=self.nb_run_keep,
             live_plot=self.live_plot,
             plot_axis=self.plot_axis,
             verbose=self.verbose,
@@ -1219,10 +1184,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             mask_interp=self.mask_interp,
             run_phase_retrieval=self.run_phase_retrieval,
             run_pynx_tools=self.run_pynx_tools,
-            energy=energy,
-            detector_distance=detector_distance,
-            pixel_size_detector=pixel_size_detector,
-            # filter_criteria=self.filter_criteria,
+            filter_criteria=self.filter_criteria,
             plot_metrics_checkbox=self.plot_metrics_checkbox,
             plot_reconstruction_checkbox=self.plot_reconstruction_checkbox,
             plot_reconstruction_phase_checkbox=self.plot_reconstruction_phase_checkbox,
@@ -1236,626 +1198,596 @@ class PhaseRetrievalGUI(widgets.VBox):
         ])
         display(window)
 
-def init_phase_retrieval_tab(
-    parent_folder,
-    iobs,
-    mask,
-    support,
-    obj,
-    support_threshold,
-    support_only_shrink,
-    support_update_period,
-    support_smooth_width,
-    support_post_expand,
-    support_method,
-    support_autocorrelation_threshold,
-    psf,
-    psf_model,
-    fwhm,
-    eta,
-    psf_filter,
-    update_psf,
-    nb_hio,
-    nb_raar,
-    nb_er,
-    nb_ml,
-    nb_run,
-    filter_criteria,
-    nb_run_keep,
-    live_plot,
-    plot_axis,
-    verbose,
-    binning,
-    positivity,
-    beta,
-    detwin,
-    calc_llk,
-    zero_mask,
-    mask_interp,
-    run_phase_retrieval,
-    run_pynx_tools,
-    energy,
-    detector_distance,
-    pixel_size_detector,
-    plot_metrics_checkbox,
-    plot_reconstruction_checkbox,
-    plot_reconstruction_phase_checkbox,
-    best_runs_widget,
-    number_of_best_ordered_runs_widget
-):
-    """
-    Get parameters values from widgets and run phase retrieval Possible
-    to run phase retrieval via the CLI (with ot without MPI) Or directly in
-    python using the operators.
+    def init_phase_retrieval_tab(
+        self,
+        parent_folder,
+        iobs,
+        mask,
+        support,
+        obj,
+        support_threshold,
+        support_only_shrink,
+        support_update_period,
+        support_smooth_width,
+        support_post_expand,
+        support_method,
+        support_autocorrelation_threshold,
+        psf,
+        psf_model,
+        fwhm,
+        eta,
+        psf_filter,
+        update_psf,
+        nb_hio,
+        nb_raar,
+        nb_er,
+        nb_ml,
+        nb_run,
+        live_plot,
+        plot_axis,
+        verbose,
+        binning,
+        positivity,
+        beta,
+        detwin,
+        calc_llk,
+        zero_mask,
+        mask_interp,
+        run_phase_retrieval,
+        run_pynx_tools,
+        filter_criteria,
+        plot_metrics_checkbox,
+        plot_reconstruction_checkbox,
+        plot_reconstruction_phase_checkbox,
+        best_runs_widget,
+        number_of_best_ordered_runs_widget
+    ):
+        """
+        Get parameters values from widgets and run phase retrieval Possible
+        to run phase retrieval via the CLI (with ot without MPI) Or directly in
+        python using the operators.
 
-    :param parent_folder: folder in which the raw data files are, and where the
-        output will be saved
-    :param iobs: 2D/3D observed diffraction data (intensity).
-        Assumed to be corrected and following Poisson statistics, will be
-        converted to float32. Dimensions should be divisible by 4 and have a
-        prime factor decomposition up to 7. Internally, the following special
-        values are used:
-        * values<=-1e19 are masked. Among those, values in ]-1e38;-1e19] are
-            estimated values, stored as -(iobs_est+1)*1e19, which can be used
-            to make a loose amplitude projection.
-            Values <=-1e38 are masked (no amplitude projection applied), just
-            below the minimum float32 value
-        * -1e19 < values <= 1 are observed but used as free pixels
-            If the mask is not supplied, then it is assumed that the above
-            special values are used.
-    :param support: initial support in real space (1 = inside support,
-        0 = outside)
-    :param obj: initial object. If None, it should be initialised later.
-    :param mask: mask for the diffraction data (0: valid pixel, >0: masked)
-    :param support_threshold: must be between 0 and 1. Only points with
-        object amplitude above a value equal to relative_threshold *
-        reference_value are kept in the support.
-        reference_value can use the fact that when converged, the square norm
-        of the object is equal to the number of recorded photons (normalized
-        Fourier Transform). Then: reference_value = sqrt((abs(obj)**2).sum()/
-        nb_points_support)
-    :param support_smooth_width: smooth the object amplitude using a gaussian
-        of this width before calculating new support.
-        If this is a scalar, the smooth width is fixed to this value.
-        If this is a 3-value tuple (or list or array), i.e. 'smooth_width=2,
-        0.5,600', the smooth width will vary with the number of cycles
-        recorded in the CDI object (as cdi.cycle), varying exponentially from
-        the first to the second value over the number of cycles specified by
-        the last value.
-        With 'smooth_width=a,b,nb':
-        - smooth_width = a * exp(-cdi.cycle/nb*log(b/a)) if cdi.cycle < nb
-        - smooth_width = b if cdi.cycle >= nb
-    :param support_only_shrink: if True, the support can only shrink
-    :param support_post_expand=1: after the new support has been calculated,
-        it can be processed using the SupportExpand operator, either one or
-        multiple times, in order to 'clean' the support:
-        - 'post_expand=1' will expand the support by 1 pixel
-        - 'post_expand=-1' will shrink the support by 1 pixel
-        - 'post_expand=(-1,1)' will shrink and then expand the support by
-            1 pixel
-        - 'post_expand=(-2,3)' will shrink and then expand the support by
-            respectively 2 and 3 pixels
-    :param support_method: either 'max' or 'average' or 'rms' (default), the
-        threshold will be relative to either the maximum amplitude in the
-        object, or the average or root-mean-square amplitude (computed inside
-        support)
-    :param support_autocorrelation_threshold: if no support is given, it will
-        be estimated from the intensity auto-correlation, with this relative
-        threshold. A range can also be given, e.g.
-        support_autocorrelation_threshold=0.09,0.11 and the actual threshold
-        will be randomly chosen between the min and max.
-    :param psf: e.g. True
-        whether or not to use the PSF, partial coherence point-spread function,
-        estimated with 50 cycles of Richardson-Lucy
-    :param psf_model: "lorentzian", "gaussian" or "pseudo-voigt", or None
-        to deactivate
-    :param psf_filter: either None, "hann" or "tukey": window type to
-        filter the PSF update
-    :param fwhm: the full-width at half maximum, in pixels
-    :param eta: the eta parameter for the pseudo-voigt
-    :param update_psf: how often the psf is updated
-    :param nb_raar: number of relaxed averaged alternating reflections
-        cycles, which the algorithm will use first. During RAAR and HIO, the
-        support is updated regularly
-    :param nb_hio: number of hybrid input/output cycles, which the
-        algorithm will use after RAAR. During RAAR and HIO, the support is
-        updated regularly
-    :param nb_er: number of error reduction cycles, performed after HIO,
-        without support update
-    :param nb_ml: number of maximum-likelihood conjugate gradient to
-        perform after ER
-    :param nb_run: number of times to run the optimization
-    :param nb_run_keep: number of best run results to keep, according to
-        filter_criteria.
-    :param filter_criteria: e.g. "FLLK"
-        criteria onto which the best solutions will be chosen
-    :param live_plot: a live plot will be displayed every N cycle
-    :param plot_axis: for 3D data, the axis along which the cut plane will be
-        selected
-    :param beta: the beta value for the HIO operator
-    :param positivity: True or False
-    :param zero_mask: if True, masked pixels (iobs<-1e19) are forced to
-        zero, otherwise the calculated complex amplitude is kept with an
-        optional scale factor.
-        'auto' is only valid if using the command line
-    :param mask_interp: e.g. 16,2: interpolate masked pixels from surrounding
-        pixels, using an inverse distance weighting. The first number N
-        indicates that the pixels used for interpolation range from i-N to i+N
-        for pixel i around all dimensions. The second number n that the weight
-        is equal to 1/d**n for pixels with at a distance n.
-        The interpolated values iobs_m are stored in memory as -1e19*(iobs_m+1)
-        so that the algorithm knows these are not trul observations, and are
-        applied with a large confidence interval.
-    :param detwin: if set (command-line) or if detwin=True (parameters
-        file), 10 cycles will be performed at 25% of the total number of
-        RAAR or HIO cycles, with a support cut in half to bias towards one
-        twin image
-    :param calc_llk: interval at which the different Log Likelihood are
-        computed
-    :param pixel_size_detector: detector pixel size (meters)
-    :param wavelength: experiment wavelength (meters)
-    :param detector_distance: detector distance (meters)
-    """
-    # Assign attributes
-    params = {
-        "parent_folder": parent_folder,
-        "iobs": parent_folder + iobs,
-        "mask": parent_folder + mask if mask != "" else "",
-        "support": parent_folder + support if support != "" else "",
-        "obj": parent_folder + obj if obj != "" else "",
+        :param parent_folder: folder in which the raw data files are, and where the
+            output will be saved
+        :param iobs: 2D/3D observed diffraction data (intensity).
+            Assumed to be corrected and following Poisson statistics, will be
+            converted to float32. Dimensions should be divisible by 4 and have a
+            prime factor decomposition up to 7. Internally, the following special
+            values are used:
+            * values<=-1e19 are masked. Among those, values in ]-1e38;-1e19] are
+                estimated values, stored as -(iobs_est+1)*1e19, which can be used
+                to make a loose amplitude projection.
+                Values <=-1e38 are masked (no amplitude projection applied), just
+                below the minimum float32 value
+            * -1e19 < values <= 1 are observed but used as free pixels
+                If the mask is not supplied, then it is assumed that the above
+                special values are used.
+        :param support: initial support in real space (1 = inside support,
+            0 = outside)
+        :param obj: initial object. If None, it should be initialised later.
+        :param mask: mask for the diffraction data (0: valid pixel, >0: masked)
+        :param support_threshold: must be between 0 and 1. Only points with
+            object amplitude above a value equal to relative_threshold *
+            reference_value are kept in the support.
+            reference_value can use the fact that when converged, the square norm
+            of the object is equal to the number of recorded photons (normalized
+            Fourier Transform). Then: reference_value = sqrt((abs(obj)**2).sum()/
+            nb_points_support)
+        :param support_smooth_width: smooth the object amplitude using a gaussian
+            of this width before calculating new support.
+            If this is a scalar, the smooth width is fixed to this value.
+            If this is a 3-value tuple (or list or array), i.e. 'smooth_width=2,
+            0.5,600', the smooth width will vary with the number of cycles
+            recorded in the CDI object (as cdi.cycle), varying exponentially from
+            the first to the second value over the number of cycles specified by
+            the last value.
+            With 'smooth_width=a,b,nb':
+            - smooth_width = a * exp(-cdi.cycle/nb*log(b/a)) if cdi.cycle < nb
+            - smooth_width = b if cdi.cycle >= nb
+        :param support_only_shrink: if True, the support can only shrink
+        :param support_post_expand=1: after the new support has been calculated,
+            it can be processed using the SupportExpand operator, either one or
+            multiple times, in order to 'clean' the support:
+            - 'post_expand=1' will expand the support by 1 pixel
+            - 'post_expand=-1' will shrink the support by 1 pixel
+            - 'post_expand=(-1,1)' will shrink and then expand the support by
+                1 pixel
+            - 'post_expand=(-2,3)' will shrink and then expand the support by
+                respectively 2 and 3 pixels
+        :param support_method: either 'max' or 'average' or 'rms' (default), the
+            threshold will be relative to either the maximum amplitude in the
+            object, or the average or root-mean-square amplitude (computed inside
+            support)
+        :param support_autocorrelation_threshold: if no support is given, it will
+            be estimated from the intensity auto-correlation, with this relative
+            threshold. A range can also be given, e.g.
+            support_autocorrelation_threshold=0.09,0.11 and the actual threshold
+            will be randomly chosen between the min and max.
+        :param psf: e.g. True
+            whether or not to use the PSF, partial coherence point-spread function,
+            estimated with 50 cycles of Richardson-Lucy
+        :param psf_model: "lorentzian", "gaussian" or "pseudo-voigt", or None
+            to deactivate
+        :param psf_filter: either None, "hann" or "tukey": window type to
+            filter the PSF update
+        :param fwhm: the full-width at half maximum, in pixels
+        :param eta: the eta parameter for the pseudo-voigt
+        :param update_psf: how often the psf is updated
+        :param nb_raar: number of relaxed averaged alternating reflections
+            cycles, which the algorithm will use first. During RAAR and HIO, the
+            support is updated regularly
+        :param nb_hio: number of hybrid input/output cycles, which the
+            algorithm will use after RAAR. During RAAR and HIO, the support is
+            updated regularly
+        :param nb_er: number of error reduction cycles, performed after HIO,
+            without support update
+        :param nb_ml: number of maximum-likelihood conjugate gradient to
+            perform after ER
+        :param nb_run: number of times to run the optimization
+        :param filter_criteria: e.g. "FLLK"
+            criteria onto which the best solutions will be chosen
+        :param live_plot: a live plot will be displayed every N cycle
+        :param plot_axis: for 3D data, the axis along which the cut plane will be
+            selected
+        :param beta: the beta value for the HIO operator
+        :param positivity: True or False
+        :param zero_mask: if True, masked pixels (iobs<-1e19) are forced to
+            zero, otherwise the calculated complex amplitude is kept with an
+            optional scale factor.
+            'auto' is only valid if using the command line
+        :param mask_interp: e.g. 16,2: interpolate masked pixels from surrounding
+            pixels, using an inverse distance weighting. The first number N
+            indicates that the pixels used for interpolation range from i-N to i+N
+            for pixel i around all dimensions. The second number n that the weight
+            is equal to 1/d**n for pixels with at a distance n.
+            The interpolated values iobs_m are stored in memory as -1e19*(iobs_m+1)
+            so that the algorithm knows these are not trul observations, and are
+            applied with a large confidence interval.
+        :param detwin: if set (command-line) or if detwin=True (parameters
+            file), 10 cycles will be performed at 25% of the total number of
+            RAAR or HIO cycles, with a support cut in half to bias towards one
+            twin image
+        :param calc_llk: interval at which the different Log Likelihood are
+            computed
+        """
+        # Assign attributes
+        params = {
+            "parent_folder": parent_folder,
+            "iobs": parent_folder + iobs,
+            "mask": parent_folder + mask if mask != "" else "",
+            "support": parent_folder + support if support != "" else "",
+            "obj": parent_folder + obj if obj != "" else "",
 
-        "support_only_shrink": support_only_shrink,
-        "support_update_period": support_update_period,
-        "support_method": support_method,
+            "support_only_shrink": support_only_shrink,
+            "support_update_period": support_update_period,
+            "support_method": support_method,
 
-        "psf": psf,
-        "psf_model": psf_model,
-        "fwhm": fwhm,
-        "eta": eta,
-        "psf_filter": psf_filter,
-        "update_psf": update_psf,
+            "psf": psf,
+            "psf_model": psf_model,
+            "fwhm": fwhm,
+            "eta": eta,
+            "psf_filter": psf_filter,
+            "update_psf": update_psf,
 
-        "nb_raar": nb_raar,
-        "nb_hio": nb_hio,
-        "nb_er": nb_er,
-        "nb_ml": nb_ml,
-        "nb_run": nb_run,
+            "nb_raar": nb_raar,
+            "nb_hio": nb_hio,
+            "nb_er": nb_er,
+            "nb_ml": nb_ml,
+            "nb_run": nb_run,
 
-        "filter_criteria": filter_criteria,
-        "nb_run_keep": nb_run_keep,
-        "verbose": verbose,
-        "positivity": positivity,
-        "beta": beta,
-        "detwin": detwin,
-        "calc_llk": calc_llk,
+            "verbose": verbose,
+            "positivity": positivity,
+            "beta": beta,
+            "detwin": detwin,
+            "calc_llk": calc_llk,
 
-        "support_threshold": literal_eval(support_threshold),
-        "support_autocorrelation_threshold": literal_eval(
-            support_autocorrelation_threshold),
-        "support_smooth_width": literal_eval(support_smooth_width),
-        "support_post_expand": literal_eval(support_post_expand),
-        "binning": literal_eval(binning),
-        "mask_interp": literal_eval(mask_interp),
+            "support_threshold": literal_eval(support_threshold),
+            "support_autocorrelation_threshold": literal_eval(
+                support_autocorrelation_threshold),
+            "support_smooth_width": literal_eval(support_smooth_width),
+            "support_post_expand": literal_eval(support_post_expand),
+            "binning": literal_eval(binning),
+            "mask_interp": literal_eval(mask_interp),
 
-        "zero_mask": {"True": True, "False": False, "auto": False}[
-            zero_mask],
+            "zero_mask": {"True": True, "False": False, "auto": False}[
+                zero_mask],
 
-        "live_plot": live_plot if live_plot != 0 else False,
-        "plot_axis": plot_axis,
+            "live_plot": live_plot if live_plot != 0 else False,
+            "plot_axis": plot_axis,
 
-        "energy": energy,  # KeV
-        "wavelength": 1.2399 * 1e-6 / energy,
-        "detector_distance": detector_distance,  # m
-        "pixel_size_detector": np.round(pixel_size_detector * 1e-6, 6),
-        "plot_metrics_checkbox": plot_metrics_checkbox,
-        "plot_reconstruction_checkbox": plot_reconstruction_checkbox,
-        "plot_reconstruction_phase_checkbox": (
-            plot_reconstruction_phase_checkbox
-        ),
-        "best_runs_widget": best_runs_widget,
-        "number_of_best_ordered_runs_widget": (
-            number_of_best_ordered_runs_widget
-        ),
-    }
+            "filter_criteria": filter_criteria,
+            "plot_metrics_checkbox": plot_metrics_checkbox,
+            "plot_reconstruction_checkbox": plot_reconstruction_checkbox,
+            "plot_reconstruction_phase_checkbox": (
+                plot_reconstruction_phase_checkbox
+            ),
+            "best_runs_widget": best_runs_widget,
+            "number_of_best_ordered_runs_widget": (
+                number_of_best_ordered_runs_widget
+            ),
+        }
 
-    result_analyser = PhasingResultAnalyser(
-        result_dir_path=params["parent_folder"]
-    )
+        # Run PR with operators
+        if run_phase_retrieval and not run_pynx_tools:
+            # Get scan nb
+            try:
+                scan = int(parent_folder.split("/")[-3].replace("S", ""))
+                params["scan"] = scan
+                print("Scan n°", scan)
+            except Exception as E:
+                print(E)
+                print("Could not get scan nb.")
+                scan = 0
 
-    # Run PR with operators
-    if run_phase_retrieval and not run_pynx_tools:
-        # Get scan nb
-        try:
-            scan = int(parent_folder.split("/")[-3].replace("S", ""))
-            params["scan"] = scan
-            print("Scan n°", scan)
-        except Exception as E:
-            print(E)
-            print("Could not get scan nb.")
-            scan = 0
+            # Keep a list of the resulting scans
+            reconstruction_file_list = []
 
-        print(
-            "\tCXI input: Energy = "
-            f"{params['energy']:.2f} eV"
-            "\n\tCXI input: Wavelength = "
-            f"{params['wavelength'] * 1e10:.2f} A"
-            "\n\tCXI input: detector distance = "
-            f"{params['detector_distance']:.2f} m"
-            "\n\tCXI input: detector pixel size = "
-            f"{params['pixel_size_detector']} m"
-            f"\n\tLog likelihood is updated every {calc_llk} iterations."
-        )
-
-        # Keep a list of the resulting scans
-        reconstruction_file_list = []
-
-        try:
-            # Initialise the cdi operator
-            raw_cdi = initialize_cdi_operator(
-                iobs=params["iobs"],
-                mask=params["mask"],
-                support=params["support"],
-                obj=params["obj"],
-                binning=params['binning'],
-                wavelength=params["wavelength"],
-                pixel_size_detector=params["pixel_size_detector"],
-                detector_distance=params["detector_distance"],
-            )
-
-            # Run phase retrieval for nb_run
-            for i in range(nb_run):
-                print(
-                    "\n###########################################"
-                    "#############################################"
-                    f"\nRun {i}"
+            try:
+                # Initialise the cdi operator
+                raw_cdi = initialize_cdi_operator(
+                    iobs=params["iobs"],
+                    mask=params["mask"],
+                    support=params["support"],
+                    obj=params["obj"],
+                    binning=params['binning'],
                 )
 
-                # Make a copy to gain time
-                cdi = raw_cdi.copy()
-
-                # Save input data as cxi
-                if i == 0:
-                    cxi_filename = "{}/pynx_input_operator_{}.cxi".format(
-                        parent_folder,
-                        iobs.split("/")[-1].split(".")[0]
+                # Run phase retrieval for nb_run
+                for i in range(nb_run):
+                    print(
+                        "\n###########################################"
+                        "#############################################"
+                        f"\nRun {i}"
                     )
 
-                    cxi_filename = f"{parent_folder}/pynx_input_operator_"\
-                        f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+                    # Make a copy to gain time
+                    cdi = raw_cdi.copy()
 
-                    save_cdi_operator_as_cxi(
-                        cdi_operator=cdi,
-                        path_to_cxi=cxi_filename,
-                        params=params,
+                    # Save input data as cxi
+                    if i == 0:
+                        cxi_filename = "{}/pynx_input_operator_{}.cxi".format(
+                            parent_folder,
+                            iobs.split("/")[-1].split(".")[0]
+                        )
+
+                        cxi_filename = f"{parent_folder}/pynx_input_operator_"\
+                            f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+
+                        save_cdi_operator_as_cxi(
+                            cdi_operator=cdi,
+                            path_to_cxi=cxi_filename,
+                            params=params,
+                        )
+
+                    if i > 4:
+                        print("Stopping liveplot to go faster\n")
+                        params["live_plot"] = False
+
+                    # Change support threshold for supports update
+                    if isinstance(params["support_threshold"], float):
+                        threshold_relative = params["support_threshold"]
+                    elif isinstance(
+                        params["support_threshold"],
+                        tuple
+                    ):
+                        threshold_relative = np.random.uniform(
+                            params["support_threshold"][0],
+                            params["support_threshold"][1]
+                        )
+                    print(f"Threshold: {threshold_relative:.4f}")
+
+                    # Create support object
+                    sup = SupportUpdate(
+                        threshold_relative=threshold_relative,
+                        smooth_width=params["support_smooth_width"],
+                        force_shrink=params["support_only_shrink"],
+                        method=params["support_method"],
+                        post_expand=params["support_post_expand"],
                     )
 
-                if i > 4:
-                    print("Stopping liveplot to go faster\n")
-                    params["live_plot"] = False
+                    # Initialize the free pixels for FLLK
+                    cdi = InitFreePixels() * cdi
 
-                # Change support threshold for supports update
-                if isinstance(params["support_threshold"], float):
-                    threshold_relative = params["support_threshold"]
-                elif isinstance(
-                    params["support_threshold"],
-                    tuple
-                ):
-                    threshold_relative = np.random.uniform(
-                        params["support_threshold"][0],
-                        params["support_threshold"][1]
-                    )
-                print(f"Threshold: {threshold_relative:.4f}")
-
-                # Create support object
-                sup = SupportUpdate(
-                    threshold_relative=threshold_relative,
-                    smooth_width=params["support_smooth_width"],
-                    force_shrink=params["support_only_shrink"],
-                    method=params["support_method"],
-                    post_expand=params["support_post_expand"],
-                )
-
-                # Initialize the free pixels for FLLK
-                cdi = InitFreePixels() * cdi
-
-                # Interpolate the detector gaps
-                if params["live_plot"]:
-                    cdi = ShowCDI(plot_axis=params["plot_axis"]) \
-                        * InterpIobsMask(
+                    # Interpolate the detector gaps
+                    if params["live_plot"]:
+                        cdi = ShowCDI(plot_axis=params["plot_axis"]) \
+                            * InterpIobsMask(
+                                params["mask_interp"][0],
+                                params["mask_interp"][1],
+                        ) * cdi
+                    else:
+                        cdi = InterpIobsMask(
                             params["mask_interp"][0],
                             params["mask_interp"][1],
-                    ) * cdi
-                else:
-                    cdi = InterpIobsMask(
-                        params["mask_interp"][0],
-                        params["mask_interp"][1],
-                    ) * cdi
-                    print("test3")
+                        ) * cdi
+                        print("test3")
 
-                # Initialize the support with autocorrelation, if no
-                # support given
-                if not support:
-                    params["sup_init"] = "autocorrelation"
-                    if not params["live_plot"]:
-                        cdi = ScaleObj() * AutoCorrelationSupport(
-                            threshold=params[
-                                "support_autocorrelation_threshold"],
-                            verbose=True
-                            ) * cdi
-
-                    else:
-                        cdi = ShowCDI(
-                            plot_axis=params["plot_axis"]
-                            ) * ScaleObj() \
-                             * AutoCorrelationSupport(
+                    # Initialize the support with autocorrelation, if no
+                    # support given
+                    if not support:
+                        params["sup_init"] = "autocorrelation"
+                        if not params["live_plot"]:
+                            cdi = ScaleObj() * AutoCorrelationSupport(
                                 threshold=params[
                                     "support_autocorrelation_threshold"],
                                 verbose=True
-                            ) * cdi
-                else:
-                    params["sup_init"] = "support"
-
-                # Begin phase retrieval
-                try:
-                    if psf:
-                        if support_update_period == 0:
-                            cdi = HIO(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            ) ** params["nb_hio"] * cdi
-                            cdi = RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            ) ** (params["nb_raar"] // 2) * cdi
-
-                            # PSF is introduced at 66% of HIO and RAAR
-                            if psf_model != "pseudo-voigt":
-                                cdi = InitPSF(
-                                    model=params["psf_model"],
-                                    fwhm=params["fwhm"],
-                                    filter=None,
                                 ) * cdi
-
-                            elif psf_model == "pseudo-voigt":
-                                cdi = InitPSF(
-                                    model=params["psf_model"],
-                                    fwhm=params["fwhm"],
-                                    eta=params["eta"],
-                                    filter=None,
-                                ) * cdi
-
-                            cdi = RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                update_psf=params["update_psf"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            ) ** (nb_raar // 2) * cdi
-                            cdi = ER(
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                update_psf=params["update_psf"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            ) ** nb_er * cdi
 
                         else:
-                            hio_power = params["nb_hio"] \
-                                // params["support_update_period"]
-                            raar_power = (
-                                params["nb_raar"] // 2) \
-                                // params["support_update_period"]
-                            er_power = params["nb_er"] \
-                                // params["support_update_period"]
-
-                            cdi = (sup * HIO(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** hio_power * cdi
-                            cdi = (sup * RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** raar_power * cdi
-
-                            # PSF is introduced after half the HIO cycles
-                            if psf_model != "pseudo-voigt":
-                                cdi = InitPSF(
-                                    model=params["psf_model"],
-                                    fwhm=params["fwhm"],
-                                    filter=params["psf_filter"],
+                            cdi = ShowCDI(
+                                plot_axis=params["plot_axis"]
+                                ) * ScaleObj() \
+                                 * AutoCorrelationSupport(
+                                    threshold=params[
+                                        "support_autocorrelation_threshold"],
+                                    verbose=True
                                 ) * cdi
+                    else:
+                        params["sup_init"] = "support"
 
-                            elif psf_model == "pseudo-voigt":
-                                cdi = InitPSF(
-                                    model=params["psf_model"],
-                                    fwhm=params["fwhm"],
-                                    eta=params["eta"],
-                                    filter=params["psf_filter"],
-                                ) * cdi
+                    # Begin phase retrieval
+                    try:
+                        if psf:
+                            if support_update_period == 0:
+                                cdi = HIO(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** params["nb_hio"] * cdi
+                                cdi = RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** (params["nb_raar"] // 2) * cdi
 
-                            cdi = (sup * RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                update_psf=params["update_psf"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** raar_power * cdi
-                            cdi = (sup * ER(
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                update_psf=params["update_psf"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                psf_filter=params["psf_filter"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** er_power * cdi
+                                # PSF is introduced at 66% of HIO and RAAR
+                                if psf_model != "pseudo-voigt":
+                                    cdi = InitPSF(
+                                        model=params["psf_model"],
+                                        fwhm=params["fwhm"],
+                                        filter=None,
+                                    ) * cdi
 
-                    if not psf:
-                        if support_update_period == 0:
-                            cdi = HIO(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            ) ** params["nb_hio"] * cdi
-                            cdi = RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            ) ** params["nb_raar"] * cdi
-                            cdi = ER(
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            ) ** params["nb_er"] * cdi
+                                elif psf_model == "pseudo-voigt":
+                                    cdi = InitPSF(
+                                        model=params["psf_model"],
+                                        fwhm=params["fwhm"],
+                                        eta=params["eta"],
+                                        filter=None,
+                                    ) * cdi
 
-                        else:
-                            hio_power = params["nb_hio"] \
-                                // params["support_update_period"]
-                            raar_power = params["nb_raar"] \
-                                // params["support_update_period"]
-                            er_power = params["nb_er"] \
-                                // params["support_update_period"]
+                                cdi = RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    update_psf=params["update_psf"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** (nb_raar // 2) * cdi
+                                cdi = ER(
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    update_psf=params["update_psf"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** nb_er * cdi
 
-                            cdi = (sup * HIO(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** hio_power * cdi
-                            cdi = (sup * RAAR(
-                                beta=params["beta"],
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** raar_power * cdi
-                            cdi = (sup * ER(
-                                calc_llk=params["calc_llk"],
-                                show_cdi=params["live_plot"],
-                                plot_axis=params["plot_axis"],
-                                positivity=params["positivity"],
-                                zero_mask=params["zero_mask"],
-                            )**params["support_update_period"]
-                            ) ** er_power * cdi
+                            else:
+                                hio_power = params["nb_hio"] \
+                                    // params["support_update_period"]
+                                raar_power = (
+                                    params["nb_raar"] // 2) \
+                                    // params["support_update_period"]
+                                er_power = params["nb_er"] \
+                                    // params["support_update_period"]
 
-                    fn = (
-                        f"{params['parent_folder']}/"
-                        f"result_scan_{params['scan']}_run_{i}_"
-                        f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
-                        f"support_threshold_{threshold_relative:.4f}_"
-                        f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
-                        f"_{cdi.iobs.shape[2]}_"
-                        f"{params['sup_init']}.cxi"
+                                cdi = (sup * HIO(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** hio_power * cdi
+                                cdi = (sup * RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** raar_power * cdi
+
+                                # PSF is introduced after half the HIO cycles
+                                if psf_model != "pseudo-voigt":
+                                    cdi = InitPSF(
+                                        model=params["psf_model"],
+                                        fwhm=params["fwhm"],
+                                        filter=params["psf_filter"],
+                                    ) * cdi
+
+                                elif psf_model == "pseudo-voigt":
+                                    cdi = InitPSF(
+                                        model=params["psf_model"],
+                                        fwhm=params["fwhm"],
+                                        eta=params["eta"],
+                                        filter=params["psf_filter"],
+                                    ) * cdi
+
+                                cdi = (sup * RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    update_psf=params["update_psf"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** raar_power * cdi
+                                cdi = (sup * ER(
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    update_psf=params["update_psf"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    psf_filter=params["psf_filter"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** er_power * cdi
+
+                        if not psf:
+                            if support_update_period == 0:
+                                cdi = HIO(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** params["nb_hio"] * cdi
+                                cdi = RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** params["nb_raar"] * cdi
+                                cdi = ER(
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                ) ** params["nb_er"] * cdi
+
+                            else:
+                                hio_power = params["nb_hio"] \
+                                    // params["support_update_period"]
+                                raar_power = params["nb_raar"] \
+                                    // params["support_update_period"]
+                                er_power = params["nb_er"] \
+                                    // params["support_update_period"]
+
+                                cdi = (sup * HIO(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** hio_power * cdi
+                                cdi = (sup * RAAR(
+                                    beta=params["beta"],
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** raar_power * cdi
+                                cdi = (sup * ER(
+                                    calc_llk=params["calc_llk"],
+                                    show_cdi=params["live_plot"],
+                                    plot_axis=params["plot_axis"],
+                                    positivity=params["positivity"],
+                                    zero_mask=params["zero_mask"],
+                                )**params["support_update_period"]
+                                ) ** er_power * cdi
+
+                        fn = (
+                            f"{params['parent_folder']}/"
+                            f"result_scan_{params['scan']}_run_{i}_"
+                            f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
+                            f"support_threshold_{threshold_relative:.4f}_"
+                            f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
+                            f"_{cdi.iobs.shape[2]}_"
+                            f"{params['sup_init']}.cxi"
+                        )
+
+                        reconstruction_file_list.append(fn)
+                        cdi.save_obj_cxi(fn)
+                        print(
+                            f"\nSaved as {fn}."
+                            "\n###########################################"
+                            "#############################################"
+                        )
+
+                    except SupportTooLarge:
+                        print(
+                            "The support is too large to continue,"
+                            "try increasing the threshold value."
+                        )
+
+                    except SupportTooSmall:
+                        print(
+                            "The support is too small to continue,"
+                            "try lowering the threshold value."
+                        )
+
+            except KeyboardInterrupt:
+                clear_output(True)
+                print("Phase retrieval stopped by user.")
+
+        # Modes decomposition and solution filtering
+        if run_pynx_tools and not run_phase_retrieval:
+            # Initialiase the analyser if needed
+            try:
+                if self.result_analyser.result_dir_path != params["parent_folder"]:
+                    self.result_analyser = PhasingResultAnalyser(
+                        result_dir_path=params["parent_folder"]
                     )
-
-                    reconstruction_file_list.append(fn)
-                    cdi.save_obj_cxi(fn)
-                    print(
-                        f"\nSaved as {fn}."
-                        "\n###########################################"
-                        "#############################################"
-                    )
-
-                except SupportTooLarge:
-                    print(
-                        "The support is too large to continue,"
-                        "try increasing the threshold value."
-                    )
-
-                except SupportTooSmall:
-                    print(
-                        "The support is too small to continue,"
-                        "try lowering the threshold value."
-                    )
-
-            # If filter, filter data
-            if filter_criteria:
-                filter_reconstructions(
-                    folder=params["parent_folder"],
-                    nb_run=None,  # Will take the amount of cxi files found
-                    nb_run_keep=params["nb_run_keep"],
-                    filter_criteria=params["filter_criteria"]
+            except AttributeError:  # Does not exist yet
+                self.result_analyser = PhasingResultAnalyser(
+                    result_dir_path=params["parent_folder"]
+                )        
+            
+            if run_pynx_tools == "analyse_results":
+                self.result_analyser.analyse_phasing_results(
+                    sorting_criterion=params["filter_criteria"],
+                    plot=params["plot_metrics_checkbox"],
+                    plot_phasing_results=params["plot_reconstruction_checkbox"],
+                    plot_phase=params["plot_reconstruction_phase_checkbox"],
+                    search_pattern=self.search_pattern,
                 )
+            elif run_pynx_tools == "select":
+                options = [os.path.basename(f) for f in list_files(
+                    params["parent_folder"],
+                    self.search_pattern,
+                    )
+                ]
+                indices = [
+                    options.index(item) for item in params["best_runs_widget"]
+                ]
+                
+                self.result_analyser.select_best_candidates(
+                    nb_of_best_sorted_runs=params["number_of_best_ordered_runs_widget"],
+                    best_runs=indices,
+                    search_pattern=self.search_pattern,
+                )
+            elif run_pynx_tools == "mode_decomposition":
+                self.modes, self.mode_weights = self.result_analyser.mode_decomposition()
 
-        except KeyboardInterrupt:
+        # Clean output
+        if not run_phase_retrieval and not run_pynx_tools:
+            print("Cleared output.")
             clear_output(True)
-            print("Phase retrieval stopped by user.")
-
-    # Modes decomposition and solution filtering
-    if run_pynx_tools and not run_phase_retrieval:
-        if run_pynx_tools == "analyse_results":
-            print(params["plot_reconstruction_checkbox"])
-            result_analyser.analyse_phasing_results(
-                sorting_criterion="mean_to_max",
-                plot=params["plot_metrics_checkbox"],
-                plot_phasing_results=params["plot_reconstruction_checkbox"],
-                plot_phase=params["plot_reconstruction_phase_checkbox"],
-                search_pattern="*run*.cxi"
-            )
-        elif run_pynx_tools == "select":
-            result_analyser.select_best_candidates(
-                nb_of_best_sorted_runs=params["number_of_best_ordered_runs_widget"],
-                best_runs=params["best_runs_widget"],
-                search_pattern="*run*.cxi"
-            )
-        elif run_pynx_tools == "mode_decomposition":
-            modes, mode_weights = result_analyser.mode_decomposition()
-
-        # elif run_pynx_tools == "filter":
-        #     filter_reconstructions(
-        #         folder=params["parent_folder"],
-        #         nb_run=None,  # Will take the amount of cxi files found
-        #         nb_run_keep=params["nb_run_keep"],
-        #         filter_criteria=params["filter_criteria"]
-        #     )
-
-    # Clean output
-    if not run_phase_retrieval and not run_pynx_tools:
-        print("Cleared output.")
-        clear_output(True)
 
 
 def initialize_cdi_operator(
@@ -1863,9 +1795,6 @@ def initialize_cdi_operator(
     mask: str | None,
     support: str | None,
     obj: str | None,
-    wavelength: float | None,
-    pixel_size_detector: float | None,
-    detector_distance: float | None,
     binning: tuple[int, int, int] = (1, 1, 1),
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
     """
@@ -1881,9 +1810,6 @@ def initialize_cdi_operator(
     :param support: path to npz or npy that stores the support data
     :param obj: path to npz or npy that stores the object data
     :param binning: tuple, applied to all the arrays, e.g. (1, 1, 1)
-    :param wavelength: wavelength of the data, optional
-    :param pixel_size_detector: pixel size of the detector, optional
-    :param detector_distance: detector distance, optional
 
     :return: cdi operator or None if initialization fails
     """
@@ -1992,9 +1918,6 @@ def initialize_cdi_operator(
         support=support,
         obj=obj,
         mask=mask,
-        wavelength=wavelength,
-        pixel_size_detector=pixel_size_detector,
-        detector_distance=detector_distance,
     )
 
     return cdi
@@ -2012,21 +1935,10 @@ def save_cdi_operator_as_cxi(
     :param cdi_operator: cdi object
      created with PyNX
     :param path_to_cxi: path to future cxi data
-     Below are parameters that are saved in the cxi file
+     Below are parameters that can be saved in the cxi file
         - filename: the file name to save the data to
         - iobs: the observed intensity
-        - wavelength: the wavelength of the experiment (in meters)
-        - detector_distance: the detector distance (in meters)
-        - pixel_size_detector: the pixel size of the detector (in meters)
         - mask: the mask indicating valid (=0) and bad pixels (>0)
-        - sample_name: optional, the sample name
-        - experiment_id: the string identifying the experiment, e.g.:
-          'HC1234: Siemens star calibration tests'
-        - instrument: the string identifying the instrument, e.g.:
-         'ESRF id10'
-        - iobs_is_fft_shifted: if true, input iobs (and mask if any)
-        have their origin in (0,0[,0]) and will be shifted back to
-        centered-versions before being saved.
         - params: a dictionary of parameters which will
           be saved as a NXcollection
 
@@ -2044,7 +1956,7 @@ def save_cdi_operator_as_cxi(
 
 def list_files(
     folder: str,
-    glob_pattern: str = "*FLLK*.cxi",
+    glob_pattern: str,
     verbose: bool = False
 ) -> list[str]:
     """
@@ -2054,7 +1966,7 @@ def list_files(
     Args:
         folder (str): The path to the folder where the files are located.
         glob_pattern (str, optional): A string that specifies the pattern
-            of the filenames to match. Default is "*FLLK*.cxi".
+            of the filenames to match.
         verbose (bool, optional): If set to True, the function will print
             the filenames and their creation timestamps to the console.
             Default is False.
@@ -2092,239 +2004,3 @@ def list_files(
     return file_list
 
 
-def filter_reconstructions(
-    folder: str,
-    nb_run_keep: int,
-    nb_run: int | None,
-    filter_criteria: str = "FLLK"
-) -> None:
-    """
-    Filter the phase retrieval output based on a specified parameter.
-
-    The function filters phase retrieval output based on specified criteria,
-    such as "FLLK" or "standard deviation". The user can run multiple
-    reconstructions and the function will automatically keep the "best"
-    ones according to the specified criteria. If "standard_deviation" and
-    "FLLK" are specified as the criteria, half of the `nb_run_keep` files will
-    be filtered based on the first criteria and the remaining files will be
-    filtered based on the second criteria.
-
-    The parameters are specified in the phase retrieval tab.
-
-    Args:
-        folder (str): Parent folder to cxi files
-        nb_run_keep (int): The number of the best run results to keep in
-            the end according to the `filter_criteria`.
-        nb_run (Optional[int], optional): The number of times to run the
-            optimization. If `None`, it is equal to the number of files
-            detected. Defaults to `None`.
-        filter_criteria (str, optional): The criteria based on which the
-            best solutions will be chosen. Possible values are
-            "standard_deviation", "FLLK", "standard_deviation_FLLK",
-            "FLLK_standard_deviation". Defaults to "FLLK".
-
-    Returns:
-        None
-    """
-    def filter_by_std(
-        cxi_files: list[str],
-        nb_run_keep: int
-    ) -> None:
-        """
-        Use the standard deviation of the reconstructed object as
-        filtering criteria.
-
-        The function computes the standard deviation of the object
-        modulus for each of the input `cxi_files`, and removes the
-        `cxi_files` with the highest standard deviations until only
-        `nb_run_keep` remain. The other files are deleted.
-
-        Parameters
-        ----------
-        cxi_files : list[str]
-            A list of strings representing the paths to the `cxi`
-            files to be filtered.
-        nb_run_keep : int
-            The number of `cxi` files to keep after filtering.
-            The files with the lowest standard deviation will be kept.
-
-        Returns
-        -------
-        None
-        """
-        filtering_criteria_value = {}
-
-        print(
-            "\n###################"
-            "#####################"
-            "#####################"
-            "#####################"
-        )
-        print("Computing standard deviation of object modulus for scans:")
-        for filename in cxi_files:
-            print(f"\t{os.path.basename(filename)}")
-            with h5py.File(filename, "r") as f:
-                data = f["entry_1/image_1/data"][...]
-                amp = np.abs(data)
-                # Skip values near 0
-                meaningful_data = amp[amp > 0.05 * amp.max()]
-                filtering_criteria_value[filename] = np.std(
-                    meaningful_data
-                )
-
-        # Sort files
-        sorted_dict = sorted(
-            filtering_criteria_value.items(),
-            key=operator_lib.itemgetter(1)
-        )
-
-        # Remove files
-        print("\nRemoving scans:")
-        for filename, filtering_criteria_value in sorted_dict[nb_run_keep:]:
-            print(f"\t{os.path.basename(filename)}")
-            os.remove(filename)
-        print(
-            "#####################"
-            "#####################"
-            "#####################"
-            "###################\n"
-        )
-
-    def filter_by_FLLK(
-        cxi_files: list[str],
-        nb_run_keep: int
-    ) -> None:
-        """
-        Filter `cxi_files` using the free log-likelihood (FLLK) values.
-
-        The `cxi_files` are filtered based on the FLLK values calculated from
-        the reconstructed object using poisson statistics. The files with the
-        lowest FLLK values are kept.
-
-        Args:
-            cxi_files: A list of paths to CXI files.
-            nb_run_keep: The number of files to keep, based on their FLLK
-                values.
-
-        Returns:
-            None. The function modifies the list of `cxi_files` in place by
-            removing some of the files based on the FLLK values.
-        """
-        # Keep filtering criteria of reconstruction modules in dictionnary
-        filtering_criteria_value = {}
-
-        print(
-            "\n###################"
-            "#####################"
-            "#####################"
-            "#####################"
-        )
-        print("Extracting FLLK value (poisson statistics) for scans:")
-        for filename in cxi_files:
-            print(f"\t{os.path.basename(filename)}")
-            with h5py.File(filename, "r") as f:
-                fllk = f[
-                    "entry_1/image_1/process_1/results/free_llk_poisson"][...]
-                filtering_criteria_value[filename] = fllk
-
-        # Sort files
-        sorted_dict = sorted(
-            filtering_criteria_value.items(),
-            key=operator_lib.itemgetter(1)
-        )
-
-        # Remove files
-        print("\nRemoving scans:")
-        for filename, filtering_criteria_value in sorted_dict[nb_run_keep:]:
-            print(f"\t{os.path.basename(filename)}")
-            os.remove(filename)
-        print(
-            "#####################"
-            "#####################"
-            "#####################"
-            "###################\n"
-        )
-
-    # Main function supporting different cases
-    try:
-        glob_pattern = "*FLLK*.cxi"
-        print(
-            "\n########################################"
-            "##########################################"
-        )
-        print("Iterating on files matching:")
-        print(f"\t{folder}/{glob_pattern}")
-        cxi_files = list_files(
-            folder=folder,
-            glob_pattern=glob_pattern,
-        )
-        print(
-            "##########################################"
-            "########################################\n"
-        )
-
-        if cxi_files == []:
-            print(
-                f"No match for {folder}/*FLLK*.cxi"
-                f"\nTrying with {folder}/*LLK*.cxi"
-            )
-            glob_pattern = "*LLK*.cxi"
-            cxi_files = list_files(
-                folder=folder,
-                glob_pattern=glob_pattern,
-            )
-
-        # only standard_deviation
-        if filter_criteria == "standard_deviation":
-            filter_by_std(cxi_files, nb_run_keep)
-
-        # only FLLK
-        elif filter_criteria == "FLLK":
-            filter_by_FLLK(cxi_files, nb_run_keep)
-
-        # standard_deviation then FLLK
-        elif filter_criteria == "standard_deviation_FLLK":
-            if nb_run is None:
-                nb_run = len(cxi_files)
-
-            filter_by_std(cxi_files, nb_run_keep +
-                          (nb_run - nb_run_keep) // 2)
-
-            print("Iterating on remaining files.")
-
-            cxi_files = list_files(
-                folder=folder,
-                glob_pattern=glob_pattern,
-            )
-
-            if cxi_files == []:
-                print(
-                    f"No {glob_pattern} files remaining in {folder}")
-            else:
-                filter_by_FLLK(cxi_files, nb_run_keep)
-
-        # FLLK then standard_deviation
-        elif filter_criteria == "FLLK_standard_deviation":
-            if nb_run is None:
-                nb_run = len(cxi_files)
-
-            filter_by_FLLK(cxi_files, nb_run_keep +
-                           (nb_run - nb_run_keep) // 2)
-
-            print("Iterating on remaining files.")
-
-            cxi_files = list_files(
-                folder=folder,
-                glob_pattern=glob_pattern,
-            )
-
-            if cxi_files == []:
-                print(
-                    f"No {glob_pattern} files remaining in {folder}")
-            else:
-                filter_by_std(cxi_files, nb_run_keep)
-
-        else:
-            print("No filtering")
-    except KeyboardInterrupt:
-        print("File filtering stopped.")
