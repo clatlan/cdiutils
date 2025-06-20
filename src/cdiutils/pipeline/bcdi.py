@@ -1019,6 +1019,7 @@ retrieval is also computed and will be used in the post-processing stage."""
     def analyse_phasing_results(
         self,
         sorting_criterion: str = "mean_to_max",
+        search_pattern: str = "*Run*.cxi",
         plot: bool = True,
         plot_phasing_results: bool = True,
         plot_phase: bool = False,
@@ -1045,6 +1046,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
             plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
@@ -1065,6 +1068,7 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion=sorting_criterion,
+            search_pattern=search_pattern,
             plot=plot,
             plot_phasing_results=plot_phasing_results,
             plot_phase=plot_phase,

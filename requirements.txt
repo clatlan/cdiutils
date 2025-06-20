@@ -13,6 +13,8 @@ silx-base
 tabulate
 xrayutilities>=1.7.3
 ipyvolume
+ipywidgets
+datetime
 ipython_genutils
 bokeh
 panel
