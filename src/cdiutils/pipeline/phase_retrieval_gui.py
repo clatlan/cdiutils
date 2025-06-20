@@ -105,7 +105,13 @@ class PhaseRetrievalGUI(widgets.VBox):
         zero_mask: Dropdown to specify whether to force mask pixels to
     """
 
-    def __init__(self, box_style="", work_dir=None):
+    def __init__(
+            self,
+            box_style: str = None,
+            work_dir: str = None,
+            result_analyser: PhasingResultAnalyser = None,
+            search_pattern: str = None
+    ):
         """
         Initialize the PhaseRetrievalGUI class.
 
@@ -120,7 +126,12 @@ class PhaseRetrievalGUI(widgets.VBox):
                 Default is an empty string.
             work_dir: The working directory where input files are located.
                 If not provided, the current working directory is used.
-                
+            result_analyser: An instance of PhasingResultAnalyser to
+                handle the analysis of phase retrieval results.
+            search_pattern: A string defining the search pattern for
+                input files. If not provided, a default pattern for
+                `.cxi` files is used (`*run*.cxi`).
+
         Attributes:
             header: A brief header describing the purpose of the tab.
             box_style: The CSS style applied to the widget container.
@@ -194,22 +205,29 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         super().__init__()
 
-        # Brief header describing the tab
+        # brief header describing the tab
         self.header = "Phase retrieval"
+
+        if box_style is None:
+            box_style = ""
         self.box_style = box_style
 
-        # Define global search pattern for cxi files
-        self.search_pattern = "*run*.cxi"
+        # define the result analyser, if None, will be analysed later
+        self.result_analyser = result_analyser
 
-        # Define future attributes
-        self.result_analyser = None
+        # define global search pattern for cxi files
+        self.search_pattern = search_pattern
+        if self.search_pattern is None:
+            self.search_pattern = "*run*.cxi"
+
+        # define future attributes
         self.modes = None
         self.mode_weights = None
 
         if work_dir is None:
             work_dir = os.getcwd()
 
-        # Define widgets
+        # define widgets
         self.unused_label_data = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Data files",
