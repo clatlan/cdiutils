@@ -188,7 +188,7 @@ def probe_metrics(
         if verbose:
             print("Centring the probe at the maximum intensity.")
         probe = CroppingHandler.force_centred_cropping(
-            probe, where="max"
+            probe, where="max", verbose=verbose
         )
         # recompute the probe intensity in the new cropped frame
         probe_intensity = np.abs(probe) ** 2
@@ -287,7 +287,7 @@ def probe_metrics(
     add_colorbar(axes[0, 0])
     axes[0, 0].set_title(r"Probe Intensity ($|\mathcal{P}|^2$, a. u.)")
 
-    opacity = probe_intensity / np.max(probe_intensity)
+    opacity = np.abs(probe) / np.max(np.abs(probe))
     axes[0, 1].imshow(
         np.angle(probe),
         alpha=opacity,
