@@ -1,13 +1,10 @@
 import numpy as np
 import glob
 import os
-import operator as operator_lib
 from datetime import datetime
 from scipy.fft import fftshift
-from shlex import quote
 from IPython.display import clear_output, display
 from ast import literal_eval
-import h5py
 import ipywidgets as widgets
 from ipywidgets import interactive, Layout, Button
 
@@ -33,6 +30,7 @@ try:
         ShowCDI,
     )
     from pynx.utils.array import rebin
+
     IS_PYNX_AVAILABLE = True
 
 except ImportError:
@@ -52,112 +50,59 @@ class PhaseRetrievalGUI(widgets.VBox):
     tasks.
 
     Attributes:
-    -----------
-    header : str
-        A brief header describing the purpose of the tab.
-    box_style : str
-        The CSS style applied to the widget container.
-    parent_folder : widgets.Dropdown
-        Dropdown to select the parent folder containing input files.
-    iobs : widgets.Dropdown
-        Dropdown to select the observed intensity dataset file.
-    mask : widgets.Dropdown
-        Dropdown to select the mask file.
-    support : widgets.Dropdown
-        Dropdown to select the support file.
-    obj : widgets.Dropdown
-        Dropdown to select the object file.
-    support_threshold : widgets.Text
-        Input field to specify the support threshold.
-    support_only_shrink : widgets.Checkbox
-        Checkbox to enable or disable support shrinking.
-    support_update_period : widgets.BoundedIntText
-        Input field to specify the period for support updates.
-    support_smooth_width : widgets.Text
-        Input field to specify the smoothing width for support updates.
-    support_post_expand : widgets.Text
-        Input field to specify post-expansion parameters for the support.
-    support_method : widgets.Dropdown
-        Dropdown to select the method for support updates (e.g., "max",
-        "average", "rms").
-    psf : widgets.Checkbox
-        Checkbox to enable or disable the use of a point spread function
-        (PSF).
-    psf_model : widgets.Dropdown
-        Dropdown to select the PSF model (e.g., "gaussian", "lorentzian",
-        "pseudo-voigt").
-    fwhm : widgets.FloatText
-        Input field to specify the full-width at half maximum (FWHM) for
-        the PSF.
-    eta : widgets.FloatText
-        Input field to specify the eta parameter for the pseudo-voigt PSF
-        model.
-    psf_filter : widgets.Dropdown
-        Dropdown to select the PSF filter type (e.g., "None", "hann",
-        "tukey").
-    update_psf : widgets.BoundedIntText
-        Input field to specify the frequency of PSF updates.
-    nb_hio : widgets.BoundedIntText
-        Input field to specify the number of Hybrid Input-Output (HIO)
-        iterations.
-    nb_raar : widgets.BoundedIntText
-        Input field to specify the number of Relaxed Averaged Alternating
-        Reflections (RAAR) iterations.
-    nb_er : widgets.BoundedIntText
-        Input field to specify the number of Error Reduction (ER)
-        iterations.
-    nb_ml : widgets.BoundedIntText
-        Input field to specify the number of Maximum Likelihood (ML)
-        iterations.
-    nb_run : widgets.BoundedIntText
-        Input field to specify the number of phase retrieval runs.
-    live_plot : widgets.BoundedIntText
-        Input field to specify the frequency of live plotting during
-        phase retrieval.
-    plot_axis : widgets.Dropdown
-        Dropdown to select the axis used for live plots.
-    verbose : widgets.BoundedIntText
-        Input field to specify the verbosity level of the output.
-    binning : widgets.Text
-        Input field to specify rebinning parameters for the input data.
-    positivity : widgets.Checkbox
-        Checkbox to enable or disable positivity constraints.
-    beta : widgets.FloatText
-        Input field to specify the beta parameter for HIO and RAAR
-        algorithms.
-    detwin : widgets.Checkbox
-        Checkbox to enable or disable detwinning.
-    calc_llk : widgets.BoundedIntText
-        Input field to specify the interval for log-likelihood
-        calculations.
-    zero_mask : widgets.Dropdown
-        Dropdown to specify whether to force mask pixels to zero.
-    mask_interp : widgets.Text
-        Input field to specify interpolation parameters for the mask.
-    run_phase_retrieval : widgets.ToggleButtons
-        Toggle buttons to start or stop the phase retrieval process.
-    run_pynx_tools : widgets.ToggleButtons
-        Toggle buttons to run additional PyNX tools (e.g., modes
-        decomposition, filtering).
-    filter_criteria : widgets.Dropdown
-        Dropdown to select the criteria for filtering reconstruction
-        results.
-
-    Methods:
-    --------
-    pynx_folder_handler(change) -> None
-        Handles changes to the parent folder and updates file lists.
-    pynx_psf_handler(change) -> None
-        Handles changes to the PSF settings and enables/disables related
-        widgets.
-    pynx_peak_shape_handler(change) -> None
-        Handles changes to the PSF peak shape and enables/disables the eta
-        parameter.
-    run_pynx_handler(change) -> None
-        Handles changes to the phase retrieval toggle buttons and enables
-        or disables widgets accordingly.
-    show() -> None
-        Displays the GUI as a standalone widget in a Jupyter Notebook.
+        header: A brief header describing the purpose of the tab.
+        box_style: The CSS style applied to the widget container.
+        parent_folder: Dropdown to select the parent folder containing
+            input files.
+        iobs: Dropdown to select the observed intensity dataset file.
+        mask: Dropdown to select the mask file.
+        support: Dropdown to select the support file.
+        obj: Dropdown to select the object file.
+        support_threshold: Input field to specify the support threshold.
+        support_only_shrink: Checkbox to enable or disable support
+            shrinking.
+        support_update_period: Input field to specify the period for
+            support updates.
+        support_smooth_width: Input field to specify the smoothing width
+            for support updates.
+        support_post_expand: Input field to specify post-expansion
+            parameters for the support.
+        support_method: Dropdown to select the method for support updates
+            (e.g., "max", "average", "rms").
+        psf: Checkbox to enable or disable the use of a point spread
+            function (PSF).
+        psf_model: Dropdown to select the PSF model (e.g., "gaussian",
+            "lorentzian", "pseudo-voigt").
+        fwhm: Input field to specify the full-width at half maximum
+            (FWHM) for the PSF.
+        eta: Input field to specify the eta parameter for the pseudo-voigt
+            PSF model.
+        psf_filter: Dropdown to select the PSF filter type (e.g., "None",
+            "hann", "tukey").
+        update_psf: Input field to specify the frequency of PSF updates.
+        nb_hio: Input field to specify the number of Hybrid Input-Output
+            (HIO) iterations.
+        nb_raar: Input field to specify the number of Relaxed Averaged
+            Alternating Reflections (RAAR) iterations.
+        nb_er: Input field to specify the number of Error Reduction (ER)
+            iterations.
+        nb_ml: Input field to specify the number of Maximum Likelihood
+            (ML) iterations.
+        nb_run: Input field to specify the number of phase retrieval
+            runs.
+        live_plot: Input field to specify the frequency of live plotting
+            during phase retrieval.
+        plot_axis: Dropdown to select the axis used for live plots.
+        verbose: Input field to specify the verbosity level of the output.
+        binning: Input field to specify rebinning parameters for the input
+            data.
+        positivity: Checkbox to enable or disable positivity constraints.
+        beta: Input field to specify the beta parameter for HIO and RAAR
+            algorithms.
+        detwin: Checkbox to enable or disable detwinning.
+        calc_llk: Input field to specify the interval for log-likelihood
+            calculations.
+        zero_mask: Dropdown to specify whether to force mask pixels to
     """
 
     def __init__(self, box_style="", work_dir=None):
@@ -170,123 +115,92 @@ class PhaseRetrievalGUI(widgets.VBox):
         files, and control the execution of phase retrieval algorithms.
         The GUI is designed to work in a Jupyter Notebook environment.
 
-        Parameters:
-        -----------
-        box_style : str, optional
-            The CSS style applied to the widget container. Default is an empty
-            string.
-        work_dir : str, optional
-            The working directory where input files are located. If not
-            provided, the current working directory is used.
-
+        Args:
+            box_style: The CSS style applied to the widget container.
+                Default is an empty string.
+            work_dir: The working directory where input files are located.
+                If not provided, the current working directory is used.
+                
         Attributes:
-        -----------
-        header : str
-            A brief header describing the purpose of the tab.
-        box_style : str
-            The CSS style applied to the widget container.
-        parent_folder : widgets.Dropdown
-            Dropdown to select the parent folder containing input files.
-        iobs : widgets.Dropdown
-            Dropdown to select the observed intensity dataset file.
-        mask : widgets.Dropdown
-            Dropdown to select the mask file.
-        support : widgets.Dropdown
-            Dropdown to select the support file.
-        obj : widgets.Dropdown
-            Dropdown to select the object file.
-        support_threshold : widgets.Text
-            Input field to specify the support threshold.
-        support_only_shrink : widgets.Checkbox
-            Checkbox to enable or disable support shrinking.
-        support_update_period : widgets.BoundedIntText
-            Input field to specify the period for support updates.
-        support_smooth_width : widgets.Text
-            Input field to specify the smoothing width for support updates.
-        support_post_expand : widgets.Text
-            Input field to specify post-expansion parameters for the support.
-        support_method : widgets.Dropdown
-            Dropdown to select the method for support updates (e.g., "max",
-            "average", "rms").
-        psf : widgets.Checkbox
-            Checkbox to enable or disable the use of a point spread function
-            (PSF).
-        psf_model : widgets.Dropdown
-            Dropdown to select the PSF model (e.g., "gaussian", "lorentzian",
-            "pseudo-voigt").
-        fwhm : widgets.FloatText
-            Input field to specify the full-width at half maximum (FWHM) for
-            the PSF.
-        eta : widgets.FloatText
-            Input field to specify the eta parameter for the pseudo-voigt PSF
-            model.
-        psf_filter : widgets.Dropdown
-            Dropdown to select the PSF filter type (e.g., "None", "hann",
-            "tukey").
-        update_psf : widgets.BoundedIntText
-            Input field to specify the frequency of PSF updates.
-        nb_hio : widgets.BoundedIntText
-            Input field to specify the number of Hybrid Input-Output (HIO)
-            iterations.
-        nb_raar : widgets.BoundedIntText
-            Input field to specify the number of Relaxed Averaged Alternating
-            Reflections (RAAR) iterations.
-        nb_er : widgets.BoundedIntText
-            Input field to specify the number of Error Reduction (ER)
-            iterations.
-        nb_ml : widgets.BoundedIntText
-            Input field to specify the number of Maximum Likelihood (ML)
-            iterations.
-        nb_run : widgets.BoundedIntText
-            Input field to specify the number of phase retrieval runs.
-        live_plot : widgets.BoundedIntText
-            Input field to specify the frequency of live plotting during phase
-            retrieval.
-        plot_axis : widgets.Dropdown
-            Dropdown to select the axis used for live plots.
-        verbose : widgets.BoundedIntText
-            Input field to specify the verbosity level of the output.
-        binning : widgets.Text
-            Input field to specify rebinning parameters for the input data.
-        positivity : widgets.Checkbox
-            Checkbox to enable or disable positivity constraints.
-        beta : widgets.FloatText
-            Input field to specify the beta parameter for HIO and RAAR
-            algorithms.
-        detwin : widgets.Checkbox
-            Checkbox to enable or disable detwinning.
-        calc_llk : widgets.BoundedIntText
-            Input field to specify the interval for log-likelihood
-            calculations.
-        zero_mask : widgets.Dropdown
-            Dropdown to specify whether to force mask pixels to zero.
-        mask_interp : widgets.Text
-            Input field to specify interpolation parameters for the mask.
-        run_phase_retrieval : widgets.ToggleButtons
-            Toggle buttons to start or stop the phase retrieval process.
-        run_pynx_tools : widgets.ToggleButtons
-            Toggle buttons to run additional PyNX tools (e.g., modes
-            decomposition, filtering).
-        filter_criteria : widgets.Dropdown
-            Dropdown to select the criteria for filtering reconstruction
-            results.
+            header: A brief header describing the purpose of the tab.
+            box_style: The CSS style applied to the widget container.
+            parent_folder: Dropdown to select the parent folder containing
+                input files.
+            iobs: Dropdown to select the observed intensity dataset file.
+            mask: Dropdown to select the mask file.
+            support: Dropdown to select the support file.
+            obj: Dropdown to select the object file.
+            support_threshold: Input field to specify the support threshold.
+            support_only_shrink: Checkbox to enable or disable support
+                shrinking.
+            support_update_period: Input field to specify the period for
+                support updates.
+            support_smooth_width: Input field to specify the smoothing width
+                for support updates.
+            support_post_expand: Input field to specify post-expansion
+                parameters for the support.
+            support_method: Dropdown to select the method for support updates
+                (e.g., "max", "average", "rms").
+            psf: Checkbox to enable or disable the use of a point spread
+                function (PSF).
+            psf_model: Dropdown to select the PSF model (e.g., "gaussian",
+                "lorentzian", "pseudo-voigt").
+            fwhm: Input field to specify the full-width at half maximum
+                (FWHM) for the PSF.
+            eta: Input field to specify the eta parameter for the
+                pseudo-voigt PSF model.
+            psf_filter: Dropdown to select the PSF filter type (e.g.,
+                "None", "hann", "tukey").
+            update_psf: Input field to specify the frequency of PSF updates.
+            nb_hio: Input field to specify the number of Hybrid Input-Output
+                (HIO) iterations.
+            nb_raar: Input field to specify the number of Relaxed Averaged
+                Alternating Reflections (RAAR) iterations.
+            nb_er: Input field to specify the number of Error Reduction (ER)
+                iterations.
+            nb_ml: Input field to specify the number of Maximum Likelihood
+                (ML) iterations.
+            nb_run: Input field to specify the number of phase retrieval
+                runs.
+            live_plot: Input field to specify the frequency of live plotting
+                during phase retrieval.
+            plot_axis: Dropdown to select the axis used for live plots.
+            verbose: Input field to specify the verbosity level of the
+                output.
+            binning: Input field to specify rebinning parameters for the
+                input data.
+            positivity: Checkbox to enable or disable positivity constraints.
+            beta: Input field to specify the beta parameter for HIO and RAAR
+                algorithms.
+            detwin: Checkbox to enable or disable detwinning.
+            calc_llk: Input field to specify the interval for log-likelihood
+                calculations.
+            zero_mask: Dropdown to specify whether to force mask pixels to
+                zero.
+            mask_interp: Input field to specify interpolation parameters for
+                the mask.
+            run_phase_retrieval: Toggle buttons to start or stop the phase
+                retrieval process.
+            run_pynx_tools: Toggle buttons to run additional PyNX tools
+                (e.g., modes decomposition, filtering).
+            filter_criteria: Dropdown to select the criteria for filtering
+                reconstruction results.
 
         Notes:
-        ------
-        - The method also assigns event handlers to widgets to dynamically
-            update the GUI based on user interactions.
-        - The `children` attribute is populated with all the widgets, defining
-            the layout of the GUI.
+            - The method also assigns event handlers to widgets to
+              dynamically update the GUI based on user interactions.
+            - The `children` attribute is populated with all the widgets,
+              defining the layout of the GUI.
         """
         super().__init__()
 
         # Brief header describing the tab
-        self.header = 'Phase retrieval'
+        self.header = "Phase retrieval"
         self.box_style = box_style
-        
+
         # Define global search pattern for cxi files
         self.search_pattern = "*run*.cxi"
-        
+
         # Define future attributes
         self.result_analyser = None
         self.modes = None
@@ -299,167 +213,160 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.unused_label_data = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Data files",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.parent_folder = widgets.Dropdown(
             options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
             value=work_dir + "/",
             placeholder=work_dir + "/",
-            description='Parent folder:',
+            description="Parent folder:",
             continuous_update=False,
-            layout=widgets.Layout(width='90%'),
-            style={'description_width': 'initial'}
+            layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
         )
 
         self.iobs = widgets.Dropdown(
             options=[""]
-            + sorted([os.path.basename(f) for f in
-                      glob.glob(work_dir + "*.npz")],
-                     key=os.path.getmtime),
-            description='Dataset',
-            layout=widgets.Layout(width='90%'),
-            style={'description_width': 'initial'}
+            + sorted(
+                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
+                key=os.path.getmtime,
+            ),
+            description="Dataset",
+            layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
         )
 
         self.mask = widgets.Dropdown(
             options=[""]
-            + sorted([os.path.basename(f) for f in
-                      glob.glob(work_dir + "*.npz")],
-                     key=os.path.getmtime),
-            description='Mask',
-            layout=widgets.Layout(width='90%'),
-            style={'description_width': 'initial'}
+            + sorted(
+                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
+                key=os.path.getmtime,
+            ),
+            description="Mask",
+            layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
         )
 
         self.support = widgets.Dropdown(
             options=[""]
-            + sorted([os.path.basename(f) for f in
-                      glob.glob(work_dir + "*.npz")],
-                     key=os.path.getmtime),
+            + sorted(
+                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
+                key=os.path.getmtime,
+            ),
             value="",
-            description='Support',
-            layout=widgets.Layout(width='90%'),
-            style={'description_width': 'initial'}
+            description="Support",
+            layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
         )
 
         self.obj = widgets.Dropdown(
             options=[""]
-            + sorted([os.path.basename(f) for f in
-                      glob.glob(work_dir + "*.npz")],
-                     key=os.path.getmtime),
+            + sorted(
+                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
+                key=os.path.getmtime,
+            ),
             value="",
-            description='Object',
-            layout=widgets.Layout(width='90%'),
-            style={'description_width': 'initial'}
+            description="Object",
+            layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
         )
 
         self.unused_label_support = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Support parameters",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.support_threshold = widgets.Text(
             value="(0.23, 0.30)",
             placeholder="(0.23, 0.30)",
-            description='Support threshold',
-            layout=widgets.Layout(
-                height="50px", width="30%"),
+            description="Support threshold",
+            layout=widgets.Layout(height="50px", width="30%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.support_only_shrink = widgets.Checkbox(
             value=False,
-            description='Support only shrink',
+            description="Support only shrink",
             continuous_update=False,
             indent=False,
-            layout=widgets.Layout(
-                height="50px", width="35%"),
-            icon='check'
+            layout=widgets.Layout(height="50px", width="35%"),
+            icon="check",
         )
 
         self.support_update_period = widgets.BoundedIntText(
             value=20,
             max=500,
             step=5,
-            layout=widgets.Layout(
-                height="50px", width="30%"),
+            layout=widgets.Layout(height="50px", width="30%"),
             continuous_update=False,
-            description='Support update period:',
+            description="Support update period:",
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.support_smooth_width = widgets.Text(
             value="(2, 1, 600)",
             placeholder="(2, 1, 600)",
-            description='Support smooth width',
-            layout=widgets.Layout(
-                height="50px", width="30%"),
+            description="Support smooth width",
+            layout=widgets.Layout(height="50px", width="30%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.support_post_expand = widgets.Text(
             value="(1, -2, 1)",
             placeholder="(1, -2, 1)",
-            description='Support post expand',
+            description="Support post expand",
             layout=widgets.Layout(width="30%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.support_method = widgets.Dropdown(
             options=["max", "average", "rms"],
             value="rms",
-            description='Support method',
-            layout=widgets.Layout(
-                height="25px", width='30%'),
+            description="Support method",
+            layout=widgets.Layout(height="25px", width="30%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.support_autocorrelation_threshold = widgets.Text(
             value="(0.10)",
             placeholder="(0.10)",
-            description='Support autocorrelation threshold',
-            layout=widgets.Layout(
-                height="50px", width="40%"),
+            description="Support autocorrelation threshold",
+            layout=widgets.Layout(height="50px", width="40%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.unused_label_psf = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Point spread function parameters",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.psf = widgets.Checkbox(
             value=True,
-            description='Use point spread function',
+            description="Use point spread function",
             continuous_update=False,
             indent=False,
             layout=widgets.Layout(width="30%", height="50px"),
-            icon='check'
+            icon="check",
         )
 
         self.psf_model = widgets.Dropdown(
-            options=[
-                "gaussian", "lorentzian", "pseudo-voigt"],
+            options=["gaussian", "lorentzian", "pseudo-voigt"],
             value="pseudo-voigt",
-            description='PSF peak shape',
+            description="PSF peak shape",
             continuous_update=False,
-            style={'description_width': 'initial'},
+            style={"description_width": "initial"},
             layout=widgets.Layout(width="30%", height="25px"),
         )
 
@@ -469,10 +376,8 @@ class PhaseRetrievalGUI(widgets.VBox):
             min=0,
             continuous_update=False,
             description="FWHM:",
-            layout=widgets.Layout(
-                width='15%', height="50px"),
-            style={
-                'description_width': 'initial'}
+            layout=widgets.Layout(width="15%", height="50px"),
+            style={"description_width": "initial"},
         )
 
         self.eta = widgets.FloatText(
@@ -481,41 +386,36 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=1,
             min=0,
             continuous_update=False,
-            description='Eta:',
-            layout=widgets.Layout(
-                width='15%', height="50px"),
+            description="Eta:",
+            layout=widgets.Layout(width="15%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.psf_filter = widgets.Dropdown(
             options=["None", "hann", "tukey"],
             value="None",
-            description='PSF filter',
-            layout=widgets.Layout(width='15%'),
+            description="PSF filter",
+            layout=widgets.Layout(width="15%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.update_psf = widgets.BoundedIntText(
             value=20,
             step=5,
             continuous_update=False,
-            description='Update PSF every:',
-            layout=widgets.Layout(
-                width='35%', height="50px"),
+            description="Update PSF every:",
+            layout=widgets.Layout(width="35%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.unused_label_algo = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Iterative algorithms parameters",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.nb_raar = widgets.BoundedIntText(
@@ -524,12 +424,10 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=9999,
             step=10,
             continuous_update=False,
-            description='Nb of RAAR:',
-            layout=widgets.Layout(
-                height="35px", width="20%"),
+            description="Nb of RAAR:",
+            layout=widgets.Layout(height="35px", width="20%"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.nb_hio = widgets.BoundedIntText(
@@ -538,12 +436,10 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=9999,
             step=10,
             continuous_update=False,
-            description='Nb of HIO:',
-            layout=widgets.Layout(
-                height="35px", width="20%"),
+            description="Nb of HIO:",
+            layout=widgets.Layout(height="35px", width="20%"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.nb_er = widgets.BoundedIntText(
@@ -552,12 +448,10 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=9999,
             step=10,
             continuous_update=False,
-            description='Nb of ER:',
-            layout=widgets.Layout(
-                height="35px", width="20%"),
+            description="Nb of ER:",
+            layout=widgets.Layout(height="35px", width="20%"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.nb_ml = widgets.BoundedIntText(
@@ -566,12 +460,10 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=9999,
             step=10,
             continuous_update=False,
-            description='Nb of ML:',
-            layout=widgets.Layout(
-                height="35px", width="20%"),
+            description="Nb of ML:",
+            layout=widgets.Layout(height="35px", width="20%"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.nb_run = widgets.BoundedIntText(
@@ -579,19 +471,17 @@ class PhaseRetrievalGUI(widgets.VBox):
             min=0,
             max=100,
             continuous_update=False,
-            description='Number of run:',
+            description="Number of run:",
             layout=widgets.Layout(width="20%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
-        
+
         self.unused_label_options = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Options",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.live_plot = widgets.BoundedIntText(
@@ -600,20 +490,18 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=500,
             min=0,
             continuous_update=False,
-            description='Plot every:',
+            description="Plot every:",
             readout=True,
-            layout=widgets.Layout(
-                height="50px", width="20%"),
-            style={
-                'description_width': 'initial'},
+            layout=widgets.Layout(height="50px", width="20%"),
+            style={"description_width": "initial"},
         )
 
         self.plot_axis = widgets.Dropdown(
             options=[0, 1, 2],
             value=0,
-            description='Axis used for plots',
-            layout=widgets.Layout(width='20%'),
-            style={'description_width': 'initial'}
+            description="Axis used for plots",
+            layout=widgets.Layout(width="20%"),
+            style={"description_width": "initial"},
         )
 
         self.verbose = widgets.BoundedIntText(
@@ -621,32 +509,29 @@ class PhaseRetrievalGUI(widgets.VBox):
             min=10,
             max=300,
             continuous_update=False,
-            description='Verbose:',
-            layout=widgets.Layout(width='20%', height="50px"),
+            description="Verbose:",
+            layout=widgets.Layout(width="20%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.binning = widgets.Text(
             value="(1, 1, 1)",
             placeholder="(1, 1, 1)",
-            description='Binning',
-            layout=widgets.Layout(width='20%', height="50px"),
+            description="Binning",
+            layout=widgets.Layout(width="20%", height="50px"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.positivity = widgets.Checkbox(
             value=False,
-            description='Force positivity',
+            description="Force positivity",
             continuous_update=False,
             indent=False,
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(
-                height="50px", width="15%"),
-            icon='check'
+            style={"description_width": "initial"},
+            layout=widgets.Layout(height="50px", width="15%"),
+            icon="check",
         )
 
         self.beta = widgets.FloatText(
@@ -655,24 +540,20 @@ class PhaseRetrievalGUI(widgets.VBox):
             max=1,
             min=0,
             continuous_update=False,
-            description='Beta parameter for RAAR and HIO:',
-            layout=widgets.Layout(
-                width='35%', height="50px"),
+            description="Beta parameter for RAAR and HIO:",
+            layout=widgets.Layout(width="35%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.detwin = widgets.Checkbox(
             value=False,
-            description='Detwinning',
+            description="Detwinning",
             continuous_update=False,
             indent=False,
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(
-                height="50px", width="15%"),
-            icon='check'
+            style={"description_width": "initial"},
+            layout=widgets.Layout(height="50px", width="15%"),
+            icon="check",
         )
 
         self.calc_llk = widgets.BoundedIntText(
@@ -680,58 +561,52 @@ class PhaseRetrievalGUI(widgets.VBox):
             min=0,
             max=100,
             continuous_update=False,
-            description='Log likelihood update interval:',
+            description="Log likelihood update interval:",
             layout=widgets.Layout(width="40%", height="50px"),
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
 
         self.unused_label_mask_options = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Mask options</p>",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.zero_mask = widgets.Dropdown(
-            options=("True", "False", 'auto'),
-            value='False',
-            description='Force mask pixels to zero',
+            options=("True", "False", "auto"),
+            value="False",
+            description="Force mask pixels to zero",
             continuous_update=False,
             indent=False,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
             layout=widgets.Layout(width="40%"),
-            icon='check'
+            icon="check",
         )
 
         self.mask_interp = widgets.Text(
             value="(8, 2)",
-            description='Mask interp.',
-            layout=widgets.Layout(
-                height="50px", width="40%"),
+            description="Mask interp.",
+            layout=widgets.Layout(height="50px", width="40%"),
             continuous_update=False,
-            style={'description_width': 'initial'}
+            style={"description_width": "initial"},
         )
 
         self.unused_label_run_options = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Job options</p>",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
 
         self.unused_label_reconstruction_analysis = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Options for reconstruction analysis</p>",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
-        
+
         self.filter_criteria = widgets.Dropdown(
             options=[
                 ("No filtering", "no_filtering"),
@@ -740,13 +615,13 @@ class PhaseRetrievalGUI(widgets.VBox):
                 ("Free Log-likelihood (FLLK)", "llkf"),
                 ("Log-likelihood (FLLK)", "llk"),
                 ("FLLK > Standard deviation", "FLLK_standard_deviation"),
-                ("Average of all", "all")
+                ("Average of all", "all"),
                 # ("Standard deviation > FLLK", "standard_deviation_FLLK"),
             ],
             value="mean_to_max",
-            description='Filtering criteria',
-            layout=widgets.Layout(width='30%'),
-            style={'description_width': 'initial'}
+            description="Filtering criteria",
+            layout=widgets.Layout(width="30%"),
+            style={"description_width": "initial"},
         )
 
         self.plot_metrics_checkbox = widgets.Checkbox(
@@ -755,70 +630,69 @@ class PhaseRetrievalGUI(widgets.VBox):
             continuous_update=False,
             indent=False,
             layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
+            icon="check",
         )
-        
+
         self.plot_reconstruction_checkbox = widgets.Checkbox(
             value=True,
             description="Plot reconstruction",
             continuous_update=False,
             indent=False,
             layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
+            icon="check",
         )
-        
+
         self.plot_reconstruction_phase_checkbox = widgets.Checkbox(
             value=False,
             description="Plot reconstruction phase",
             continuous_update=False,
             indent=False,
             layout=widgets.Layout(width="20%", height="50px"),
-            icon="check"
+            icon="check",
         )
 
         self.unused_label_reconstructions_selection = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
             Options for reconstructions selection</p>",
-            style={
-                'description_width': 'initial'},
-            layout=widgets.Layout(width='90%', height="35px")
+            style={"description_width": "initial"},
+            layout=widgets.Layout(width="90%", height="35px"),
         )
         self.best_runs_widget = widgets.SelectMultiple(
             options=[],
             rows=5,
             description="Best runs:",
-            style={'description_width': 'initial'},
-            layout=Layout(display="flex", flex_flow='column', width="50%")
+            style={"description_width": "initial"},
+            layout=Layout(display="flex", flex_flow="column", width="50%"),
         )
         self.number_of_best_ordered_runs_widget = widgets.BoundedIntText(
             value=5,
-            layout=widgets.Layout(
-                height="50px", width="30%"),
+            layout=widgets.Layout(height="50px", width="30%"),
             continuous_update=False,
             description="Number of best ordered runs:",
             readout=True,
-            style={
-                'description_width': 'initial'},
+            style={"description_width": "initial"},
         )
         self.button_update_cxi_file_list = Button(
             description="Update cxi file list",
-            layout=Layout(width='15%', height='35px'),
+            layout=Layout(width="15%", height="35px"),
         )
+
         @self.button_update_cxi_file_list.on_click
         def ActionSaveName(selfbutton):
             self.best_runs_widget.options = [
-                os.path.basename(f) for f in list_files(
+                os.path.basename(f)
+                for f in list_files(
                     self.parent_folder.value,
                     self.search_pattern,
                 )
             ]
-            
+
             self.best_runs_widget.value = ()
-    
+
         # Job buttons
         self.run_phase_retrieval = widgets.ToggleButtons(
             options=[
-                ('No phase retrieval', False),
+                ("No phase retrieval", False),
                 # ('Run batch job (slurm)', "batch"),
                 # ("Run script locally", "local_script"),
                 ("Run phase retrieval", "operators"),
@@ -827,21 +701,19 @@ class PhaseRetrievalGUI(widgets.VBox):
             tooltips=[
                 "Click to be able to change parameters",
                 "Use operators on local environment, if using PSF, it is "
-                "activated after 50 % of RAAR cycles"
+                "activated after 50 % of RAAR cycles",
             ],
             continuous_update=False,
-            button_style='',
-            layout=widgets.Layout(
-                width='100%', height="75x"),
-            style={
-                'description_width': 'initial'},
-            icon='fast-forward',
-            description="I. Click below to run the phase retrieval"
+            button_style="",
+            layout=widgets.Layout(width="100%", height="75x"),
+            style={"description_width": "initial"},
+            icon="fast-forward",
+            description="I. Click below to run the phase retrieval",
         )
 
         self.run_pynx_tools = widgets.ToggleButtons(
             options=[
-                ('No tool running', False),
+                ("No tool running", False),
                 ("Analyse results", "analyse_results"),
                 ("Select reconstructions", "select"),
                 ("Modes decomposition", "mode_decomposition"),
@@ -851,19 +723,17 @@ class PhaseRetrievalGUI(widgets.VBox):
                 "Click to be able to change parameters",
                 "Analyse reconstructions",
                 "Select good reconstructions",
-                "Modes decomposition", # need to have selected first
+                "Modes decomposition",  # need to have selected first
             ],
             continuous_update=False,
-            button_style='',
-            layout=widgets.Layout(
-                width='100%', height="75px"),
-            style={
-                'description_width': 'initial'},
-            icon='fast-forward',
+            button_style="",
+            layout=widgets.Layout(width="100%", height="75px"),
+            style={"description_width": "initial"},
+            icon="fast-forward",
             description=(
                 "II. Click below to analyse and select your reconstructions or"
                 " create a single solution after phase retrieval."
-            )
+            ),
         )
 
         # Define children
@@ -875,122 +745,146 @@ class PhaseRetrievalGUI(widgets.VBox):
             self.support,
             self.obj,
             self.unused_label_support,
-            widgets.HBox([
-                self.support_threshold,
-                self.support_only_shrink
-            ]),
-            widgets.HBox([
-                self.support_update_period,
-                self.support_smooth_width,
-                self.support_post_expand,
-            ]),
-            widgets.HBox([
-                self.support_method,
-                self.support_autocorrelation_threshold,
-            ]),
+            widgets.HBox([self.support_threshold, self.support_only_shrink]),
+            widgets.HBox(
+                [
+                    self.support_update_period,
+                    self.support_smooth_width,
+                    self.support_post_expand,
+                ]
+            ),
+            widgets.HBox(
+                [
+                    self.support_method,
+                    self.support_autocorrelation_threshold,
+                ]
+            ),
             self.unused_label_psf,
-            widgets.HBox([
-                self.psf,
-                self.psf_model,
-                self.fwhm,
-                self.eta,
-            ]),
-            widgets.HBox([
-                self.psf_filter,
-                self.update_psf,
-            ]),
+            widgets.HBox(
+                [
+                    self.psf,
+                    self.psf_model,
+                    self.fwhm,
+                    self.eta,
+                ]
+            ),
+            widgets.HBox(
+                [
+                    self.psf_filter,
+                    self.update_psf,
+                ]
+            ),
             self.unused_label_algo,
-            widgets.HBox([
-                self.nb_hio,
-                self.nb_raar,
-                self.nb_er,
-                self.nb_ml,
-            ]),
+            widgets.HBox(
+                [
+                    self.nb_hio,
+                    self.nb_raar,
+                    self.nb_er,
+                    self.nb_ml,
+                ]
+            ),
             self.nb_run,
             self.unused_label_options,
-            widgets.HBox([
-                self.live_plot,
-                self.plot_axis,
-                self.verbose,
-            ]),
-            widgets.HBox([
-                self.binning,
-                self.positivity,
-            ]),
-            widgets.HBox([
-                self.beta,
-                self.detwin,
-                self.calc_llk,
-            ]),
+            widgets.HBox(
+                [
+                    self.live_plot,
+                    self.plot_axis,
+                    self.verbose,
+                ]
+            ),
+            widgets.HBox(
+                [
+                    self.binning,
+                    self.positivity,
+                ]
+            ),
+            widgets.HBox(
+                [
+                    self.beta,
+                    self.detwin,
+                    self.calc_llk,
+                ]
+            ),
             self.unused_label_mask_options,
-            widgets.HBox([
-                self.zero_mask,
-                self.mask_interp,
-            ]),
+            widgets.HBox(
+                [
+                    self.zero_mask,
+                    self.mask_interp,
+                ]
+            ),
             self.unused_label_reconstruction_analysis,
-            widgets.HBox([
-                self.filter_criteria,
-                self.plot_metrics_checkbox,
-                self.plot_reconstruction_checkbox,
-                self.plot_reconstruction_phase_checkbox,
-            ]),
+            widgets.HBox(
+                [
+                    self.filter_criteria,
+                    self.plot_metrics_checkbox,
+                    self.plot_reconstruction_checkbox,
+                    self.plot_reconstruction_phase_checkbox,
+                ]
+            ),
             self.unused_label_reconstructions_selection,
-            widgets.HBox([
-                self.best_runs_widget,
-                self.number_of_best_ordered_runs_widget,
-                self.button_update_cxi_file_list,
-            ]),
+            widgets.HBox(
+                [
+                    self.best_runs_widget,
+                    self.number_of_best_ordered_runs_widget,
+                    self.button_update_cxi_file_list,
+                ]
+            ),
             self.unused_label_run_options,
             self.run_phase_retrieval,
             self.run_pynx_tools,
         )
 
         # Assign handler
-        self.parent_folder.observe(
-            self.pynx_folder_handler, names="value")
-        self.psf.observe(
-            self.pynx_psf_handler, names="value")
-        self.psf_model.observe(
-            self.pynx_peak_shape_handler, names="value")
-        self.run_phase_retrieval.observe(
-            self.run_pynx_handler, names="value")
-        self.run_pynx_tools.observe(
-            self.run_pynx_handler, names="value")
+        self.parent_folder.observe(self.pynx_folder_handler, names="value")
+        self.psf.observe(self.pynx_psf_handler, names="value")
+        self.psf_model.observe(self.pynx_peak_shape_handler, names="value")
+        self.run_phase_retrieval.observe(self.run_pynx_handler, names="value")
+        self.run_pynx_tools.observe(self.run_pynx_handler, names="value")
 
     # Define handlers
     def pynx_folder_handler(self, change) -> None:
         """
         Handles changes related to the pynx folder.
 
-        Parameters:
-        ----------
-        change: The change event triggered by the observer.
+        Args:
+            change: The change event triggered by the observer.
 
         Returns:
-        -------
-        None
+            None
         """
         if hasattr(change, "new"):
             change = change.new
 
-        list_all_npz = [os.path.basename(f) for f in sorted(
-            glob.glob(change + "/*.npz"), key=os.path.getmtime)]
+        list_all_npz = [
+            os.path.basename(f)
+            for f in sorted(glob.glob(change + "/*.npz"), key=os.path.getmtime)
+        ]
 
-        list_probable_iobs_files = [os.path.basename(f) for f in sorted(
-            glob.glob(change + "/*_pynx_*.npz"), key=os.path.getmtime)]
+        list_probable_iobs_files = [
+            os.path.basename(f)
+            for f in sorted(
+                glob.glob(change + "/*_pynx_*.npz"), key=os.path.getmtime
+            )
+        ]
 
-        list_probable_mask_files = [os.path.basename(f) for f in sorted(
-            glob.glob(change + "/*mask*.npz"), key=os.path.getmtime)]
+        list_probable_mask_files = [
+            os.path.basename(f)
+            for f in sorted(
+                glob.glob(change + "/*mask*.npz"), key=os.path.getmtime
+            )
+        ]
 
         # support list
-        self.support.options = [""]\
-            + [os.path.basename(f) for f in sorted(
-                glob.glob(change + "/*.npz"), key=os.path.getmtime)]
+        self.support.options = [""] + [
+            os.path.basename(f)
+            for f in sorted(glob.glob(change + "/*.npz"), key=os.path.getmtime)
+        ]
 
         # obj list
-        self.obj.options = [""]\
-            + [os.path.basename(f) for f in sorted(
-                glob.glob(change + "/*.npz"), key=os.path.getmtime)]
+        self.obj.options = [""] + [
+            os.path.basename(f)
+            for f in sorted(glob.glob(change + "/*.npz"), key=os.path.getmtime)
+        ]
 
         # Find probable iobs file
         temp_list = list_all_npz.copy()
@@ -1017,10 +911,11 @@ class PhaseRetrievalGUI(widgets.VBox):
 
         # mask list
         self.mask.options = sorted_mask_list
-        
+
         # cxi file list
         self.best_runs_widget.options = [
-            os.path.basename(f) for f in list_files(
+            os.path.basename(f)
+            for f in list_files(
                 self.parent_folder.value,
                 self.search_pattern,
             )
@@ -1030,10 +925,9 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         Handles changes related to the psf.
 
-        The function takes the `change` argument, which is
-        expected to contain information related to the change event.
-        If `change` has a `new` attribute, the value of `change`
-        is set to `change.new`.
+        The function takes the `change` argument, which is expected to
+        contain information related to the change event. If `change` has
+        a `new` attribute, the value of `change` is set to `change.new`.
 
         The function disables or enables a number of widget objects
         (`self.psf_model`, `self.fwhm`, `self.eta`, `self.psf_filter`,
@@ -1044,14 +938,11 @@ class PhaseRetrievalGUI(widgets.VBox):
         The function also calls `self.pynx_peak_shape_handler` with
         the `change` argument set to `self.psf_model.value`.
 
-        Parameters
-        ----------
-        change :
-            The new value of the change event.
+        Args:
+            change: The new value of the change event.
 
-        Returns
-        -------
-        None
+        Returns:
+            None
         """
         if hasattr(change, "new"):
             change = change.new
@@ -1074,14 +965,12 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         Handles changes related to psf the peak shape.
 
-        Parameters
-        ----------
-        change
-            The new value of the change event.
+        Args:
 
-        Returns
-        -------
-        None
+            change: The new value of the change event.
+
+        Returns:
+            None
         """
         if hasattr(change, "new"):
             change = change.new
@@ -1096,14 +985,11 @@ class PhaseRetrievalGUI(widgets.VBox):
         """
         Handles changes related to the phase retrieval.
 
-        Parameters
-        ----------
-        change
-            The new value of the change event.
+        Args:
+            change: The new value of the change event.
 
-        Returns
-        -------
-        None
+        Returns:
+            None
         """
         if change.new:
             for w in self.children:
@@ -1127,7 +1013,6 @@ class PhaseRetrievalGUI(widgets.VBox):
                     w.disabled = False
 
             self.pynx_psf_handler(change=self.psf.value)
-            
 
     def show(self):
         """
@@ -1140,9 +1025,8 @@ class PhaseRetrievalGUI(widgets.VBox):
         collects user inputs and executes the phase retrieval process.
 
         Returns:
-        --------
-        None
-            Displays the GUI in the Jupyter Notebook environment.
+            None
+                Displays the GUI in the Jupyter Notebook environment.
         """
         if not IS_PYNX_AVAILABLE:
             raise PyNXImportError
@@ -1160,7 +1044,9 @@ class PhaseRetrievalGUI(widgets.VBox):
             support_smooth_width=self.support_smooth_width,
             support_post_expand=self.support_post_expand,
             support_method=self.support_method,
-            support_autocorrelation_threshold=self.support_autocorrelation_threshold,
+            support_autocorrelation_threshold=(
+                self.support_autocorrelation_threshold
+            ),
             psf=self.psf,
             psf_model=self.psf_model,
             fwhm=self.fwhm,
@@ -1187,15 +1073,18 @@ class PhaseRetrievalGUI(widgets.VBox):
             filter_criteria=self.filter_criteria,
             plot_metrics_checkbox=self.plot_metrics_checkbox,
             plot_reconstruction_checkbox=self.plot_reconstruction_checkbox,
-            plot_reconstruction_phase_checkbox=self.plot_reconstruction_phase_checkbox,
+            plot_reconstruction_phase_checkbox=(
+                self.plot_reconstruction_phase_checkbox
+            ),
             best_runs_widget=self.best_runs_widget,
-            number_of_best_ordered_runs_widget=self.number_of_best_ordered_runs_widget,
+            number_of_best_ordered_runs_widget=(
+                self.number_of_best_ordered_runs_widget
+            ),
         )
         # Use children architecture defined in __init__.py
-        window = widgets.VBox([
-            self,
-            init_phase_retrieval_tab_gui.children[-1]
-        ])
+        window = widgets.VBox(
+            [self, init_phase_retrieval_tab_gui.children[-1]]
+        )
         display(window)
 
     def init_phase_retrieval_tab(
@@ -1240,115 +1129,120 @@ class PhaseRetrievalGUI(widgets.VBox):
         plot_reconstruction_checkbox,
         plot_reconstruction_phase_checkbox,
         best_runs_widget,
-        number_of_best_ordered_runs_widget
+        number_of_best_ordered_runs_widget,
     ):
         """
-        Get parameters values from widgets and run phase retrieval Possible
-        to run phase retrieval via the CLI (with ot without MPI) Or directly in
-        python using the operators.
+        Get parameters values from widgets and run phase retrieval
 
-        :param parent_folder: folder in which the raw data files are, and where the
-            output will be saved
-        :param iobs: 2D/3D observed diffraction data (intensity).
-            Assumed to be corrected and following Poisson statistics, will be
-            converted to float32. Dimensions should be divisible by 4 and have a
-            prime factor decomposition up to 7. Internally, the following special
-            values are used:
-            * values<=-1e19 are masked. Among those, values in ]-1e38;-1e19] are
-                estimated values, stored as -(iobs_est+1)*1e19, which can be used
-                to make a loose amplitude projection.
-                Values <=-1e38 are masked (no amplitude projection applied), just
-                below the minimum float32 value
-            * -1e19 < values <= 1 are observed but used as free pixels
-                If the mask is not supplied, then it is assumed that the above
-                special values are used.
-        :param support: initial support in real space (1 = inside support,
-            0 = outside)
-        :param obj: initial object. If None, it should be initialised later.
-        :param mask: mask for the diffraction data (0: valid pixel, >0: masked)
-        :param support_threshold: must be between 0 and 1. Only points with
-            object amplitude above a value equal to relative_threshold *
-            reference_value are kept in the support.
-            reference_value can use the fact that when converged, the square norm
-            of the object is equal to the number of recorded photons (normalized
-            Fourier Transform). Then: reference_value = sqrt((abs(obj)**2).sum()/
-            nb_points_support)
-        :param support_smooth_width: smooth the object amplitude using a gaussian
-            of this width before calculating new support.
-            If this is a scalar, the smooth width is fixed to this value.
-            If this is a 3-value tuple (or list or array), i.e. 'smooth_width=2,
-            0.5,600', the smooth width will vary with the number of cycles
-            recorded in the CDI object (as cdi.cycle), varying exponentially from
-            the first to the second value over the number of cycles specified by
-            the last value.
-            With 'smooth_width=a,b,nb':
-            - smooth_width = a * exp(-cdi.cycle/nb*log(b/a)) if cdi.cycle < nb
-            - smooth_width = b if cdi.cycle >= nb
-        :param support_only_shrink: if True, the support can only shrink
-        :param support_post_expand=1: after the new support has been calculated,
-            it can be processed using the SupportExpand operator, either one or
-            multiple times, in order to 'clean' the support:
-            - 'post_expand=1' will expand the support by 1 pixel
-            - 'post_expand=-1' will shrink the support by 1 pixel
-            - 'post_expand=(-1,1)' will shrink and then expand the support by
-                1 pixel
-            - 'post_expand=(-2,3)' will shrink and then expand the support by
-                respectively 2 and 3 pixels
-        :param support_method: either 'max' or 'average' or 'rms' (default), the
-            threshold will be relative to either the maximum amplitude in the
-            object, or the average or root-mean-square amplitude (computed inside
-            support)
-        :param support_autocorrelation_threshold: if no support is given, it will
-            be estimated from the intensity auto-correlation, with this relative
-            threshold. A range can also be given, e.g.
-            support_autocorrelation_threshold=0.09,0.11 and the actual threshold
-            will be randomly chosen between the min and max.
-        :param psf: e.g. True
-            whether or not to use the PSF, partial coherence point-spread function,
-            estimated with 50 cycles of Richardson-Lucy
-        :param psf_model: "lorentzian", "gaussian" or "pseudo-voigt", or None
-            to deactivate
-        :param psf_filter: either None, "hann" or "tukey": window type to
-            filter the PSF update
-        :param fwhm: the full-width at half maximum, in pixels
-        :param eta: the eta parameter for the pseudo-voigt
-        :param update_psf: how often the psf is updated
-        :param nb_raar: number of relaxed averaged alternating reflections
-            cycles, which the algorithm will use first. During RAAR and HIO, the
-            support is updated regularly
-        :param nb_hio: number of hybrid input/output cycles, which the
-            algorithm will use after RAAR. During RAAR and HIO, the support is
-            updated regularly
-        :param nb_er: number of error reduction cycles, performed after HIO,
-            without support update
-        :param nb_ml: number of maximum-likelihood conjugate gradient to
-            perform after ER
-        :param nb_run: number of times to run the optimization
-        :param filter_criteria: e.g. "FLLK"
-            criteria onto which the best solutions will be chosen
-        :param live_plot: a live plot will be displayed every N cycle
-        :param plot_axis: for 3D data, the axis along which the cut plane will be
-            selected
-        :param beta: the beta value for the HIO operator
-        :param positivity: True or False
-        :param zero_mask: if True, masked pixels (iobs<-1e19) are forced to
-            zero, otherwise the calculated complex amplitude is kept with an
-            optional scale factor.
-            'auto' is only valid if using the command line
-        :param mask_interp: e.g. 16,2: interpolate masked pixels from surrounding
-            pixels, using an inverse distance weighting. The first number N
-            indicates that the pixels used for interpolation range from i-N to i+N
-            for pixel i around all dimensions. The second number n that the weight
-            is equal to 1/d**n for pixels with at a distance n.
-            The interpolated values iobs_m are stored in memory as -1e19*(iobs_m+1)
-            so that the algorithm knows these are not trul observations, and are
-            applied with a large confidence interval.
-        :param detwin: if set (command-line) or if detwin=True (parameters
-            file), 10 cycles will be performed at 25% of the total number of
-            RAAR or HIO cycles, with a support cut in half to bias towards one
-            twin image
-        :param calc_llk: interval at which the different Log Likelihood are
-            computed
+        Possible to run phase retrieval via the CLI (with ot without MPI)
+        Or directly in python using the operators.
+
+        Args:
+            parent_folder: folder in which the raw data files are, and
+                where the output will be saved
+            iobs: 2D/3D observed diffraction data (intensity). Assumed to
+                be corrected and following Poisson statistics, will be
+                converted to float32. Dimensions should be divisible by 4
+                and have a prime factor decomposition up to 7. Internally,
+                the following special values are used:
+                * values<=-1e19 are masked. Among those, values in
+                  ]-1e38;-1e19] are estimated values, stored as
+                  -(iobs_est+1)*1e19, which can be used to make a loose
+                  amplitude projection. Values <=-1e38 are masked (no
+                  amplitude projection applied), just below the minimum
+                  float32 value
+                * -1e19 < values <= 1 are observed but used as free pixels
+                  If the mask is not supplied, then it is assumed that the
+                  above special values are used.
+            support: initial support in real space (1 = inside support,
+                0 = outside)
+            obj: initial object. If None, it should be initialised later.
+            mask: mask for the diffraction data (0: valid pixel, >0: masked)
+            support_threshold: must be between 0 and 1. Only points with
+                object amplitude above a value equal to relative_threshold *
+                reference_value are kept in the support. reference_value
+                can use the fact that when converged, the square norm of
+                the object is equal to the number of recorded photons
+                (normalized Fourier Transform). Then:
+                reference_value = sqrt((abs(obj)**2).sum()/nb_points_support)
+            support_smooth_width: smooth the object amplitude using a
+                gaussian of this width before calculating new support.
+                If this is a scalar, the smooth width is fixed to this value.
+                If this is a 3-value tuple (or list or array), i.e.
+                'smooth_width=2,0.5,600', the smooth width will vary with the
+                number of cycles recorded in the CDI object (as cdi.cycle),
+                varying exponentially from the first to the second value over
+                the number of cycles specified by the last value.
+                With 'smooth_width=a,b,nb':
+                - smooth_width = a * exp(-cdi.cycle/nb*log(b/a)) if
+                  cdi.cycle < nb
+                - smooth_width = b if cdi.cycle >= nb
+            support_only_shrink: if True, the support can only shrink
+            support_post_expand: after the new support has been calculated,
+                it can be processed using the SupportExpand operator, either
+                one or multiple times, in order to 'clean' the support:
+                - 'post_expand=1' will expand the support by 1 pixel
+                - 'post_expand=-1' will shrink the support by 1 pixel
+                - 'post_expand=(-1,1)' will shrink and then expand the
+                  support by 1 pixel
+                - 'post_expand=(-2,3)' will shrink and then expand the
+                  support by respectively 2 and 3 pixels
+            support_method: either 'max' or 'average' or 'rms' (default),
+                the threshold will be relative to either the maximum
+                amplitude in the object, or the average or root-mean-square
+                amplitude (computed inside support)
+            support_autocorrelation_threshold: if no support is given, it
+                will be estimated from the intensity auto-correlation, with
+                this relative threshold. A range can also be given, e.g.
+                support_autocorrelation_threshold=0.09,0.11 and the actual
+                threshold will be randomly chosen between the min and max.
+            psf: e.g. True whether or not to use the PSF, partial coherence
+                point-spread function, estimated with 50 cycles of
+                Richardson-Lucy
+            psf_model: "lorentzian", "gaussian" or "pseudo-voigt", or None
+                to deactivate
+            psf_filter: either None, "hann" or "tukey": window type to
+                filter the PSF update
+            fwhm: the full-width at half maximum, in pixels
+            eta: the eta parameter for the pseudo-voigt
+            update_psf: how often the psf is updated
+            nb_raar: number of relaxed averaged alternating reflections
+                cycles, which the algorithm will use first. During RAAR and
+                HIO, the support is updated regularly
+            nb_hio: number of hybrid input/output cycles, which the
+                algorithm will use after RAAR. During RAAR and HIO, the
+                support is updated regularly
+            nb_er: number of error reduction cycles, performed after HIO,
+                without support update
+            nb_ml: number of maximum-likelihood conjugate gradient to
+                perform after ER
+            nb_run: number of times to run the optimization
+            filter_criteria: e.g. "FLLK" criteria onto which the best
+                solutions will be chosen
+            live_plot: a live plot will be displayed every N cycle
+            plot_axis: for 3D data, the axis along which the cut plane will
+                be selected
+            beta: the beta value for the HIO operator
+            positivity: True or False
+            zero_mask: if True, masked pixels (iobs<-1e19) are forced to
+                zero, otherwise the calculated complex amplitude is kept with
+                an optional scale factor. 'auto' is only valid if using the
+                command line
+            mask_interp: e.g. 16,2: interpolate masked pixels from
+                surrounding pixels, using an inverse distance weighting.
+                The first number N indicates that the pixels used for
+                interpolation range from i-N to i+N for pixel i around all
+                dimensions. The second number n that the weight is equal to
+                1/d**n for pixels with at a distance n. The interpolated
+                values iobs_m are stored in memory as -1e19*(iobs_m+1) so
+                that the algorithm knows these are not true observations, and
+                are applied with a large confidence interval.
+            detwin: if set (command-line) or if detwin=True (parameters
+                file), 10 cycles will be performed at 25% of the total
+                number of RAAR or HIO cycles, with a support cut in half to
+                bias towards one twin image
+            calc_llk: interval at which the different Log Likelihood are
+                computed
         """
         # Assign attributes
         params = {
@@ -1357,44 +1251,38 @@ class PhaseRetrievalGUI(widgets.VBox):
             "mask": parent_folder + mask if mask != "" else "",
             "support": parent_folder + support if support != "" else "",
             "obj": parent_folder + obj if obj != "" else "",
-
             "support_only_shrink": support_only_shrink,
             "support_update_period": support_update_period,
             "support_method": support_method,
-
             "psf": psf,
             "psf_model": psf_model,
             "fwhm": fwhm,
             "eta": eta,
             "psf_filter": psf_filter,
             "update_psf": update_psf,
-
             "nb_raar": nb_raar,
             "nb_hio": nb_hio,
             "nb_er": nb_er,
             "nb_ml": nb_ml,
             "nb_run": nb_run,
-
             "verbose": verbose,
             "positivity": positivity,
             "beta": beta,
             "detwin": detwin,
             "calc_llk": calc_llk,
-
             "support_threshold": literal_eval(support_threshold),
             "support_autocorrelation_threshold": literal_eval(
-                support_autocorrelation_threshold),
+                support_autocorrelation_threshold
+            ),
             "support_smooth_width": literal_eval(support_smooth_width),
             "support_post_expand": literal_eval(support_post_expand),
             "binning": literal_eval(binning),
             "mask_interp": literal_eval(mask_interp),
-
             "zero_mask": {"True": True, "False": False, "auto": False}[
-                zero_mask],
-
+                zero_mask
+            ],
             "live_plot": live_plot if live_plot != 0 else False,
             "plot_axis": plot_axis,
-
             "filter_criteria": filter_criteria,
             "plot_metrics_checkbox": plot_metrics_checkbox,
             "plot_reconstruction_checkbox": plot_reconstruction_checkbox,
@@ -1429,7 +1317,7 @@ class PhaseRetrievalGUI(widgets.VBox):
                     mask=params["mask"],
                     support=params["support"],
                     obj=params["obj"],
-                    binning=params['binning'],
+                    binning=params["binning"],
                 )
 
                 # Run phase retrieval for nb_run
@@ -1446,12 +1334,13 @@ class PhaseRetrievalGUI(widgets.VBox):
                     # Save input data as cxi
                     if i == 0:
                         cxi_filename = "{}/pynx_input_operator_{}.cxi".format(
-                            parent_folder,
-                            iobs.split("/")[-1].split(".")[0]
+                            parent_folder, iobs.split("/")[-1].split(".")[0]
                         )
 
-                        cxi_filename = f"{parent_folder}/pynx_input_operator_"\
+                        cxi_filename = (
+                            f"{parent_folder}/pynx_input_operator_"
                             f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+                        )
 
                         save_cdi_operator_as_cxi(
                             cdi_operator=cdi,
@@ -1466,13 +1355,10 @@ class PhaseRetrievalGUI(widgets.VBox):
                     # Change support threshold for supports update
                     if isinstance(params["support_threshold"], float):
                         threshold_relative = params["support_threshold"]
-                    elif isinstance(
-                        params["support_threshold"],
-                        tuple
-                    ):
+                    elif isinstance(params["support_threshold"], tuple):
                         threshold_relative = np.random.uniform(
                             params["support_threshold"][0],
-                            params["support_threshold"][1]
+                            params["support_threshold"][1],
                         )
                     print(f"Threshold: {threshold_relative:.4f}")
 
@@ -1490,16 +1376,22 @@ class PhaseRetrievalGUI(widgets.VBox):
 
                     # Interpolate the detector gaps
                     if params["live_plot"]:
-                        cdi = ShowCDI(plot_axis=params["plot_axis"]) \
+                        cdi = (
+                            ShowCDI(plot_axis=params["plot_axis"])
                             * InterpIobsMask(
                                 params["mask_interp"][0],
                                 params["mask_interp"][1],
-                        ) * cdi
+                            )
+                            * cdi
+                        )
                     else:
-                        cdi = InterpIobsMask(
-                            params["mask_interp"][0],
-                            params["mask_interp"][1],
-                        ) * cdi
+                        cdi = (
+                            InterpIobsMask(
+                                params["mask_interp"][0],
+                                params["mask_interp"][1],
+                            )
+                            * cdi
+                        )
                         print("test3")
 
                     # Initialize the support with autocorrelation, if no
@@ -1507,21 +1399,29 @@ class PhaseRetrievalGUI(widgets.VBox):
                     if not support:
                         params["sup_init"] = "autocorrelation"
                         if not params["live_plot"]:
-                            cdi = ScaleObj() * AutoCorrelationSupport(
-                                threshold=params[
-                                    "support_autocorrelation_threshold"],
-                                verbose=True
-                                ) * cdi
+                            cdi = (
+                                ScaleObj()
+                                * AutoCorrelationSupport(
+                                    threshold=params[
+                                        "support_autocorrelation_threshold"
+                                    ],
+                                    verbose=True,
+                                )
+                                * cdi
+                            )
 
                         else:
-                            cdi = ShowCDI(
-                                plot_axis=params["plot_axis"]
-                                ) * ScaleObj() \
-                                 * AutoCorrelationSupport(
+                            cdi = (
+                                ShowCDI(plot_axis=params["plot_axis"])
+                                * ScaleObj()
+                                * AutoCorrelationSupport(
                                     threshold=params[
-                                        "support_autocorrelation_threshold"],
-                                    verbose=True
-                                ) * cdi
+                                        "support_autocorrelation_threshold"
+                                    ],
+                                    verbose=True,
+                                )
+                                * cdi
+                            )
                     else:
                         params["sup_init"] = "support"
 
@@ -1529,186 +1429,257 @@ class PhaseRetrievalGUI(widgets.VBox):
                     try:
                         if psf:
                             if support_update_period == 0:
-                                cdi = HIO(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** params["nb_hio"] * cdi
-                                cdi = RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** (params["nb_raar"] // 2) * cdi
+                                cdi = (
+                                    HIO(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["nb_hio"]
+                                    * cdi
+                                )
+                                cdi = (
+                                    RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** (params["nb_raar"] // 2)
+                                    * cdi
+                                )
 
                                 # PSF is introduced at 66% of HIO and RAAR
                                 if psf_model != "pseudo-voigt":
-                                    cdi = InitPSF(
-                                        model=params["psf_model"],
-                                        fwhm=params["fwhm"],
-                                        filter=None,
-                                    ) * cdi
+                                    cdi = (
+                                        InitPSF(
+                                            model=params["psf_model"],
+                                            fwhm=params["fwhm"],
+                                            filter=None,
+                                        )
+                                        * cdi
+                                    )
 
                                 elif psf_model == "pseudo-voigt":
-                                    cdi = InitPSF(
-                                        model=params["psf_model"],
-                                        fwhm=params["fwhm"],
-                                        eta=params["eta"],
-                                        filter=None,
-                                    ) * cdi
+                                    cdi = (
+                                        InitPSF(
+                                            model=params["psf_model"],
+                                            fwhm=params["fwhm"],
+                                            eta=params["eta"],
+                                            filter=None,
+                                        )
+                                        * cdi
+                                    )
 
-                                cdi = RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    update_psf=params["update_psf"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** (nb_raar // 2) * cdi
-                                cdi = ER(
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    update_psf=params["update_psf"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** nb_er * cdi
+                                cdi = (
+                                    RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        update_psf=params["update_psf"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** (nb_raar // 2)
+                                    * cdi
+                                )
+                                cdi = (
+                                    ER(
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        update_psf=params["update_psf"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** nb_er
+                                    * cdi
+                                )
 
                             else:
-                                hio_power = params["nb_hio"] \
+                                hio_power = (
+                                    params["nb_hio"]
                                     // params["support_update_period"]
+                                )
                                 raar_power = (
-                                    params["nb_raar"] // 2) \
+                                    params["nb_raar"] // 2
+                                ) // params["support_update_period"]
+                                er_power = (
+                                    params["nb_er"]
                                     // params["support_update_period"]
-                                er_power = params["nb_er"] \
-                                    // params["support_update_period"]
+                                )
 
-                                cdi = (sup * HIO(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * HIO(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** hio_power * cdi
-                                cdi = (sup * RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** raar_power * cdi
 
                                 # PSF is introduced after half the HIO cycles
                                 if psf_model != "pseudo-voigt":
-                                    cdi = InitPSF(
-                                        model=params["psf_model"],
-                                        fwhm=params["fwhm"],
-                                        filter=params["psf_filter"],
-                                    ) * cdi
+                                    cdi = (
+                                        InitPSF(
+                                            model=params["psf_model"],
+                                            fwhm=params["fwhm"],
+                                            filter=params["psf_filter"],
+                                        )
+                                        * cdi
+                                    )
 
                                 elif psf_model == "pseudo-voigt":
-                                    cdi = InitPSF(
-                                        model=params["psf_model"],
-                                        fwhm=params["fwhm"],
-                                        eta=params["eta"],
-                                        filter=params["psf_filter"],
-                                    ) * cdi
+                                    cdi = (
+                                        InitPSF(
+                                            model=params["psf_model"],
+                                            fwhm=params["fwhm"],
+                                            eta=params["eta"],
+                                            filter=params["psf_filter"],
+                                        )
+                                        * cdi
+                                    )
 
-                                cdi = (sup * RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    update_psf=params["update_psf"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        update_psf=params["update_psf"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** raar_power * cdi
-                                cdi = (sup * ER(
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    update_psf=params["update_psf"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    psf_filter=params["psf_filter"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * ER(
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        update_psf=params["update_psf"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        psf_filter=params["psf_filter"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** er_power * cdi
 
                         if not psf:
                             if support_update_period == 0:
-                                cdi = HIO(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** params["nb_hio"] * cdi
-                                cdi = RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** params["nb_raar"] * cdi
-                                cdi = ER(
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                ) ** params["nb_er"] * cdi
+                                cdi = (
+                                    HIO(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["nb_hio"]
+                                    * cdi
+                                )
+                                cdi = (
+                                    RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["nb_raar"]
+                                    * cdi
+                                )
+                                cdi = (
+                                    ER(
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["nb_er"]
+                                    * cdi
+                                )
 
                             else:
-                                hio_power = params["nb_hio"] \
+                                hio_power = (
+                                    params["nb_hio"]
                                     // params["support_update_period"]
-                                raar_power = params["nb_raar"] \
+                                )
+                                raar_power = (
+                                    params["nb_raar"]
                                     // params["support_update_period"]
-                                er_power = params["nb_er"] \
+                                )
+                                er_power = (
+                                    params["nb_er"]
                                     // params["support_update_period"]
+                                )
 
-                                cdi = (sup * HIO(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * HIO(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** hio_power * cdi
-                                cdi = (sup * RAAR(
-                                    beta=params["beta"],
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * RAAR(
+                                        beta=params["beta"],
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** raar_power * cdi
-                                cdi = (sup * ER(
-                                    calc_llk=params["calc_llk"],
-                                    show_cdi=params["live_plot"],
-                                    plot_axis=params["plot_axis"],
-                                    positivity=params["positivity"],
-                                    zero_mask=params["zero_mask"],
-                                )**params["support_update_period"]
+                                cdi = (
+                                    sup
+                                    * ER(
+                                        calc_llk=params["calc_llk"],
+                                        show_cdi=params["live_plot"],
+                                        plot_axis=params["plot_axis"],
+                                        positivity=params["positivity"],
+                                        zero_mask=params["zero_mask"],
+                                    )
+                                    ** params["support_update_period"]
                                 ) ** er_power * cdi
 
                         fn = (
@@ -1749,40 +1720,51 @@ class PhaseRetrievalGUI(widgets.VBox):
         if run_pynx_tools and not run_phase_retrieval:
             # Initialiase the analyser if needed
             try:
-                if self.result_analyser.result_dir_path != params["parent_folder"]:
+                if (
+                    self.result_analyser.result_dir_path
+                    != params["parent_folder"]
+                ):
                     self.result_analyser = PhasingResultAnalyser(
                         result_dir_path=params["parent_folder"]
                     )
             except AttributeError:  # Does not exist yet
                 self.result_analyser = PhasingResultAnalyser(
                     result_dir_path=params["parent_folder"]
-                )        
-            
+                )
+
             if run_pynx_tools == "analyse_results":
                 self.result_analyser.analyse_phasing_results(
                     sorting_criterion=params["filter_criteria"],
                     plot=params["plot_metrics_checkbox"],
-                    plot_phasing_results=params["plot_reconstruction_checkbox"],
+                    plot_phasing_results=(
+                        params["plot_reconstruction_checkbox"]
+                    ),
                     plot_phase=params["plot_reconstruction_phase_checkbox"],
                     search_pattern=self.search_pattern,
                 )
             elif run_pynx_tools == "select":
-                options = [os.path.basename(f) for f in list_files(
-                    params["parent_folder"],
-                    self.search_pattern,
+                options = [
+                    os.path.basename(f)
+                    for f in list_files(
+                        params["parent_folder"],
+                        self.search_pattern,
                     )
                 ]
                 indices = [
                     options.index(item) for item in params["best_runs_widget"]
                 ]
-                
+
                 self.result_analyser.select_best_candidates(
-                    nb_of_best_sorted_runs=params["number_of_best_ordered_runs_widget"],
+                    nb_of_best_sorted_runs=(
+                        params["number_of_best_ordered_runs_widget"]
+                    ),
                     best_runs=indices,
                     search_pattern=self.search_pattern,
                 )
             elif run_pynx_tools == "mode_decomposition":
-                self.modes, self.mode_weights = self.result_analyser.mode_decomposition()
+                self.modes, self.mode_weights = (
+                    self.result_analyser.mode_decomposition()
+                )
 
         # Clean output
         if not run_phase_retrieval and not run_pynx_tools:
@@ -1798,21 +1780,24 @@ def initialize_cdi_operator(
     binning: tuple[int, int, int] = (1, 1, 1),
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray] | None:
     """
-    Initialize the CDI operator by processing the possible inputs:
-        - iobs
-        - mask
-        - support
-        - obj
-    Will also crop and center the data if specified.
+        Initialize the CDI operator by processing the possible inputs:
+            - iobs
+            - mask
+            - support
+            - obj
+        Will also crop and center the data if specified.
 
-    :param iobs: path to npz or npy that stores the intensity observations data
-    :param mask: path to npz or npy that stores the mask data
-    :param support: path to npz or npy that stores the support data
-    :param obj: path to npz or npy that stores the object data
-    :param binning: tuple, applied to all the arrays, e.g. (1, 1, 1)
+        Args:
+            iobs: path to npz or npy that stores the intensity observations
+                data
+            mask: path to npz or npy that stores the mask data
+            support: path to npz or npy that stores the support data
+            obj: path to npz or npy that stores the object data
+            binning: tuple, applied to all the arrays, e.g. (1, 1, 1)
 
-    :return: cdi operator or None if initialization fails
-    """
+        Returns:
+            cdi operator or None if initialization fails
+        """
     if os.path.isfile(str(iobs)):
         if iobs.endswith(".npy"):
             iobs = np.load(iobs)
@@ -1822,7 +1807,7 @@ def initialize_cdi_operator(
                 iobs = np.load(iobs)["data"]
                 print("\tCXI input: loading data")
             except KeyError:
-                print("\t\"data\" key does not exist.")
+                print('\t"data" key does not exist.')
                 return None
         if binning != (1, 1, 1):
             iobs = rebin(iobs, binning)
@@ -1855,7 +1840,7 @@ def initialize_cdi_operator(
                     )
                     break
                 except KeyError:
-                    print(f"\t\"{key}\" key does not exist.")
+                    print(f'\t"{key}" key does not exist.')
             else:
                 print("\t--> Could not load mask array.")
 
@@ -1879,7 +1864,7 @@ def initialize_cdi_operator(
                     print("\tCXI input: loading support")
                     break
                 except KeyError:
-                    print(f"\t\"{key}\" key does not exist.")
+                    print(f'\t"{key}" key does not exist.')
             else:
                 print("\t--> Could not load support array.")
 
@@ -1901,7 +1886,7 @@ def initialize_cdi_operator(
                 obj = np.load(obj)["data"]
                 print("\tCXI input: loading object")
             except KeyError:
-                print("\t\"data\" key does not exist.")
+                print('\t"data" key does not exist.')
 
         if binning != (1, 1, 1):
             obj = rebin(obj, binning)
@@ -1932,17 +1917,19 @@ def save_cdi_operator_as_cxi(
     We need to create a dictionnary with the parameters to save in the
     cxi file.
 
-    :param cdi_operator: cdi object
-     created with PyNX
-    :param path_to_cxi: path to future cxi data
-     Below are parameters that can be saved in the cxi file
-        - filename: the file name to save the data to
-        - iobs: the observed intensity
-        - mask: the mask indicating valid (=0) and bad pixels (>0)
-        - params: a dictionary of parameters which will
-          be saved as a NXcollection
+    Args:
+        cdi_operator: cdi object created with PyNX
+        path_to_cxi: path to future cxi data
+            Below are parameters that can be saved in the cxi file
+            - filename: the file name to save the data to
+            - iobs: the observed intensity
+            - mask: the mask indicating valid (=0) and bad pixels (>0)
+            - params: a dictionary of parameters which will be saved as a
+              NXcollection
+        params: dictionary of additional parameters to save
 
-    :return: Nothing, a CXI file is created.
+    Returns:
+        None
     """
     print(
         "\nSaving phase retrieval parameters selected "
@@ -1955,9 +1942,7 @@ def save_cdi_operator_as_cxi(
 
 
 def list_files(
-    folder: str,
-    glob_pattern: str,
-    verbose: bool = False
+    folder: str, glob_pattern: str, verbose: bool = False
 ) -> list[str]:
     """
     List all files in a specified folder that match a specified
@@ -1991,10 +1976,10 @@ def list_files(
         )
         for f in file_list:
             file_timestamp = datetime.fromtimestamp(
-                os.path.getmtime(f)).strftime('%Y-%m-%d %H:%M:%S')
+                os.path.getmtime(f)
+            ).strftime("%Y-%m-%d %H:%M:%S")
             print(
-                f"\nFile: {os.path.basename(f)}"
-                f"\n\tCreated: {file_timestamp}"
+                f"\nFile: {os.path.basename(f)}\n\tCreated: {file_timestamp}"
             )
         print(
             "################################################"
@@ -2002,5 +1987,3 @@ def list_files(
         )
 
     return file_list
-
-
