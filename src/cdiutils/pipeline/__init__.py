@@ -10,6 +10,7 @@ from .base import Pipeline
 from .bcdi import BcdiPipeline
 from .pipeline_plotter import PipelinePlotter
 from .parameters import get_params_from_variables
+from .phase_retrieval_gui import PhaseRetrievalGUI
 
 
 __class_func_submodules__ = {
@@ -21,7 +22,7 @@ __class_func_submodules__ = {
 
 __all__ = [
     "Pipeline", "BcdiPipeline",
-    "PipelinePlotter", "get_params_from_variables"
+    "PipelinePlotter", "get_params_from_variables", "PhaseRetrievalGUI"
 ]
 
 
