@@ -26,21 +26,53 @@ class Geometry:
             name: str = None,
             is_cxi: bool = True
     ) -> None:
-        self.sample_circles = sample_circles
-        self.detector_circles = detector_circles
-        self.detector_axis0_orientation = detector_axis0_orientation
-        self.detector_axis1_orientation = detector_axis1_orientation
-        if beam_direction is None:
-            self.beam_direction = [1, 0, 0]
-        else:
-            self.beam_direction = beam_direction
+        """
+        Initialise the Geometry instance with the given parameters.
 
-        if sample_surface_normal is None:
+        Args:
+            sample_circles (list, optional): list of sample circle
+                orientations. Defaults to None.
+            detector_circles (list, optional): list of detector circle
+                orientations. Defaults to None.
+            detector_axis0_orientation (str, optional): orientation of
+                the detector axis 0. Defaults to "y-".
+            detector_axis1_orientation (str, optional): orientation of
+                the detector axis 1. Defaults to "x+".
+            beam_direction (list, optional): direction of the beam.
+                Defaults to None.
+            sample_surface_normal (list, optional): normal vector of the
+                sample surface. Defaults to None.
+            name (str, optional): name of the geometry instance.
+                Defaults to None.
+            is_cxi (bool, optional): flag indicating if the geometry is
+                in CXI format. Defaults to True.
+        """        
+
+        self.sample_circles = sample_circles
+        if self.sample_circles is None:
+            self.sample_circles = ["x+", "y-"]
+
+        self.detector_circles = detector_circles
+        if self.detector_circles is None:
+            self.detector_circles = ["y-", "x-"]
+
+        self.detector_axis0_orientation = detector_axis0_orientation
+        if self.detector_axis0_orientation is None:
+            self.detector_axis0_orientation = "y-"
+
+        self.detector_axis1_orientation = detector_axis1_orientation
+        if self.detector_axis1_orientation is None:
+            self.detector_axis1_orientation = "x+"
+
+        self.beam_direction = beam_direction
+        if self.beam_direction is None:
+            self.beam_direction = [1, 0, 0]
+
+        self.sample_surface_normal = sample_surface_normal
+        if self.sample_surface_normal is None:
             # default normal pointing in the ycxi direction,
             # corresponding to a horizontal sample
             self.sample_surface_normal = [0, 1, 0]
-        else:
-            self.sample_surface_normal = sample_surface_normal
 
         self.name = name
 
