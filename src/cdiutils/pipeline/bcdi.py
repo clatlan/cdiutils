@@ -1328,7 +1328,7 @@ reconstruction (best solution).""",
             )
         # Change convention of the reconstruction if necessary.
         if self.params["orientation_convention"].lower() == "cxi":
-            self.reconstruction = self.converter.xu_to_cxi(self.reconstruction)
+            self.reconstruction = Geometry.swap_convention(self.reconstruction)
 
         self.logger.info(
             f"Voxel size finally used is: {self.params['voxel_size']} nm in "
@@ -1394,7 +1394,7 @@ reconstruction (best solution).""",
             self.logger.info("Defect handling requested.")
 
         if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.xu_to_cxi(self.q_lab_pos["ref"])
+            g_vector = Geometry.swap_convention(self.q_lab_pos["ref"])
         else:
             g_vector = self.q_lab_pos["ref"]
         self.structural_props = PostProcessor.get_structural_properties(
@@ -1519,8 +1519,8 @@ reconstruction (best solution).""",
         )
         voxel_size = self.params["voxel_size"]
         if self.params["orientation_convention"].lower() == "cxi":
-            obj = SpaceConverter.cxi_to_xu(obj)
-            voxel_size = SpaceConverter.cxi_to_xu(voxel_size)
+            obj = Geometry.swap_convention(obj)
+            voxel_size = Geometry.swap_convention(voxel_size)
 
         PipelinePlotter.plot_final_object_fft(
             obj,
@@ -1583,7 +1583,7 @@ reconstruction (best solution).""",
     def _check_voxel_size(self) -> None:
         if self.params["orientation_convention"].lower() == "cxi":
             self.extra_info["voxel_size_from_extent"] = (
-                SpaceConverter.xu_to_cxi(self.converter.direct_lab_voxel_size)
+                Geometry.swap_convention(self.converter.direct_lab_voxel_size)
             )  # if cxi requested, convert the voxel size from extent
 
         if self.params["voxel_size"] is None:
@@ -1591,7 +1591,7 @@ reconstruction (best solution).""",
 
             # In the SpaceConverter, the convention is XU.
             if self.params["orientation_convention"].lower() == "cxi":
-                self.params["voxel_size"] = SpaceConverter.xu_to_cxi(
+                self.params["voxel_size"] = Geometry.swap_convention(
                     self.params["voxel_size"]
                 )
         else:
@@ -1611,7 +1611,7 @@ reconstruction (best solution).""",
                 # Set the direct space interpolator voxel size with XU
                 # convention.
                 self.converter.direct_lab_voxel_size = (
-                    SpaceConverter.cxi_to_xu(self.params["voxel_size"])
+                    Geometry.swap_convention(self.params["voxel_size"])
                 )
 
     def _save_postprocessed_data(self) -> None:
