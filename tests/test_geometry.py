@@ -12,7 +12,10 @@ class TestGeometry:
         return Geometry()
 
     def test_swap_convention(self):
-        """Test the swap_convention static method for converting between CXI and XU conventions"""
+        """
+        Test the swap_convention static method for converting between
+        CXI and XU conventions.
+        """
         # test with lists
         assert Geometry.swap_convention([1, 2, 3]) == [1, 3, 2]
 
@@ -42,12 +45,16 @@ class TestGeometry:
         # test setter with 'vertical'
         geometry.sample_orientation = 'vertical'
         assert geometry.sample_orientation == "vertical"
-        np.testing.assert_array_equal(geometry.sample_surface_normal, [0, 0, 1])
+        np.testing.assert_array_equal(
+            geometry.sample_surface_normal, [0, 0, 1]
+        )
 
         # test setter with abbreviation
         geometry.sample_orientation = 'h'
         assert geometry.sample_orientation == "horizontal"
-        np.testing.assert_array_equal(geometry.sample_surface_normal, [0, 1, 0])
+        np.testing.assert_array_equal(
+            geometry.sample_surface_normal, [0, 1, 0]
+        )
 
         # test with custom vector (primarily y-axis)
         geometry.sample_surface_normal = [0, 0.8, 0.2]
@@ -59,7 +66,7 @@ class TestGeometry:
 
         # test with XU convention
         geometry.is_cxi = False
-        geometry.sample_surface_normal = [0.1, 0.1, 0.9]  # primarily z-axis in XU
+        geometry.sample_surface_normal = [0.1, 0.1, 0.9]  # primarily Zxu
         assert geometry.sample_orientation == "horizontal"
 
         # test invalid orientation
@@ -83,7 +90,9 @@ class TestGeometry:
         assert not geometry.is_cxi
 
         # check that sample_surface_normal was swapped correctly
-        np.testing.assert_array_equal(geometry.sample_surface_normal, [0, 0, 1])  # z-axis in XU
+        np.testing.assert_array_equal(
+            geometry.sample_surface_normal, [0, 0, 1]  # Zxu
+        )
 
         # check that sample circles were converted correctly
         assert geometry.sample_circles == ["y+", "z-"]
