@@ -1,4 +1,4 @@
-
+import numpy as np
 
 CXI_TO_XU_TRANSITIONS = {
         "x+": "y+",
@@ -22,6 +22,7 @@ class Geometry:
             detector_axis0_orientation: str = "y-",
             detector_axis1_orientation: str = "x+",
             beam_direction: list = None,
+            sample_surface_normal: list = None,
             name: str = None,
             is_cxi: bool = True
     ) -> None:
@@ -34,6 +35,13 @@ class Geometry:
         else:
             self.beam_direction = beam_direction
 
+        if sample_surface_normal is None:
+            # default normal pointing in the ycxi direction,
+            # corresponding to a horizontal sample
+            self.sample_surface_normal = [0, 1, 0]
+        else:
+            self.sample_surface_normal = sample_surface_normal
+
         self.name = name
 
         self.is_cxi = is_cxi
@@ -43,13 +51,18 @@ class Geometry:
         return self.__dict__.copy()
 
     @classmethod
-    def from_dict(cls, data) -> "Geometry":
-        """Create a Geometry instance from a dictionary."""
+    def from_dict(cls, data: dict) -> "Geometry":
+        """
+        Factory method to create a Geometry instance from a dictionary.
+        """
         return cls(**data)
 
     @classmethod
     def from_setup(cls, beamline_setup: str) -> None:
-        """Create a Geometry instance using a beamline name."""
+        """
+        Factory method to create a Geometry instance using a beamline
+        name.
+        """
 
         # Note that we use CXI convention here
         if beamline_setup.lower() in ("id01", "id01spec", "id01bliss"):
@@ -118,9 +131,61 @@ class Geometry:
             "and NanoMAX."
         )
 
+    @property
+    def sample_orientation(self) -> str:
+        """
+        Returns the sample mounting orientation: 'horizontal' or 'vertical'.
+
+        The sample is considered 'horizontal' when its surface normal is
+        pointing up/down (along y in CXI convention, z in XU convention),
+        and "vertical" otherwise.
+        """
+        normal = np.array(self.sample_surface_normal)
+        normal = normal / np.linalg.norm(normal)
+
+        # set the index of interest, the index along which the normal
+        # should be pointing if the geometry type is "horizontal".
+        # In CXI or XU conventions, this is the y-axis or z-axis, respectively.
+        index_of_interest = 1  # y-axis in CXI convention
+        if not self.is_cxi:
+            index_of_interest = 2  # z-axis in XU convention
+
+        # checking if normal is primarily along y-axis (CXI convention)
+        if np.argmax(np.abs(normal)) == index_of_interest:
+            return "horizontal"
+        else:
+            return "vertical"
+
+    @sample_orientation.setter
+    def sample_orientation(self, orientation: str) -> None:
+        """
+        Set the sample orientation by updating the sample_surface_normal.
+
+        Args:
+            orientation (str): the orientation of the sample surface,
+                either 'horizontal', 'h' (normal along y-axis in CXI
+                convention), 'vertical' or 'v' (normal along x-axis in
+                CXI convention).
+
+        Raises:
+            ValueError: if the orientation is not
+            'horizontal', 'h', 'vertical' or 'v'.
+        """
+        orientation = orientation.lower()
+        if orientation in ("horizontal", "h"):
+            self.sample_surface_normal = [0, 1, 0]  # y-axis in CXI
+        elif orientation in ("vertical", "v"):
+            self.sample_surface_normal = [0, 0, 1]  # x-axis in CXI
+        else:
+            raise ValueError(
+                "Orientation must be either 'horizontal' or 'vertical'"
+                " (or their abbreviations 'h' or 'v')."
+            )
+
     def cxi_to_xu(self) -> None:
         """
-        Convert the CXI circle axes to the xrayutilities coordinates system
+        Convert the CXI circle axes to the xrayutilities coordinates
+        system. Modifies this Geometry instance in place.
         """
         self.sample_circles = [
             CXI_TO_XU_TRANSITIONS[v] for v in self.sample_circles
@@ -134,7 +199,63 @@ class Geometry:
         self.detector_axis1_orientation = CXI_TO_XU_TRANSITIONS[
             self.detector_axis1_orientation
         ]
+
+        self.sample_surface_normal = self.swap_convention(
+            self.sample_surface_normal
+        )
+        # The following is not necessary because we always consider
+        # the beam along Zcxi axis, which is physically-speaking
+        # equivalent to the beam along Xxu axis in XU convention which
+        # are both encoded as [1, 0, 0] in either convention. See
+        # Geometry.swap_convention() for more details.
+        # Here,  we keep it for consistency.
+        self.beam_direction = self.swap_convention(self.beam_direction)
+
         self.is_cxi = False
+
+    @staticmethod
+    def swap_convention(
+            data: np.ndarray | list | tuple
+    ) -> np.ndarray | list | tuple:
+        """
+        Swap the CXI and XU conventions for the given data.
+        This method effectively swaps the last two axes of the input
+        data.
+
+        This operation is used to convert between CXI and XU conventions:
+        - In CXI convention, arrays are stored in order (Zcxi, Ycxi, Xcxi)
+        - In XU convention, arrays are stored in order (Xxu, Yxu, Zxu)
+        And, physically, we have:
+            - Zcxi = Xxu, pointing along the beam direction, away from
+            the light source.
+            - Ycxi = Zxu, vertical direction, pointing up.
+            - Xcxi = Yxu, outboard direction in the Synchrotron frame,
+            vertical plane, perpendicular to the beam direction.
+        Both conventions are right-handed.
+        What comes out of this description is that no swapping is
+        needed for the beam direction, which is always along the first
+        axis (axis 0) in both conventions.
+
+        Args:
+            data (np.ndarray | list | tuple): the input data to swap.
+
+        Returns:
+            np.ndarray: The data with swapped conventions.
+        """
+        if isinstance(data, (tuple, list)):
+            axis0, axis1, axis2 = data
+            return type(data)((axis0, axis2, axis1))
+        if isinstance(data, np.ndarray):
+            if data.shape == (3, ):
+                return np.array([data[0], data[2], data[1]])
+            return np.swapaxes(data, axis1=1, axis2=2)
+        else:
+            raise TypeError(
+                "data should be a 3D np.ndarray, a list of 3 values, a tuple "
+                "of 3 values or a np.ndarray of 3 values."
+            )
+
+        return data
 
     def __repr__(self) -> str:
         return (
@@ -144,5 +265,7 @@ class Geometry:
             f"{self.detector_axis0_orientation=}\n"
             f"{self.detector_axis1_orientation=}\n"
             f"{self.beam_direction=}\n"
+            f"{self.sample_surface_normal=}\n"
+            f"{self.sample_orientation=}\n"
             f"{self.is_cxi=}\n"
         )
