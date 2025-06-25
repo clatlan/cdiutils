@@ -15,6 +15,8 @@ DEFAULT_PIPELINE_PARAMS = {
     "detector_name": None,
     "flat_field": None,
     "alien_mask": None,
+    "sample_orientation": None,
+    "sample_surface_normal": None,
 
     "background_level": None,
     "preprocess_shape": (150, 150),
