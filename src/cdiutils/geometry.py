@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 CXI_TO_XU_TRANSITIONS = {
         "x+": "y+",
@@ -46,7 +47,7 @@ class Geometry:
                 Defaults to None.
             is_cxi (bool, optional): flag indicating if the geometry is
                 in CXI format. Defaults to True.
-        """        
+        """
 
         self.sample_circles = sample_circles
         if self.sample_circles is None:
@@ -90,93 +91,155 @@ class Geometry:
         return cls(**data)
 
     @classmethod
-    def from_setup(cls, beamline_setup: str) -> None:
+    def from_setup(
+            cls,
+            beamline: str | None = None,
+            beamline_setup: str | None = None,
+            sample_orientation: str | None = None,
+            sample_surface_normal: list | None = None
+    ) -> "Geometry":
         """
         Factory method to create a Geometry instance using a beamline
         name.
+
+        Args:
+            beamline (str): the name of the beamline, supported are:
+                "ID01", "P10", "SIXS", "NanoMAX", "CRISTAL", "ID27"
+            beamline_setup (str | None, optional): DEPRACATED, use
+                'beamline' instead. Will be removed in a future
+                version.
+            sample_orientation (str | None, optional): the orientation
+                of the sample surface, either "horizontal", "h", "vertical" or
+                "v". Defaults to None.
+            sample_surface_normal (list | None, optional): the normal
+                vector of the sample surface. This overrides the
+                sample_orientation as the sample_surface_normal fully
+                controls the sample orientation. Defaults to None.
+
+        Raises:
+            NotImplementedError: if the beamline is not supported.
+
+        Returns:
+            Geometry: a Geometry instance with the appropriate
+            parameters set according to the beamline.
         """
+        # handle backward compatibility
+        if beamline is None:
+            if beamline_setup is None:
+                raise ValueError(
+                    "The beamline name must be provided."
+                )
+            beamline = beamline_setup
+            warnings.warn(
+                "The 'beamline_setup' parameter is deprecated and will be "
+                "removed in a future version. Use 'beamline' instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+
+        geometry = None
 
         # Note that we use CXI convention here
-        if beamline_setup.lower() in ("id01", "id01spec", "id01bliss"):
-            return cls(
+        if beamline.lower() in ("id01", "id01spec", "id01bliss"):
+            # by default, sample orientation is horizontal, pointing up
+            geometry = cls(
                 sample_circles=["x-", "y-"],  # eta, phi
                 detector_circles=["y-", "x-"],  # nu, delta
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="ID01"
             )
-        if "p10" in beamline_setup.lower():
-            return cls(
+            # default orientation for ID01 when sample is vertical
+            if sample_orientation.lower() in ("vertical", "v"):
+                geometry.sample_surface_normal = [0, 0, -1]
+
+        if "p10" in beamline.lower():
+            geometry = cls(
                 sample_circles=["x-", "y-"],  # om (or samth), phi
                 detector_circles=["y+", "x-"],  # gam, del (or e2_t02)
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="P10"
             )
-        if "sixs" in beamline_setup.lower():
-            return cls(
+        if "sixs" in beamline.lower():
+            geometry = cls(
                 sample_circles=["x-", "y+"],  # mu, omega
                 detector_circles=["y+", "x-"],  # gamma, delta  NOT SURE
                 detector_axis0_orientation=(
-                    "x-" if "2022" in beamline_setup.lower() else "y-"
+                    "x-" if "2022" in beamline.lower() else "y-"
                 ),
                 detector_axis1_orientation=(
-                    "y-" if "2022" in beamline_setup.lower() else "x+"
+                    "y-" if "2022" in beamline.lower() else "x+"
                 ),
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="SIXS"
             )
-        if beamline_setup.lower() == "nanomax":
-            return cls(
+        if beamline.lower() == "nanomax":
+            geometry = cls(
                 sample_circles=["x-", "y-"],  # gontheta, gonphi
                 detector_circles=["y-", "x-"],  # gamma, delta
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="NanoMAX"
             )
-        if beamline_setup.lower() == "cristal":
+        if beamline.lower() == "cristal":
             # OK FOR omega/delta but not for the two others
-            return cls(
+            geometry = cls(
                 sample_circles=["x-", "y+"],  # omega, phi
                 detector_circles=["y+", "x-"],  # gamma, delta
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="CRISTAL"
             )
 
-        if beamline_setup.lower() == "id27":
-            return cls(
+        if beamline.lower() == "id27":
+            geometry = cls(
                 sample_circles=["x-", "y-"],  # In plane rotation only
                 detector_circles=["y-", "x-"],  # no circle, values dummy
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
+                surface_normal_direction=[0, 1, 0],  # default sample facing up
                 name="ID27"
             )
-        raise NotImplementedError(
-            f"The beamline_setup {beamline_setup} is not valid. Available:\n"
-            "'ID01', 'ID01SPEC', 'ID27', 'P10', 'P10EH2', 'SIXS2022' "
-            "and NanoMAX."
-        )
+        if geometry is None:
+            raise NotImplementedError(
+                f"The beamline name {beamline} is not valid. Available:\n"
+                "'ID01', 'ID01SPEC', 'ID27', 'P10', 'P10EH2', 'SIXS2022' "
+                "and NanoMAX."
+            )
+
+        # if the sample orientation is provided, override any default
+        # value, this fully controls the sample orientation.
+        if sample_surface_normal is not None:
+            geometry.sample_surface_normal = sample_surface_normal
+
+        return geometry
 
     @property
-    def sample_orientation(self) -> str:
+    def sample_orientation(self) -> str | None:
         """
         Returns the sample mounting orientation: 'horizontal' or 'vertical'.
 
-        The sample is considered 'horizontal' when its surface normal is
-        pointing up/down (along y in CXI convention, z in XU convention),
-        and "vertical" otherwise.
+        The sample is considered:
+        - 'horizontal' when its surface normal is along the -Ycxi or
+        Ycxi, i.e. pointing up/down.
+        - 'vertical' when its surface normal is along the -Xcxi or Xcxi.
         """
         normal = np.array(self.sample_surface_normal)
         normal = normal / np.linalg.norm(normal)
 
         # set the index of interest, the index along which the normal
-        # should be pointing if the geometry type is "horizontal".
+        # should be pointing up if the geometry type is "horizontal".
         # In CXI or XU conventions, this is the y-axis or z-axis, respectively.
         index_of_interest = 1  # y-axis in CXI convention
         if not self.is_cxi:
@@ -213,6 +276,35 @@ class Geometry:
                 "Orientation must be either 'horizontal' or 'vertical'"
                 " (or their abbreviations 'h' or 'v')."
             )
+
+    @property
+    def surface_normal_direction(self) -> str:
+        """
+        Returns the direction of the sample surface normal: 'up',
+        'down', 'outboard', or 'inboard'.
+
+        For horizontal samples:
+        - 'up': normal points along +y in CXI (+z in XU)
+        - 'down': normal points along -y in CXI (-z in XU)
+
+        For vertical samples:
+        - 'outboard': normal points along +x in CXI (+y in XU)
+        - 'inboard': normal points along -x in CXI (-y in XU)
+        """
+        normal = np.array(self.sample_surface_normal)
+        normal = normal / np.linalg.norm(normal)
+
+        # determine orientation first
+        orientation = self.sample_orientation
+
+        # then determine direction based on the sign of the
+        # corresponding component
+        if orientation == "horizontal":
+            index = 1 if self.is_cxi else 2  # y-axis in CXI, z-axis in XU
+            return "up" if normal[index] > 0 else "down"
+        else:  # vertical
+            index = 2 if self.is_cxi else 1  # x-axis in CXI, y-axis in XU
+            return "outboard" if normal[index] > 0 else "inboard"
 
     def cxi_to_xu(self) -> None:
         """
