@@ -152,7 +152,10 @@ class Geometry:
                 name="ID01"
             )
             # default orientation for ID01 when sample is vertical
-            if sample_orientation.lower() in ("vertical", "v"):
+            if (
+                    sample_orientation is not None
+                    and sample_orientation.lower() in ("vertical", "v")
+            ):
                 geometry.sample_surface_normal = [0, 0, -1]
 
         if "p10" in beamline.lower():
@@ -276,35 +279,6 @@ class Geometry:
                 "Orientation must be either 'horizontal' or 'vertical'"
                 " (or their abbreviations 'h' or 'v')."
             )
-
-    @property
-    def sample_surface_normal(self) -> str:
-        """
-        Returns the direction of the sample surface normal: 'up',
-        'down', 'outboard', or 'inboard'.
-
-        For horizontal samples:
-        - 'up': normal points along +y in CXI (+z in XU)
-        - 'down': normal points along -y in CXI (-z in XU)
-
-        For vertical samples:
-        - 'outboard': normal points along +x in CXI (+y in XU)
-        - 'inboard': normal points along -x in CXI (-y in XU)
-        """
-        normal = np.array(self.sample_surface_normal)
-        normal = normal / np.linalg.norm(normal)
-
-        # determine orientation first
-        orientation = self.sample_orientation
-
-        # then determine direction based on the sign of the
-        # corresponding component
-        if orientation == "horizontal":
-            index = 1 if self.is_cxi else 2  # y-axis in CXI, z-axis in XU
-            return "up" if normal[index] > 0 else "down"
-        else:  # vertical
-            index = 2 if self.is_cxi else 1  # x-axis in CXI, y-axis in XU
-            return "outboard" if normal[index] > 0 else "inboard"
 
     def cxi_to_xu(self) -> None:
         """
