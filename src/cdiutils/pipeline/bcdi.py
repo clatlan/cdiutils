@@ -282,7 +282,13 @@ class BcdiPipeline(Pipeline):
             )
 
         # Initialise SpaceConverter, later used for orthogonalisation
-        geometry = Geometry.from_setup(self.params["beamline_setup"])
+        geometry = Geometry.from_setup(
+            self.params["beamline_setup"],
+            sample_orientation=self.params.get("sample_orientation", None),
+            sample_surface_normal=self.params.get(
+                "sample_surface_normal", None
+            )
+        )
         self.converter = SpaceConverter(
             geometry=geometry,
             det_calib_params=self.params["det_calib_params"],
@@ -720,12 +726,12 @@ class BcdiPipeline(Pipeline):
         # that correspond to the requested roi
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                self.angles[key] = value[np.s_[roi[0] : roi[1]]]
+                self.angles[key] = value[np.s_[roi[0]: roi[1]]]
 
         # if energy scan, crop the energy values according to the roi
         if isinstance(self.params["energy"], (list, np.ndarray)):
             self.params["energy"] = self.params["energy"][
-                np.s_[roi[0] : roi[1]]
+                np.s_[roi[0]: roi[1]]
             ]
 
         return cropped_detector_data, roi
