@@ -148,7 +148,7 @@ class Geometry:
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="ID01"
             )
             # default orientation for ID01 when sample is vertical
@@ -162,7 +162,7 @@ class Geometry:
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="P10"
             )
         if "sixs" in beamline.lower():
@@ -176,7 +176,7 @@ class Geometry:
                     "y-" if "2022" in beamline.lower() else "x+"
                 ),
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="SIXS"
             )
         if beamline.lower() == "nanomax":
@@ -186,7 +186,7 @@ class Geometry:
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="NanoMAX"
             )
         if beamline.lower() == "cristal":
@@ -197,7 +197,7 @@ class Geometry:
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="CRISTAL"
             )
 
@@ -208,7 +208,7 @@ class Geometry:
                 detector_axis0_orientation="y-",
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
-                surface_normal_direction=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="ID27"
             )
         if geometry is None:
@@ -278,7 +278,7 @@ class Geometry:
             )
 
     @property
-    def surface_normal_direction(self) -> str:
+    def sample_surface_normal(self) -> str:
         """
         Returns the direction of the sample surface normal: 'up',
         'down', 'outboard', or 'inboard'.
