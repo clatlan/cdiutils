@@ -2,8 +2,6 @@ from collections.abc import Mapping  # more flexible than dict
 import numpy as np
 import warnings
 
-from cdiutils.utils import energy_to_wavelength
-
 DEFAULT_PIPELINE_PARAMS = {
     # Formerly the "metadata"
     "beamline_setup": "REQUIRED",
