@@ -481,7 +481,7 @@ class BcdiPipeline(Pipeline):
             self.params["detector_name"] = loader.detector_name
             if self.params.get("detector_name") is None:
                 raise ValueError(
-                    "The automatic detection of the detector name is not"
+                    "The automatic detection of the detector name is not "
                     "yet implemented for this setup"
                     f"({self.params['beamline_setup']})."
                 )
