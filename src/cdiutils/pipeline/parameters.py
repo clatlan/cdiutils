@@ -55,7 +55,7 @@ DEFAULT_PIPELINE_PARAMS = {
         "support_post_expand": None,  # (-1, 1)
         "support_update_border_n": None,
         "algorithm": None,
-        "psf": None,  # "pseudo-voigt,0.5,0.1,10",
+        "psf": "pseudo-voigt,1,0.05,20",  # "pseudo-voigt,1,0.05,20",
         "nb_raar": 500,
         "nb_hio": 300,
         "nb_er": 200,
