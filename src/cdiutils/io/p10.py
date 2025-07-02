@@ -45,6 +45,8 @@ class P10Loader(Loader):
         self.experiment_data_dir_path = experiment_data_dir_path
         super().__init__(scan, sample_name, flat_field, alien_mask)
         self.detector_name = detector_name
+        if self.detector_name is None:
+            self.detector_name = "e4m"
 
         if hutch.lower() == "eh2":
             self.angle_names["sample_outofplane_angle"] = "samth"
