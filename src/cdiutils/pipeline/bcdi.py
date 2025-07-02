@@ -53,6 +53,7 @@ from .parameters import (
     validate_and_fill_params,
     convert_np_arrays,
     DEFAULT_PIPELINE_PARAMS,
+    isparameter
 )
 
 
@@ -221,6 +222,19 @@ class BcdiPipeline(Pipeline):
                 "Additional parameters provided, will update the current "
                 "dictionary of parameters."
             )
+            for p in params:
+                if not isparameter(p):
+                    raise ValueError(
+                        f"Parameter '{p}' is not recognised. "
+                        "Please check the possible parameter names among:\n"
+                        + "\n".join(
+                            [
+                                f"- {key}"
+                                for key in DEFAULT_PIPELINE_PARAMS.keys()
+                            ]
+                        )
+                    )
+
             self.params.update(params)
 
         # If voxel_reference_methods is not a list, make it a list
@@ -836,7 +850,10 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "sample_name",
                 sample_name=self.sample_name,
                 experiment_file_path=exp_path,
-                experiment_identifier=exp_path.split("/")[-1].split(".")[0],
+                experiment_identifier=(
+                    None if exp_path is None
+                    else exp_path.split("/")[-1].split(".")[0]
+                ),
             )
             cxi.create_cxi_group("parameters", **self.params)
             cxi.create_cxi_group(
@@ -1312,6 +1329,18 @@ reconstruction (best solution).""",
             self.logger.info(f"Loading parameters from:\n{_path}")
             self.update_from_file(_path)
         if params:
+            for p in params:
+                if not isparameter(p):
+                    raise ValueError(
+                        f"Parameter '{p}' is not recognised. "
+                        "Please check the possible parameter names among:\n"
+                        + "\n".join(
+                            [
+                                f"- {key}"
+                                for key in DEFAULT_PIPELINE_PARAMS.keys()
+                            ]
+                        )
+                    )
             self.logger.info(
                 f"Additional parameters provided {params}, will update the "
                 "current dictionary of parameters."
