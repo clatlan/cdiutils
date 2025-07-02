@@ -6,7 +6,7 @@ DEFAULT_PIPELINE_PARAMS = {
     # Formerly the "metadata"
     "beamline_setup": "REQUIRED",
     "scan": "REQUIRED",
-    "experiment_file_path": "REQUIRED",
+    "experiment_file_path": None,
     "dump_dir": "REQUIRED",
     "sample_name": None,
     "experiment_data_dir_path": None,
