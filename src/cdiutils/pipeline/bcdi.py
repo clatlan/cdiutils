@@ -1616,6 +1616,9 @@ reconstruction (best solution).""",
             )
 
     def _check_voxel_size(self) -> None:
+        self.extra_info["voxel_size_from_extent"] = (
+            self.converter.direct_lab_voxel_size
+        )
         if self.params["orientation_convention"].lower() == "cxi":
             self.extra_info["voxel_size_from_extent"] = (
                 Geometry.swap_convention(self.converter.direct_lab_voxel_size)
