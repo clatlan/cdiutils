@@ -74,14 +74,14 @@ XU_VIEW_PARAMETERS = {
        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "y+": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
-       "xlabel": r"$x{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "y-": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
