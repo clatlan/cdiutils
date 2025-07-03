@@ -1362,12 +1362,12 @@ reconstruction (best solution).""",
                 self.reconstruction
             )
         # Change convention of the reconstruction if necessary.
-        if self.params["orientation_convention"].lower() == "cxi":
+        if self.params["convention"].lower() == "cxi":
             self.reconstruction = Geometry.swap_convention(self.reconstruction)
 
         self.logger.info(
             f"Voxel size finally used is: {self.params['voxel_size']} nm in "
-            f"the {self.params['orientation_convention'].upper()} convention."
+            f"the {self.params['convention'].upper()} convention."
         )
 
         # Handle flipping and apodization
@@ -1428,7 +1428,7 @@ reconstruction (best solution).""",
         if self.params["handle_defects"]:
             self.logger.info("Defect handling requested.")
 
-        if self.params["orientation_convention"].lower() == "cxi":
+        if self.params["convention"].lower() == "cxi":
             g_vector = Geometry.swap_convention(self.q_lab_pos["ref"])
         else:
             g_vector = self.q_lab_pos["ref"]
@@ -1475,7 +1475,7 @@ reconstruction (best solution).""",
             support=self.structural_props["support"],
             table_info=table_info,
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("summary_plot"),
             **to_plot,
         )
@@ -1483,7 +1483,7 @@ reconstruction (best solution).""",
             title=f"Strain check figure, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("strain_methods"),
             **{
                 k: self.structural_props[k]
@@ -1514,7 +1514,7 @@ reconstruction (best solution).""",
             title=f"Shear displacement, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("shear_displacement"),
             unique_vmin=-ptp_value / 2,
             unique_vmax=ptp_value / 2,
@@ -1553,7 +1553,7 @@ reconstruction (best solution).""",
             -1j * self.structural_props["phase"]
         )
         voxel_size = self.params["voxel_size"]
-        if self.params["orientation_convention"].lower() == "cxi":
+        if self.params["convention"].lower() == "cxi":
             obj = Geometry.swap_convention(obj)
             voxel_size = Geometry.swap_convention(voxel_size)
 
@@ -1619,7 +1619,7 @@ reconstruction (best solution).""",
         self.extra_info["voxel_size_from_extent"] = (
             self.converter.direct_lab_voxel_size
         )
-        if self.params["orientation_convention"].lower() == "cxi":
+        if self.params["convention"].lower() == "cxi":
             self.extra_info["voxel_size_from_extent"] = (
                 Geometry.swap_convention(self.converter.direct_lab_voxel_size)
             )  # if cxi requested, convert the voxel size from extent
@@ -1628,13 +1628,13 @@ reconstruction (best solution).""",
             self.params["voxel_size"] = self.converter.direct_lab_voxel_size
 
             # In the SpaceConverter, the convention is XU.
-            if self.params["orientation_convention"].lower() == "cxi":
+            if self.params["convention"].lower() == "cxi":
                 self.params["voxel_size"] = Geometry.swap_convention(
                     self.params["voxel_size"]
                 )
         else:
             # We consider voxel_size is given with the same convention
-            # as the one specified in 'orientation_convention'.
+            # as the one specified in 'convention'.
             # if 1D, make it 3D
             if isinstance(
                 self.params["voxel_size"],
@@ -1645,7 +1645,7 @@ reconstruction (best solution).""",
                         self.params["voxel_size"], self.reconstruction.ndim
                     )
                 )
-            if self.params["orientation_convention"].lower() == "cxi":
+            if self.params["convention"].lower() == "cxi":
                 # Set the direct space interpolator voxel size with XU
                 # convention.
                 self.converter.direct_lab_voxel_size = (
@@ -1791,7 +1791,7 @@ reconstruction (best solution).""",
                 f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
                 voxel_size=self.params["voxel_size"],
                 cxi_convention=(
-                    self.params["orientation_convention"].lower() == "cxi"
+                    self.params["convention"].lower() == "cxi"
                 ),
                 **to_save_as_vti,
             )

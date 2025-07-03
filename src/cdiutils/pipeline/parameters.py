@@ -38,7 +38,7 @@ DEFAULT_PIPELINE_PARAMS = {
     "debug": True,
     "handle_defects": False,
     "orthogonalise_before_phasing": False,
-    "orientation_convention": "cxi",
+    "convention": "cxi",
     "pynx": {
         "data": None,
         "mask": None,
