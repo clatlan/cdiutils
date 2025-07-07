@@ -7,7 +7,7 @@ from scipy.ndimage import center_of_mass
 from matplotlib.patches import Ellipse
 import matplotlib.gridspec as gridspec
 
-from cdiutils.utils import CroppingHandler
+from cdiutils.utils import CroppingHandler, angular_spectrum_propagation
 from cdiutils.plot.formatting import add_colorbar
 
 
@@ -32,10 +32,10 @@ def get_width_metrics(
             indices, heights, and boundaries.
     """
 
-    # Find peaks
+    # find peaks
     peaks, properties = find_peaks(profile, height=0.5 * np.max(profile))
 
-    # Use the highest peak or the middle if no peak is found
+    # use the highest peak or the middle if no peak is found
     if len(peaks) > 0:
         max_index = np.argmax(properties["peak_heights"])
         highest_peak_idx = peaks[max_index]
@@ -53,7 +53,7 @@ def get_width_metrics(
         profile, [highest_peak_idx], rel_height=0.9
     )
 
-    # Convert width indices to physical units using axis values
+    # convert width indices to physical units using axis values
     # for FWHM
     left_pos = np.interp(left_idx[0], np.arange(len(axis_values)), axis_values)
     right_pos = np.interp(
@@ -75,13 +75,13 @@ def get_width_metrics(
         return amp * np.exp(-((x - mean) ** 2) / (2 * sigma**2)) + offset
 
     try:
-        # Fit Gaussian to profile
+        # fit Gaussian to profile
         p0 = [
             np.max(profile),
             axis_values[highest_peak_idx],
             fwhm / 2.355,
             0,
-        ]  # Initial guess
+        ]  # initial guess
         params, _ = curve_fit(gaussian, axis_values, profile, p0=p0)
         gauss_fwhm = 2.355 * params[2]  # FWHM = 2.355 * sigma for Gaussian
 
@@ -174,10 +174,10 @@ def probe_metrics(
         )
 
     # probe amplitude or intensity
-    probe_intensity = np.abs(probe) ** 2
+    probe_amplitude = np.abs(probe)
 
-    # Check if the probe is well centred
-    com = center_of_mass(probe_intensity)
+    # check if the probe is well centred
+    com = center_of_mass(probe_amplitude)
     if verbose:
         print(
             f"Probe intensity centre of mass: {com[0]:.2f} (y), "
@@ -191,31 +191,31 @@ def probe_metrics(
             probe, where="max", verbose=verbose
         )
         # recompute the probe intensity in the new cropped frame
-        probe_intensity = np.abs(probe) ** 2
+        probe_amplitude = np.abs(probe)
 
-    # Initialise the main dictionary containing all the line profile
+    # initialise the main dictionary containing all the line profile
     # metrics
     metrics = {"x": {"color": "dodgerblue"}, "y": {"color": "lightcoral"}}
 
     for i, axis in enumerate(["y", "x"]):
         metrics[axis]["axis_values"] = np.linspace(
-            -pixel_size[i] * probe_intensity.shape[i] / 2,
-            pixel_size[i] * probe_intensity.shape[i] / 2,
-            probe_intensity.shape[i],
+            -pixel_size[i] * probe.shape[i] / 2,
+            pixel_size[i] * probe.shape[i] / 2,
+            probe.shape[i],
         )
 
     # the probe is stored as a (y = y_cxi, x = -x_cxi) array, so we need
     # to flip the x-axis extent.
     metrics["x"]["axis_values"] = np.flip(metrics["x"]["axis_values"])
 
-    metrics["x"]["profile"] = probe_intensity[probe_intensity.shape[0] // 2, :]
+    metrics["x"]["profile"] = probe_amplitude[probe.shape[0] // 2, :]
     metrics["x"]["centre"] = metrics["x"]["axis_values"][
-        probe_intensity.shape[1]
+        probe.shape[1]
         // 2  # the pos that serves to get the y profile
     ]
-    metrics["y"]["profile"] = probe_intensity[:, probe_intensity.shape[1] // 2]
+    metrics["y"]["profile"] = probe_amplitude[:, probe.shape[1] // 2]
     metrics["y"]["centre"] = metrics["y"]["axis_values"][
-        probe_intensity.shape[0]
+        probe.shape[0]
         // 2  # the pos that serves to get the x profile
     ]
 
@@ -226,7 +226,7 @@ def probe_metrics(
         metrics["y"]["axis_values"][-1],
     )
 
-    # Compute FWHM and other metrics for x and y profiles
+    # compute FWHM and other metrics for x and y profiles
     for axis in ["x", "y"]:
         metrics[axis].update(
             get_width_metrics(
@@ -239,7 +239,7 @@ def probe_metrics(
             metrics[axis]["highest_peak_idx"]
         ]
 
-    # Calculate ROI boundaries (in physical units)
+    # calculate ROI boundaries (in physical units)
     if zoom_factor == "auto":  # 8x FWHM. /2 means each side
         zoom_extent = (
             8
@@ -283,9 +283,9 @@ def probe_metrics(
         metrics["x"]["axis_values"], metrics["y"]["axis_values"]
     )
 
-    axes[0, 0].imshow(probe_intensity, cmap="viridis", **imshow_kwargs)
+    axes[0, 0].imshow(probe_amplitude, cmap="viridis", **imshow_kwargs)
     add_colorbar(axes[0, 0])
-    axes[0, 0].set_title(r"Probe Intensity ($|\mathcal{P}|^2$, a. u.)")
+    axes[0, 0].set_title(r"Probe amplitude ($|\mathcal{P}|$, a. u.)")
 
     opacity = np.abs(probe) / np.max(np.abs(probe))
     axes[0, 1].imshow(
@@ -294,9 +294,10 @@ def probe_metrics(
         cmap="cet_CET_C9s_r",
         **imshow_kwargs
     )
+    axes[0, 1].set_facecolor("black")
     add_colorbar(axes[0, 1], extend="both")
 
-    axes[0, 1].set_title(r"Probe Phase ($\text{arg}(\mathcal{P})$, rad)")
+    axes[0, 1].set_title(r"Probe phase ($\text{arg}(\mathcal{P})$, rad)")
 
     # # Add FWHM indicators as ellipse
     indicator_params = {"alpha": 0.5, "lw": 0.5, "linestyle": "--"}
@@ -377,7 +378,7 @@ def probe_metrics(
         formatted_axis = r"$" + axis + r"_{\text{CXI}}$"
         subplot.set_title(f"{formatted_axis} profile")
         subplot.set_xlabel(f"{formatted_axis} (m)")
-        subplot.set_ylabel(r"$|\mathcal{P}|^2$ (a. u.)")
+        subplot.set_ylabel(r"$|\mathcal{P}|$ (a. u.)")
         subplot.legend(frameon=False, fontsize=6)
 
     # x plot, min and max are inverted
@@ -424,3 +425,321 @@ def probe_metrics(
             cell.set_text_props(fontweight="bold")
 
     return fig, axes
+
+
+def probe_focus_sweep(
+        probe: np.ndarray,
+        pixel_size: tuple,
+        wavelength: float,
+        step_nb: int = 100,
+        step_size: float = 10e-6
+) -> np.ndarray:
+    """
+    Propagate the probe through a range of distances using the angular
+    spectrum method. The function computes the propagated probe at each
+    distance and returns the propagated probe and the corresponding
+    propagation positions.
+
+    Args:
+        probe (np.ndarray): the probe to be propagated, in the shape
+            (height, width) or (modes, height, width).
+        pixel_size (tuple): the pixel size of the probe in meters.
+        wavelength (float): the wavelength of the X-ray beam in meters.
+        step_nb (int, optional): the number of steps for the propagation
+            sweep. This defines the number of propagation positions.
+            Defaults to 100.
+        step_size (_type_, optional): the step size for the propagation
+            sweep in meters. This defines the distance between each
+            propagation position. Defaults to 10e-6 m.
+
+    Returns:
+        np.ndarray: the propagated probe at each propagation position,
+            in the shape (step_nb, height, width) or (modes, step_nb,
+            height, width).
+        np.ndarray: the propagation positions in meters.
+    """
+    propagation_positions = step_size * np.arange(-step_nb // 2, step_nb // 2)
+    progpated_probe = np.empty(
+        propagation_positions.shape + probe.shape, dtype=np.complex64
+    )
+    for i, distance in enumerate(propagation_positions):
+        progpated_probe[i] = angular_spectrum_propagation(
+            probe,
+            propagation_distance=distance,  # in meters
+            wavelength=wavelength,
+            pixel_size=pixel_size[0],
+            do_fftshift=True,  # If true fftshift before and ifftshit after
+            verbose=False
+        )
+
+    if probe.ndim == 3:  # multiple modes
+        progpated_probe = progpated_probe.transpose(1, 0, 2, 3)
+
+    return progpated_probe, propagation_positions
+
+
+def plot_propagated_probe(
+        propagated_probe: np.ndarray,
+        pixel_size: tuple | float,
+        propagation_step_size: float,
+        convert_to_microns: bool = True,
+        focal_distances: tuple | None = None,
+        plot_phase: bool = True,
+) -> tuple[plt.Figure, plt.Axes]:
+    """
+    Plot the propagated probe as a 2D image with the phase or amplitude
+    information. The function displays the probe at different
+    propagation positions, with the option to plot the phase or
+    amplitude. It also allows for the conversion of pixel size and
+    propagation step size to microns. If focal distances are provided,
+    vertical lines are drawn at those positions.
+
+    Args:
+        propagated_probe (np.ndarray): the propagated probe data, in the
+            shape (step_nb, height, width) or (modes, step_nb, height,
+            width). If 3D, the first dimension is considered as the
+            propagation axis, and the rest are height and width. If 4D,
+            will take the first mode only.
+        pixel_size (tuple | float): the pixel size of the probe in
+            meters.
+        propagation_step_size (float, optional): the step size for the
+            propagation sweep in meters. This defines the distance
+            between each propagation position. If convert_to_microns is
+            True, this value is converted to microns.
+        convert_to_microns (bool, optional): if True, converts the pixel
+            size and propagation step size to microns. This is useful for
+            displaying the probe in microns instead of meters.
+            Defaults to True.
+        focal_distances (tuple | None, optional): the focal distances
+            where vertical lines are drawn on the plot. If provided, it
+            should be a tuple of two values representing the focal
+            distances in meters for both directions. If
+            convert_to_microns is True, these values are converted to
+            microns. If None, no vertical lines are drawn. Defaults to
+            None.
+        plot_phase (bool, optional): if True, plots the phase of the
+            propagated probe. If False, plots the amplitude. The opacity
+            of the phase plot is set to the sum of the absolute values
+            along the propagation axis, normalised to the maximum value.
+            Defaults to True.
+
+    Raises:
+        ValueError: if the propagated_probe is not 3D or 4D, or if the
+        pixel_size is not a float or a tuple of floats.
+
+    Returns:
+        tuple[plt.Figure, plt.Axes]: the figure and axes objects for the
+        propagated probe plot.
+    """
+    if propagated_probe.ndim == 4:
+        propagated_probe = propagated_probe[0]
+    elif propagated_probe.ndim != 3:
+        raise ValueError(
+            "Expected propagated_probe to be 3 or 4D (propagation axis, "
+            "height, width)."
+        )
+
+    if isinstance(pixel_size, float):
+        pixel_size = (pixel_size, pixel_size, pixel_size)
+
+    if convert_to_microns:
+        pixel_size = tuple(p * 1e6 for p in pixel_size)
+        propagation_step_size *= 1e6
+    unit_label = "μm" if convert_to_microns else "m"
+
+    if focal_distances is not None:
+        if convert_to_microns:
+            focal_distances = tuple(f * 1e6 for f in focal_distances)
+
+    fig, axes = plt.subplots(2, 1, figsize=(5, 3), layout="tight", sharex=True)
+
+    plot_params = {
+        "cmap": "cet_CET_C9s_r" if plot_phase else "turbo",
+        "alpha": None, "origin": "lower", "aspect": "auto",
+    }
+
+    for i, ax in enumerate(np.flip(axes).flat):
+        if plot_phase:
+            opacity = np.abs(propagated_probe).sum(axis=2-i).T
+            opacity /= opacity.max()
+            slices = [slice(None)] * propagated_probe.ndim
+            slices[2-i] = propagated_probe.shape[2-i]//2
+            to_plot = np.angle(propagated_probe[tuple(slices)]).T
+
+            ax.set_facecolor("black")
+            plot_params["alpha"] = opacity
+
+        else:
+            to_plot = np.abs(propagated_probe).sum(axis=2-i).T
+        ax.imshow(
+            to_plot,
+            extent=(
+                propagation_step_size * -propagated_probe.shape[0] / 2,
+                propagation_step_size * propagated_probe.shape[0] / 2,
+                -pixel_size[i] * propagated_probe.shape[i+1] / 2,
+                pixel_size[i] * propagated_probe.shape[i+1] / 2
+            ),
+            **plot_params
+        )
+
+        ax.axvline(
+            x=0,
+            color="white",
+            linestyle="-",
+            linewidth=0.125,
+        )
+
+        if focal_distances is not None:
+            label = (
+                f"focal distance = {int(focal_distances[1-i])} {unit_label}"
+            )
+            ax.axvline(
+                x=focal_distances[1-i],
+                color="white",
+                linestyle="--",
+                label=label
+            )
+
+    axes[0].set_ylabel(r"$y_{\text{CXI}}$" + f", height ({unit_label})")
+    axes[1].set_ylabel(r"$x_{\text{CXI}}$" + f", width ({unit_label})")
+    axes[1].set_xlabel(
+        r"$z_{\text{CXI}}$" + f", propagation distance ({unit_label})"
+    )
+    quantity = "phase" if plot_phase else "amplitude"
+    fig.suptitle(f"Propagated probe ({quantity})")
+    for ax in axes.flat:
+        add_colorbar(ax, extend="both", size="2%")
+        legend = ax.legend(frameon=False, fontsize=6)
+        for text in legend.get_texts():
+            text.set_color("white")
+
+    return fig, axes
+
+
+def get_focal_distances(
+        propagated_probe: np.ndarray,
+        propagation_positions: np.ndarray,
+        method: str = "max"
+) -> tuple[tuple[float, float], tuple[int, int]]:
+    """
+    Get the focal distances from the propagated probe data.
+    The function computes the focal distances by reducing the probe
+    data along the propagation axis using the specified method (sum or
+    max). It returns the focal distances and the corresponding indexes
+    in the propagation positions array.
+
+    Args:
+        propagated_probe (np.ndarray): the propagated probe data, in the
+            shape (step_nb, height, width) or (modes, step_nb, height,
+            width). If 3D, the first dimension is considered as the
+            propagation axis, and the rest are height and width. If 4D,
+            will take the first mode only.
+        propagation_positions (np.ndarray): the propagation positions in
+            meters.
+        method (str, optional): the method to use for reducing the probe
+            data. Can be "sum" or "max". If "sum", the function
+            computes the sum of the absolute values along the
+            propagation axis and then finds the maximum. Defaults to
+            "max".
+
+    Raises:
+        ValueError: if the propagated_probe is not 3D or 4D.
+        ValueError: if the method is not "sum" or "max".
+
+    Returns:
+        tuple[tuple[float, float], tuple[int, int]]: the focal distances
+        as a tuple of two floats (focal_distance_1, focal_distance_2)
+        and the corresponding indexes in the propagation positions array
+        as a tuple of two integers (index_1, index_2).
+    """
+    if propagated_probe.ndim == 4:
+        propagated_probe = propagated_probe[0]
+    elif propagated_probe.ndim != 3:
+        raise ValueError(
+            "Expected propagated_probe to be 3 or 4D (propagation axis, "
+            "height, width)."
+        )
+    if method == "sum":
+        reducing_function = np.sum
+    elif method == "max":
+        reducing_function = np.max
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+    focal_distances, indexes = [], []
+    for i in range(2):
+        indexes.append(
+            np.argmax(
+                reducing_function(
+                    np.sum(np.abs(propagated_probe), axis=i+1),
+                    axis=1
+                ),
+            )
+        )
+        focal_distances.append(propagation_positions[indexes[-1]])
+
+    return tuple(focal_distances), indexes
+
+
+def focus_probe(
+        probe: np.ndarray,
+        pixel_size: tuple,
+        wavelength: float,
+        step_nb: int = 100,
+        step_size: float = 10e-6,
+        plot: bool = True,
+        **plot_kwargs
+) -> tuple:
+    """
+    Complete analysis of probe focus characteristics by propagating the
+    probe through a range of distances and computing the focal
+    distances. The function performs a probe focus sweep, computes the
+    focal distances using the specified method (max), and plots the
+    propagated probe with the focal distances. It returns the focused
+    probe and the focal distances.
+
+    Args:
+        probe (np.ndarray): the probe to be propagated, in the shape
+            (height, width) or (modes, height, width). If 3D, the first
+            dimension is considered as the propagation axis, and the rest
+            are height and width. If 4D, will take the first mode only.
+        pixel_size (tuple): the pixel size of the probe in meters, as a
+            tuple (height, width) or a single float value for both
+            dimensions.
+        wavelength (float): the wavelength of the X-ray beam in meters.
+        step_nb (int, optional): the number of steps for the propagation
+            sweep. This defines the number of propagation positions.
+            It determines how many times the probe is propagated through
+            the range of distances. Defaults to 100.
+        step_size (float, optional): the step size for the propagation
+            sweep in meters. This defines the distance between each
+            propagation position. Defaults to 10e-6.
+        plot (bool, optional): whether to plot the propagated probe and
+            focal distances. If True, the function will plot the
+            propagated probe with the focal distances. If False, no plot
+            is generated.Defaults to True.
+
+    Returns:
+        tuple: (focused_probe, focal_distances)
+    """
+    propagated_probe, propagation_positions = probe_focus_sweep(
+        probe, pixel_size, wavelength, step_nb, step_size
+    )
+
+    focal_distances, indexes = get_focal_distances(
+        propagated_probe, propagation_positions, method="max"
+    )
+    if propagated_probe.ndim == 4:
+        focused_probe = propagated_probe[:, indexes[1], ...]
+    elif propagated_probe.ndim == 3:
+        focused_probe = propagated_probe[indexes[0]]
+
+    if plot:
+        plot_propagated_probe(
+            propagated_probe,
+            pixel_size,
+            propagation_step_size=step_size,
+            focal_distances=focal_distances
+        )
+
+    return focused_probe, focal_distances[1]
