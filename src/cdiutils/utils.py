@@ -785,6 +785,9 @@ class CroppingHandler:
         Raises:
         ValueError: If an invalid method is provided.
         """
+        # if the data is complex, we take the absolute value
+        if np.iscomplexobj(data):
+            data = np.abs(data)
         if method == "max":
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
@@ -968,6 +971,7 @@ class CroppingHandler:
         """
         if output_shape is None:
             output_shape = data.shape
+        output_shape = np.array(output_shape)
 
         if where == "centre":
             where = tuple(e // 2 for e in data.shape)
@@ -982,7 +986,8 @@ class CroppingHandler:
             )
         )
         if verbose:
-            if np.any(safe_shape == output_shape):
+            print(f"Safe shape for cropping: {tuple(safe_shape)}")
+            if np.all(safe_shape == output_shape):
                 print("Does not require forced-centered cropping.")
             else:
                 print(
