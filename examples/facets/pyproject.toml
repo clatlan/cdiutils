@@ -1,0 +1,19 @@
+[project]
+name = "facets.ewoks"
+version = "0.0.1"
+description = "Helper tools to drive the Full-circle Atomistic Comparison of Experiments, Theory, and Simulation code from Jupyter notebooks using Ewoks"
+authors = [
+  {name = "Étienne Polack", email = "87805034+epolack@users.noreply.github.com"}
+]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+  "jupyterlab>=4.0",
+  "ipykernel>=6.25",
+  "numpy",
+  "matplotlib",
+  "pynx @ git+https://gitlab.esrf.fr/favre/PyNX",
+  "cdiutils @ git+https://github.com/clatlan/cdiutils@dev",
+  "ewokscore",
+  "vtk",
+  "xvfbwrapper",
+]

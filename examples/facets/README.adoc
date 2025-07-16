@@ -1,0 +1,9 @@
+= Facets Runner
+
+Example of a complete exploitation workflow using Ewoks helpers driven from Jupyter
+notebooks.
+
+This is a work in progress:
+The code uses a patchwork of existing processes, some of it reworked using generative AI.
+
+Do not rely on anything in here other than for ephemeral tests.
