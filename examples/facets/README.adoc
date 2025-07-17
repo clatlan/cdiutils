@@ -32,3 +32,16 @@ or directly with _uv_.
 ----
 uv run python -m ipykernel install --user --name="facets" --display-name="Facets"
 ----
+
+=== Run Jupyter locally with a with kerneldequate
+
+[,sh]
+----
+poetry lock && poetry install
+poetry run jupyter lab --no-browser [--NotebookApp.token='']
+----
+or directly with _uv_.
+[,sh]
+----
+uv run jupyter lab --no-browser [--NotebookApp.token='']
+----
