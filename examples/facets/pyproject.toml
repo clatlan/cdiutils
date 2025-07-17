@@ -1,5 +1,5 @@
 [project]
-name = "facets.ewoks"
+name = "facets-drivers"
 version = "0.0.1"
 description = "Helper tools to drive the Full-circle Atomistic Comparison of Experiments, Theory, and Simulation code from Jupyter notebooks using Ewoks"
 authors = [
@@ -13,6 +13,7 @@ dependencies = [
   "matplotlib",
   "pynx @ git+https://gitlab.esrf.fr/favre/PyNX",
   "cdiutils @ git+https://github.com/clatlan/cdiutils@dev",
+  "ewoks",
   "ewokscore",
   "vtk",
   "xvfbwrapper",

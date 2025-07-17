@@ -10,10 +10,25 @@ Do not rely on anything in here other than for ephemeral tests.
 
 == Using the repository
 
+=== Initialisation
+
 [,sh]
 ----
 git clone --filter=blob:none --no-checkout --depth 1 -b facets_workflow https://github.com/epolack/cdiutils facets_workflow
 cd facets_workflow
 git sparse-checkout set examples/facets
 git submodule update --init
+----
+
+=== Creating a kernel
+
+[,sh]
+----
+poetry lock && poetry install
+poetry run python -m ipykernel install --user --name="facets" --display-name="Facets"
+----
+or directly with _uv_.
+[,sh]
+----
+uv run python -m ipykernel install --user --name="facets" --display-name="Facets"
 ----
