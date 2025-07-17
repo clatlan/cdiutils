@@ -7,9 +7,9 @@ from ewokscore import Task
 import importlib
 import math
 # because I do not want to rename the files for now…
-get_facets = importlib.import_module("facets.01_get_facets")
-get_orientation = importlib.import_module("facets.02_get_orientation")
-analyse = importlib.import_module("facets.03_analyse")
+import facets.get_facets
+import facets.get_orientation
+import facets.get_analyse
 
 import vtk
 from IPython.display import Image, display
@@ -25,7 +25,6 @@ def rick_to_pickle(pipeline, dump_dir, filename):
         pickle.dump(pipeline, f)
     return output_path
 
-# ../src/01_get_facets.py sample_0001_scan487.vti 487 --visualize
 class GetFacets(Task, input_names=["scratch_dirpath", "vti_filepath"], output_names=["vtp_facets_filepaths", "obj_filepath"]):
     def run(self):
         vti_filepath = self.inputs.vti_filepath

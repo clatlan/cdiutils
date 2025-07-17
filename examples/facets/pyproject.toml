@@ -17,6 +17,7 @@ dependencies = [
   "ewokscore",
   "vtk",
   "xvfbwrapper",
+  "SimpleITK",
   "facets",
 ]
 
