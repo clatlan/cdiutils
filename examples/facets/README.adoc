@@ -7,3 +7,13 @@ This is a work in progress:
 The code uses a patchwork of existing processes, some of it reworked using generative AI.
 
 Do not rely on anything in here other than for ephemeral tests.
+
+== Using the repository
+
+[,sh]
+----
+git clone --filter=blob:none --no-checkout --depth 1 -b facets_workflow https://github.com/epolack/cdiutils facets_workflow
+cd facets_workflow
+git sparse-checkout set examples/facets
+git submodule update --init
+----
