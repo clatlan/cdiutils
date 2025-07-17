@@ -7,9 +7,9 @@ from ewokscore import Task
 import importlib
 import math
 # because I do not want to rename the files for now…
-import facets.get_facets
-import facets.get_orientation
-import facets.get_analyse
+import facets.get_facets as get_facets
+import facets.get_orientation as get_orientation
+import facets.analyse as analyse
 
 import vtk
 from IPython.display import Image, display
