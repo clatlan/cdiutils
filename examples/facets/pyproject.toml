@@ -16,4 +16,11 @@ dependencies = [
   "ewokscore",
   "vtk",
   "xvfbwrapper",
+  "facets",
 ]
+
+[tool.poetry.dependencies]
+facets = { path = "ext/facets", develop = true }
+
+[tool.uv.sources]
+facets = { path = "ext/facets", editable = true }
