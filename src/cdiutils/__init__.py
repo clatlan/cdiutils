@@ -25,7 +25,7 @@ __submodules__ = {
     "analysis",
     "geometry",
     "converter",
-    "probe",
+    "wavefront",
     "io",
     "process",
     "pipeline",
