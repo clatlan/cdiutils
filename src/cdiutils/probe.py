@@ -685,7 +685,7 @@ def focus_probe(
         probe: np.ndarray,
         pixel_size: tuple,
         wavelength: float,
-        step_nb: int = 100,
+        step_nb: int = 200,
         step_size: float = 10e-6,
         plot: bool = True,
         **plot_kwargs
@@ -739,7 +739,8 @@ def focus_probe(
             propagated_probe,
             pixel_size,
             propagation_step_size=step_size,
-            focal_distances=focal_distances
+            focal_distances=focal_distances,
+            **plot_kwargs
         )
 
     return focused_probe, focal_distances[1]
