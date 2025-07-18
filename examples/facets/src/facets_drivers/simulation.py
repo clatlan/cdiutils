@@ -50,15 +50,15 @@ def run_command(command):
         # Catch any other unexpected errors
         print(f"\n--- An unexpected error occurred: {e} ---")
 
-class RunNanoReSculpted(Task, input_names=["scratch_dirpath", "nsparam_filepath", "num_procs", "obj_filepath"], output_names=["pos_filepath"]):
+class RunNanoReSculpted(Task, input_names=["scratch_directory", "nsparam_filepath", "num_procs", "obj_filepath"], output_names=["pos_filepath"]):
     def run(self):
-        scratch_dirpath = self.inputs.scratch_dirpath
+        scratch_directory = self.inputs.scratch_directory
         nsparam_filepath = self.inputs.nsparam_filepath
         obj_filepath = self.inputs.obj_filepath
         num_procs = self.inputs.num_procs
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
-        shutil.copy(obj_filepath, scratch_dirpath)
+        os.makedirs(scratch_directory, exist_ok=True)
+        os.chdir(scratch_directory)
+        shutil.copy(obj_filepath, scratch_directory)
         command = [
             "apptainer",
             "run",
@@ -73,15 +73,15 @@ class RunNanoReSculpted(Task, input_names=["scratch_dirpath", "nsparam_filepath"
         ]
         run_command(command)
 
-        self.outputs.pos_filepath = str(Path(scratch_dirpath) / "exp.pos")
+        self.outputs.pos_filepath = str(Path(scratch_directory) / "exp.pos")
 
-class RunLammps(Task, input_names=["scratch_dirpath", "pos_filepath", "num_procs"], output_names=["minimized_filepaths"]):
+class RunLammps(Task, input_names=["scratch_directory", "pos_filepath", "num_procs"], output_names=["minimized_filepaths"]):
     def run(self):
-        scratch_dirpath = self.inputs.scratch_dirpath
+        scratch_directory = self.inputs.scratch_directory
         pos_filepath = self.inputs.pos_filepath
         num_procs = self.inputs.num_procs
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
+        os.makedirs(scratch_directory, exist_ok=True)
+        os.chdir(scratch_directory)
 
         exp_in = """\
         # ---------- Initialize Simulation ---------------------
@@ -148,7 +148,7 @@ class RunLammps(Task, input_names=["scratch_dirpath", "pos_filepath", "num_procs
         ]
         run_command(command)
 
-        self.outputs.minimized_filepaths = [str(Path(scratch_dirpath) / file) for file in ["exp_write.xyz", "exp_minimized.xyz"]]
+        self.outputs.minimized_filepaths = [str(Path(scratch_directory) / file) for file in ["exp_write.xyz", "exp_minimized.xyz"]]
         print(self.outputs.minimized_filepaths)
 
 Pt_u3 = """\

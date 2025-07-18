@@ -2,92 +2,54 @@
 
 import os
 from pathlib import Path
-import pickle
 from ewokscore import Task
-import importlib
-import math
-# because I do not want to rename the files for now…
 import facets.get_facets as get_facets
 import facets.get_orientation as get_orientation
-import facets.analyse as analyse
 
 import vtk
 from IPython.display import Image, display
 
-def pickle_to_rick(path):
-    with open(path, "rb") as f:
-        pipeline = pickle.load(f)
-    return pipeline
-
-def rick_to_pickle(pipeline, dump_dir, filename):
-    output_path = os.path.join(dump_dir, filename)
-    with open(output_path, "wb") as f:
-        pickle.dump(pipeline, f)
-    return output_path
-
-class GetFacets(Task, input_names=["scratch_dirpath", "vti_filepath"], output_names=["vtp_facets_filepaths", "obj_filepath"]):
+class GetFacets(Task, input_names=["scratch_directory", "vti_filepath"], output_names=["vtp_facets_filepath", "obj_filepath", "scratch_directory"]):
     def run(self):
         vti_filepath = self.inputs.vti_filepath
-        scratch_dirpath = self.inputs.scratch_dirpath
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
+        scratch_directory = self.inputs.scratch_directory
+        os.makedirs(scratch_directory, exist_ok=True)
+        os.chdir(scratch_directory)
         arguments = [f'{vti_filepath}', 'exp', '--create-obj-0', 'exp.obj']
         get_facets.main(arguments)
-        self.outputs.obj_filepath = str(Path(scratch_dirpath) / f"exp.obj")
+        self.outputs.obj_filepath = str(Path(scratch_directory) / f"exp.obj")
         print(self.outputs.obj_filepath)
-        self.outputs.vtp_facets_filepaths = str(Path(scratch_dirpath) / f"exp_1.vtp")
+        self.outputs.vtp_facets_filepath = str(Path(scratch_directory) / f"exp_1.vtp")
+        self.outputs.scratch_directory = scratch_directory
 
-class GetOrientation(Task, input_names=["scratch_dirpath", "vtp_facets_filepath"], output_names=["orientation_filepath", "nsparam_filepath"]):
+class GetOrientation(Task, input_names=["scratch_directory", "vtp_facets_filepath"], output_names=["orientation_filepath", "nsparam_filepath", "scratch_directory", "vtp_facets_filepath"]):
     def run(self):
         vtp_facets_filepath = self.inputs.vtp_facets_filepath
-        scratch_dirpath = self.inputs.scratch_dirpath
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
+        scratch_directory = self.inputs.scratch_directory
+        os.makedirs(scratch_directory, exist_ok=True)
+        os.chdir(scratch_directory)
         arguments = [vtp_facets_filepath, "--axis", "Y",
                      "--hkl", "111", "--exclude_hkl", "1,1,1;-1,-1,-1",
                      "--save-orientation", "orientation.txt",
                      "--create-nsparam", "exp.nsparam"]
         get_orientation.main(arguments)
-        self.outputs.nsparam_filepath = str(Path(scratch_dirpath) / "exp.nsparam")
-        self.outputs.orientation_filepath = str(Path(scratch_dirpath) / "orientation.txt")
+        self.outputs.nsparam_filepath = str(Path(scratch_directory) / "exp.nsparam")
+        self.outputs.orientation_filepath = str(Path(scratch_directory) / "orientation.txt")
+        self.outputs.scratch_directory = scratch_directory
+        self.outputs.vtp_facets_filepath = vtp_facets_filepath
         print(self.outputs.nsparam_filepath)
 
-class GetOrientedFacets(Task, input_names=["scratch_dirpath", "vti_filepath", "orientation_filepath"], output_names=["vtp_oriented_files"]):
+class GetOrientedFacets(Task, input_names=["scratch_directory", "vtp_facets_filepath", "orientation_filepath"], output_names=["vtp_oriented_files", "scratch_directory"]):
     def run(self):
-        vti_filepath = self.inputs.vti_filepath
+        vtp_facets_filepath = self.inputs.vtp_facets_filepath
         orientation_filepath = self.inputs.orientation_filepath
-        scratch_dirpath = self.inputs.scratch_dirpath
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
-        arguments = [vti_filepath, "oriented_exp", "--orientation-matrix", orientation_filepath, "--visualize"]
+        scratch_directory = self.inputs.scratch_directory
+        os.makedirs(scratch_directory, exist_ok=True)
+        os.chdir(scratch_directory)
+        arguments = [vtp_facets_filepath, "oriented_exp", "--relabel-from-hull", "--orientation-matrix", orientation_filepath, "--visualize"]
         get_facets.main(arguments)
-        self.outputs.vtp_oriented_files = [str(Path(scratch_dirpath) / f'oriented_exp_{i}.vtp') for i in range(0, 4)]
-
-class FullCircleAnalysis(Task, input_names=["scratch_dirpath"], optional_input_names=["vti_filepath", "xyz_filepath"]):
-    def run(self):
-        scratch_dirpath = self.inputs.scratch_dirpath
-        vti_filepath = self.get_input_value("vti_filepath", None)
-        xyz_filepath = self.get_input_value("xyz_filepath", None)
-        os.makedirs(scratch_dirpath, exist_ok=True)
-        os.chdir(scratch_dirpath)
-        if vti_filepath is not None:
-            arguments = ["--hkl", "0", "2", "0", "--exp-qnorm", "3.2",
-                         #"--exp-voxel-size", "5", "5", "5",
-                         #"--exp-amp-key", "amp",
-                         #"--final-shape", "64", "64", "64",
-                         "--final-shape", "64", "64", "64",
-                         "--phase-range", f"{math.pi/12}",
-                         "--strain-range", "5e-4",
-                         "--exp-data", vti_filepath]
-
-        if xyz_filepath is not None:
-            arguments = ["--hkl", "0", "2", "0",
-                         "--nstep", "800",
-                         "--strain-range", "5e-4",          # remove to match Corentin’s
-                         "--phase-range", f"{math.pi/12}",  # remove to match Corentin’s
-                         "--input-file", xyz_filepath]
-
-        analyse.main(arguments)
+        self.outputs.vtp_oriented_files = [str(Path(scratch_directory) / f'oriented_exp_{i}.vtp') for i in range(0, 4)]
+        self.outputs.scratch_directory = scratch_directory
 
 ######## Monkey ################
 # Use
