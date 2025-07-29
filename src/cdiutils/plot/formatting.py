@@ -133,11 +133,11 @@ def add_labels(
     if convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()
         if views is None:
-            views = ("x-", "y-", "z-")
+            views = ("x-", "y+", "z-")
     elif convention.lower() == "cxi":
         view_params = CXI_VIEW_PARAMETERS.copy()
         if views is None:
-            views = ("z-", "y+", "x+")
+            views = ("z+", "y-", "x+")
     else:
         raise ValueError(f"Invalid convention ({convention}).")
 
