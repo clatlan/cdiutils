@@ -62,7 +62,7 @@ def plot_volume_slices(
         convention (str, optional): the convention employed to plot the
             multiple slices, if views not specified, will set the
             default views for the specified convention, i.e.:
-            ("x-", "y-", "z-") for XU convention and ("z+", "y-", "x+")
+            ("x-", "y+", "z-") for XU convention and ("z+", "y-", "x+")
             for the CXI convention. If None, natural views are plotted.
             Defaults to None.
         title (str, optional): the title of the plot. Defaults to None.
@@ -103,7 +103,7 @@ def plot_volume_slices(
     elif convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()  # overwrite the params
         if views is None:
-            views = ("x-", "y-", "z-")
+            views = ("x-", "y+", "z-")
     elif convention.lower() == "cxi":
         if views is None:
             views = ("z+", "y-", "x+")
