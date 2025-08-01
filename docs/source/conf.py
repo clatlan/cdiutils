@@ -47,7 +47,6 @@ extensions = [
     "sphinx.ext.todo",           # Todo extension
     "sphinx.ext.intersphinx",    # Cross-reference other docs
     "nbsphinx",                  # Jupyter notebook support
-    "nbsphinx_link",             # Link to notebooks
 ]
 
 # Intersphinx mapping

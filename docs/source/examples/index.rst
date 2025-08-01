@@ -13,14 +13,11 @@ This section contains practical examples of using CdiUtils.
 Example Notebooks
 -----------------
 
-The following Jupyter notebooks demonstrate various features:
+The following Jupyter notebooks demonstrate various features and can be found in the `examples/` directory of the repository:
 
-.. toctree::
-   :maxdepth: 1
-
-   ../../examples/bcdi_reconstruction_analysis
-   ../../examples/explore_cxi_file
-   ../../examples/pole_figure
+- `bcdi_reconstruction_analysis.ipynb` - BCDI reconstruction analysis workflow
+- `explore_cxi_file.ipynb` - Exploring CXI file format data
+- `pole_figure.ipynb` - Creating pole figure visualizations
 
 Geometry Examples
 -----------------
