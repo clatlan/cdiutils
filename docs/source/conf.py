@@ -23,19 +23,23 @@ extensions = [
     "sphinx.ext.viewcode",       # Adds links to source code
     "sphinx.ext.autosummary",    # Generates summary tables
     "sphinx_autodoc_typehints",  # Shows type hints in docs
-
-    'sphinx.ext.doctest',
-    # 'sphinx.ext.intersphinx',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.githubpages',
-    'sphinx.ext.todo',
-    # 'sphinx.ext.graphviz',
-    # 'sphinx.ext.inheritance_diagram',
-    'nbsphinx',
-    'nbsphinx_link',
-    # 'sphinxarg.ext'
+    "sphinx.ext.doctest",        # Supports doctest
+    "sphinx.ext.coverage",       # Coverage extension
+    "sphinx.ext.mathjax",        # Math support
+    "sphinx.ext.githubpages",    # GitHub pages support
+    "sphinx.ext.todo",           # Todo extension
+    "sphinx.ext.intersphinx",    # Cross-reference other docs
+    "nbsphinx",                  # Jupyter notebook support
+    "nbsphinx_link",             # Link to notebooks
 ]
+
+# Intersphinx mapping
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+}
 
 # Automatically generate stub files
 autosummary_generate = True
@@ -48,17 +52,14 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = "pydata_sphinx_theme"
 html_static_path = ['_static']
-
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 todo_include_todos = True
 
 autoclass_content = 'both'
-
-html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
     "show_nav_level": 2,

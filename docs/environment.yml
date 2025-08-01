@@ -2,13 +2,18 @@ name: readthedocs
 channels:
   - conda-forge
 dependencies:
-  - python==3.5
-  - sphinx>=1.4
+  - python>=3.10
+  - sphinx>=6.0
   - pandoc
   - nbconvert
   - ipykernel
   - nbsphinx
   - nbsphinx-link
-  - sphinx-rtd-theme
   - pydata-sphinx-theme
   - sphinx-autodoc-typehints
+  - numpy
+  - matplotlib
+  - scipy
+  - pip
+  - pip:
+    - sphinx-design
