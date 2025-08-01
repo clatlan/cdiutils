@@ -4,19 +4,8 @@ channels:
 dependencies:
   - python>=3.10
   - sphinx>=6.0
-  - pandoc
-  - nbconvert
-  - ipykernel
-  - nbsphinx
-  - nbsphinx-link
   - pydata-sphinx-theme
   - sphinx-autodoc-typehints
-  - numpy
-  - matplotlib
-  - scipy
-  - h5py
-  - fabio
-  - xrayutilities
   - pip
   - pip:
     - sphinx-design

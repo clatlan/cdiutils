@@ -3,6 +3,23 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import sys
+from unittest.mock import MagicMock
+
+# Mock heavy dependencies for documentation building
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+MOCK_MODULES = [
+    'numpy', 'scipy', 'matplotlib', 'h5py', 'pandas', 'scikit-image',
+    'scikit-learn', 'seaborn', 'silx', 'xrayutilities', 'ipyvolume',
+    'ipython_genutils', 'bokeh', 'panel', 'tornado', 'vtk', 'colorcet',
+    'hdf5plugin', 'tabulate'
+]
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
