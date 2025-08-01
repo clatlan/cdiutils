@@ -2,7 +2,7 @@ import inspect
 import warnings
 
 import numpy as np
-from scipy.fft import fftshift, ifftshift, fft2, ifft2, fftn
+from scipy.fft import fftshift, ifftshift, fftn
 import matplotlib
 import scipy.constants as cts
 from scipy.ndimage import convolve, center_of_mass, median_filter
@@ -231,105 +231,6 @@ def fill_up_support(support: np.ndarray) -> np.ndarray:
         convex_support[combined_support != 0] = 1
 
     return convex_support
-
-
-def angular_spectrum_propagation(
-        wavefront: np.ndarray,
-        z: float,
-        wavelength: float,
-        dx: float,
-        m: float = 1,
-        verbose: bool = False
-) -> np.ndarray:
-    """
-    Computes the near-field propagation of a wavefront using the Angular
-    Spectrum Method.
-
-    Parameters:
-        wavefront (np.ndarray): 2D or 3D complex array representing the
-            wavefront, assumed to be fftshifted.
-        z (float): Propagation distance.
-        wavelength (float): Wavelength of the wavefront.
-        dx (float): Pixel size in the spatial domain.
-        m (float, optional): Magnification factor to handle the pixel
-            size of the propagated wavefront (default is 1).
-        verbose (bool): whether to print z limits. 
-
-    Returns:
-        np.ndarray: Propagated wavefront at distance z.
-    """
-    if z == 0:
-        return wavefront
-
-    # Handle 2D and 3D input wavefronts
-    if wavefront.ndim == 2:
-        # Convert 2D to 3D with one slice
-        wavefront_stack = wavefront[np.newaxis, ...]
-    elif wavefront.ndim == 3:
-        wavefront_stack = wavefront
-    else:
-        raise ValueError("Input wavefront must be a 2D or 3D array.")
-
-    nz, ny, nx = wavefront_stack.shape
-
-    min_dist = max(abs((m - 1) / m), abs(m - 1)) * nx * dx ** 2 / wavelength
-    max_dist = abs(m) * nx * dx ** 2 / wavelength
-
-    if verbose:
-        print(
-            "Near field magnified propagation: "
-            f"{min_dist:.4e} < |{z=:.4e}| < {max_dist:.4e}?"
-        )
-
-    # Spatial coordinates in the source plane
-    x = fftshift(np.arange(-nx//2, nx//2) * dx)
-    y = fftshift(np.arange(-ny//2, ny//2) * dx)
-    Y, X = np.meshgrid(x, y, indexing="ij")
-
-    # Spatial frequency coordinates (or Fourier coordinates)
-    fx = np.fft.fftfreq(nx, dx)
-    fy = np.fft.fftfreq(ny, dx)
-    FY, FX = np.meshgrid(fx, fy, indexing="ij")
-
-    # Quadratic phase factor in the source plane
-    Q1 = np.exp(1j * np.pi / (wavelength * z) * (1 - m) * (X**2 + Y**2))
-
-    # Propagation kernel in the Fourier domain
-    Q2 = np.exp(-1j * np.pi * wavelength * z / m * (FX**2 + FY**2))
-
-    # Quadratic phase factor in the observation plane
-    Q3 = np.exp(1j * np.pi / (wavelength * z) * (m - 1) * m * (X**2 + Y**2))
-
-    # Initialise the output array for the propagated wavefront
-    propagated_wavefront = np.zeros_like(wavefront_stack, dtype=complex)
-
-    # Process each 2D slice in the stack
-    for j in range(nz):
-        wavefront_slice = wavefront_stack[j, :, :]
-
-        # Apply the source plane quadratic phase (Q1)
-        wavefront_mod = wavefront_slice * Q1
-
-        # Fourier transform of the modified wavefront slice
-        wavefront_ft = fft2(wavefront_mod, norm="ortho")
-
-        # Apply the propagation kernel (Q2)
-        wavefront_ft_propagated = wavefront_ft * Q2
-
-        # Inverse Fourier transform to get the propagated wavefront
-        propagated_slice = ifft2(wavefront_ft_propagated, norm="ortho")
-
-        # Apply the observation plane quadratic phase (Q3)
-        propagated_slice = propagated_slice * Q3
-
-        # Store the result in the output array
-        propagated_wavefront[j, :, :] = propagated_slice
-
-    # If the input was 2D, return a 2D array
-    if wavefront.ndim == 2:
-        return np.squeeze(propagated_wavefront)
-
-    return propagated_wavefront
 
 
 def size_up_support(support: np.ndarray) -> np.ndarray:
@@ -760,6 +661,9 @@ class CroppingHandler:
         Raises:
         ValueError: If an invalid method is provided.
         """
+        # if the data is complex, we take the absolute value
+        if np.iscomplexobj(data):
+            data = np.abs(data)
         if method == "max":
             return np.unravel_index(np.argmax(data), data.shape)
         elif method == "com":
@@ -943,6 +847,7 @@ class CroppingHandler:
         """
         if output_shape is None:
             output_shape = data.shape
+        output_shape = np.array(output_shape)
 
         if where == "centre":
             where = tuple(e // 2 for e in data.shape)
@@ -957,12 +862,13 @@ class CroppingHandler:
             )
         )
         if verbose:
-            if np.any(safe_shape == output_shape):
+            print(f"Safe shape for cropping: {tuple(safe_shape)}")
+            if np.all(safe_shape == output_shape):
                 print("Does not require forced-centered cropping.")
             else:
                 print(
-                    "Required shape for cropping at the center is"
-                    f"{safe_shape}."
+                    "Required shape for cropping at the center is "
+                    f"{tuple(safe_shape)}."
                 )
         plus_one = np.where((safe_shape % 2 == 0), 0, 1)
         crop = [
@@ -971,8 +877,8 @@ class CroppingHandler:
         ]
         roi = []
         for i, s in enumerate(shape):
-            roi.append(np.max([where[i]-crop[i][0], 0]))
-            roi.append(np.min([where[i]+crop[i][1], s]))
+            roi.append(np.max([position[i]-crop[i][0], 0]))
+            roi.append(np.min([position[i]+crop[i][1], s]))
 
         return data[cls.roi_list_to_slices(roi)]
 

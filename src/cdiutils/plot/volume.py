@@ -16,7 +16,8 @@ from cdiutils.plot.formatting import (
     get_figure_size,
     get_extent,
     save_fig,
-    CXI_VIEW_PARAMETERS
+    CXI_VIEW_PARAMETERS,
+    XU_VIEW_PARAMETERS
 )
 from cdiutils.utils import (
     find_suitable_array_shape,
@@ -660,6 +661,7 @@ def plot_3d_surface_projections(
         support: np.ndarray,
         voxel_size: tuple | list | np.ndarray,
         view_parameters: dict = None,
+        convention: str | None = None,
         figsize: tuple = None,
         title: str = None,
         cbar_title: str = None,
@@ -675,6 +677,9 @@ def plot_3d_surface_projections(
             the data to plot.
         view_parameters (dict, optional): some parameters required for
             setting the plot views. Defaults to CXI_VIEW_PARAMETERS.
+        convention (str, optional): the convention of the data, either
+            "cxi" or "xu". Defaults to None, which will use the CXI
+            convention.
         figsize (tuple, optional): the size of the figure. Defaults to
             None.
         title (str, optional): the title of the figure. Defaults to
@@ -685,8 +690,14 @@ def plot_3d_surface_projections(
     Returns:
         matplotlib.figure.Figure: the figure.
     """
+    if convention is None:
+        convention = "cxi"
+
     if view_parameters is None:
-        view_parameters = CXI_VIEW_PARAMETERS.copy()
+        if convention.lower() == "cxi":
+            view_parameters = CXI_VIEW_PARAMETERS.copy()
+        elif convention.lower() == "xu":
+            view_parameters = XU_VIEW_PARAMETERS.copy()
 
     if figsize is None:
         figsize = get_figure_size(subplots=(3, 3))

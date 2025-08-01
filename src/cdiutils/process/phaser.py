@@ -19,6 +19,7 @@ try:
     from pynx.cdi import (
         CDI,
         AutoCorrelationSupport,
+        InitSupportShape,
         ScaleObj,
         SupportUpdate,
         HIO,
@@ -57,6 +58,14 @@ DEFAULT_PYNX_PARAMS = {
     "update_border_n": 0,
     "smooth_width_begin": 2,
     "smooth_width_end": 0.5,
+    "support": None,
+    "obj": None,
+    "amp_range": (0, 100),
+    "phase_range": (-np.pi, np.pi),
+    "all_random": False,
+    "support_shape": None,
+    "support_formula": None,
+    "support_size": None,
 
     # object initialisation
     # "support": "auto",
@@ -80,7 +89,7 @@ DEFAULT_PYNX_PARAMS = {
 }
 
 
-class PynNXImportError(Exception):
+class PyNXImportError(ImportError):
     """Custom exception to handle Pynx import error."""
 
     def __init__(self, msg: str = None) -> None:
@@ -123,7 +132,7 @@ class PyNXPhaser:
              is of no use.
         """
         if not IS_PYNX_AVAILABLE:
-            raise PynNXImportError
+            raise PyNXImportError
         self.iobs = fftshift(iobs)
 
         self.mask = None
@@ -135,7 +144,7 @@ class PyNXPhaser:
         # not elegant, but works...
         self.params = copy.deepcopy(DEFAULT_PYNX_PARAMS)
         if params is not None:
-            self.params = self._update_params(self.params, new_params=params)
+            self.params.update(params)
 
         if operators is None:
             self.operators = self._init_operators()
@@ -154,31 +163,6 @@ class PyNXPhaser:
 
         self.figure: matplotlib.figure.Figure = None
 
-    def _update_params(self, target: dict, new_params: dict) -> dict:
-        """
-        Update the parameter dictionary recursively.
-
-        Args:
-            target (dict): the target dictionary.
-            new_params (dict): the new parameters to update.
-
-        Returns:
-            dict: the updated parameter dictionary.
-        """
-
-        for key, value in new_params.items():
-            if (
-                    isinstance(value, dict)
-                    and key in target
-                    and isinstance(target[key], dict)
-            ):
-                # Recursively update sub-dictionaries
-                self._update_params(target[key], value)
-            else:
-                # Update non-dictionary values
-                target[key] = value
-        return target
-
     def _init_operators(self) -> dict:
         """Initialise generic PynX operators."""
         operator_parameters = {
@@ -195,7 +179,7 @@ class PyNXPhaser:
             "detwinhio": DetwinHIO(detwin_axis=1),
             "raar": RAAR(**operator_parameters),
             "detwinraar": DetwinRAAR(detwin_axis=1),
-            "fap": FourierApplyAmplitude(
+            "faa": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)
             )
         }
@@ -213,11 +197,44 @@ class PyNXPhaser:
         else:
             self.support_update = 1
 
-    def _init_cdi(self, verbose=False) -> CDI_Type:
+    def init_cdi(
+            self,
+            verbose: bool = True,
+            init_main_cdi: bool = True,
+            **params
+    ) -> CDI_Type:
         """
-        The private method that takes care of the actual
-        initialisation the CDI instance.
+        Initialise the CDI object.
+
+        Args:
+            verbose (bool, optional): whether to print the
+                initialisation steps. Defaults to True.
+            init_main_cdi (bool, optional): whether to set the cdi
+                attribute or not. Defaults to True.
+            **params (optional): the parameters to update the
+                default ones with.
+
+        Returns:
+            CDI_Type: the initialised CDI object.
         """
+        if params is not None:
+            for key in ["support", "obj"]:
+                if key in params and isinstance(params[key], np.ndarray):
+                    if verbose:
+                        print(f"fftshifting {key}")
+                    params[key] = fftshift(params[key])
+            self.params.update(params)
+
+        if self.params["positivity"]:
+            self.params["phase_range"] = 0
+
+        for key in ["amp_range", "phase_range"]:
+            if isinstance(self.params[key], (int, float)):
+                self.params[key] = (
+                    -self.params[key] if key == "phase_range" else 0,
+                    self.params[key]
+                )
+
         cdi = CDI(
             self.iobs, self.params["support"], self.params["obj"], self.mask
         )
@@ -239,6 +256,12 @@ class PyNXPhaser:
                     size=self.iobs.size
                 ).reshape(self.iobs.shape)
                 cdi.set_obj(amp * np.exp(1j * phase))
+            elif self.params["support_shape"] is not None:
+                cdi = InitSupportShape(
+                    shape=self.params["support_shape"],
+                    size=self.params.get("support_size"),
+                    formula=self.params.get("support_formula"),
+                ) * cdi
             else:
                 if verbose:
                     print("Support will be initialised using autocorrelation.")
@@ -276,7 +299,9 @@ class PyNXPhaser:
             #     phirange=self.params["phase_range"]
             # ) * cdi
         if self.params["scale_obj"]:
-            cdi = ScaleObj(method=self.params["scale_obj"]) * cdi
+            cdi = ScaleObj(
+                method=self.params["scale_obj"], verbose=verbose
+            ) * cdi
         if self.params["psf"] is not None:
             model, fwhm, eta, _ = self.params["psf"].split(",")
             cdi = InitPSF(model, float(fwhm), float(eta)) * cdi
@@ -284,61 +309,9 @@ class PyNXPhaser:
         if self.params["compute_free_llk"]:
             cdi.init_free_pixels()
 
+        if init_main_cdi:
+            self.cdi = cdi
         return cdi
-
-    def init_cdi(
-            self,
-            support: np.ndarray = None,
-            obj: np.ndarray = None,
-            phase_range: float | tuple | list | np.ndarray = np.pi,
-            amp_range: float | tuple | list | np.ndarray = 100,
-            all_random: bool = False,
-            scale_obj: str = "I",
-    ) -> None:
-        """
-        Initialise the CDI object. This will first update the
-        self.params dictionary and run the private method _init_cdi().
-
-
-        Args:
-            support (np.ndarray, optional): a support for the initial
-                guess. Defaults to None.
-            obj (np.ndarray, optional): an object for the initial guess.
-                Defaults to None.
-            phase_range (float | tuple | list | np.ndarray, optional):
-                the phase range used to initialise the guess random
-                phase. Defaults to np.pi.
-            amp_range (float | tuple | list | np.ndarray, optional):
-                the amplitude range used to initialise the guess
-                amplitude. Defaults to 100.
-            all_random (bool, optional): whether or not to make
-                the initial guess fully random (phase and amplitude).
-                Defaults to False.
-            scale_obj (str, optional): scale the object amplitude so it
-                the calculated intensity matches the observed one. See
-                the associated PyNX parameter. Defaults to "I".
-        """
-        # Store all method parameters into the self.params attribute
-        local_parameters = locals()
-        self.params.update(
-            {
-                param: value for param, value in local_parameters.items()
-                if param != 'self'
-            }
-        )
-        if self.params["positivity"]:
-            self.params["phase_range"] = 0
-        for key in ["support", "obj"]:
-            if isinstance(self.params[key], np.ndarray):
-                self.params[key] = fftshift(self.params[key])
-        for key in ["amp_range", "phase_range"]:
-            if isinstance(self.params[key], (int, float)):
-                self.params[key] = (
-                    -self.params[key] if key == "phase_range" else 0,
-                    self.params[key]
-                )
-
-        self.cdi = self._init_cdi(verbose=True)
 
     @classmethod
     def read_instructions(cls, recipe: str) -> list[str]:
@@ -375,7 +348,7 @@ class PyNXPhaser:
         if cdi is None:
             cdi = self.cdi
             if init_cdi:
-                cdi = self._init_cdi()
+                cdi = self.init_cdi(init_main_cdi=False)
 
         instructions = self.read_instructions(recipe)
         for i, instruction in enumerate(instructions):
@@ -424,8 +397,8 @@ class PyNXPhaser:
                             self.support_threshold_auto_tune_factor
                         )
                         attempt += 1
-            elif instruction.lower() == "fap":
-                self.operators["fap"] * cdi
+            elif instruction.lower() == "faa":
+                self.operators["faa"] * cdi
             else:
                 raise ValueError(f"Invalid instruction ({instruction}).")
 
@@ -453,7 +426,9 @@ class PyNXPhaser:
         if init_cdi:
             self.cdi_list = []
             for i in range(run_nb):
-                self.cdi_list.append(self._init_cdi())
+                self.cdi_list.append(
+                    self.init_cdi(init_main_cdi=False, verbose=False)
+                )
         else:
             if self.cdi_list is None or not self.cdi_list:
                 raise ValueError(
@@ -499,7 +474,9 @@ class PyNXPhaser:
         if init_cdi:
             self.cdi_list = []
             for i in range(run_nb):
-                self.cdi_list.append(self._init_cdi())
+                self.cdi_list.append(
+                    self.init_cdi(init_main_cdi=False, verbose=False)
+                )
         else:
             if self.cdi_list is None or self.cdi_list == []:
                 raise ValueError(
@@ -518,10 +495,15 @@ class PyNXPhaser:
             else:
                 print(f"\nGenetic pass #{i}.")
                 for i in range(run_nb):
-                    metrics[i] = PhasingResultAnalyser.amplitude_based_metrics(
-                        np.abs(self.cdi_list[i].get_obj(shift=True)),
-                        self.cdi_list[i].get_support(shift=True)
-                    )[selection_method]
+                    try:
+                        metrics[i] = (
+                            PhasingResultAnalyser.amplitude_based_metrics(
+                                np.abs(self.cdi_list[i].get_obj(shift=True)),
+                                self.cdi_list[i].get_support(shift=True)
+                            )[selection_method]
+                        )
+                    except ValueError:
+                        metrics[i] = np.nan
 
                 indice = np.argsort(metrics)[0]
                 print(
@@ -775,6 +757,14 @@ class PhasingResultAnalyser:
         Returns:
             dict: the dictionary containing the metrics.
         """
+        if amplitude.shape != support.shape:
+            raise ValueError(
+                "Amplitude and support must have the same shape."
+            )
+        if amplitude.size == 0 or support.size == 0:
+            raise ValueError(
+                "Amplitude and support must not be empty arrays."
+            )
         sharpness = np.mean((amplitude * support)**4)
         amplitude = amplitude[support > 0]
         std = np.std(amplitude)
@@ -853,9 +843,16 @@ class PhasingResultAnalyser:
                     amplitude = np.abs(self.cdi_results[run].get_obj())
                     support = self.cdi_results[run].get_support()
                     # update the metric dictionary
-                    amplitude_based_metrics = self.amplitude_based_metrics(
-                        amplitude, support
-                    )
+                    try:
+                        amplitude_based_metrics = self.amplitude_based_metrics(
+                            amplitude, support
+                        )
+                    except ValueError:
+                        amplitude_based_metrics = {
+                            "mean_to_max": np.nan,
+                            "std": np.nan,
+                            "sharpness": np.nan
+                        }
                     for m in ["mean_to_max", "std", "sharpness"]:
                         self._metrics[m][run] = amplitude_based_metrics[m]
             else:
@@ -1065,7 +1062,7 @@ class PhasingResultAnalyser:
             np.ndarray: the main mode.
         """
         if not IS_PYNX_AVAILABLE:
-            raise PynNXImportError
+            raise PyNXImportError
 
         if self.best_candidates:
             result_keys = self.best_candidates

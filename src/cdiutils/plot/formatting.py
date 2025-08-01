@@ -14,45 +14,45 @@ import colorcet  # noqa, F401
 CXI_VIEW_PARAMETERS = {
    "z+": {
        "axis": 0, "plane": [1, 2], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
     },
    "z-": {
        "axis": 0, "plane": [1, 2], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
     },
    "y+": {
        "axis": 1, "plane": [0, 2], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$"
     },
    "y-": {
        "axis": 1, "plane": [0, 2], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$"
     },
    "x+": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
-       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
     },
    "x-": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
-       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$ (nm)",
-       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
+       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
     },
 }
 
@@ -61,45 +61,45 @@ CXI_VIEW_PARAMETERS = {
 XU_VIEW_PARAMETERS = {
    "x+": {
        "axis": 0, "plane": [2, 1], "xaxis_points_left": True,
-       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "x-": {
        "axis": 0, "plane": [2, 1], "xaxis_points_left": False,
-       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "y+": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
-       "xlabel": r"$x{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "y-": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
     },
    "z+": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$"
     },
    "z-": {
        "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$ (nm)",
-       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$ (nm)",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}} ~(\mathrm{\AA^{-1}})$"
+       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$"
     },
 }
 
@@ -127,16 +127,17 @@ def add_labels(
         axes: plt.Axes,
         views: tuple[str] = None,
         space: str = "direct",
-        convention: str = "cxi"
+        convention: str = "cxi",
+        unit: str = None
 ) -> None:
     if convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()
         if views is None:
-            views = ("x-", "y-", "z-")
+            views = ("x-", "y+", "z-")
     elif convention.lower() == "cxi":
         view_params = CXI_VIEW_PARAMETERS.copy()
         if views is None:
-            views = ("z-", "y+", "x+")
+            views = ("z+", "y-", "x+")
     else:
         raise ValueError(f"Invalid convention ({convention}).")
 
@@ -155,9 +156,16 @@ def add_labels(
     else:
         raise ValueError(f"Invalid space name ({space}).")
 
+    if unit is None:
+        unit = " (nm)"
+        if space.lower() in ("reciprocal", "rcp"):
+            unit = r" ($\mathrm{\AA^{-1}}$)"
+    elif not unit.startswith(" ("):
+        unit = f" ({unit})"
+
     for ax, v in zip(axes.flat, views):
-        ax.set_xlabel(view_params[v][xlabel_key])
-        ax.set_ylabel(view_params[v][ylabel_key])
+        ax.set_xlabel(view_params[v][xlabel_key] + unit)
+        ax.set_ylabel(view_params[v][ylabel_key] + unit)
 
 
 def get_x_y_limits_extents(
@@ -521,15 +529,35 @@ def get_figure_size(
     return (fig_width_in, fig_height_in)
 
 
+def get_mappable(ax: plt.Axes) -> matplotlib.cm.ScalarMappable | None:
+    """Get a mappable object from an axis regardless of plot type."""
+    # Check for images (imshow)
+    if len(ax.images) > 0:
+        return ax.images[0]
+
+    # Check for contour/contourf collections
+    if len(ax.collections) > 0:
+        # For contourf plots, the collections contain the filled regions
+        # We want the one with the colormap info (typically the last one)
+        for collection in ax.collections:
+            if hasattr(collection, "cmap"):
+                return collection
+
+        # If no collection with cmap found, return the last one
+        return ax.collections[-1]
+
+    return None
+
+
 def add_colorbar(
-    ax: plt.Axes,
-    mappable: matplotlib.cm.ScalarMappable = None,
-    loc: str = "right",
-    size: str = "5%",
-    pad: float = 0.05,
-    label_size: int = 6,
-    scientific_notation: bool = False,
-    **kwargs,
+        ax: plt.Axes,
+        mappable: matplotlib.cm.ScalarMappable = None,
+        loc: str = "right",
+        size: str = "5%",
+        pad: float = 0.05,
+        label_size: int = 6,
+        scientific_notation: bool = False,
+        **kwargs
 ) -> matplotlib.colorbar.Colorbar:
     """
     Add a colorbar to the given axes. Stolen from Edoardo Zatterin sxdm
@@ -556,14 +584,14 @@ def add_colorbar(
         matplotlib.colorbar.Colorbar: the colorbar object.
     """
     if mappable is None:
-        if ax.images == []:
+        mappable = get_mappable(ax)
+        if mappable is None:
             raise ValueError(
-                "mappable is None and ax.images is empty! "
-                "Provide ax on which an image has beem drawn or provide a "
-                "mappable."
+                "mappable is None and no images or collections found in ax! "
+                "Provide mappable or ax on which an image has been drawn via "
+                "imshow or contourf."
             )
-        mappable = ax.images[0]
-    
+
     # check if vmin and vmax from the normalisation object are valid
     norm = mappable.norm
     vmin, vmax = norm.vmin, norm.vmax
@@ -577,8 +605,7 @@ def add_colorbar(
                 UserWarning
             )
             return None  # skip colorbar if LogNorm is invalid
-        
-    
+
     fig = ax.get_figure()
     cax = make_axes_locatable(ax).append_axes(loc, size=size, pad=pad)
     cax.tick_params(labelsize=label_size)

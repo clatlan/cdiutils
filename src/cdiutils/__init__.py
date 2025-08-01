@@ -25,6 +25,7 @@ __submodules__ = {
     "analysis",
     "geometry",
     "converter",
+    "wavefront",
     "io",
     "process",
     "pipeline",
@@ -39,11 +40,18 @@ __class_submodules__ = {
     "CXIFile": "io"
 }
 
+__function_submodules__ = {
+    "update_plot_params": "plot",
+}
 __all__ = [
     "energy_to_wavelength", "wavelength_to_energy", "make_support",
     "get_centred_slices", "CroppingHandler", "hot_pixel_filter"
 ]
-__all__ += list(__submodules__) + list(__class_submodules__)
+__all__ += (
+    list(__submodules__)
+    + list(__class_submodules__)
+    + list(__function_submodules__)
+)
 
 
 def __getattr__(name):
@@ -55,6 +63,13 @@ def __getattr__(name):
     if name in __class_submodules__:
         submodule = importlib.import_module(
             f"{__name__}.{__class_submodules__[name]}"
+        )
+        return getattr(submodule, name)
+
+    # Lazy load specific functions
+    if name in __function_submodules__:
+        submodule = importlib.import_module(
+            f"{__name__}.{__function_submodules__[name]}"
         )
         return getattr(submodule, name)
 

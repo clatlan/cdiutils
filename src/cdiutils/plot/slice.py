@@ -32,6 +32,9 @@ def plot_volume_slices(
         equal_limits: bool = True,
         slice_shift: tuple | list = None,
         integrate: bool = False,
+        opacity: np.ndarray = None,
+        plot_type: str = "imshow",
+        contour_levels: int = 100,
         show: bool = True,
         **plot_params
 ) -> tuple[plt.Figure, plt.Axes]:
@@ -59,7 +62,7 @@ def plot_volume_slices(
         convention (str, optional): the convention employed to plot the
             multiple slices, if views not specified, will set the
             default views for the specified convention, i.e.:
-            ("x-", "y-", "z-") for XU convention and ("z+", "y-", "x+")
+            ("x-", "y+", "z-") for XU convention and ("z+", "y-", "x+")
             for the CXI convention. If None, natural views are plotted.
             Defaults to None.
         title (str, optional): the title of the plot. Defaults to None.
@@ -70,6 +73,13 @@ def plot_volume_slices(
             Defaults to None.
         integrate (bool, optional): whether to sum the data instead of
             taking the slice. Defaults to False.
+        opacity (np.ndarray, optional): the opacity 3D array of the
+            data. Defaults to None. If constant opacity is required, use
+            the 'alpha' parameter.
+        plot_type (str, optional): Type of plot to use. Options are
+            'imshow' or 'contourf'. Defaults to 'imshow'.
+        contour_levels (int, optional): Number of contour levels when
+            using 'contourf' plot type. Defaults to 100.
         show (bool, optional): whether to show the plot. Defaults to
             True. False might be useful if the function is only used for
             generating the axes that are then redrawn afterwards.
@@ -93,7 +103,7 @@ def plot_volume_slices(
     elif convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()  # overwrite the params
         if views is None:
-            views = ("x-", "y-", "z-")
+            views = ("x-", "y+", "z-")
     elif convention.lower() == "cxi":
         if views is None:
             views = ("z+", "y-", "x+")
@@ -114,19 +124,66 @@ def plot_volume_slices(
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
         to_plot = data.sum(axis=i) if integrate else data[slices[i]]
+        _plot_params["alpha"] = np.ones_like(to_plot)
+        if opacity is not None:
+            _plot_params["alpha"] = opacity[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
+            _plot_params["alpha"] = np.swapaxes(
+                _plot_params["alpha"], 1, 0
+            )
 
         if view_params[v]["xaxis_points_left"]:
             to_plot = to_plot[np.s_[:, ::-1]]
+            _plot_params["alpha"] = _plot_params["alpha"][np.s_[:, ::-1]]
 
-        axes[i].imshow(to_plot, **_plot_params)
-        add_colorbar(axes[i], axes[i].images[0])
-        if voxel_size is not None:
-            set_x_y_limits_extents(
-                axes[i], extents, limits,
-                plane, view_params[v]["xaxis_points_left"]
+        # Handle plot type
+        if plot_type in ("contourf", "contour"):
+            ny, nx = to_plot.shape
+            if voxel_size is not None:
+                y_coords = np.linspace(
+                    extents[plane[0]][0], extents[plane[0]][1], ny
+                )
+                x_coords = np.linspace(
+                    extents[plane[1]][0], extents[plane[1]][1], nx
+                )
+                if view_params[v]["xaxis_points_left"]:
+                    x_coords = np.flip(x_coords)
+                X, Y = np.meshgrid(x_coords, y_coords)
+            else:
+                X, Y = np.meshgrid(np.arange(nx), np.arange(ny))
+            
+            alpha = _plot_params.pop("alpha", None)
+            im = axes[i].contourf(X, Y, to_plot, levels=contour_levels, **_plot_params)
+            
+            # 2D array of opacity is not supported in contourf, so we
+            # need a workaround: we add a contourf with the alpha values 
+            if opacity is not None:
+                whites = [
+                    (1, 1, 1, 1 - i / (contour_levels - 1))
+                    for i in range(contour_levels)
+                ]
+                axes[i].contourf(
+                    X, Y, alpha, levels=contour_levels, colors=whites
+                )
+            add_colorbar(axes[i], im)
+            axes[i].set_aspect("equal")
+
+        elif plot_type == "imshow":
+            im = axes[i].imshow(to_plot, **_plot_params)
+            add_colorbar(axes[i], im)
+
+            if voxel_size is not None:
+                set_x_y_limits_extents(
+                    axes[i], extents, limits,
+                    plane, view_params[v]["xaxis_points_left"]
+                )
+        else:
+            raise ValueError(
+                f"Unknown plot type '{plot_type}'. "
+                "Options are 'imshow' or 'contourf'."
             )
+        
 
     figure.suptitle(title)
     if show:

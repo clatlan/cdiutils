@@ -116,10 +116,20 @@ class CristalLoader(H5TypeLoader):
                 self.h5file[key_path_template.format(name)][()]
             )
 
-        # Get the motor name used for the rocking curve
-        rocking_motor = self.h5file[
+        # get the full motor name used for the rocking curve
+        full_rocking_motor_name = self.h5file[
             key_path + "/scan_config/name"
-        ][()].decode("utf-8")[-4:]  # here, only the last 3 char are needed
+        ][()].decode("utf-8")
+
+        # extract the important part (omega or phi)
+        if "omega" in full_rocking_motor_name.lower():
+            rocking_motor_name = "omega"
+        elif "phi" in full_rocking_motor_name.lower():
+            rocking_motor_name = "phi"
+        else:
+            # If we can't determine, use the original approach
+            rocking_motor_name = full_rocking_motor_name[-3:]
+
         # Get the associated motor values
         rocking_values = self.h5file[key_path + "/scan_data/actuator_1_1"][()]
 
@@ -143,9 +153,19 @@ class CristalLoader(H5TypeLoader):
         rocking_values = rocking_values[roi]
 
         # replace the value for the rocking angle by the array of values
+        rocking_angle_found = False
         for angle, name in CristalLoader.angle_names.items():
-            if name.endswith(rocking_motor):
+            # check if the standardized name contains the key part (omega/phi)
+            if rocking_motor_name in name.lower():
                 angles[angle] = rocking_values
+                rocking_angle_found = True
+                break
+
+        if not rocking_angle_found:
+            raise ValueError(
+                "Could not identify rocking angle from name: "
+                f"{full_rocking_motor_name}"
+            )
         return angles
 
     @h5_safe_load
