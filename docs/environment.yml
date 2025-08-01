@@ -6,9 +6,6 @@ dependencies:
   - sphinx>=6.0
   - pydata-sphinx-theme
   - sphinx-autodoc-typehints
-  - nbsphinx  # For Jupyter notebook support
-  - nbconvert  # Required by nbsphinx
-  - ipykernel  # Required by nbsphinx
   - pip
   - pip:
     - sphinx-design

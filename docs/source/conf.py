@@ -13,10 +13,12 @@ class Mock(MagicMock):
         return MagicMock()
 
 MOCK_MODULES = [
-    'numpy', 'scipy', 'matplotlib', 'h5py', 'pandas', 'scikit-image',
-    'scikit-learn', 'seaborn', 'silx', 'xrayutilities', 'ipyvolume',
-    'ipython_genutils', 'bokeh', 'panel', 'tornado', 'vtk', 'colorcet',
-    'hdf5plugin', 'tabulate'
+    'numpy', 'scipy', 'scipy.fft', 'scipy.constants', 'scipy.signal', 
+    'scipy.optimize', 'scipy.ndimage', 'matplotlib', 'matplotlib.pyplot',
+    'matplotlib.patches', 'matplotlib.gridspec', 'h5py', 'pandas', 
+    'scikit-image', 'scikit-learn', 'seaborn', 'silx', 'xrayutilities', 
+    'ipyvolume', 'ipython_genutils', 'bokeh', 'panel', 'tornado', 'vtk', 
+    'colorcet', 'hdf5plugin', 'tabulate'
 ]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
@@ -46,7 +48,7 @@ extensions = [
     "sphinx.ext.githubpages",    # GitHub pages support
     "sphinx.ext.todo",           # Todo extension
     "sphinx.ext.intersphinx",    # Cross-reference other docs
-    "nbsphinx",                  # Jupyter notebook support
+    # "nbsphinx",                  # Jupyter notebook support - temporarily disabled
 ]
 
 # Intersphinx mapping
@@ -58,7 +60,7 @@ intersphinx_mapping = {
 }
 
 # Automatically generate stub files
-autosummary_generate = True
+autosummary_generate = False  # Temporarily disable to test basic build
 autodoc_member_order = "bysource"  # Keeps methods in order of appearance
 
 
