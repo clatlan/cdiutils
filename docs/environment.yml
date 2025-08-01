@@ -14,6 +14,9 @@ dependencies:
   - numpy
   - matplotlib
   - scipy
+  - h5py
+  - fabio
+  - xrayutilities
   - pip
   - pip:
     - sphinx-design

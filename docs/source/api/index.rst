@@ -16,7 +16,7 @@ Core Modules
    cdiutils.io
    cdiutils.process
    cdiutils.plot
-   cdiutils.analysis
+   cdiutils.multibcdi
    cdiutils.utils
 
 Geometry Module
