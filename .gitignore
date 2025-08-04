@@ -109,3 +109,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# VS Code settings
+.vscode/
+
+# Personal SLURM scripts (keep template, exclude personal variants)
+*_mpi.slurm
+*_old.slurm
+*_perlmutter.slurm
