@@ -17,3 +17,6 @@ ipython_genutils
 bokeh
 panel
 tornado
+# Documentation dependencies
+sphinx>=4.0
+sphinx_rtd_theme
