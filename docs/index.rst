@@ -1,5 +1,5 @@
 CdiUtils Documentation
-=====================
+======================
 
 CdiUtils is a Python package for Coherent Diffraction Imaging (CDI) data analysis and visualization.
 
