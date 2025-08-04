@@ -248,16 +248,17 @@ def find_hull(
 ) -> np.ndarray:
     """
     Find the convex hull of a 2D or 3D object.
+    
     :param volume: 2 or 3D np.ndarray. The volume to get the hull from.
     :param threshold: threshold that selects what belongs to the
-    hull or not (int). If threshold >= 27, the returned hull will be
-    similar to volume.
-    :kernel_size: the size of the kernel used to convolute (int).
-    :boolean_values: whether or not to return 1 and 0 np.ndarray
-    or the computed coordination.
+        hull or not (int). If threshold >= 27, the returned hull will be
+        similar to volume.
+    :param kernel_size: the size of the kernel used to convolute (int).
+    :param boolean_values: whether or not to return 1 and 0 np.ndarray
+        or the computed coordination.
 
     :returns: the convex hull of the shape accordingly to the given
-    threshold (np.array).
+        threshold (np.array).
     """
 
     kernel = np.ones(shape=tuple(np.repeat(kernel_size, volume.ndim)))
@@ -897,13 +898,13 @@ def compute_corrected_angles(
     experiment data file and the position of interest in the detector frame
 
     :param inplane_angle: in-plane detector angle in degrees (float).
-    :param outofplane_angle out-of-plane detector angle in degrees
-    (float).
+    :param outofplane_angle: out-of-plane detector angle in degrees
+        (float).
     :param detector_coordinates: the detector coordinates of the point
-    of interest (tuple or list).
+        of interest (tuple or list).
     :param detector_distance: the sample to detector distance
     :param direct_beam_position: the direct beam position in the
-    detector frame (tuple or list).
+        detector frame (tuple or list).
     :param pixel_size: the pixel size (float).
     :param verbose: whether or not to print the corrections (bool).
 
@@ -1099,14 +1100,18 @@ def get_centred_slices(
     Compute the slices that allows to select the centre of each axis. It
     returns a list of len(shape) tuples made of len(shape) slices. The
     shift allows to shift the centred the slices by the amount provided.
+    
     Ex:
-        * if shape = (25, 48), will return
-    [(12, slice(None, None, None)), (slice(None, None, None), 24)]
+    
+    * if shape = (25, 48), will return::
+    
+        [(12, slice(None, None, None)), (slice(None, None, None), 24)]
 
-        * if shape = (25, 48, 50), will return
+    * if shape = (25, 48, 50), will return::
+    
         [(12, slice(None, None, None), slice(None, None, None)),
-        (slice(None, None, None), 24, slice(None, None, None)),
-        (slice(None, None, None), slice(None, None, None), 25)]
+         (slice(None, None, None), 24, slice(None, None, None)),
+         (slice(None, None, None), slice(None, None, None), 25)]
 
     Args:
         shape (tuple | list | np.ndarray): the shape of the np.ndarray

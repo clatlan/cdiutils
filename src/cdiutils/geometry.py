@@ -321,14 +321,18 @@ class Geometry:
         data.
 
         This operation is used to convert between CXI and XU conventions:
+        
         - In CXI convention, arrays are stored in order (Zcxi, Ycxi, Xcxi)
         - In XU convention, arrays are stored in order (Xxu, Yxu, Zxu)
+        
         And, physically, we have:
-            - Zcxi = Xxu, pointing along the beam direction, away from
-            the light source.
-            - Ycxi = Zxu, vertical direction, pointing up.
-            - Xcxi = Yxu, outboard direction in the Synchrotron frame,
-            vertical plane, perpendicular to the beam direction.
+        
+        - Zcxi = Xxu, pointing along the beam direction, away from
+          the light source.
+        - Ycxi = Zxu, vertical direction, pointing up.
+        - Xcxi = Yxu, outboard direction in the Synchrotron frame,
+          vertical plane, perpendicular to the beam direction.
+        
         Both conventions are right-handed.
         What comes out of this description is that no swapping is
         needed for the beam direction, which is always along the first

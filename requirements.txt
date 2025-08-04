@@ -19,4 +19,4 @@ panel
 tornado
 # Documentation dependencies
 sphinx>=4.0
-sphinx_rtd_theme
+pydata-sphinx-theme

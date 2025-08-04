@@ -18,5 +18,28 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 html_static_path = ['_static']
+
+# -- Theme options -----------------------------------------------------------
+html_theme_options = {
+    "github_url": "https://github.com/clatlan/cdiutils",
+    "use_edit_page_button": True,
+    "show_toc_level": 2,
+    "navbar_align": "left",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/clatlan/cdiutils",
+            "icon": "fab fa-github-square",
+            "type": "fontawesome",
+        },
+    ],
+}
+
+html_context = {
+    "github_user": "clatlan",
+    "github_repo": "cdiutils",
+    "github_version": "master",
+    "doc_path": "docs",
+}
