@@ -1,10 +1,10 @@
-# cdiutils
+# CDIutils
 
 [![DOI](https://zenodo.org/badge/360442527.svg)](https://zenodo.org/badge/latestdoi/360442527)
 [![PyPI version](https://badge.fury.io/py/cdiutils.svg)](https://badge.fury.io/py/cdiutils)
 [![License](https://img.shields.io/github/license/clatlan/cdiutils)](https://github.com/clatlan/cdiutils/blob/main/LICENSE)
 
-My python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
+CDIutils is a Python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
 
 The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
