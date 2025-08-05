@@ -1,4 +1,4 @@
-name: cdiutils
+name: cdiutils-env
 channels:
   - conda-forge
   - defaults
