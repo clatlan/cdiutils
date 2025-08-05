@@ -2,12 +2,12 @@ import numpy as np
 import warnings
 
 CXI_TO_XU_TRANSITIONS = {
-        "x+": "y+",
-        "x-": "y-",
-        "y+": "z+",
-        "y-": "z-",
-        "z+": "x+",
-        "z-": "x-",
+    "x+": "y+",
+    "x-": "y-",
+    "y+": "z+",
+    "y-": "z-",
+    "z+": "x+",
+    "z-": "x-",
 }
 
 
@@ -16,16 +16,17 @@ class Geometry:
     A class to handle the geometry of the experiment setup.
     The CXI convention is used here.
     """
+
     def __init__(
-            self,
-            sample_circles: list = None,
-            detector_circles: list = None,
-            detector_axis0_orientation: str = "y-",
-            detector_axis1_orientation: str = "x+",
-            beam_direction: list = None,
-            sample_surface_normal: list = None,
-            name: str = None,
-            is_cxi: bool = True
+        self,
+        sample_circles: list = None,
+        detector_circles: list = None,
+        detector_axis0_orientation: str = "y-",
+        detector_axis1_orientation: str = "x+",
+        beam_direction: list = None,
+        sample_surface_normal: list = None,
+        name: str = None,
+        is_cxi: bool = True,
     ) -> None:
         """
         Initialise the Geometry instance with the given parameters.
@@ -92,11 +93,11 @@ class Geometry:
 
     @classmethod
     def from_setup(
-            cls,
-            beamline: str | None = None,
-            beamline_setup: str | None = None,
-            sample_orientation: str | None = None,
-            sample_surface_normal: list | None = None
+        cls,
+        beamline: str | None = None,
+        beamline_setup: str | None = None,
+        sample_orientation: str | None = None,
+        sample_surface_normal: list | None = None,
     ) -> "Geometry":
         """
         Factory method to create a Geometry instance using a beamline
@@ -126,15 +127,13 @@ class Geometry:
         # handle backward compatibility
         if beamline is None:
             if beamline_setup is None:
-                raise ValueError(
-                    "The beamline name must be provided."
-                )
+                raise ValueError("The beamline name must be provided.")
             beamline = beamline_setup
             warnings.warn(
                 "The 'beamline_setup' parameter is deprecated and will be "
                 "removed in a future version. Use 'beamline' instead.",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
         geometry = None
@@ -149,12 +148,12 @@ class Geometry:
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="ID01"
+                name="ID01",
             )
             # default orientation for ID01 when sample is vertical
             if (
-                    sample_orientation is not None
-                    and sample_orientation.lower() in ("vertical", "v")
+                sample_orientation is not None
+                and sample_orientation.lower() in ("vertical", "v")
             ):
                 geometry.sample_surface_normal = [0, 0, -1]
 
@@ -166,7 +165,7 @@ class Geometry:
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="P10"
+                name="P10",
             )
         if "sixs" in beamline.lower():
             geometry = cls(
@@ -180,7 +179,7 @@ class Geometry:
                 ),
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="SIXS"
+                name="SIXS",
             )
         if beamline.lower() == "nanomax":
             geometry = cls(
@@ -190,7 +189,7 @@ class Geometry:
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="NanoMAX"
+                name="NanoMAX",
             )
         if beamline.lower() == "cristal":
             # OK FOR omega/delta but not for the two others
@@ -201,7 +200,7 @@ class Geometry:
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="CRISTAL"
+                name="CRISTAL",
             )
 
         if beamline.lower() == "id27":
@@ -212,7 +211,7 @@ class Geometry:
                 detector_axis1_orientation="x-",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
-                name="ID27"
+                name="ID27",
             )
         if geometry is None:
             raise NotImplementedError(
@@ -313,7 +312,7 @@ class Geometry:
 
     @staticmethod
     def swap_convention(
-            data: np.ndarray | list | tuple
+        data: np.ndarray | list | tuple,
     ) -> np.ndarray | list | tuple:
         """
         Swap the CXI and XU conventions for the given data.
@@ -321,18 +320,18 @@ class Geometry:
         data.
 
         This operation is used to convert between CXI and XU conventions:
-        
+
         - In CXI convention, arrays are stored in order (Zcxi, Ycxi, Xcxi)
         - In XU convention, arrays are stored in order (Xxu, Yxu, Zxu)
-        
+
         And, physically, we have:
-        
+
         - Zcxi = Xxu, pointing along the beam direction, away from
           the light source.
         - Ycxi = Zxu, vertical direction, pointing up.
         - Xcxi = Yxu, outboard direction in the Synchrotron frame,
           vertical plane, perpendicular to the beam direction.
-        
+
         Both conventions are right-handed.
         What comes out of this description is that no swapping is
         needed for the beam direction, which is always along the first
@@ -348,7 +347,7 @@ class Geometry:
             axis0, axis1, axis2 = data
             return type(data)((axis0, axis2, axis1))
         if isinstance(data, np.ndarray):
-            if data.shape == (3, ):
+            if data.shape == (3,):
                 return np.array([data[0], data[2], data[1]])
             return np.swapaxes(data, axis1=1, axis2=2)
         else:

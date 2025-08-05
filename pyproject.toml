@@ -27,7 +27,8 @@ keywords = [
     "synchrotron radiation",
     "quantitative analysis",
 ]
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 
 dependencies = [
     "colorcet>=3.0.0",

@@ -25,7 +25,47 @@ For a visual wrap-up, see the associated poster presented at [XTOP24](https://xt
 
 ## Installation
 
-You can install the package using the following command:
+### Using pip (from PyPI - recommended)
+
+Install directly from PyPI:
+
+```bash
+pip install cdiutils
+```
+
+### Using conda (recommended for development)
+
+Create a new conda environment with all dependencies:
+
+```bash
+# Clone the repository first
+git clone https://github.com/clatlan/cdiutils.git
+cd cdiutils
+
+# Create conda environment from environment.yml
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate cdiutils
+
+# Install cdiutils in development mode
+pip install -e .
+```
+
+For development (includes documentation and testing tools):
+
+```bash
+# Create development environment
+conda env create -f environment-dev.yml
+conda activate cdiutils-dev
+pip install -e .
+```
+
+### Using pip (from GitHub - development version)
+
+You can also install the latest development version directly from GitHub:
+
+You can install the package directly from GitHub:
 
 ```bash
 pip install git+https://github.com/clatlan/cdiutils.git

@@ -1,0 +1,30 @@
+name: cdiutils
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Core dependencies
+  - python>=3.10
+  - numpy
+  - scipy>=1.8.0
+  - matplotlib>=3.8
+  - pandas>=1.4.2
+  - scikit-image>=0.19.2
+  - scikit-learn>=1.1.3
+  - seaborn>=0.12.1
+  - h5py>=3.6.0
+  - hdf5plugin>=3.2.0
+  - colorcet>=3.0.0
+  - ipykernel
+  - tabulate
+  - bokeh
+  - panel
+  - tornado
+  - ipython_genutils
+  - silx
+  - xrayutilities>=1.7.3
+  - ipyvolume
+  # pip for packages not available on conda-forge (if any)
+  - pip
+  # - pip:
+  #   - package_name
