@@ -73,7 +73,7 @@ cd cdiutils
 pip install -e .
 ```
 
-### Using pip (from GitHub - development version)
+### Directly from GitHub (development version)
 
 You can also install the latest development version directly from GitHub:
 
@@ -91,21 +91,16 @@ pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
 
 _Note: Check out the dev branch for the latest features and bug fixes. The dev branch is not guaranteed to be stable._
 
-Upgrade your environment with a new version of the package:
-
-```bash
-pip install -U git+https://github.com/clatlan/cdiutils.git
-```
 
 ## Getting started
 
 Once the package is installed, you can try it right away using the notebook template directly accessible with the command:
 
 ```bash
-prepare_bcdi_notebook [path_to_destination]
+prepare_bcdi_notebooks
 ```
 
-This will generate a notebook template at the given destination.
+This will generate a notebook templates in your current directory.
 
 ## Processing BCDI data
 
