@@ -78,14 +78,14 @@ class Plotter:
     """
 
     def __init__(
-            self,
-            data: str | np.ndarray,
-            plot: str = "slices",
-            log: bool = False,
-            cmap: str = "turbo",
-            figsize: tuple[int, int] = (10, 10),
-            fontsize: int = 15,
-            title: str = None,
+        self,
+        data: str | np.ndarray,
+        plot: str = "slices",
+        log: bool = False,
+        cmap: str = "turbo",
+        figsize: tuple[int, int] = (10, 10),
+        fontsize: int = 15,
+        title: str = None,
     ):
         """Initialize the Plotter class.
 
@@ -170,46 +170,65 @@ class Plotter:
         None
 
         Returns:
-        -------
+        --------
         None
         """
         if self.plot == "2D":
             plot_data(
                 data_array=self.data_array,
-                figsize=self.figsize, fontsize=self.fontsize,
-                log=self.log, cmap=self.cmap, title=self.title,
+                figsize=self.figsize,
+                fontsize=self.fontsize,
+                log=self.log,
+                cmap=self.cmap,
+                title=self.title,
             )
 
         elif self.plot == "slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=False, sum_over_axis=False,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=False,
+                sum_over_axis=False,
             )
 
         elif self.plot == "contour_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=True, sum_over_axis=False,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=True,
+                sum_over_axis=False,
             )
 
         elif self.plot == "sum_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=False, sum_over_axis=True,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=False,
+                sum_over_axis=True,
             )
 
         elif self.plot == "sum_contour_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=True, sum_over_axis=True,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=True,
+                sum_over_axis=True,
             )
 
         elif self.plot == "3D" and self.data_array.ndim == 3:
@@ -263,13 +282,15 @@ class Plotter:
 
             elif self.filename.endswith(".cxi"):
                 try:
-                    self.data_array = h5.File(self.filename, mode='r')[
-                        'entry_1/data_1/data'][()]
+                    self.data_array = h5.File(self.filename, mode="r")[
+                        "entry_1/data_1/data"
+                    ][()]
 
                 except (KeyError, OSError):
                     try:
-                        self.data_array = h5.File(self.filename, mode='r')[
-                            'entry_1/image_1/data'][()]
+                        self.data_array = h5.File(self.filename, mode="r")[
+                            "entry_1/image_1/data"
+                        ][()]
                     except (KeyError, OSError):
                         print(
                             "The file could not be loaded, verify that you are"
@@ -283,8 +304,9 @@ class Plotter:
 
             elif self.filename.endswith(".h5"):
                 try:
-                    self.data_array = h5.File(self.filename, mode='r')[
-                        'entry_1/data_1/data'][()]
+                    self.data_array = h5.File(self.filename, mode="r")[
+                        "entry_1/data_1/data"
+                    ][()]
                     if self.data_array.ndim == 4:
                         self.data_array = self.data_array[0]
                     # Due to labelling of axes x,y,z and not z,y,x
@@ -292,8 +314,9 @@ class Plotter:
 
                 except (KeyError, OSError):
                     try:
-                        self.data_array = h5.File(self.filename, mode='r')[
-                            'entry_1/image_1/data'][()]
+                        self.data_array = h5.File(self.filename, mode="r")[
+                            "entry_1/image_1/data"
+                        ][()]
                         if self.data_array.ndim == 4:
                             self.data_array = self.data_array[0]
                         # Due to labelling of axes x,y,z and not z,y,x
@@ -322,8 +345,10 @@ class Plotter:
                     file=widgets.Dropdown(
                         options=rawdata.files,
                         value=rawdata.files[0],
-                        description='Pick an array to load:',
-                        style={'description_width': 'initial'}))
+                        description="Pick an array to load:",
+                        style={"description_width": "initial"},
+                    )
+                )
                 def open_npz(file):
                     # Pick an array
                     try:
@@ -363,9 +388,10 @@ class ThreeDViewer(widgets.Box):
             # flake8: noqa
             # type: ignore
             display(
-                HTML(# type: ignore
-                    fr""" 
-                    <style>.container \{ width:{int(html_width)}% \
+                HTML(  # type: ignore
+                    rf""" 
+                    <style>.container \{
+                        width:{int(html_width)}% \
                     !important; \}</style>
                     """
                 )
@@ -378,52 +404,63 @@ class ThreeDViewer(widgets.Box):
             min=0,
             max=20,
             step=0.02,
-            description='Contour.',
+            description="Contour.",
             disabled=False,
             continuous_update=False,
-            orientation='horizontal',
+            orientation="horizontal",
             readout=True,
-            readout_format='.01f',
+            readout_format=".01f",
         )
         self.toggle_phase = widgets.ToggleButtons(
-            options=['Abs', 'Phase'],
-            description='',
+            options=["Abs", "Phase"],
+            description="",
             disabled=False,
-            value='Phase',
-            button_style='',
+            value="Phase",
+            button_style="",
         )
         self.toggle_rotate = widgets.ToggleButton(
             value=False,
-            description='Rotate',
-            tooltips='Rotate',
+            description="Rotate",
+            tooltips="Rotate",
         )
         self.pcb_rotate = None
         hbox1 = widgets.HBox([self.toggle_phase, self.toggle_rotate])
 
         self.toggle_dark = widgets.ToggleButton(
             value=False,
-            description='Dark',
-            tooltips='Dark/Light theme',
+            description="Dark",
+            tooltips="Dark/Light theme",
         )
         self.toggle_box = widgets.ToggleButton(
             value=True,
-            description='Box',
-            tooltips='Box ?',
+            description="Box",
+            tooltips="Box ?",
         )
         self.toggle_axes = widgets.ToggleButton(
             value=True,
-            description='Axes',
-            tooltips='Axes ?',
+            description="Axes",
+            tooltips="Axes ?",
         )
         hbox_toggle = widgets.HBox(
-            [self.toggle_dark, self.toggle_box, self.toggle_axes])
+            [self.toggle_dark, self.toggle_box, self.toggle_axes]
+        )
 
         # Colormap widgets
         self.colormap = widgets.Dropdown(
-            options=['Cool', 'Gray', 'Gray_r', 'Hot', 'Hsv',
-                     'Inferno', 'Jet', 'Plasma', 'Rainbow', 'Viridis'],
-            value='Jet',
-            description='Colors:',
+            options=[
+                "Cool",
+                "Gray",
+                "Gray_r",
+                "Hot",
+                "Hsv",
+                "Inferno",
+                "Jet",
+                "Plasma",
+                "Rainbow",
+                "Viridis",
+            ],
+            value="Jet",
+            description="Colors:",
             disabled=True,
         )
         self.colormap_range = widgets.FloatRangeSlider(
@@ -431,11 +468,11 @@ class ThreeDViewer(widgets.Box):
             min=0,
             max=100,
             step=1,
-            description='Range:',
+            description="Range:",
             disabled=False,
             continuous_update=False,
-            orientation='horizontal',
-            readout=True
+            orientation="horizontal",
+            readout=True,
         )
 
         # Progress bar
@@ -443,10 +480,10 @@ class ThreeDViewer(widgets.Box):
             value=10,
             min=0,
             max=10,
-            description='Processing:',
-            bar_style='',
-            style={'bar_color': 'green'},
-            orientation='horizontal'
+            description="Processing:",
+            bar_style="",
+            style={"bar_color": "green"},
+            orientation="horizontal",
         )
 
         # Set observers
@@ -467,11 +504,16 @@ class ThreeDViewer(widgets.Box):
         self.d0 = None
 
         # Create final vertical box with all the widgets
-        self.vbox = widgets.VBox([
-            self.threshold, hbox1, hbox_toggle, self.colormap,
-            # self.colormap_range, # useless for one contour
-            self.progress,
-        ])
+        self.vbox = widgets.VBox(
+            [
+                self.threshold,
+                hbox1,
+                hbox_toggle,
+                self.colormap,
+                # self.colormap_range, # useless for one contour
+                self.progress,
+            ]
+        )
 
         # Load data
         if isinstance(input_file, np.ndarray):
@@ -496,7 +538,7 @@ class ThreeDViewer(widgets.Box):
         :param change: used to update the values
         :return:
         """
-        if change is not None and change['name'] != 'value':
+        if change is not None and change["name"] != "value":
             return
         self.progress.value = 7
 
@@ -515,18 +557,23 @@ class ThreeDViewer(widgets.Box):
                 color = rgba[..., :3] / 256
 
             # Linear or log colouring
-            elif self.toggle_phase.value in ['Abs', 'log10(Abs)']:
+            elif self.toggle_phase.value in ["Abs", "log10(Abs)"]:
                 self.colormap.disabled = False
                 cs = cm.ScalarMappable(
                     norm=Normalize(
                         vmin=self.colormap_range.value[0],
-                        vmax=self.colormap_range.value[1]),
-                    cmap=self.colormap.value.lower())
+                        vmax=self.colormap_range.value[1],
+                    ),
+                    cmap=self.colormap.value.lower(),
+                )
                 color = cs.to_rgba(abs(vals))[..., :3]
             else:
                 # TODO: Gradient
-                gx, gy, gz = self.rgi_gx(verts), self.rgi_gy(
-                    verts), self.rgi_gz(verts)
+                gx, gy, gz = (
+                    self.rgi_gx(verts),
+                    self.rgi_gy(verts),
+                    self.rgi_gz(verts),
+                )
                 color = np.empty((len(vals), 3), dtype=np.float32)
                 color[:, 0] = abs(gx)
                 color[:, 1] = abs(gy)
@@ -552,15 +599,20 @@ class ThreeDViewer(widgets.Box):
         :param change: dict from widget
         :return:
         """
-        if change['name'] == 'value':
+        if change["name"] == "value":
             if self.toggle_dark.value:
                 ipv.pylab.style.set_style_dark()
             else:
                 ipv.pylab.style.set_style_light()
                 # Fix label colours (see self.fig.style)
                 ipv.pylab.style.use(
-                    {'axes': {'label': {'color': 'black'},
-                              'ticklabel': {'color': 'black'}}})
+                    {
+                        "axes": {
+                            "label": {"color": "black"},
+                            "ticklabel": {"color": "black"},
+                        }
+                    }
+                )
             if self.toggle_box.value:
                 ipv.pylab.style.box_on()
             else:
@@ -572,22 +624,23 @@ class ThreeDViewer(widgets.Box):
 
     def on_change_scale(self, change):
         """Change scale between logarithmic and linear"""
-        if change['name'] == 'value':
-            if isinstance(change['old'], str):
-                newv = change['new']
-                oldv = change['old']
+        if change["name"] == "value":
+            if isinstance(change["old"], str):
+                newv = change["new"]
+                oldv = change["old"]
 
                 # linear scale
-                if 'log' in oldv and 'log' not in newv:
+                if "log" in oldv and "log" not in newv:
                     data = self.d0
-                    self.set_data(data, threshold=10 ** self.threshold.value)
+                    self.set_data(data, threshold=10**self.threshold.value)
 
                 # log scale
-                elif 'log' in newv and 'log' not in oldv:
+                elif "log" in newv and "log" not in oldv:
                     self.d0 = self.data
                     data = np.log10(np.maximum(0.1, abs(self.d0)))
-                    self.set_data(data, threshold=np.log10(
-                        self.threshold.value))
+                    self.set_data(
+                        data, threshold=np.log10(self.threshold.value)
+                    )
                     return
             self.on_update_plot()
 
@@ -608,13 +661,13 @@ class ThreeDViewer(widgets.Box):
         self.toggle_phase.unobserve(self.on_change_scale)
 
         if np.iscomplexobj(data):
-            if self.toggle_phase.value == 'log10(Abs)':
-                self.toggle_phase.value = 'Abs'
-            self.toggle_phase.options = ('Abs', 'Phase')
+            if self.toggle_phase.value == "log10(Abs)":
+                self.toggle_phase.value = "Abs"
+            self.toggle_phase.options = ("Abs", "Phase")
         else:
-            if self.toggle_phase.value == 'Phase':
-                self.toggle_phase.value = 'Abs'
-            self.toggle_phase.options = ('Abs', 'log10(Abs)')
+            if self.toggle_phase.value == "Phase":
+                self.toggle_phase.value = "Abs"
+            self.toggle_phase.options = ("Abs", "log10(Abs)")
         self.toggle_phase.observe(self.on_change_scale)
 
         # Set threshold
@@ -639,7 +692,7 @@ class ThreeDViewer(widgets.Box):
         self.rgi = RegularGridInterpolator(
             (z, y, x),
             self.data,
-            method='linear',
+            method="linear",
             bounds_error=False,
             fill_value=0,
         )
@@ -650,14 +703,26 @@ class ThreeDViewer(widgets.Box):
         ph = self.data / a
         gaz, gay, gax = np.gradient(a)
         self.rgi_gx = RegularGridInterpolator(
-            (z, y, x), ((gx - gax * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gx - gax * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
         self.rgi_gy = RegularGridInterpolator(
-            (z, y, x), ((gy - gay * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gy - gay * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
         self.rgi_gz = RegularGridInterpolator(
-            (z, y, x), ((gz - gaz * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gz - gaz * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
 
         # Fix extent otherwise weird things happen
         ipv.pylab.xlim(0, self.data.shape[0])
@@ -669,7 +734,7 @@ class ThreeDViewer(widgets.Box):
     def on_animate(self, v):
         """Trigger the animation (rotation around vertical axis)"""
         if self.pcb_rotate is None:
-            self.pcb_rotate = PeriodicCallback(self.callback_rotate, 50.)
+            self.pcb_rotate = PeriodicCallback(self.callback_rotate, 50.0)
         if self.toggle_rotate.value:
             self.pcb_rotate.start()
         else:
@@ -683,7 +748,7 @@ class ThreeDViewer(widgets.Box):
 
         # Use a quaternion and the camera's 'up' as rotation axis
         x, y, z = self.fig.camera.up
-        n = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        n = np.sqrt(x**2 + y**2 + z**2)
         a = np.deg2rad(2.5) / 2  # angular step
         sa, ca = np.sin(a / 2) / n, np.cos(a / 2)
         r = Rotation.from_quat((sa * x, sa * y, sa * z, ca))
@@ -691,6 +756,7 @@ class ThreeDViewer(widgets.Box):
 
 
 # Methods
+
 
 def plot_data(
     data_array: np.ndarray,
@@ -737,24 +803,26 @@ def plot_data(
         # Depends on log scale
         if log:
             ax.plot(np.log(data_array))
-            plt.title(title, fontsize=fontsize+2)
+            plt.title(title, fontsize=fontsize + 2)
             plt.tight_layout()
             plt.show()
 
         elif log is False:
             ax.plot(data_array)
-            plt.title(title, fontsize=fontsize+2)
+            plt.title(title, fontsize=fontsize + 2)
             plt.tight_layout()
             plt.show()
 
         elif log == "interact":
+
             @interact(
                 scale=widgets.ToggleButtons(
                     options=["linear", "logarithmic"],
                     value="linear",
-                    description='Scale',
+                    description="Scale",
                     disabled=False,
-                    style={'description_width': 'initial'}),
+                    style={"description_width": "initial"},
+                ),
             )
             def plot_with_interactive_scale(scale, figsize):
                 # Create figure
@@ -771,7 +839,7 @@ def plot_data(
                 else:
                     ax.plot(data_array)
 
-                plt.title(title, fontsize=fontsize+2)
+                plt.title(title, fontsize=fontsize + 2)
                 plt.tight_layout()
                 plt.show()
 
@@ -785,13 +853,19 @@ def plot_data(
             fig, ax = plt.subplots(figsize=figsize)
 
             img = plot_2d_image(
-                data_array, log=log, fig=fig, ax=ax, cmap=cmap,
-                title=title, fontsize=fontsize
+                data_array,
+                log=log,
+                fig=fig,
+                ax=ax,
+                cmap=cmap,
+                title=title,
+                fontsize=fontsize,
             )
 
             # Create axis for colorbar
             cbar_ax = make_axes_locatable(ax).append_axes(
-                position='right', size='5%', pad=0.1)
+                position="right", size="5%", pad=0.1
+            )
 
             # Create colorbar
             fig.colorbar(mappable=img, cax=cbar_ax)
@@ -801,14 +875,16 @@ def plot_data(
             plt.show()
 
         elif log == "interact":
+
             @interact(
                 scale=widgets.ToggleButtons(
                     options=["linear", "logarithmic"],
                     value="linear",
-                    description='Scale',
+                    description="Scale",
                     disabled=False,
-                    style={'description_width': 'initial'}),
-                figsize=fixed(figsize)
+                    style={"description_width": "initial"},
+                ),
+                figsize=fixed(figsize),
             )
             def plot_with_interactive_scale(scale, figsize):
                 # Create figure
@@ -827,7 +903,8 @@ def plot_data(
 
                 # Create axis for colorbar
                 cbar_ax = make_axes_locatable(ax).append_axes(
-                    position='right', size='5%', pad=0.1)
+                    position="right", size="5%", pad=0.1
+                )
 
                 # Create colorbar
                 fig.colorbar(mappable=img, cax=cbar_ax)
@@ -837,7 +914,6 @@ def plot_data(
                 plt.show()
 
     elif data_dimensions == 3:
-
         # Define function used to get data slice
         def get_data_slice(
             data: np.ndarray,
@@ -906,9 +982,7 @@ def plot_data(
         ]
 
         # List of compatible cmaps in bokeh
-        bokey_cmaps = [
-            p for p in bp.__palettes__ if p.endswith("256")
-        ]
+        bokey_cmaps = [p for p in bp.__palettes__ if p.endswith("256")]
 
         palette = "Magma256"
         for p in bokey_cmaps:
@@ -930,7 +1004,7 @@ def plot_data(
             active_tap="auto",
             active_drag="box_zoom",
             active_inspect="auto",
-            tooltips=TOOLTIPS
+            tooltips=TOOLTIPS,
         )
 
         # Define source
@@ -963,13 +1037,13 @@ def plot_data(
 
         slider_index = Slider(
             start=0,
-            end=data_array.shape[0]-1,
+            end=data_array.shape[0] - 1,
             value=0,
             step=1,
             title="Position",
             orientation="horizontal",
         )
-        slider_index.on_change('value', callback_change_index)
+        slider_index.on_change("value", callback_change_index)
 
         # Axis
         def callback_change_axis(attr, old, new):
@@ -1008,13 +1082,13 @@ def plot_data(
                 fig.axis[1].axis_label = "y"
 
             # Change slider range
-            slider_index.end = slider_range-1
+            slider_index.end = slider_range - 1
 
         select_axis = RadioButtonGroup(
             labels=["x", "y", "z"],
             active=0,
         )
-        select_axis.on_change('active', callback_change_axis)
+        select_axis.on_change("active", callback_change_axis)
 
         # Data type
         def callback_change_data_type(attr, old, new):
@@ -1038,7 +1112,7 @@ def plot_data(
             labels=["Real", "Imaginary", "Module", "Phase"],
             active=2,
         )
-        select_data_type.on_change('active', callback_change_data_type)
+        select_data_type.on_change("active", callback_change_data_type)
 
         # Color bar
         def callback_change_cbar(attr, old, new):
@@ -1062,7 +1136,7 @@ def plot_data(
             labels=["linear", "logarithmic"],
             active=0,
         )
-        select_cbar.on_change('active', callback_change_cbar)
+        select_cbar.on_change("active", callback_change_cbar)
 
         # Background
         fig.background_fill_color = "white"
@@ -1081,7 +1155,7 @@ def plot_data(
         )
         lin_color_bar = ColorBar(color_mapper=lin_color_mapper)
 
-        fig.add_layout(lin_color_bar, 'right')
+        fig.add_layout(lin_color_bar, "right")
 
         # Image
         fig.image(
@@ -1112,7 +1186,7 @@ def plot_data(
                 row(
                     fig,
                 )
-            )
+            ),
         )
 
         display(app)
@@ -1171,23 +1245,19 @@ def plot_2d_image(
 
     try:
         if np.iscomplex(two_d_array).any():
-            print(
-                "Using complex data, switching to array module for plot."
-            )
+            print("Using complex data, switching to array module for plot.")
             two_d_array = np.abs(two_d_array)
         if contour:
             img = ax.contourf(
                 two_d_array,
-                norm={"linear": None, "logarithmic": LogNorm()}[
-                    scale],
+                norm={"linear": None, "logarithmic": LogNorm()}[scale],
                 cmap=cmap,
                 origin="lower",
             )
         else:
             img = ax.imshow(
                 two_d_array,
-                norm={"linear": None, "logarithmic": LogNorm()}[
-                    scale],
+                norm={"linear": None, "logarithmic": LogNorm()}[scale],
                 cmap=cmap,
                 origin="lower",
             )
@@ -1278,8 +1348,12 @@ def plot_3d_slices(
         if isinstance(title, str):
             fig.suptitle(title, fontsize=fontsize + 2, y=0.95)
             titles = [None, None, None]
-        elif isinstance(title, tuple) and len(title) == 3\
-                or isinstance(title, list) and len(title) == 3:
+        elif (
+            isinstance(title, tuple)
+            and len(title) == 3
+            or isinstance(title, list)
+            and len(title) == 3
+        ):
             titles = title
         else:
             titles = [None, None, None]
@@ -1292,16 +1366,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(0))
 
         else:  # Get middle slice
-            two_d_array = data_array[shape[0]//2, :, :]
+            two_d_array = data_array[shape[0] // 2, :, :]
         img_x = plot_2d_image(
-            two_d_array, fig=fig, title=titles[0], ax=axs[0], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="z", y_label="y",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[0],
+            ax=axs[0],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="z",
+            y_label="y",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[0]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_x, cax=cbar_ax)
@@ -1311,16 +1393,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(1))
 
         else:  # Get middle slice
-            two_d_array = data_array[:, shape[1]//2, :]
+            two_d_array = data_array[:, shape[1] // 2, :]
         img_y = plot_2d_image(
-            two_d_array, fig=fig, title=titles[1], ax=axs[1], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="z", y_label="x",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[1],
+            ax=axs[1],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="z",
+            y_label="x",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[1]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_y, cax=cbar_ax)
@@ -1330,16 +1420,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(2))
 
         else:  # Get middle slice
-            two_d_array = data_array[:, :, shape[2]//2]
+            two_d_array = data_array[:, :, shape[2] // 2]
         img_z = plot_2d_image(
-            two_d_array, fig=fig, title=titles[2], ax=axs[2], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="y", y_label="x",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[2],
+            ax=axs[2],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="y",
+            y_label="x",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[2]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_z, cax=cbar_ax)
@@ -1349,6 +1447,7 @@ def plot_3d_slices(
         fig.show()
 
     else:
+
         @interact(
             scale=widgets.ToggleButtons(
                 options=[
@@ -1356,10 +1455,11 @@ def plot_3d_slices(
                     ("logarithmic", True),
                 ],
                 value=False,
-                description='Scale',
+                description="Scale",
                 disabled=False,
-                style={'description_width': 'initial'}),
-            figsize=fixed(figsize)
+                style={"description_width": "initial"},
+            ),
+            figsize=fixed(figsize),
         )
         def plot_with_interactive_scale(scale, figsize):
             try:
@@ -1385,7 +1485,7 @@ def complex2rgbalin(
     smin: float = None,
     percentile: tuple[float, float] = (None, None),
     alpha: tuple[float, float] = (0, 1),
-    final_type: str = 'uint8'
+    final_type: str = "uint8",
 ) -> np.ndarray:
     """
     Convert a complex valued array into an RGBA image with the magnitude
@@ -1430,9 +1530,9 @@ def complex2rgbalin(
     if smin is not None:
         a = (a - smin) * (a >= smin)
     a /= a.max()
-    a = a ** gamma
+    a = a**gamma
     rgba[..., 3] = alpha[0] + alpha[1] * a
-    if final_type == 'float':
+    if final_type == "float":
         return rgba
     return (rgba * 255).astype(np.uint8)
 
@@ -1459,11 +1559,19 @@ def phase2rgb(s: np.ndarray) -> np.ndarray:
     ph = np.angle(s)
     t = np.pi / 3
     rgba = np.zeros(list(s.shape) + [4])
-    rgba[..., 0] = (ph < t) * (ph > -t) + (ph > t) * (ph < 2 * t) * \
-        (2 * t - ph) / t + (ph > -2 * t) * (ph < -t) * (
-        ph + 2 * t) / t
-    rgba[..., 1] = (ph > t) + (ph < -2 * t) * (-2 * t - ph) / \
-        t + (ph > 0) * (ph < t) * ph / t
-    rgba[..., 2] = (ph < -t) + (ph > -t) * (ph < 0) * (-ph) / \
-        t + (ph > 2 * t) * (ph - 2 * t) / t
+    rgba[..., 0] = (
+        (ph < t) * (ph > -t)
+        + (ph > t) * (ph < 2 * t) * (2 * t - ph) / t
+        + (ph > -2 * t) * (ph < -t) * (ph + 2 * t) / t
+    )
+    rgba[..., 1] = (
+        (ph > t)
+        + (ph < -2 * t) * (-2 * t - ph) / t
+        + (ph > 0) * (ph < t) * ph / t
+    )
+    rgba[..., 2] = (
+        (ph < -t)
+        + (ph > -t) * (ph < 0) * (-ph) / t
+        + (ph > 2 * t) * (ph - 2 * t) / t
+    )
     return rgba

@@ -13,13 +13,13 @@ from cdiutils.plot.formatting import add_colorbar
 
 
 def angular_spectrum_propagation(
-        wavefront: np.ndarray,
-        propagation_distance: float,
-        wavelength: float,
-        pixel_size: float,
-        magnification: float = 1,
-        do_fftshift: bool = True,
-        verbose: bool = False
+    wavefront: np.ndarray,
+    propagation_distance: float,
+    wavelength: float,
+    pixel_size: float,
+    magnification: float = 1,
+    do_fftshift: bool = True,
+    verbose: bool = False,
 ) -> np.ndarray:
     """
     Computes the near-field propagation of a wavefront using the Angular
@@ -61,10 +61,13 @@ def angular_spectrum_propagation(
 
     nz, ny, nx = wavefront_stack.shape
 
-    min_dist = max(
-        abs((magnification - 1) / magnification), abs(magnification - 1)
-    ) * nx * pixel_size ** 2 / wavelength
-    max_dist = abs(magnification) * nx * pixel_size ** 2 / wavelength
+    min_dist = (
+        max(abs((magnification - 1) / magnification), abs(magnification - 1))
+        * nx
+        * pixel_size**2
+        / wavelength
+    )
+    max_dist = abs(magnification) * nx * pixel_size**2 / wavelength
 
     if verbose:
         print(
@@ -73,8 +76,8 @@ def angular_spectrum_propagation(
         )
 
     # Spatial coordinates in the source plane
-    x = fftshift(np.arange(-nx//2, nx//2) * pixel_size)
-    y = fftshift(np.arange(-ny//2, ny//2) * pixel_size)
+    x = fftshift(np.arange(-nx // 2, nx // 2) * pixel_size)
+    y = fftshift(np.arange(-ny // 2, ny // 2) * pixel_size)
     Y, X = np.meshgrid(x, y, indexing="ij")
 
     # Spatial frequency coordinates (or Fourier coordinates)
@@ -84,20 +87,31 @@ def angular_spectrum_propagation(
 
     # Quadratic phase factor in the source plane
     Q1 = np.exp(
-        1j * np.pi / (wavelength * propagation_distance)
-        * (1 - magnification) * (X**2 + Y**2)
+        1j
+        * np.pi
+        / (wavelength * propagation_distance)
+        * (1 - magnification)
+        * (X**2 + Y**2)
     )
 
     # Propagation kernel in the Fourier domain
     Q2 = np.exp(
-        -1j * np.pi * wavelength * propagation_distance / magnification
+        -1j
+        * np.pi
+        * wavelength
+        * propagation_distance
+        / magnification
         * (FX**2 + FY**2)
     )
 
     # Quadratic phase factor in the observation plane
     Q3 = np.exp(
-        1j * np.pi / (wavelength * propagation_distance)
-        * (magnification - 1) * magnification * (X**2 + Y**2)
+        1j
+        * np.pi
+        / (wavelength * propagation_distance)
+        * (magnification - 1)
+        * magnification
+        * (X**2 + Y**2)
     )
 
     # Initialise the output array for the propagated wavefront
@@ -137,7 +151,7 @@ def angular_spectrum_propagation(
 
 
 def get_width_metrics(
-        profile: np.ndarray, axis_values: np.ndarray, verbose: bool = False
+    profile: np.ndarray, axis_values: np.ndarray, verbose: bool = False
 ) -> dict:
     """
     Compute the FWHM and other width metrics of a given profile.
@@ -253,12 +267,12 @@ def get_width_metrics(
 
 
 def probe_metrics(
-        probe: np.ndarray,
-        pixel_size: tuple,
-        zoom_factor: int | str = "auto",
-        probe_convention: str = "pynx",
-        centre_at_max: bool = False,
-        verbose: bool = False,
+    probe: np.ndarray,
+    pixel_size: tuple,
+    zoom_factor: int | str = "auto",
+    probe_convention: str = "pynx",
+    centre_at_max: bool = False,
+    verbose: bool = False,
 ) -> tuple:
     """
     Plot the probe along with the line profile and its FWHM estimate.
@@ -335,13 +349,11 @@ def probe_metrics(
 
     metrics["x"]["profile"] = probe_amplitude[probe.shape[0] // 2, :]
     metrics["x"]["centre"] = metrics["x"]["axis_values"][
-        probe.shape[1]
-        // 2  # the pos that serves to get the y profile
+        probe.shape[1] // 2  # the pos that serves to get the y profile
     ]
     metrics["y"]["profile"] = probe_amplitude[:, probe.shape[1] // 2]
     metrics["y"]["centre"] = metrics["y"]["axis_values"][
-        probe.shape[0]
-        // 2  # the pos that serves to get the x profile
+        probe.shape[0] // 2  # the pos that serves to get the x profile
     ]
 
     extent = (
@@ -414,10 +426,7 @@ def probe_metrics(
 
     opacity = np.abs(probe) / np.max(np.abs(probe))
     axes[0, 1].imshow(
-        np.angle(probe),
-        alpha=opacity,
-        cmap="cet_CET_C9s_r",
-        **imshow_kwargs
+        np.angle(probe), alpha=opacity, cmap="cet_CET_C9s_r", **imshow_kwargs
     )
     axes[0, 1].set_facecolor("black")
     add_colorbar(axes[0, 1], extend="both")
@@ -553,11 +562,11 @@ def probe_metrics(
 
 
 def probe_focus_sweep(
-        probe: np.ndarray,
-        pixel_size: tuple,
-        wavelength: float,
-        step_nb: int = 100,
-        step_size: float = 10e-6
+    probe: np.ndarray,
+    pixel_size: tuple,
+    wavelength: float,
+    step_nb: int = 100,
+    step_size: float = 10e-6,
 ) -> np.ndarray:
     """
     Propagate the probe through a range of distances using the angular
@@ -594,7 +603,7 @@ def probe_focus_sweep(
             wavelength=wavelength,
             pixel_size=pixel_size[0],
             do_fftshift=True,  # If true fftshift before and ifftshit after
-            verbose=False
+            verbose=False,
         )
 
     if probe.ndim == 3:  # multiple modes
@@ -604,12 +613,12 @@ def probe_focus_sweep(
 
 
 def plot_propagated_probe(
-        propagated_probe: np.ndarray,
-        pixel_size: tuple | float,
-        propagation_step_size: float,
-        convert_to_microns: bool = True,
-        focal_distances: tuple | None = None,
-        plot_phase: bool = True,
+    propagated_probe: np.ndarray,
+    pixel_size: tuple | float,
+    propagation_step_size: float,
+    convert_to_microns: bool = True,
+    focal_distances: tuple | None = None,
+    plot_phase: bool = True,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
     Plot the propagated probe as a 2D image with the phase or amplitude
@@ -680,31 +689,33 @@ def plot_propagated_probe(
 
     plot_params = {
         "cmap": "cet_CET_C9s_r" if plot_phase else "turbo",
-        "alpha": None, "origin": "lower", "aspect": "auto",
+        "alpha": None,
+        "origin": "lower",
+        "aspect": "auto",
     }
 
     for i, ax in enumerate(np.flip(axes).flat):
         if plot_phase:
-            opacity = np.abs(propagated_probe).sum(axis=2-i).T
+            opacity = np.abs(propagated_probe).sum(axis=2 - i).T
             opacity /= opacity.max()
             slices = [slice(None)] * propagated_probe.ndim
-            slices[2-i] = propagated_probe.shape[2-i]//2
+            slices[2 - i] = propagated_probe.shape[2 - i] // 2
             to_plot = np.angle(propagated_probe[tuple(slices)]).T
 
             ax.set_facecolor("black")
             plot_params["alpha"] = opacity
 
         else:
-            to_plot = np.abs(propagated_probe).sum(axis=2-i).T
+            to_plot = np.abs(propagated_probe).sum(axis=2 - i).T
         ax.imshow(
             to_plot,
             extent=(
                 propagation_step_size * -propagated_probe.shape[0] / 2,
                 propagation_step_size * propagated_probe.shape[0] / 2,
-                -pixel_size[i] * propagated_probe.shape[i+1] / 2,
-                pixel_size[i] * propagated_probe.shape[i+1] / 2
+                -pixel_size[i] * propagated_probe.shape[i + 1] / 2,
+                pixel_size[i] * propagated_probe.shape[i + 1] / 2,
             ),
-            **plot_params
+            **plot_params,
         )
 
         ax.axvline(
@@ -716,13 +727,13 @@ def plot_propagated_probe(
 
         if focal_distances is not None:
             label = (
-                f"focal distance = {int(focal_distances[1-i])} {unit_label}"
+                f"focal distance = {int(focal_distances[1 - i])} {unit_label}"
             )
             ax.axvline(
-                x=focal_distances[1-i],
+                x=focal_distances[1 - i],
                 color="white",
                 linestyle="--",
-                label=label
+                label=label,
             )
 
     axes[0].set_ylabel(r"$y_{\text{CXI}}$" + f", height ({unit_label})")
@@ -742,9 +753,9 @@ def plot_propagated_probe(
 
 
 def get_focal_distances(
-        propagated_probe: np.ndarray,
-        propagation_positions: np.ndarray,
-        method: str = "max"
+    propagated_probe: np.ndarray,
+    propagation_positions: np.ndarray,
+    method: str = "max",
 ) -> tuple[tuple[float, float], tuple[int, int]]:
     """
     Get the focal distances from the propagated probe data.
@@ -796,8 +807,7 @@ def get_focal_distances(
         indexes.append(
             np.argmax(
                 reducing_function(
-                    np.sum(np.abs(propagated_probe), axis=i+1),
-                    axis=1
+                    np.sum(np.abs(propagated_probe), axis=i + 1), axis=1
                 ),
             )
         )
@@ -807,13 +817,13 @@ def get_focal_distances(
 
 
 def focus_probe(
-        probe: np.ndarray,
-        pixel_size: tuple,
-        wavelength: float,
-        step_nb: int = 200,
-        step_size: float = 10e-6,
-        plot: bool = True,
-        **plot_kwargs
+    probe: np.ndarray,
+    pixel_size: tuple,
+    wavelength: float,
+    step_nb: int = 200,
+    step_size: float = 10e-6,
+    plot: bool = True,
+    **plot_kwargs,
 ) -> tuple:
     """
     Complete analysis of probe focus characteristics by propagating the
@@ -865,7 +875,7 @@ def focus_probe(
             pixel_size,
             propagation_step_size=step_size,
             focal_distances=focal_distances,
-            **plot_kwargs
+            **plot_kwargs,
         )
 
     return focused_probe, focal_distances[1]

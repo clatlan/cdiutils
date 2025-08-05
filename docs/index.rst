@@ -19,10 +19,20 @@ Key Features
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: Getting Started
 
    installation
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
    tutorials/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+
    examples/index
 
 .. toctree::
@@ -46,17 +56,30 @@ After :doc:`installation <installation>`, you can start using CDIutils:
 .. code-block:: python
 
    import cdiutils
-   from cdiutils import Geometry
-   
-   # Create a geometry object for a specific beamline
-   geom = Geometry.from_beamline('P10_PETRA_III')
-   
-   # Set sample orientation
-   geom.sample_orientation = 'horizontal'
-   
-   # Generate notebook templates
-   from cdiutils.scripts import prepare_bcdi_notebooks
-   prepare_bcdi_notebooks.main()
+
+   # create a loader object for a specific experiment
+   loader = cdiutils.Loader.from_setup(
+       "id01",
+       experiment_file_path="path/to/experiment_file_path.h5",
+       sample_name="sample_name"
+   )
+
+   # load detector scan data
+   scan = 1  # specify the scan number
+   detector_data = loader.load_detector_data(scan)
+   angles = loader.load_motor_positions(scan)
+   energy = loader.load_energy(scan)
+   det_calib_params = loader.load_det_calib_params(scan)
+
+   # load the geometry information
+   geometry = cdiutils.Geometry.from_setup("id01")
+
+   # initialise the space converter for data transformation
+   converter = cdiutils.SpaceConverter(geometry, det_calib_params, energy=energy)
+   converter.init_q_space(**angles)
+
+   # convert the detector data to lab frame
+   ortho_data = converter.orthogonalise_to_q_lab(detector_data)
 
 Getting Help
 ============
