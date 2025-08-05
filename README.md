@@ -33,9 +33,9 @@ Install directly from PyPI:
 pip install cdiutils
 ```
 
-### Using conda (recommended for more complex environments)
+### Using conda (recommended for dependency management)
 
-Create a new conda environment with all dependencies:
+**Option 1: Create a new conda environment with all dependencies**
 
 ```bash
 # create conda environment directly from GitHub
@@ -43,6 +43,16 @@ conda env create -f https://raw.githubusercontent.com/clatlan/cdiutils/master/en
 
 # activate the environment
 conda activate cdiutils-env
+
+# install cdiutils from PyPI
+pip install cdiutils
+```
+
+**Option 2: Install dependencies in your existing conda environment**
+
+```bash
+# download and install dependencies using conda solver
+conda env update -f https://raw.githubusercontent.com/clatlan/cdiutils/master/environment.yml
 
 # install cdiutils from PyPI
 pip install cdiutils
