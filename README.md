@@ -1,7 +1,7 @@
 # cdiutils
 
 [![DOI](https://zenodo.org/badge/360442527.svg)](https://zenodo.org/badge/latestdoi/360442527)
-
+[![PyPI version](https://badge.fury.io/py/cdiutils.svg)](https://badge.fury.io/py/cdiutils)
 [![License](https://img.shields.io/github/license/clatlan/cdiutils)](https://github.com/clatlan/cdiutils/blob/main/LICENSE)
 
 My python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
@@ -25,7 +25,7 @@ For a visual wrap-up, see the associated poster presented at [XTOP24](https://xt
 
 ## Installation
 
-### Using pip (from PyPI - recommended)
+### Using pip (from PyPI - simplest way)
 
 Install directly from PyPI:
 
@@ -33,31 +33,33 @@ Install directly from PyPI:
 pip install cdiutils
 ```
 
-### Using conda (recommended for development)
+### Using conda (recommended for more complex environments)
 
 Create a new conda environment with all dependencies:
 
 ```bash
-# Clone the repository first
-git clone https://github.com/clatlan/cdiutils.git
-cd cdiutils
+# create conda environment directly from GitHub
+conda env create -f https://raw.githubusercontent.com/clatlan/cdiutils/master/environment.yml
 
-# Create conda environment from environment.yml
-conda env create -f environment.yml
+# activate the environment
+conda activate cdiutils-env
 
-# Activate the environment
-conda activate cdiutils
-
-# Install cdiutils in development mode
-pip install -e .
+# install cdiutils from PyPI
+pip install cdiutils
 ```
 
 For development (includes documentation and testing tools):
 
 ```bash
-# Create development environment
-conda env create -f environment-dev.yml
-conda activate cdiutils-dev
+# create development environment directly from GitHub
+conda env create -f https://raw.githubusercontent.com/clatlan/cdiutils/master/environment-dev.yml
+
+# activate the environment
+conda activate cdiutils-dev-env
+
+# install cdiutils in development mode (requires cloning)
+git clone https://github.com/clatlan/cdiutils.git
+cd cdiutils
 pip install -e .
 ```
 
