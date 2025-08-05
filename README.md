@@ -22,6 +22,15 @@ Some features of this package include:
 For a visual wrap-up, see the associated poster presented at [XTOP24](https://xtop2024.sciencesconf.org/):
 ![xtop_poster](https://github.com/clatlan/cdiutils/blob/master/images/XTOP_24_cdiutils_poster_200_dpi.png)
 
+## Documentation
+
+**[Read the full documentation on Read the Docs](https://cdiutils.readthedocs.io/)**
+
+The documentation includes:
+- **[Tutorials](https://cdiutils.readthedocs.io/en/latest/tutorials/)**: Step-by-step guides for common workflows
+- **[API Reference](https://cdiutils.readthedocs.io/en/latest/api.html)**: Complete function and class documentation
+- **[Examples](https://cdiutils.readthedocs.io/en/latest/examples/)**: Jupyter notebook examples
+- **[Installation Guide](https://cdiutils.readthedocs.io/en/latest/installation.html)**: Detailed setup instructions
 
 ## Installation
 
@@ -94,6 +103,7 @@ _Note: Check out the dev branch for the latest features and bug fixes. The dev b
 
 ## Getting started
 
+
 Once the package is installed, you can try it right away using the notebook template directly accessible with the command:
 
 ```bash
@@ -140,5 +150,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
-If you encounter any issues or have questions, please open an issue on the [GitHub repository](https://github.com/clatlan/cdiutils/issues).
+If you encounter any issues or have questions:
+
+1. **Check the [documentation](https://cdiutils.readthedocs.io/)** for tutorials and API reference
+2. **Open an issue** on the [GitHub repository](https://github.com/clatlan/cdiutils/issues)
+3. **Browse existing issues** to see if your question has been answered
 
