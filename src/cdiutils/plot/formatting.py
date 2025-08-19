@@ -1,6 +1,7 @@
 # flake8: noqa, E501
 import warnings
 
+from cycler import cycler
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -12,94 +13,118 @@ import colorcet  # noqa, F401
 # Planes are given with the indexing convention,
 # i.e. [n, m] -> x-axis = m, y-axis = n
 CXI_VIEW_PARAMETERS = {
-   "z+": {
-       "axis": 0, "plane": [1, 2], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
+    "z+": {
+        "axis": 0,
+        "plane": [1, 2],
+        "xaxis_points_left": True,
+        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$",
     },
-   "z-": {
-       "axis": 0, "plane": [1, 2], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
+    "z-": {
+        "axis": 0,
+        "plane": [1, 2],
+        "xaxis_points_left": False,
+        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$",
     },
-   "y+": {
-       "axis": 1, "plane": [0, 2], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
-       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
-       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$"
+    "y+": {
+        "axis": 1,
+        "plane": [0, 2],
+        "xaxis_points_left": False,
+        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+        "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+        "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
     },
-   "y-": {
-       "axis": 1, "plane": [0, 2], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
-       "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
-       "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$"
+    "y-": {
+        "axis": 1,
+        "plane": [0, 2],
+        "xaxis_points_left": True,
+        "xlabel": r"$x_{\mathrm{CXI}}$ or $y_{\mathrm{XU}}$",
+        "ylabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{x, \mathrm{CXI}}$ or q$_{y, \mathrm{XU}}$",
+        "qylabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
     },
-   "x+": {
-       "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
-       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
+    "x+": {
+        "axis": 2,
+        "plane": [1, 0],
+        "xaxis_points_left": False,
+        "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
+        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$",
     },
-   "x-": {
-       "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
-       "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
-       "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
-       "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
-       "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$"
+    "x-": {
+        "axis": 2,
+        "plane": [1, 0],
+        "xaxis_points_left": True,
+        "xlabel": r"$z_{\mathrm{CXI}}$ or $x_{\mathrm{XU}}$",
+        "ylabel": r"$y_{\mathrm{CXI}}$ or $z_{\mathrm{XU}}$",
+        "qxlabel": r"q$_{z, \mathrm{CXI}}$ or q$_{x, \mathrm{XU}}$",
+        "qylabel": r"q$_{y, \mathrm{CXI}}$ or q$_{z, \mathrm{XU}}$",
     },
 }
 
 # Planes are given with the indexing convention,
 # i.e. [n, m] -> x-axis = m, y-axis = n
 XU_VIEW_PARAMETERS = {
-   "x+": {
-       "axis": 0, "plane": [2, 1], "xaxis_points_left": True,
-       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
+    "x+": {
+        "axis": 0,
+        "plane": [2, 1],
+        "xaxis_points_left": True,
+        "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
+        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$",
     },
-   "x-": {
-       "axis": 0, "plane": [2, 1], "xaxis_points_left": False,
-       "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
+    "x-": {
+        "axis": 0,
+        "plane": [2, 1],
+        "xaxis_points_left": False,
+        "xlabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
+        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$",
     },
-   "y+": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
+    "y+": {
+        "axis": 1,
+        "plane": [2, 0],
+        "xaxis_points_left": False,
+        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$",
     },
-   "y-": {
-       "axis": 1, "plane": [2, 0], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
-       "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
-       "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$"
+    "y-": {
+        "axis": 1,
+        "plane": [2, 0],
+        "xaxis_points_left": True,
+        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+        "ylabel": r"$z_{\mathrm{XU}}$ or $y_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+        "qylabel": r"q$_{z, \mathrm{XU}}$ or q$_{y, \mathrm{CXI}}$",
     },
-   "z+": {
-       "axis": 2, "plane": [1, 0], "xaxis_points_left": True,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
-       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$"
+    "z+": {
+        "axis": 2,
+        "plane": [1, 0],
+        "xaxis_points_left": True,
+        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+        "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+        "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
     },
-   "z-": {
-       "axis": 2, "plane": [1, 0], "xaxis_points_left": False,
-       "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
-       "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
-       "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
-       "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$"
+    "z-": {
+        "axis": 2,
+        "plane": [1, 0],
+        "xaxis_points_left": False,
+        "xlabel": r"$x_{\mathrm{XU}}$ or $z_{\mathrm{CXI}}$",
+        "ylabel": r"$y_{\mathrm{XU}}$ or $x_{\mathrm{CXI}}$",
+        "qxlabel": r"q$_{x, \mathrm{XU}}$ or q$_{z, \mathrm{CXI}}$",
+        "qylabel": r"q$_{y, \mathrm{XU}}$ or q$_{x, \mathrm{CXI}}$",
     },
 }
 
@@ -109,26 +134,22 @@ XU_VIEW_PARAMETERS = {
 NATURAL_VIEW_PARAMETERS = {
     "dim0": {"axis": 0, "plane": [1, 2], "xaxis_points_left": False},
     "dim1": {"axis": 1, "plane": [0, 2], "xaxis_points_left": False},
-    "dim2": {"axis": 2, "plane": [0, 1], "xaxis_points_left": False}
+    "dim2": {"axis": 2, "plane": [0, 1], "xaxis_points_left": False},
 }
 
 
 def save_fig(fig: plt.Figure, path: str, **kwargs) -> None:
-    default_params = {
-        "bbox_inches": "tight",
-        "dpi": 200,
-        "transparent": True
-    }
+    default_params = {"bbox_inches": "tight", "dpi": 200, "transparent": True}
     default_params.update(kwargs)
     fig.savefig(path, **default_params)
 
 
 def add_labels(
-        axes: plt.Axes,
-        views: tuple[str] = None,
-        space: str = "direct",
-        convention: str = "cxi",
-        unit: str = None
+    axes: plt.Axes,
+    views: tuple[str] = None,
+    space: str = "direct",
+    convention: str = "cxi",
+    unit: str = None,
 ) -> None:
     if convention.lower() in ("xu", "lab"):
         view_params = XU_VIEW_PARAMETERS.copy()
@@ -169,10 +190,7 @@ def add_labels(
 
 
 def get_x_y_limits_extents(
-        shape,
-        voxel_size,
-        data_centre=None,
-        equal_limits: bool = False
+    shape, voxel_size, data_centre=None, equal_limits: bool = False
 ):
     shape = np.array(shape)
     voxel_size = np.array(voxel_size)
@@ -185,15 +203,15 @@ def get_x_y_limits_extents(
 
     if data_centre is None:
         return [(0, e) for e in extents]
-    return [(c - e/2, c + e/2) for c, e in zip(data_centre, extents)]
+    return [(c - e / 2, c + e / 2) for c, e in zip(data_centre, extents)]
 
 
 def set_x_y_limits_extents(
-        ax: plt.Axes,
-        extents: list | tuple,
-        limits: list | tuple,
-        plane: list | tuple,
-        xaxis_points_left: bool = False
+    ax: plt.Axes,
+    extents: list | tuple,
+    limits: list | tuple,
+    plane: list | tuple,
+    xaxis_points_left: bool = False,
 ) -> None:
     image = ax.images[0]
     image.origin = "lower"
@@ -209,10 +227,10 @@ def set_x_y_limits_extents(
 
 
 def x_y_lim_from_support(
-        support: np.ndarray,
-        pixel_size: tuple = (1, 1),
-        central_pixel: tuple = None,
-        pad: tuple = (-10, 10)
+    support: np.ndarray,
+    pixel_size: tuple = (1, 1),
+    central_pixel: tuple = None,
+    pad: tuple = (-10, 10),
 ) -> list:
     """
     Return the x and y limits of the a plot using support constraints.
@@ -238,23 +256,23 @@ def x_y_lim_from_support(
             lim = np.nonzero(support.sum(axis=i))[0][[0, -1]] * pixel_size[0]
             lim += np.array(pad)
             if central_pixel:
-                lim -= (lim.mean() - central_pixel[i])
+                lim -= lim.mean() - central_pixel[i]
             lims.append(lim)
         return lims
     return None
 
 
 def get_extent(
-        shape: tuple,
-        voxel_size: tuple | list | np.ndarray,
-        plane: list,
-        zero_centred: bool = True,
-        indexing: str = "ij"
+    shape: tuple,
+    voxel_size: tuple | list | np.ndarray,
+    plane: list,
+    zero_centred: bool = True,
+    indexing: str = "ij",
 ) -> tuple:
     """Find the extents for matshow/imshow plotting, for a given plane.
     Note that in matlotlib convention, the extent must be provided in
     the order x, y, but the imshow function plot axis0 along y and axis1
-    along x. Therefore, plane and indexing must be chosen appropriately. 
+    along x. Therefore, plane and indexing must be chosen appropriately.
 
     Args:
         shape (tuple): the shape of the data to plot.
@@ -277,7 +295,9 @@ def get_extent(
     """
     if isinstance(voxel_size, (int, float)):
         voxel_size = np.repeat(voxel_size, len(shape))
-    absolute_extents = np.array(voxel_size) * shape / (2 if zero_centred else 1)
+    absolute_extents = (
+        np.array(voxel_size) * shape / (2 if zero_centred else 1)
+    )
     if indexing == "xy":
         return (
             -absolute_extents[plane[0]] if zero_centred else 0,
@@ -317,7 +337,6 @@ def get_plot_configs(key: str) -> dict:
 
 
 def set_plot_configs():
-
     ANGSTROM_SYMBOL = None
     PERCENT_SYMBOL = None
     PLOT_CONFIGS = None
@@ -334,19 +353,19 @@ def set_plot_configs():
             "title": "Amplitude (a.u.)",
             "cmap": "turbo",
             "vmin": 0,
-            "vmax": None
+            "vmax": None,
         },
         "support": {
             "title": "Support (a.u.)",
             "cmap": "turbo",
             "vmin": 0,
-            "vmax": 1
+            "vmax": 1,
         },
         "intensity": {
             "title": "Intensity (a.u.)",
             "cmap": "turbo",
             "vmin": 0,
-            "vmax": None
+            "vmax": None,
         },
         "phase": {
             "title": "Phase (rad)",
@@ -355,13 +374,13 @@ def set_plot_configs():
             "vmax": np.pi,
         },
         "displacement": {
-            "title": fr"Displacement ({ANGSTROM_SYMBOL})",
+            "title": rf"Displacement ({ANGSTROM_SYMBOL})",
             "cmap": "cet_CET_D1A",
             "vmin": -0.1,
             "vmax": 0.1,
         },
         "strain": {
-            "title": fr"Strain ({PERCENT_SYMBOL})",
+            "title": rf"Strain ({PERCENT_SYMBOL})",
             "cmap": "cet_CET_D13",
             "vmin": -0.05,
             "vmax": 0.05,
@@ -370,44 +389,45 @@ def set_plot_configs():
             "title": r"Displacement gradient",
             "cmap": "Spectral_r",
             "vmin": -5 * 1e-4,
-            "vmax": 5 * 1e-4
+            "vmax": 5 * 1e-4,
         },
         "dspacing": {
-            "title": fr"dspacing ({ANGSTROM_SYMBOL})",
+            "title": rf"dspacing ({ANGSTROM_SYMBOL})",
             "cmap": "turbo",
             "vmin": None,
             "vmax": None,
         },
         "lattice_parameter": {
-            "title": fr"Lattice parameter ({ANGSTROM_SYMBOL})",
+            "title": rf"Lattice parameter ({ANGSTROM_SYMBOL})",
             "cmap": "turbo",
             "vmin": None,
-            "vmax": None
-        }
+            "vmax": None,
+        },
     }
     PLOT_CONFIGS["het_strain"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["numpy_het_strain"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["numpy_het_strain"]["title"] = (
-        fr"Numpy strain ({PERCENT_SYMBOL})"
+        rf"Numpy strain ({PERCENT_SYMBOL})"
     )
     PLOT_CONFIGS["het_strain_from_dspacing"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["het_strain_from_dspacing"]["title"] = (
-        fr"Strain from dspacing ({PERCENT_SYMBOL})"
+        rf"Strain from dspacing ({PERCENT_SYMBOL})"
     )
     PLOT_CONFIGS["het_strain_with_ramp"] = PLOT_CONFIGS["strain"].copy()
     PLOT_CONFIGS["het_strain_with_ramp"]["title"] = (
-        fr"Strain with ramp ({PERCENT_SYMBOL})"
+        rf"Strain with ramp ({PERCENT_SYMBOL})"
     )
     return ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS
+
 
 # ANGSTROM_SYMBOL, PERCENT_SYMBOL, PLOT_CONFIGS = set_plot_configs()
 
 
 def update_plot_params(
-        style: str = "default",
-        usetex: bool = False,
-        use_siunitx: bool = True,
-        **kwargs
+    style: str = "default",
+    usetex: bool = False,
+    use_siunitx: bool = True,
+    **kwargs,
 ) -> None:
     """Update the matplotlib plot parameters to plublication style"""
 
@@ -427,7 +447,7 @@ def update_plot_params(
             "font.family": "sans-serif",
             "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
             # "font.sans-serif": "DejaVu Sans",
-            "figure.figsize": (4.5, 3.0)
+            "figure.figsize": (4.5, 3.0),
         }
     elif style == "thesis":
         parameters = {
@@ -446,18 +466,18 @@ def update_plot_params(
         if use_siunitx:
             plt.rcParams.update(
                 {
-                    'text.latex.preamble': (
-                        r'\usepackage{siunitx}'
-                        r'\sisetup{detect-all}'
-                        r'\usepackage{helvet}'
+                    "text.latex.preamble": (
+                        r"\usepackage{siunitx}"
+                        r"\sisetup{detect-all}"
+                        r"\usepackage{helvet}"
                         + (
-                            r'\usepackage{sansmath} \sansmath'
-                            r'\usepackage{textgreek}'
+                            r"\usepackage{sansmath} \sansmath"
+                            r"\usepackage{textgreek}"
                             if style in ("default", "nature")
-                            else r'\usepackage{amsmath}'
+                            else r"\usepackage{amsmath}"
                         )
                     ),
-                    "text.usetex": True
+                    "text.usetex": True,
                 }
             )
         else:
@@ -467,7 +487,7 @@ def update_plot_params(
                     "text.latex.preamble": "",
                     "mathtext.default": "regular",
                     "font.family": "sans-serif",
-                    "font.sans-serif": ["Liberation Sans"]
+                    "font.sans-serif": ["Liberation Sans"],
                 }
             )
 
@@ -476,15 +496,39 @@ def update_plot_params(
         {
             "image.cmap": "turbo",
             "figure.dpi": 200,
+            "legend.frameon": False,
+            "axes.prop_cycle": cycler(
+                "color",
+                [
+                    "#1f77b4",
+                    "#aec7e8",
+                    "#ff7f0e",
+                    "#ffbb78",
+                    "#2ca02c",
+                    "#98df8a",
+                    "#d62728",
+                    "#ff9896",
+                    "#9467bd",
+                    "#c5b0d5",
+                    "#8c564b",
+                    "#c49c94",
+                    "#e377c2",
+                    "#f7b6d2",
+                    "#7f7f7f",
+                    "#c7c7c7",
+                    "#bcbd22",
+                    "#dbdb8d",
+                    "#17becf",
+                    "#9edae5",
+                ],
+            ),
         }
     )
     plt.rcParams.update(**kwargs)
 
 
 def get_figure_size(
-        width: int | str = "default",
-        scale: float = 1,
-        subplots: tuple = (1, 1)
+    width: int | str = "default", scale: float = 1, subplots: tuple = (1, 1)
 ) -> tuple:
     """
     Get the figure dimensions to avoid scaling in LaTex.
@@ -500,11 +544,11 @@ def get_figure_size(
 
     :return: dimensions of the figure in inches (tuple)
     """
-    if width == 'default':
+    if width == "default":
         width_pt = 420
-    elif width == 'thesis':
+    elif width == "thesis":
         width_pt = 455.30101
-    elif width == 'beamer':
+    elif width == "beamer":
         width_pt = 398.3386
     elif width == "nature":
         width_pt = 518.74
@@ -516,7 +560,7 @@ def get_figure_size(
 
     # Golden ratio to set aesthetic figure height
     # https://disq.us/p/2940ij3
-    golden_ratio = (5**.5 - 1) / 2
+    golden_ratio = (5**0.5 - 1) / 2
 
     # Convert from pt to inches
     inches_per_pt = 1 / 72.27
@@ -550,14 +594,14 @@ def get_mappable(ax: plt.Axes) -> matplotlib.cm.ScalarMappable | None:
 
 
 def add_colorbar(
-        ax: plt.Axes,
-        mappable: matplotlib.cm.ScalarMappable = None,
-        loc: str = "right",
-        size: str = "5%",
-        pad: float = 0.05,
-        label_size: int = 6,
-        scientific_notation: bool = False,
-        **kwargs
+    ax: plt.Axes,
+    mappable: matplotlib.cm.ScalarMappable = None,
+    loc: str = "right",
+    size: str = "5%",
+    pad: float = 0.05,
+    label_size: int = 6,
+    scientific_notation: bool = False,
+    **kwargs,
 ) -> matplotlib.colorbar.Colorbar:
     """
     Add a colorbar to the given axes. Stolen from Edoardo Zatterin sxdm
@@ -595,14 +639,14 @@ def add_colorbar(
     # check if vmin and vmax from the normalisation object are valid
     norm = mappable.norm
     vmin, vmax = norm.vmin, norm.vmax
-     # Handle LogNorm-specific issues
+    # Handle LogNorm-specific issues
     if isinstance(norm, matplotlib.colors.LogNorm):
         if vmin is None or vmax is None or vmin <= 0 or vmax <= 0:
             warnings.warn(
                 "Invalid vmin or vmax detected for LogNorm. "
                 "LogNorm requires vmin and vmax to be strictly positive. "
                 "Skipping colorbar creation.",
-                UserWarning
+                UserWarning,
             )
             return None  # skip colorbar if LogNorm is invalid
 
@@ -619,9 +663,7 @@ def add_colorbar(
 
 
 def two_spine_frameless_ax(
-        ax: plt.Axes,
-        left_spine_pos: float,
-        bottom_spine_pos: float
+    ax: plt.Axes, left_spine_pos: float, bottom_spine_pos: float
 ) -> None:
     ax.spines["left"].set_position(("data", left_spine_pos))
     ax.spines["bottom"].set_position(("data", bottom_spine_pos))
@@ -632,21 +674,18 @@ def two_spine_frameless_ax(
         1,
         "^k",
         transform=ax.get_xaxis_transform(),
-        clip_on=False
+        clip_on=False,
     )
     ax.plot(
         1,
         bottom_spine_pos,
-        ">k", 
+        ">k",
         transform=ax.get_yaxis_transform(),
-        clip_on=False
+        clip_on=False,
     )
 
 
-def plot_background(
-        ax: plt.Axes,
-        grey_background_opacity=0
-) -> plt.Axes:
+def plot_background(ax: plt.Axes, grey_background_opacity=0) -> plt.Axes:
     """Plot a grey background and a grid"""
 
     ax.grid(True, linestyle="--", linewidth=0.5, zorder=0)
@@ -656,9 +695,7 @@ def plot_background(
 
 
 def white_interior_ticks_labels(
-        ax: plt.Axes,
-        xtick_pad: int = -15,
-        ytick_pad: int = -25
+    ax: plt.Axes, xtick_pad: int = -15, ytick_pad: int = -25
 ) -> None:
     """Place the ticks and labels inside the provided axis."""
     ax.tick_params(axis="x", direction="in", pad=xtick_pad, colors="w")
@@ -681,18 +718,19 @@ def white_interior_ticks_labels(
 class MathTextSciFormatter(mticker.Formatter):
     def __init__(self, fmt="%1.2e"):
         self.fmt = fmt
+
     def __call__(self, x, pos=None):
         s = self.fmt % x
-        decimal_point = '.'
-        positive_sign = '+'
-        tup = s.split('e')
+        decimal_point = "."
+        positive_sign = "+"
+        tup = s.split("e")
         significand = tup[0].rstrip(decimal_point)
-        sign = tup[1][0].replace(positive_sign, '')
-        exponent = tup[1][1:].lstrip('0')
+        sign = tup[1][0].replace(positive_sign, "")
+        exponent = tup[1][1:].lstrip("0")
         if exponent:
             exponent = f"10^{sign, exponent}"
         if significand and exponent:
-            s =  fr"{significand}\times{exponent}"
+            s = rf"{significand}\times{exponent}"
         else:
-            s =  fr"{significand, exponent}"
+            s = rf"{significand, exponent}"
         return f"${s}$"
