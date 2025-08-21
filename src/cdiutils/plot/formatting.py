@@ -424,14 +424,34 @@ def set_plot_configs():
 
 
 def update_plot_params(
-    style: str = "default",
+    style: str | None = None,
     usetex: bool = False,
     use_siunitx: bool = True,
     **kwargs,
 ) -> None:
     """Update the matplotlib plot parameters to plublication style"""
 
-    if style in ("default", "nature"):
+    if style is None:
+        # the default style
+        parameters = {
+            "lines.linewidth": 1,
+            "lines.markersize": 1,
+            "figure.titlesize": 7,
+            "font.size": 6,
+            "svg.fonttype": "none",
+            "axes.titlesize": 6,
+            "axes.labelsize": 6,
+            "xtick.labelsize": 5,
+            "ytick.labelsize": 5,
+            "legend.fontsize": 6,
+            "image.interpolation": "none",
+            "font.family": "sans-serif",
+            "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
+            # "font.sans-serif": "DejaVu Sans",
+            "figure.figsize": (4.5, 3.0),
+        }
+
+    elif style == "nature":
         parameters = {
             "lines.linewidth": 1,
             "lines.markersize": 1,
