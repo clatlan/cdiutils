@@ -7,11 +7,7 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.utils import (
-    CroppingHandler,
-    get_centred_slices,
-    bin_along_axis
-)
+from cdiutils.utils import CroppingHandler, get_centred_slices, bin_along_axis
 from cdiutils.plot import add_colorbar
 
 
@@ -19,11 +15,11 @@ class Loader(ABC):
     """A generic class for loaders."""
 
     def __init__(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
     ) -> None:
         """
         The generic parent class for all loaders.
@@ -45,8 +41,7 @@ class Loader(ABC):
         self.rocking_angle = "sample_outofplane_angle"
 
     def get_alien_mask(
-            self,
-            roi: tuple[slice, slice, slice] = None
+        self, roi: tuple[slice, slice, slice] = None
     ) -> np.ndarray:
         if self.alien_mask is None:
             return None
@@ -76,12 +71,15 @@ class Loader(ABC):
         if "id01" in beamline_setup.lower():
             if beamline_setup.lower() == "id01spec":
                 from . import SpecLoader
+
                 return SpecLoader(**metadata)
             from . import ID01Loader
+
             return ID01Loader(**metadata)
 
         if "sixs" in beamline_setup.lower():
             from . import SIXSLoader
+
             if "2022" in beamline_setup.lower():
                 return SIXSLoader(version="2022", **metadata)
             if "2019" in beamline_setup.lower():
@@ -93,20 +91,24 @@ class Loader(ABC):
 
         if "p10" in beamline_setup.lower():
             from . import P10Loader
+
             if beamline_setup.lower() == "p10eh2":
                 return P10Loader(hutch="EH2", **metadata)
             return P10Loader(**metadata)
 
         if beamline_setup.lower() == "cristal":
             from . import CristalLoader
+
             return CristalLoader(**metadata)
 
         if beamline_setup.lower() == "nanomax":
             from . import NanoMAXLoader
+
             return NanoMAXLoader(**metadata)
 
         if beamline_setup.lower() == "id27":
             from . import ID27Loader
+
             return ID27Loader(**metadata)
         raise ValueError(f"Invalid beamline setup: {beamline_setup = }")  # noqa, E251
 
@@ -131,7 +133,11 @@ class Loader(ABC):
             if data_or_path.endswith(".npz"):
                 with np.load(data_or_path, "r") as file:
                     for possible_key in (
-                            "arr_0", "data", "mask", "flatfield", "flat_field"
+                        "arr_0",
+                        "data",
+                        "mask",
+                        "flatfield",
+                        "flat_field",
                     ):
                         if possible_key in dict(file):
                             return file[possible_key]
@@ -175,17 +181,14 @@ class Loader(ABC):
                 return (slice(None), roi[0], roi[1])
             if len(roi) == 3:
                 return roi
-        if (
-            (len(roi) == 4 or len(roi) == 6)
-            and all(isinstance(e, (int, np.integer)) for e in roi)
+        if (len(roi) == 4 or len(roi) == 6) and all(
+            isinstance(e, (int, np.integer)) for e in roi
         ):
             return CroppingHandler.roi_list_to_slices(roi)
         raise ValueError(usage_text)
 
     def _check_scan_sample(
-            self,
-            scan: str = None,
-            sample_name: str = None
+        self, scan: str = None, sample_name: str = None
     ) -> tuple:
         """
         Utility function to check if a scan and sample name were parsed.
@@ -205,12 +208,12 @@ class Loader(ABC):
 
     @staticmethod
     def bin_flat_mask(
-            data: np.ndarray,
-            roi: list = None,
-            flat_field: np.ndarray = None,
-            alien_mask: np.ndarray = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum",
+        data: np.ndarray,
+        roi: list = None,
+        flat_field: np.ndarray = None,
+        alien_mask: np.ndarray = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         """
         A generic method that takes care of binning, applying flat_field
@@ -252,8 +255,7 @@ class Loader(ABC):
 
     @staticmethod
     def bin_rocking_angle_values(
-            values: list | np.ndarray,
-            binning_factor: int = None
+        values: list | np.ndarray, binning_factor: int = None
     ) -> np.ndarray:
         """
         Bins the data along the rocking angle axis using the
@@ -287,32 +289,33 @@ class Loader(ABC):
         return self.authorised_detector_names[0]
 
     @staticmethod
-    def get_rocking_angle(angles) -> str:
+    def get_rocking_angle(angles: dict) -> str | None:
         outofplane = angles.get("sample_outofplane_angle")
         inplane = angles.get("sample_inplane_angle")
 
         if outofplane is not None and inplane is not None:
             if (
-                    isinstance(outofplane, (np.ndarray, list))
-                    and len(outofplane) > 1
+                isinstance(outofplane, (np.ndarray, list))
+                and len(outofplane) > 1
             ):
                 return "sample_outofplane_angle"
             if isinstance(inplane, ((np.ndarray, list))) and len(inplane) > 1:
                 return "sample_inplane_angle"
-            raise ValueError(
+            print(
                 "Could not find a rocking angle "
                 f"({outofplane = }, {inplane = })"  # noqa, E251
             )
-        raise ValueError(
+        print(
             "sample_outofplane_angle and/or sample_inplane_angle missing in "
             "the provided angles dictionary."
         )
+        return None
 
     @staticmethod
     def format_scanned_counters(
-            *counters: float | np.ndarray | list,
-            scan_axis_roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        *counters: float | np.ndarray | list,
+        scan_axis_roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ):
         """
         Format scanned counters (e.g., angles, energy, or other motor
@@ -359,10 +362,10 @@ class Loader(ABC):
 
     @classmethod
     def get_mask(
-            cls,
-            detector_name: str = None,
-            channel: int = None,
-            roi: tuple[slice] = None
+        cls,
+        detector_name: str = None,
+        channel: int = None,
+        roi: tuple[slice] = None,
     ) -> np.ndarray:
         """
         Load the mask of the given detector_name.
@@ -398,7 +401,11 @@ class Loader(ABC):
             roi = (slice(None),) + roi[-2:]
 
         if detector_name in (
-            "maxipix", "Maxipix", "mpxgaas", "mpx4inr", "mpx1x4"
+            "maxipix",
+            "Maxipix",
+            "mpxgaas",
+            "mpx4inr",
+            "mpx1x4",
         ):
             mask = np.zeros(shape=(516, 516))
             mask[:, 255:261] = 1
@@ -457,28 +464,39 @@ class Loader(ABC):
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
         if channel:
-            mask = np.repeat(mask[np.newaxis, :, :,], channel, axis=0)
+            mask = np.repeat(
+                mask[
+                    np.newaxis,
+                    :,
+                    :,
+                ],
+                channel,
+                axis=0,
+            )
         return mask[roi]
 
     @staticmethod
     def plot_detector_data(
-            data: np.ndarray,
-            title: str = None,
-            return_fig: bool = False,
-            equal_limits: bool = False,
-            **plot_params
+        data: np.ndarray,
+        title: str = None,
+        return_fig: bool = False,
+        equal_limits: bool = False,
+        **plot_params,
     ) -> plt.Figure:
         _plot_params = {
             "norm": LogNorm(1),
             "origin": "upper",
-            "cmap": "turbo"  # "PuBu_r"
+            "cmap": "turbo",  # "PuBu_r"
         }
         if plot_params:
             _plot_params.update(plot_params)
 
         if data.ndim == 3:
             limits = [
-                (s/2 - np.max(data.shape)/2, s/2 + np.max(data.shape)/2)
+                (
+                    s / 2 - np.max(data.shape) / 2,
+                    s / 2 + np.max(data.shape) / 2,
+                )
                 for s in data.shape
             ]
             slices = get_centred_slices(data.shape)
@@ -489,14 +507,16 @@ class Loader(ABC):
                 axes[0, i].imshow(
                     (
                         np.swapaxes(data[slices[i]], 0, 1)
-                        if p[0] > p[1] else data[slices[i]]
+                        if p[0] > p[1]
+                        else data[slices[i]]
                     ),
-                    **_plot_params
+                    **_plot_params,
                 )
                 axes[1, i].imshow(
                     (
                         np.swapaxes(data.sum(axis=i), 0, 1)
-                        if p[0] > p[1] else data.sum(axis=i)
+                        if p[0] > p[1]
+                        else data.sum(axis=i)
                     ),
                     **_plot_params,
                 )
@@ -535,9 +555,11 @@ class Loader(ABC):
 
 def h5_safe_load(func: Callable) -> Callable:
     """A wrapper to safely load data in h5 file"""
+
     def wrap(self, *args, **kwargs):
         with silx.io.h5py_utils.File(self.experiment_file_path) as self.h5file:
             return func(self, *args, **kwargs)
+
     return wrap
 
 
@@ -545,13 +567,13 @@ class H5TypeLoader(Loader):
     """A child class of Loader for H5-type loaders."""
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
+        self,
+        experiment_file_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
     ) -> None:
         super().__init__(scan, sample_name, flat_field, alien_mask)
         self.experiment_file_path = experiment_file_path
