@@ -301,14 +301,6 @@ class Loader(ABC):
                 return "sample_outofplane_angle"
             if isinstance(inplane, ((np.ndarray, list))) and len(inplane) > 1:
                 return "sample_inplane_angle"
-            print(
-                "Could not find a rocking angle "
-                f"({outofplane = }, {inplane = })"  # noqa, E251
-            )
-        print(
-            "sample_outofplane_angle and/or sample_inplane_angle missing in "
-            "the provided angles dictionary."
-        )
         return None
 
     @staticmethod
