@@ -31,17 +31,17 @@ class NanoMAXLoader(H5TypeLoader):
         "sample_outofplane_angle": "gontheta",
         "sample_inplane_angle": "gonphi",
         "detector_outofplane_angle": "delta",
-        "detector_inplane_angle": "gamma"
+        "detector_inplane_angle": "gamma",
     }
-    authorised_detector_names = ("eiger500k", )
+    authorised_detector_names = ("eiger500k",)
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            detector_name: str = "eiger500k",
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        detector_name: str = "eiger500k",
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise NanoMaxLoader with experiment data file path and
@@ -60,15 +60,15 @@ class NanoMAXLoader(H5TypeLoader):
             experiment_file_path,
             detector_name=detector_name,
             flat_field=flat_field,
-            alien_mask=alien_mask
+            alien_mask=alien_mask,
         )
 
     @h5_safe_load
     def load_detector_data(
-            self,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         """
         Main method to load the detector data (collected intensity).
@@ -85,9 +85,7 @@ class NanoMAXLoader(H5TypeLoader):
             np.ndarray: the detector data.
         """
         # Where to find the data.
-        key_path = (
-            f"/entry/measurement/{self.detector_name}/frames"
-        )
+        key_path = f"/entry/measurement/{self.detector_name}/frames"
         roi = self._check_roi(roi)
         try:
             if rocking_angle_binning:
@@ -107,14 +105,14 @@ class NanoMAXLoader(H5TypeLoader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @h5_safe_load
     def load_motor_positions(
-            self,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> dict:
         roi = self._check_roi(roi)
         roi = roi[0]
@@ -126,31 +124,32 @@ class NanoMAXLoader(H5TypeLoader):
             angles[angle] = self.h5file[key_path + name][()]
 
         # Take care of the rocking curve angle
+        rocking_angle = None
         for angle in ("gonphi", "gontheta"):
             if angle in self.h5file["entry/measurement"].keys():
-                rocking_angle_name = angle
+                rocking_angle = angle
                 if rocking_angle_binning:
-                    rocking_angle_values = self.h5file["entry/measurement"][angle][
-                        ()
-                    ]
+                    rocking_angle_values = self.h5file["entry/measurement"][
+                        angle
+                    ][()]
                 else:
-                    rocking_angle_values = self.h5file["entry/measurement"][angle][
-                        roi
-                    ]
+                    rocking_angle_values = self.h5file["entry/measurement"][
+                        angle
+                    ][roi]
                 # Find what generic angle (in-plane or out-of-plane) it
                 # corresponds to.
                 for angle, name in NanoMAXLoader.angle_names.items():
-                    if name == rocking_angle_name:
-                        rocking_angle = angle
+                    if name == rocking_angle:
+                        self.rocking_angle = angle
 
-        self.rocking_angle = rocking_angle
-        angles[rocking_angle] = rocking_angle_values
+        if self.rocking_angle is not None:
+            angles[self.rocking_angle] = rocking_angle_values
 
-        angles[self.rocking_angle] = self.bin_rocking_angle_values(
-            angles[self.rocking_angle]
-        )
-        if roi and rocking_angle_binning:
-            angles[self.rocking_angle] = angles[self.rocking_angle][roi]
+            angles[self.rocking_angle] = self.bin_rocking_angle_values(
+                angles[self.rocking_angle]
+            )
+            if roi and rocking_angle_binning:
+                angles[self.rocking_angle] = angles[self.rocking_angle][roi]
         return angles
 
     @h5_safe_load
