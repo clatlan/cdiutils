@@ -124,7 +124,7 @@ class NanoMAXLoader(H5TypeLoader):
             angles[angle] = self.h5file[key_path + name][()]
 
         # Take care of the rocking curve angle
-        rocking_angle = None
+        self.rocking_angle = rocking_angle = None
         for angle in ("gonphi", "gontheta"):
             if angle in self.h5file["entry/measurement"].keys():
                 rocking_angle = angle
