@@ -3,7 +3,6 @@
 from abc import ABC, abstractmethod
 from typing import Callable
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import numpy as np
 import silx.io.h5py_utils
 
@@ -476,7 +475,7 @@ class Loader(ABC):
         **plot_params,
     ) -> plt.Figure:
         _plot_params = {
-            "norm": LogNorm(1),
+            "norm": "log",
             "origin": "upper",
             "cmap": "turbo",  # "PuBu_r"
         }
