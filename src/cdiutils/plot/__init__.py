@@ -16,7 +16,7 @@ from .formatting import (
     x_y_lim_from_support,
 )
 
-__submodules__ = {"slice", "volumeinteractive", "stats"}
+__submodules__ = {"slice", "volume", "interactive", "stats"}
 
 __class_func_submodules__ = {
     "Plotter": "interactive",
