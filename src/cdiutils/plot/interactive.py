@@ -44,7 +44,7 @@ class Plotter:
         Numpy array directly.
     plot : str, optional
         Specifies the type of plot to create. Available options are:
-        '2D', 'slices', 'contour_slices', 'sum_slices',
+        '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
         'sum_contour_slices', '3D', by default 'slices'.
     log : bool, optional
         Whether to display the plot in log scale, by default False.
@@ -96,7 +96,7 @@ class Plotter:
                 or a Numpy array directly.
             plot : str, optional
                 Specifies the type of plot to create. Available options
-                are: '2D', 'slices', 'contour_slices', 'sum_slices',
+                are: '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
                 'sum_contour_slices', '3D', by default 'slices'.
             log : bool, optional
                 Whether to display the plot in log scale, by default
@@ -152,8 +152,8 @@ class Plotter:
         data_array : numpy.ndarray
             An array containing the data to be plotted.
         plot : str
-            The type of plot to be generated, which can be one of the following: "2D", "slices", "contour_slices",
-            "sum_slices", "sum_contour_slices", or "3D".
+            The type of plot to be generated, which can be one of the following: "2D", "slices", "phase_slices",
+            "contour_slices", "sum_slices", "sum_contour_slices", or "3D".
         figsize : tuple
             The size of the plot in inches.
         fontsize : int
@@ -183,6 +183,19 @@ class Plotter:
         elif self.plot == "slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
+                fontsize=self.fontsize, title=self.title,
+                figsize=None, log=self.log, cmap=self.cmap,
+                contour=False, sum_over_axis=False,
+            )
+
+        elif self.plot == "phase_slices" and self.data_array.ndim == 3:
+            amp = np.abs(self.data_array)
+            phase = np.angle(self.data_array)
+            max_amp = np.max(amp)
+            phase_in_support = np.where(amp>0.05*max_amp, phase, np.nan)
+
+            plot_3d_slices(
+                data_array=phase_in_support,
                 fontsize=self.fontsize, title=self.title,
                 figsize=None, log=self.log, cmap=self.cmap,
                 contour=False, sum_over_axis=False,
