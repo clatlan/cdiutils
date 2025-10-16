@@ -27,7 +27,8 @@ keywords = [
     "synchrotron radiation",
     "quantitative analysis",
 ]
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 
 dependencies = [
     "colorcet>=3.0.0",
@@ -87,4 +88,7 @@ extend-include = ["*.ipynb"]
 prepare_bcdi_notebooks = "cdiutils.scripts.prepare_bcdi_notebooks:main"
 prepare_detector_calibration = "cdiutils.scripts.prepare_detector_calibration:main"
 
-
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]

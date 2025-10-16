@@ -1,12 +1,13 @@
 import numpy as np
+
 # handling vtk case
 try:
     import vtk
     from vtk.util.numpy_support import numpy_to_vtk
+
     IS_VTK_AVAILABLE = True
 
 except ImportError:
-    print("vtk package is not installed.")
     IS_VTK_AVAILABLE = False
 
 
@@ -47,11 +48,11 @@ def load_vtk(file_path: str):
 
 
 def save_as_vti(
-        output_path: str,
-        voxel_size: tuple | list | np.ndarray,
-        cxi_convention: bool = False,
-        origin: tuple = (0, 0, 0),
-        **np_arrays: dict[np.ndarray]
+    output_path: str,
+    voxel_size: tuple | list | np.ndarray,
+    cxi_convention: bool = False,
+    origin: tuple = (0, 0, 0),
+    **np_arrays: dict[np.ndarray],
 ) -> None:
     """Save numpy arrays to .vti file."""
     if not IS_VTK_AVAILABLE:
@@ -69,20 +70,25 @@ def save_as_vti(
         if not is_init:
             shape = array.shape
             if cxi_convention:
+                # change order to match VTK (x, y, z) convention
                 voxel_size = (voxel_size[2], voxel_size[1], voxel_size[0])
                 shape = (shape[2], shape[1], shape[0])
             image_data = vtk.vtkImageData()
             image_data.SetOrigin(origin)
             image_data.SetSpacing(voxel_size)
             image_data.SetExtent(
-                0, shape[0] - 1,
-                0, shape[1] - 1,
-                0, shape[2] - 1
+                0, shape[0] - 1, 0, shape[1] - 1, 0, shape[2] - 1
             )
             point_data = image_data.GetPointData()
             is_init = True
-
-        vtk_array = numpy_to_vtk(array.ravel())
+        if cxi_convention:
+            # natural ravelling row-major order is the one to use here,
+            # because, it will be x first, then y, then z.
+            vtk_array = numpy_to_vtk(array.ravel())
+        else:  # convention XU (x, y z)
+            # here, row-major order does not match our needs, we need to
+            # transpose the array.
+            vtk_array = numpy_to_vtk(array.transpose(2, 1, 0).ravel())
         point_data.AddArray(vtk_array)
         point_data.GetArray(i).SetName(key)
         point_data.Update()

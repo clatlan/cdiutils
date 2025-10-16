@@ -5,5 +5,5 @@ __all__ = [
     "get_histogram",
     "plot_histogram",
     "find_isosurface",
-    "pole_figure"
+    "pole_figure",
 ]

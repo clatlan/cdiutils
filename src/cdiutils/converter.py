@@ -698,67 +698,6 @@ class SpaceConverter():
             "arrangement should be 'l', 'list', 'c' or 'cubinates'"
         )
 
-    @staticmethod
-    def xu_to_cxi(
-            data: np.ndarray | tuple | list
-    ) -> np.ndarray | tuple | list:
-        """
-        Convert the a np.ndarray, a list or a tuple from the lab frame
-        system to the cxi frame conventions.
-        [
-            axis0=Xxu (pointing away from the light source),
-            axis1=Yxu (outboard),
-            axis2=Zxu (vertical up)
-        ]
-        will be converted into
-        [
-            axis0=Zcxi (pointing away from the light source),
-            axis1=Ycxi (vertical up),
-            axis2=Xcxi (horizontal completing the right handed system)
-        ]
-        """
-        if isinstance(data, (tuple, list)):
-            axis0, axis1, axis2 = data
-            return type(data)((axis0, axis2, axis1))
-
-        if isinstance(data, np.ndarray):
-            if data.shape == (3, ):
-                return np.array([data[0], data[2], data[1]])
-            return np.swapaxes(data, axis1=1, axis2=2)
-
-    @staticmethod
-    def cxi_to_xu(
-            data: np.ndarray | tuple | list
-    ) -> np.ndarray | tuple | list:
-        """
-        Convert a np.ndarray, a list or a tuple from the cxi frame
-        system to the lab frame conventions.
-        [
-            axis0=Zcxi (pointing away from the light source),
-            axis1=Ycxi (vertical up),
-            axis2=Xcxi (horizontal completing the right handed system)
-        ]
-        will be converted into
-        [
-            axis0=Xlab (pointing away from the light source),
-            axis1=Ylab (outboard),
-            axis2=Zlab (vertical up)
-        ]
-
-        """
-        if isinstance(data, (tuple, list)):
-            axis0, axis1, axis2 = data
-            return type(data)((axis0, axis2, axis1))
-        if isinstance(data, np.ndarray):
-            if data.shape == (3, ):
-                return np.array([data[0], data[2], data[1]])
-            return np.swapaxes(data, axis1=1, axis2=2)
-        else:
-            raise TypeError(
-                "data should be a 3D np.ndarray, a list of 3 values, a tuple "
-                "of 3 values or a np.ndarray of 3 values."
-            )
-
     def get_q_norm_histogram(
             self,
             q_lab_data: np.ndarray
@@ -805,8 +744,8 @@ class SpaceConverter():
             np.ndarray: the new support in the reconstruction frame.
         """
         if convert_to_xu:
-            support = self.xu_to_cxi(support)
-            voxel_size = self.xu_to_cxi(voxel_size)
+            support = Geometry.swap_convention(support)
+            voxel_size = Geometry.swap_convention(voxel_size)
         shape = support.shape
         rgi = RegularGridInterpolator(
             (

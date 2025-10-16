@@ -2,13 +2,11 @@ from collections.abc import Mapping  # more flexible than dict
 import numpy as np
 import warnings
 
-from cdiutils.utils import energy_to_wavelength
-
 DEFAULT_PIPELINE_PARAMS = {
     # Formerly the "metadata"
     "beamline_setup": "REQUIRED",
     "scan": "REQUIRED",
-    "experiment_file_path": "REQUIRED",
+    "experiment_file_path": None,
     "dump_dir": "REQUIRED",
     "sample_name": None,
     "experiment_data_dir_path": None,
@@ -17,6 +15,8 @@ DEFAULT_PIPELINE_PARAMS = {
     "detector_name": None,
     "flat_field": None,
     "alien_mask": None,
+    "sample_orientation": None,
+    "sample_surface_normal": None,
 
     "background_level": None,
     "preprocess_shape": (150, 150),
@@ -38,7 +38,7 @@ DEFAULT_PIPELINE_PARAMS = {
     "debug": True,
     "handle_defects": False,
     "orthogonalise_before_phasing": False,
-    "orientation_convention": "cxi",
+    "convention": "cxi",
     "pynx": {
         "data": None,
         "mask": None,
@@ -55,7 +55,7 @@ DEFAULT_PIPELINE_PARAMS = {
         "support_post_expand": None,  # (-1, 1)
         "support_update_border_n": None,
         "algorithm": None,
-        "psf": None,  # "pseudo-voigt,0.5,0.1,10",
+        "psf": "pseudo-voigt,1,0.05,20",  # "pseudo-voigt,1,0.05,20",
         "nb_raar": 500,
         "nb_hio": 300,
         "nb_er": 200,

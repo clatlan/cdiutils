@@ -53,6 +53,7 @@ from .parameters import (
     validate_and_fill_params,
     convert_np_arrays,
     DEFAULT_PIPELINE_PARAMS,
+    isparameter
 )
 
 
@@ -221,6 +222,19 @@ class BcdiPipeline(Pipeline):
                 "Additional parameters provided, will update the current "
                 "dictionary of parameters."
             )
+            for p in params:
+                if not isparameter(p):
+                    raise ValueError(
+                        f"Parameter '{p}' is not recognised. "
+                        "Please check the possible parameter names among:\n"
+                        + "\n".join(
+                            [
+                                f"- {key}"
+                                for key in DEFAULT_PIPELINE_PARAMS.keys()
+                            ]
+                        )
+                    )
+
             self.params.update(params)
 
         # If voxel_reference_methods is not a list, make it a list
@@ -282,7 +296,13 @@ class BcdiPipeline(Pipeline):
             )
 
         # Initialise SpaceConverter, later used for orthogonalisation
-        geometry = Geometry.from_setup(self.params["beamline_setup"])
+        geometry = Geometry.from_setup(
+            self.params["beamline_setup"],
+            sample_orientation=self.params.get("sample_orientation", None),
+            sample_surface_normal=self.params.get(
+                "sample_surface_normal", None
+            )
+        )
         self.converter = SpaceConverter(
             geometry=geometry,
             det_calib_params=self.params["det_calib_params"],
@@ -475,7 +495,7 @@ class BcdiPipeline(Pipeline):
             self.params["detector_name"] = loader.detector_name
             if self.params.get("detector_name") is None:
                 raise ValueError(
-                    "The automatic detection of the detector name is not"
+                    "The automatic detection of the detector name is not "
                     "yet implemented for this setup"
                     f"({self.params['beamline_setup']})."
                 )
@@ -720,12 +740,12 @@ class BcdiPipeline(Pipeline):
         # that correspond to the requested roi
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                self.angles[key] = value[np.s_[roi[0] : roi[1]]]
+                self.angles[key] = value[np.s_[roi[0]: roi[1]]]
 
         # if energy scan, crop the energy values according to the roi
         if isinstance(self.params["energy"], (list, np.ndarray)):
             self.params["energy"] = self.params["energy"][
-                np.s_[roi[0] : roi[1]]
+                np.s_[roi[0]: roi[1]]
             ]
 
         return cropped_detector_data, roi
@@ -830,7 +850,10 @@ retrieval is also computed and will be used in the post-processing stage."""
                 "sample_name",
                 sample_name=self.sample_name,
                 experiment_file_path=exp_path,
-                experiment_identifier=exp_path.split("/")[-1].split(".")[0],
+                experiment_identifier=(
+                    None if exp_path is None
+                    else exp_path.split("/")[-1].split(".")[0]
+                ),
             )
             cxi.create_cxi_group("parameters", **self.params)
             cxi.create_cxi_group(
@@ -1310,6 +1333,18 @@ reconstruction (best solution).""",
             self.logger.info(f"Loading parameters from:\n{_path}")
             self.update_from_file(_path)
         if params:
+            for p in params:
+                if not isparameter(p):
+                    raise ValueError(
+                        f"Parameter '{p}' is not recognised. "
+                        "Please check the possible parameter names among:\n"
+                        + "\n".join(
+                            [
+                                f"- {key}"
+                                for key in DEFAULT_PIPELINE_PARAMS.keys()
+                            ]
+                        )
+                    )
             self.logger.info(
                 f"Additional parameters provided {params}, will update the "
                 "current dictionary of parameters."
@@ -1331,12 +1366,12 @@ reconstruction (best solution).""",
                 self.reconstruction
             )
         # Change convention of the reconstruction if necessary.
-        if self.params["orientation_convention"].lower() == "cxi":
-            self.reconstruction = self.converter.xu_to_cxi(self.reconstruction)
+        if self.params["convention"].lower() == "cxi":
+            self.reconstruction = Geometry.swap_convention(self.reconstruction)
 
         self.logger.info(
             f"Voxel size finally used is: {self.params['voxel_size']} nm in "
-            f"the {self.params['orientation_convention'].upper()} convention."
+            f"the {self.params['convention'].upper()} convention."
         )
 
         # Handle flipping and apodization
@@ -1397,8 +1432,8 @@ reconstruction (best solution).""",
         if self.params["handle_defects"]:
             self.logger.info("Defect handling requested.")
 
-        if self.params["orientation_convention"].lower() == "cxi":
-            g_vector = SpaceConverter.xu_to_cxi(self.q_lab_pos["ref"])
+        if self.params["convention"].lower() == "cxi":
+            g_vector = Geometry.swap_convention(self.q_lab_pos["ref"])
         else:
             g_vector = self.q_lab_pos["ref"]
         self.structural_props = PostProcessor.get_structural_properties(
@@ -1444,7 +1479,7 @@ reconstruction (best solution).""",
             support=self.structural_props["support"],
             table_info=table_info,
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("summary_plot"),
             **to_plot,
         )
@@ -1452,7 +1487,7 @@ reconstruction (best solution).""",
             title=f"Strain check figure, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("strain_methods"),
             **{
                 k: self.structural_props[k]
@@ -1483,7 +1518,7 @@ reconstruction (best solution).""",
             title=f"Shear displacement, {sample_scan}",
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
-            convention=self.params["orientation_convention"],
+            convention=self.params["convention"],
             save=dump_file_tmpl.format("shear_displacement"),
             unique_vmin=-ptp_value / 2,
             unique_vmax=ptp_value / 2,
@@ -1502,6 +1537,7 @@ reconstruction (best solution).""",
             data=self.structural_props["het_strain"],
             support=self.structural_props["support"],
             voxel_size=self.params["voxel_size"],
+            convention=self.params["convention"],
             cmap="cet_CET_D13",
             vmin=-np.nanmax(np.abs(self.structural_props["het_strain"])),
             vmax=np.nanmax(np.abs(self.structural_props["het_strain"])),
@@ -1522,9 +1558,9 @@ reconstruction (best solution).""",
             -1j * self.structural_props["phase"]
         )
         voxel_size = self.params["voxel_size"]
-        if self.params["orientation_convention"].lower() == "cxi":
-            obj = SpaceConverter.cxi_to_xu(obj)
-            voxel_size = SpaceConverter.cxi_to_xu(voxel_size)
+        if self.params["convention"].lower() == "cxi":
+            obj = Geometry.swap_convention(obj)
+            voxel_size = Geometry.swap_convention(voxel_size)
 
         PipelinePlotter.plot_final_object_fft(
             obj,
@@ -1585,22 +1621,25 @@ reconstruction (best solution).""",
             )
 
     def _check_voxel_size(self) -> None:
-        if self.params["orientation_convention"].lower() == "cxi":
+        self.extra_info["voxel_size_from_extent"] = (
+            self.converter.direct_lab_voxel_size
+        )
+        if self.params["convention"].lower() == "cxi":
             self.extra_info["voxel_size_from_extent"] = (
-                SpaceConverter.xu_to_cxi(self.converter.direct_lab_voxel_size)
+                Geometry.swap_convention(self.converter.direct_lab_voxel_size)
             )  # if cxi requested, convert the voxel size from extent
 
         if self.params["voxel_size"] is None:
             self.params["voxel_size"] = self.converter.direct_lab_voxel_size
 
             # In the SpaceConverter, the convention is XU.
-            if self.params["orientation_convention"].lower() == "cxi":
-                self.params["voxel_size"] = SpaceConverter.xu_to_cxi(
+            if self.params["convention"].lower() == "cxi":
+                self.params["voxel_size"] = Geometry.swap_convention(
                     self.params["voxel_size"]
                 )
         else:
             # We consider voxel_size is given with the same convention
-            # as the one specified in 'orientation_convention'.
+            # as the one specified in 'convention'.
             # if 1D, make it 3D
             if isinstance(
                 self.params["voxel_size"],
@@ -1611,11 +1650,11 @@ reconstruction (best solution).""",
                         self.params["voxel_size"], self.reconstruction.ndim
                     )
                 )
-            if self.params["orientation_convention"].lower() == "cxi":
+            if self.params["convention"].lower() == "cxi":
                 # Set the direct space interpolator voxel size with XU
                 # convention.
                 self.converter.direct_lab_voxel_size = (
-                    SpaceConverter.cxi_to_xu(self.params["voxel_size"])
+                    Geometry.swap_convention(self.params["voxel_size"])
                 )
 
     def _save_postprocessed_data(self) -> None:
@@ -1757,7 +1796,7 @@ reconstruction (best solution).""",
                 f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
                 voxel_size=self.params["voxel_size"],
                 cxi_convention=(
-                    self.params["orientation_convention"].lower() == "cxi"
+                    self.params["convention"].lower() == "cxi"
                 ),
                 **to_save_as_vti,
             )

@@ -1,25 +1,22 @@
 import importlib
 
-from .formatting import update_plot_params
-from .formatting import get_figure_size
-from .formatting import set_plot_configs
-from .formatting import get_plot_configs
-from .formatting import get_extent
-from .formatting import add_colorbar
-from .formatting import x_y_lim_from_support
-from .formatting import get_x_y_limits_extents
-from .formatting import set_x_y_limits_extents
-from .formatting import add_labels
-from .formatting import save_fig
-from .formatting import white_interior_ticks_labels
+from .colormap import PARULA, RED_TO_TEAL, TURBO_FIRST_HALF, TURBO_SECOND_HALF
+from .formatting import (
+    add_colorbar,
+    add_labels,
+    get_extent,
+    get_figure_size,
+    get_plot_configs,
+    get_x_y_limits_extents,
+    save_fig,
+    set_plot_configs,
+    set_x_y_limits_extents,
+    update_plot_params,
+    white_interior_ticks_labels,
+    x_y_lim_from_support,
+)
 
-
-__submodules__ = {
-    "slice",
-    "volume"
-    "interactive",
-    "stats"
-}
+__submodules__ = {"slice", "volume", "interactive", "stats"}
 
 __class_func_submodules__ = {
     "Plotter": "interactive",
@@ -43,13 +40,17 @@ __all__ = [
     "add_labels",
     "save_fig",
     "white_interior_ticks_labels",
+    "PARULA",
+    "RED_TO_TEAL",
+    "TURBO_FIRST_HALF",
+    "TURBO_SECOND_HALF",
 ]
 __all__ += list(__submodules__) + list(__class_func_submodules__)
 
 
 def __getattr__(name):
     if name in __submodules__:
-        return importlib.import_module(f'{__name__}.{name}')
+        return importlib.import_module(f"{__name__}.{name}")
 
     if name in __class_func_submodules__:
         submodule = importlib.import_module(
