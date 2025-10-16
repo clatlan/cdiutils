@@ -1,13 +1,19 @@
 import warnings
 import numpy as np
 import h5py as h5
+import tables as tb
 import os
+import glob
 
 from tornado.ioloop import PeriodicCallback
+
+from h5glance import H5Glance
 
 from skimage.measure import marching_cubes
 from scipy.spatial.transform import Rotation
 from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter
+import numpy as np
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -16,8 +22,8 @@ from matplotlib.colors import LogNorm, Normalize
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 import ipywidgets as widgets
-from ipywidgets import interact, fixed
-from IPython.display import display, HTML
+from ipywidgets import interact, fixed, interactive, Tab
+from IPython.display import display, HTML, clear_output, Image
 import ipyvolume as ipv
 
 from bokeh.plotting import figure
@@ -402,7 +408,7 @@ class ThreeDViewer(widgets.Box):
             # type: ignore
             display(
                 HTML(  # type: ignore
-                    rf""" 
+                    rf"""
                     <style>.container \{
                         width:{int(html_width)}% \
                     !important; \}</style>
@@ -766,6 +772,585 @@ class ThreeDViewer(widgets.Box):
         sa, ca = np.sin(a / 2) / n, np.cos(a / 2)
         r = Rotation.from_quat((sa * x, sa * y, sa * z, ca))
         self.fig.camera.position = tuple(r.apply(self.fig.camera.position))
+
+
+class TabPlotData(widgets.VBox):
+    """
+    A widget for interactive data visualization and
+    support manipulation in BCDI workflows.
+
+    This class provides a GUI tab for loading, plotting,
+    and manipulating data files (e.g., .npy, .npz, .cxi, .h5,
+    .nxs, .png) in the context of Bragg Coherent Diffractive Imaging (BCDI).
+    It allows users to:
+    - Browse and select data files from a directory.
+    - Visualize 1D, 2D, and 3D data interactively.
+    - Create, extract, and smooth supports for BCDI reconstructions.
+    - Display HDF5 file trees and delete selected files.
+
+    The tab is designed as a vertical box of interactive
+    widgets, enabling users to select files, choose colormaps,
+    and specify plotting or support operations.
+
+    Attributes:
+        header (str): A brief description of the tab's purpose.
+        box_style (str): Optional styling for the widget box.
+        parent_folder (widgets.Dropdown): Dropdown to select the parent data directory.
+        filename (widgets.SelectMultiple): Multi-select widget for compatible data files.
+        cmap (widgets.Dropdown): Dropdown to select a colormap for plots.
+        data_use (widgets.ToggleButtons): Toggle buttons for data operations (plot, support, etc.).
+        children (tuple): Ordered collection of child widgets.
+
+    Example:
+        >>> tab = TabPlotData(work_dir="/path/to/data")
+        >>> tab.stand_alone()  # Display the interactive GUI
+    """
+
+    def __init__(self, box_style="", work_dir=None):
+        """
+        Initialize the TabPlotData widget.
+
+        Args:
+            box_style (str, optional): CSS style for the widget box. Defaults to "".
+            work_dir (str, optional): Working directory path. Defaults to current directory.
+        """
+        super(TabPlotData, self).__init__()
+        # Brief header describing the tab
+        self.header = 'Plot data'
+        self.box_style = box_style
+        # Define widgets
+        self.unused_label_plot = widgets.HTML(
+            value="<p style='font-weight: bold;font-size:1.2em'>\
+            Loads data files and displays it in the GUI",
+            style={'description_width': 'initial'},
+            layout=widgets.Layout(width='90%', height="35px")
+        )
+        if work_dir is None:
+            work_dir = os.getcwd()
+        self.parent_folder = widgets.Dropdown(
+            options=[x[0] + "/" for x in os.walk(work_dir)],
+            value=work_dir + "/",
+            placeholder=work_dir + "/",
+            description='Data folder:',
+            continuous_update=False,
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.filename = widgets.SelectMultiple(
+            options=[""]
+            + [os.path.basename(f) for f in sorted(
+                glob.glob(os.getcwd() + "/*.npy")
+                + glob.glob(os.getcwd() + "/*.npz")
+                + glob.glob(os.getcwd() + "/*.cxi")
+                + glob.glob(os.getcwd() + "/*.h5")
+                + glob.glob(os.getcwd() + "/*.nxs")
+                + glob.glob(os.getcwd() + "/*.png"),
+                key=os.path.getmtime)],
+            rows=20,
+            description='Compatible file list',
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.cmap = widgets.Dropdown(
+            options=plt.colormaps(),
+            value="turbo",
+            description="Color map:",
+            continuous_update=False,
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.data_use = widgets.ToggleButtons(
+            options=[
+                ("Clear/ Reload folder", False),
+                ('2D plot', "2D"),
+                ("Plot slices", "slices"),
+                ("Plot contour slices", "contour_slices"),
+                ("Plot sum over axes", "sum_slices"),
+                ("Plot contour of sum over axes", "sum_contour_slices"),
+                ("3D plot", "3D"),
+                ("Create support", "create_support"),
+                ("Extract support", "extract_support"),
+                ("Smooth support", "smooth_support"),
+                ("Display .png image", "show_image"),
+                ("Display hdf5 tree", "hf_glance"),
+                ("Delete selected files", "delete")
+            ],
+            value=False,
+            description='Load data',
+            tooltips=[
+                "Clear the output and unload data from GUI, saves RAM",
+                "Load data and plot data slice interactively",
+                "Load data and plot data slices for each dimension in its middle",
+                "Load data and plot 3D data interactively",
+                "Load data and allow for the creation of a support interactively",
+                "Load data and allow for the creation of a support automatically",
+                "Load support and smooth its boundaries",
+                "Delete selected files, careful !!"
+            ],
+            button_style='',
+            icon='fast-forward',
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        # Define children
+        self.children = (
+            self.unused_label_plot,
+            self.parent_folder,
+            self.filename,
+            self.cmap,
+            self.data_use,
+        )
+        # Assign handlers
+        self.parent_folder.observe(
+            self.plot_folder_handler, names="value")
+
+    def plot_folder_handler(self, change):
+        """
+        Update the filename dropdown when the parent folder changes.
+
+        Args:
+            change (dict): Dictionary containing the new folder path.
+        """
+        if hasattr(change, "new"):
+            change = change.new
+        options = [""] + [os.path.basename(f) for f in sorted(
+            glob.glob(change + "/*.npy")
+            + glob.glob(change + "/*.npz")
+            + glob.glob(change + "/*.cxi")
+            + glob.glob(change + "/*.h5")
+            + glob.glob(change + "/*.nxs")
+            + glob.glob(change + "/*.png"),
+            key=os.path.getmtime)
+        ]
+        self.filename.options = [
+            os.path.basename(f) for f in options]
+
+    def stand_alone(self):
+        """
+        Display the interactive GUI as a standalone widget.
+        """
+        init_plot_tab_gui = interactive(
+            self.init_plot_data_tab,
+            parent_folder=self.parent_folder,
+            filename=self.filename,
+            cmap=self.cmap,
+            data_use=self.data_use
+        )
+        display(init_plot_tab_gui)
+
+    def init_plot_data_tab(
+        self,
+        parent_folder,
+        filename,
+        cmap,
+        data_use,
+    ):
+        """
+        Execute the selected data operation (plot, support, etc.).
+
+        Args:
+            parent_folder (str): Parent folder path.
+            filename (list): Selected filename(s).
+            cmap (str): Colormap for plots.
+            data_use (str): Operation to perform (e.g., "2D", "3D", "create_support").
+        """
+        if data_use == "2D":
+            # Plot 2D data
+            for p in filename:
+                print(f"Showing {p}")
+                Plotter(
+                    parent_folder + "/" + p,
+                    plot=data_use,
+                    log="interact",
+                    cmap=cmap
+                )
+        elif data_use == "3D" and len(filename) == 1:
+            # Plot 3D data
+            Plotter(
+                parent_folder + "/" + filename[0],
+                plot=data_use,
+                log="interact",
+                cmap=cmap
+            )
+        elif data_use in [
+            "slices", "contour_slices", "sum_slices", "sum_contour_slices"
+        ]:
+            # Plot slices or sums
+            for p in filename:
+                print(f"Showing {p}")
+                Plotter(
+                    parent_folder + "/" + p,
+                    plot=data_use,
+                    log="interact",
+                    cmap=cmap
+                )
+        elif data_use == "create_support" and len(filename) == 1:
+            # Create support interactively
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_data=parent_folder + "/" + filename[0])
+            window_support = interactive(
+                sup.compute_support,
+                threshold=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Threshold:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                compute=widgets.ToggleButton(
+                    value=False,
+                    description='Compute support ...',
+                    button_style='',
+                    icon='step-forward',
+                    layout=widgets.Layout(width='45%'),
+                    style={'description_width': 'initial'})
+            )
+            def support_handler(change):
+                if not change.new:
+                    window_support.children[0].disabled = False
+                if change.new:
+                    window_support.children[0].disabled = True
+            window_support.children[1].observe(support_handler, names="value")
+            display(window_support)
+        elif data_use == "extract_support" and len(filename) == 1:
+            # Extract support from data
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_data=parent_folder + "/" + filename[0])
+            sup.extract_support()
+        elif data_use == "smooth_support" and len(filename) == 1:
+            # Smooth support
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_support=parent_folder + "/" + filename[0])
+            window_support = interactive(
+                sup.gaussian_convolution,
+                sigma=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Sigma:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                threshold=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Threshold:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                compute=widgets.ToggleButton(
+                    value=False,
+                    description='Compute support ...',
+                    button_style='',
+                    icon='step-forward',
+                    layout=widgets.Layout(width='45%'),
+                    style={'description_width': 'initial'})
+            )
+            def support_handler(change):
+                if not change.new:
+                    window_support.children[0].disabled = False
+                if change.new:
+                    window_support.children[0].disabled = True
+            window_support.children[1].observe(support_handler, names="value")
+            display(window_support)
+        elif data_use == "show_image":
+            # Display PNG image
+            try:
+                for p in filename:
+                    print(f"Showing {p}")
+                    display(Image(filename=parent_folder + "/" + p))
+            except (FileNotFoundError, ValueError):
+                print("Could not load image from file.")
+        elif data_use == "hf_glance":
+            # Display HDF5 tree
+            for p in filename:
+                try:
+                    print(f"Showing {p}")
+                    display(H5Glance(parent_folder + "/" + filename[0]))
+                except TypeError:
+                    print("This tool supports .nxs, .cxi or .hdf5 files only.")
+        elif data_use in [
+            "3D", "create_support", "extract_support", "smooth_support",
+        ] and len(filename) != 1:
+            print("Please select only one file.")
+        elif data_use == "delete":
+            # Delete selected files
+            for w in self.children[:-2]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            button_delete_data = widgets.Button(
+                description="Delete files ?",
+                button_style='',
+                layout=widgets.Layout(width='70%'),
+                style={'description_width': 'initial'},
+                icon='step-forward')
+            @button_delete_data.on_click
+            def action_button_delete_data(selfbutton):
+                for p in filename:
+                    try:
+                        os.remove(parent_folder + "/" + p)
+                        print(f"Removed {p}")
+                    except FileNotFoundError:
+                        print(f"Could not remove {p}")
+            display(button_delete_data)
+        elif data_use is False:
+            # Clear output
+            plt.close()
+            for w in self.children[:-2]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = False
+            self.plot_folder_handler(change=parent_folder)
+            print("Cleared window.")
+            clear_output(True)
+
+
+class SupportTools:
+    """
+    A utility class for creating, extracting, and
+    optimizing supports in BCDI workflows.
+
+    This class provides methods to:
+    - Extract a support (binary mask) from reconstructed
+    BCDI data files (e.g., .cxi, .npz).
+    - Create a support from reconstructed electronic
+    density data using a threshold.
+    - Smooth a support using Gaussian convolution to
+    remove holes and refine boundaries.
+
+    The support is typically a 3D binary array (0s and 1s)
+    representing the region of interest in the reconstructed object.
+    The class is designed to work with common BCDI file formats
+    and supports interactive and automated workflows.
+
+    Attributes:
+        path_to_data (str): Path to the reconstructed object data file.
+        path_to_support (str): Path to the support file.
+        saving_directory (str): Directory where results (e.g., supports, figures) are saved.
+
+    Example:
+        >>> # Extract support from a .cxi file
+        >>> sup = SupportTools(path_to_data="reconstruction.cxi")
+        >>> sup.extract_support()
+
+        >>> # Create a support from data using a threshold
+        >>> sup = SupportTools(path_to_data="reconstruction.cxi")
+        >>> sup.compute_support(threshold=0.1)
+
+        >>> # Smooth an existing support
+        >>> sup = SupportTools(path_to_support="support.npz")
+        >>> sup.gaussian_convolution(sigma=0.5, threshold=0.2)
+    """
+
+    def __init__(
+        self,
+        path_to_data=None,
+        path_to_support=None,
+        saving_directory=None
+    ):
+        """
+        Initialize the SupportTools class.
+
+        Args:
+            path_to_data (str, optional): Path to the reconstructed object data file.
+                Supported formats: .cxi, .h5, .npz.
+            path_to_support (str, optional): Path to the support file.
+                Supported formats: .npz, .npy.
+            saving_directory (str, optional): Directory to save results.
+                Defaults to the directory of `path_to_data` or `path_to_support`.
+        """
+        self.path_to_data = path_to_data
+        self.path_to_support = path_to_support
+        if saving_directory is None:
+            try:
+                self.saving_directory = self.path_to_data.replace(
+                    self.path_to_data.split("/")[-1], "")
+            except AttributeError:
+                try:
+                    self.saving_directory = self.path_to_support.replace(
+                        self.path_to_support.split("/")[-1], "")
+                except AttributeError:
+                    raise AttributeError("Please provide a saving_directory.")
+        else:
+            self.saving_directory = saving_directory
+
+    def extract_support(self, compute=True):
+        """
+        Extract a support (binary mask) from a reconstructed object file.
+
+        For .cxi files, the support is extracted from the `/entry_1/image_1/mask` dataset.
+        The extracted support is saved as a compressed .npz file.
+
+        Args:
+            compute (bool, optional): If True, perform the extraction. Defaults to True.
+
+        Raises:
+            tb.NoSuchNodeError: If the file structure is not as expected.
+            ValueError: If the file format is not supported.
+        """
+        if compute:
+            if self.path_to_data.endswith(".cxi"):
+                try:
+                    with tb.open_file(self.path_to_data, "r") as f:
+                        support = f.root.entry_1.image_1.mask[:]
+                        print(
+                            "\n###################"
+                            "#####################"
+                            "#####################"
+                            "#####################"
+                        )
+                        np.savez_compressed(
+                            self.saving_directory + "extracted_support.npz",
+                            support=support
+                        )
+                        print(f"Saved support in {self.saving_directory} as:")
+                        print("\textracted_support.npz")
+                        print(
+                            "#####################"
+                            "#####################"
+                            "#####################"
+                            "###################\n"
+                        )
+                        plot_3d_slices(support, log="interact")
+                except tb.NoSuchNodeError:
+                    print("Data type not supported")
+            else:
+                print("Data type not supported")
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
+
+    def gaussian_convolution(self, sigma, threshold, compute=True):
+        """
+        Apply Gaussian convolution to a support to smooth its boundaries.
+
+        This method helps remove holes and refine the support by applying a Gaussian filter
+        and thresholding the result. The smoothed support is saved as a compressed .npz file.
+
+        Args:
+            sigma (float): Standard deviation for the Gaussian kernel.
+            threshold (float): Threshold for binarizing the convolved support (0 to 1).
+            compute (bool, optional): If True, perform the convolution. Defaults to True.
+
+        Raises:
+            KeyError: If the support file does not contain a 'support' or 'data' array.
+            ValueError: If the file format is not supported.
+        """
+        if compute:
+            try:
+                old_support = np.load(self.path_to_support)["support"]
+            except KeyError:
+                try:
+                    old_support = np.load(self.path_to_support)["data"]
+                except KeyError:
+                    try:
+                        old_support = np.load(self.path_to_support)
+                    except Exception as E:
+                        print("Could not load 'data' or 'support' array from file.")
+                        raise E
+            except ValueError:
+                print("Data type not supported")
+            try:
+                bigdata = 100 * old_support
+                conv_support = np.where(
+                    gaussian_filter(bigdata, sigma) > threshold, 1, 0
+                )
+                print(
+                    "\n###################"
+                    "#####################"
+                    "#####################"
+                    "#####################"
+                )
+                np.savez_compressed(
+                    f"{self.saving_directory}filter_sig{sigma}_t{threshold}",
+                    oldsupport=old_support,
+                    support=conv_support
+                )
+                print(f"Saved support in {self.saving_directory} as:")
+                print(f"\tfilter_sig{sigma}_t{threshold}")
+                print(
+                    "#####################"
+                    "#####################"
+                    "#####################"
+                    "###################\n"
+                )
+                plot_3d_slices(conv_support, log="interact")
+            except UnboundLocalError:
+                pass
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
+
+    def compute_support(self, threshold, compute=True):
+        """
+        Create a support from reconstructed electronic density data using a threshold.
+
+        The support is created by thresholding the amplitude of the electronic density.
+        The resulting support is saved as a compressed .npz file.
+
+        Args:
+            threshold (float): Threshold for binarizing the amplitude (0 to 1).
+            compute (bool, optional): If True, perform the computation. Defaults to True.
+
+        Raises:
+            tb.HDF5ExtError: If the file format is not supported.
+        """
+        if compute:
+            try:
+                with tb.open_file(self.path_to_data, "r") as f:
+                    if self.path_to_data.endswith(".cxi"):
+                        electronic_density = f.root.entry_1.data_1.data[:]
+                    elif self.path_to_data.endswith(".h5"):
+                        electronic_density = f.root.entry_1.data_1.data[:][0]
+                    print(
+                        "\n###################"
+                        "#####################"
+                        "#####################"
+                        "#####################"
+                    )
+                    print("Shape of real space complex electronic density array:")
+                    print(f"\t{np.shape(electronic_density)}")
+                    amp = np.abs(electronic_density)
+                    print(f"\tMaximum value in amplitude array: {amp.max()}")
+                    support = np.where(amp < threshold * amp.max(), 0, 1)
+                    rocc = np.where(support == 1)
+                    rnocc = np.where(support == 0)
+                    print("Percentage of 3D array occupied by support:")
+                    print(f"\t{np.shape(rocc)[1] / np.shape(rnocc)[1]}")
+                    np.savez_compressed(
+                        self.saving_directory + "computed_support.npz",
+                        support=support
+                    )
+                    print(f"Saved support in {self.saving_directory} as:")
+                    print("\tcomputed_support.npz")
+                    print(
+                        "#####################"
+                        "#####################"
+                        "#####################"
+                        "###################\n"
+                    )
+                    plot_3d_slices(support, log="interact")
+            except tb.HDF5ExtError:
+                print("Data type not supported")
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
 
 
 # Methods
