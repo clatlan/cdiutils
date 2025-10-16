@@ -56,6 +56,9 @@ from .parameters import (
     isparameter
 )
 
+# GUI for interactive phase retrieval with PyNX
+from cdiutils.pipeline import phase_retrieval_gui
+
 
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
@@ -912,6 +915,7 @@ retrieval is also computed and will be used in the post-processing stage."""
     def phase_retrieval(
         self,
         jump_to_cluster: bool = False,
+        use_GUI: bool = False,
         pynx_slurm_file_template: str = None,
         clear_former_results: bool = False,
         cmd: str = None,
@@ -925,6 +929,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             jump_to_cluster (bool, optional): whether a job must be
                 submitted to the cluster. Defaults to False.
+            use_gui (bool, optional): whether to use the interactive GUI.
+                Defaults to False.
             pynx_slurm_file_template (str, optional): the template for
                 the pynx slurm file. Defaults to None.
             clear_former_results (bool, optional): whether ti clear the
@@ -949,39 +955,50 @@ retrieval is also computed and will be used in the post-processing stage."""
         # handle pynx params, merge defaults + user inputs
         self.params["pynx"] = self._merge_pynx_params(pynx_params)
 
-        # dynamically assign data and mask paths if not set by the user
-        for name in ("data", "mask"):
-            if self.params["pynx"][name] is None:
-                self.params["pynx"][name] = (
-                    f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
-                    ".npz"
-                )
+        if use_GUI:
+            self.logger.info("Launching interactive GUI.")
 
-        # Make the pynx input file.
-        with open(pynx_input_path, "w", encoding="utf8") as file:
-            for key, value in self.params["pynx"].items():
-                file.write(f"{key} = {value}\n")
-
-        if jump_to_cluster:
-            self.logger.info("Jumping to cluster requested.")
-            self._make_slurm_file(pynx_slurm_file_template)
-            job_id, output_file = self.submit_job(
-                job_file="pynx-id01-cdi.slurm",
-                working_dir=self.pynx_phasing_dir,
+            PhaseRetrievalGUI_ID01 = phase_retrieval_gui.PhaseRetrievalGUI(
+                work_dir=self.params["dump_dir"] + "pynx_phasing/",
+                pipeline_instance=self,
             )
-            self.monitor_job(job_id, output_file)
+            PhaseRetrievalGUI_ID01.show()
 
         else:
-            self.logger.info(
-                "Assuming the current machine is running PyNX. Will run the "
-                "provided command."
-            )
-            if cmd is None:
-                cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
-                self.logger.info(
-                    f"No command provided. Will use the default: {cmd}"
+            self.logger.info("Using non-interactive PyNX CDI phase retrieval.")
+            # dynamically assign data and mask paths if not set by the user
+            for name in ("data", "mask"):
+                if self.params["pynx"][name] is None:
+                    self.params["pynx"][name] = (
+                        f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
+                        ".npz"
+                    )
+
+            # Make the pynx input file.
+            with open(pynx_input_path, "w", encoding="utf8") as file:
+                for key, value in self.params["pynx"].items():
+                    file.write(f"{key} = {value}\n")
+
+            if jump_to_cluster:
+                self.logger.info("Jumping to cluster requested.")
+                self._make_slurm_file(pynx_slurm_file_template)
+                job_id, output_file = self.submit_job(
+                    job_file="pynx-id01-cdi.slurm",
+                    working_dir=self.pynx_phasing_dir,
                 )
-            self._run_cmd(cmd, self.pynx_phasing_dir)
+                self.monitor_job(job_id, output_file)
+
+            else:
+                self.logger.info(
+                    "Assuming the current machine is running PyNX. Will run the "
+                    "provided command."
+                )
+                if cmd is None:
+                    cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
+                    self.logger.info(
+                        f"No command provided. Will use the default: {cmd}"
+                    )
+                self._run_cmd(cmd, self.pynx_phasing_dir)
 
     @staticmethod
     def _merge_pynx_params(user_pynx_params: dict) -> dict:
@@ -1139,7 +1156,7 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         with CXIFile(selected_path) as cxi:
             support = cxi["entry_1/image_1/support"]
-        
+
         if fill:
             filled_support = fill_up_support(support)
 

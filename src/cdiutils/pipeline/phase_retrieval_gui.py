@@ -8,7 +8,8 @@ from ast import literal_eval
 import ipywidgets as widgets
 from ipywidgets import interactive, Layout, Button
 
-from cdiutils.process.phaser import PyNXImportError, PhasingResultAnalyser
+from cdiutils.process.phaser import PyNXImportError
+from cdiutils.pipeline.bcdi import BcdiPipeline
 
 try:
     from pynx.cdi import (
@@ -109,7 +110,7 @@ class PhaseRetrievalGUI(widgets.VBox):
             self,
             box_style: str = None,
             work_dir: str = None,
-            result_analyser: PhasingResultAnalyser = None,
+            pipeline_instance: BcdiPipeline = None,
             search_pattern: str = None
     ):
         """
@@ -126,7 +127,7 @@ class PhaseRetrievalGUI(widgets.VBox):
                 Default is an empty string.
             work_dir: The working directory where input files are located.
                 If not provided, the current working directory is used.
-            result_analyser: An instance of PhasingResultAnalyser to
+            pipeline_instance: An instance of BcdiPipeline to handle the
                 handle the analysis of phase retrieval results.
             search_pattern: A string defining the search pattern for
                 input files. If not provided, a default pattern for
@@ -212,8 +213,8 @@ class PhaseRetrievalGUI(widgets.VBox):
             box_style = ""
         self.box_style = box_style
 
-        # define the result analyser, if None, will be analysed later
-        self.result_analyser = result_analyser
+        # define the pipeline instance
+        self.pipeline = pipeline_instance
 
         # define global search pattern for cxi files
         self.search_pattern = search_pattern
@@ -732,9 +733,9 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.run_pynx_tools = widgets.ToggleButtons(
             options=[
                 ("No tool running", False),
-                ("Analyse results", "analyse_results"),
-                ("Select reconstructions", "select"),
-                ("Modes decomposition", "mode_decomposition"),
+                ("I. Analyse results", "analyse_results"),
+                ("II. Select reconstructions", "select"),
+                ("III. Modes decomposition", "mode_decomposition"),
             ],
             value=False,
             tooltips=[
@@ -1736,22 +1737,8 @@ class PhaseRetrievalGUI(widgets.VBox):
 
         # Modes decomposition and solution filtering
         if run_pynx_tools and not run_phase_retrieval:
-            # Initialiase the analyser if needed
-            try:
-                if (
-                    self.result_analyser.result_dir_path
-                    != params["parent_folder"]
-                ):
-                    self.result_analyser = PhasingResultAnalyser(
-                        result_dir_path=params["parent_folder"]
-                    )
-            except AttributeError:  # Does not exist yet
-                self.result_analyser = PhasingResultAnalyser(
-                    result_dir_path=params["parent_folder"]
-                )
-
             if run_pynx_tools == "analyse_results":
-                self.result_analyser.analyse_phasing_results(
+                self.pipeline.analyse_phasing_results(
                     sorting_criterion=params["filter_criteria"],
                     plot=params["plot_metrics_checkbox"],
                     plot_phasing_results=(
@@ -1772,7 +1759,7 @@ class PhaseRetrievalGUI(widgets.VBox):
                     options.index(item) for item in params["best_runs_widget"]
                 ]
 
-                self.result_analyser.select_best_candidates(
+                self.pipeline.select_best_candidates(
                     nb_of_best_sorted_runs=(
                         params["number_of_best_ordered_runs_widget"]
                     ),
@@ -1780,15 +1767,15 @@ class PhaseRetrievalGUI(widgets.VBox):
                     search_pattern=self.search_pattern,
                 )
             elif run_pynx_tools == "mode_decomposition":
-                self.modes, self.mode_weights = (
-                    self.result_analyser.mode_decomposition()
-                )
+                self.pipeline.mode_decomposition()
 
         # Clean output
         if not run_phase_retrieval and not run_pynx_tools:
             print("Cleared output.")
             clear_output(True)
 
+
+# Functions below shall not be in this module
 
 def initialize_cdi_operator(
     iobs: str,
