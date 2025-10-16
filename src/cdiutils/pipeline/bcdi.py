@@ -1120,6 +1120,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         output_path: str = None,
         fill: bool = False,
         verbose: bool = True,
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
         Generate the support from the best run or a specific run. The
@@ -1142,6 +1143,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 contains holes.
             verbose (bool, optional): whether to print info and plot the
                 support. Defaults to True.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
         """
         if run == "best":
             selected_path = next(
@@ -1149,9 +1152,9 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             if not self.result_analyser.result_paths:
-                self.result_analyser.find_phasing_results()
+                self.result_analyser.find_phasing_results(search_pattern)
             for path in self.result_analyser.result_paths:
-                if run == int(path.split("Run")[1][:4]):
+                if run == int(path.split("Run")[1][:4]): ## this is wrong
                     selected_path = path
 
         with CXIFile(selected_path) as cxi:
@@ -1183,7 +1186,10 @@ retrieval is also computed and will be used in the post-processing stage."""
                 )
 
     def select_best_candidates(
-        self, nb_of_best_sorted_runs: int = None, best_runs: list = None
+        self,
+        nb_of_best_sorted_runs: int = None,
+        best_runs: list = None,
+        search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         A function wrapper for
@@ -1199,6 +1205,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 Defaults to None.
             best_runs (list[int], optional): the best runs to select.
                 Defaults to None.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: If the results have not been analysed yet.
@@ -1209,13 +1217,14 @@ retrieval is also computed and will be used in the post-processing stage."""
                 " BcdiPipeline.analyse_phasing_results() first."
             )
         self.result_analyser.select_best_candidates(
-            nb_of_best_sorted_runs, best_runs
+            nb_of_best_sorted_runs, best_runs, search_pattern
         )
 
     @Pipeline.process
     def mode_decomposition(
         self,
         cmd: str = None,
+        search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
@@ -1229,7 +1238,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 result_dir_path=self.pynx_phasing_dir
             )
         try:
-            modes, mode_weights = self.result_analyser.mode_decomposition()
+            modes, mode_weights = self.result_analyser.mode_decomposition(
+                search_pattern=search_pattern)
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
 
         except PyNXImportError:

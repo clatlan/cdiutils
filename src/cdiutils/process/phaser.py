@@ -414,7 +414,7 @@ class PyNXPhaser:
 
         Args:
             run_nb (int): the number of reconstructions
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             init_cdi (bool, optional):  whether to initialise the cdi
@@ -459,7 +459,7 @@ class PyNXPhaser:
             run_nb (int): the number of reconstructions.
             genetic_pass_nb (int): the number of genetic pass, i.e. the
                 number of times the recipe is applied.
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             selection_method (str, optional): The metric used to select
@@ -916,12 +916,12 @@ class PhasingResultAnalyser:
             )
         if self.cdi_results is not None:
             runs = [
-                str(extract_run_info(run)[0]).zfill(2) 
+                str(extract_run_info(run)[0]).zfill(2)
                 for run in self._sorted_phasing_results
             ]
         else:
             runs = [
-                str(extract_run_info(file)[0]).zfill(2) 
+                str(extract_run_info(file)[0]).zfill(2)
                 for file in self._sorted_phasing_results
             ]
 
@@ -1019,7 +1019,7 @@ class PhasingResultAnalyser:
         if best_runs:
             if self.cdi_results:
                 # This is the notebook mode
-                self.best_candidates = [f'Run{r:04d}' for r in best_runs]
+                self.best_candidates = [f'Run{r:04d}' for r in best_runs] # this is wrong
             else:
                 # This is the script/pipeline mode
                 self.best_candidates = []
@@ -1263,7 +1263,7 @@ class PhasingResultAnalyser:
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Implementation of the check-up for the twin image problem as
-        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa 
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa
         The function takes two reconstructions, one is considered a
         reference. After the two reconstuctions being registered, their
         phase in the Fourier space are compared (difference). The same
