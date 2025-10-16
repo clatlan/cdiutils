@@ -11,8 +11,8 @@ from cdiutils.plot.formatting import save_fig
 
 
 def kde_from_histogram(
-        counts: np.ndarray,
-        bin_edges: np.ndarray,
+    counts: np.ndarray,
+    bin_edges: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute the Kernel Density Estimate (KDE) from histogram counts and
@@ -36,13 +36,13 @@ def kde_from_histogram(
         # for KDE
         data = []
         for count, left_edge, right_edge in zip(
-                counts, bin_edges[:-1], bin_edges[1:]
+            counts, bin_edges[:-1], bin_edges[1:]
         ):
             data.extend(
                 np.random.uniform(
                     left_edge,
                     right_edge,
-                    int(count * len(counts) * (right_edge - left_edge))
+                    int(count * len(counts) * (right_edge - left_edge)),
                 )
             )
         data = np.array(data)
@@ -70,13 +70,13 @@ def kde_from_histogram(
 
 
 def find_isosurface(
-        amplitude: np.ndarray,
-        nbins: int = 100,
-        sigma_criterion: float = 3,
-        plot: bool = False,
-        show: bool = False,
-        save: str = None
-) -> tuple[float, plt.Axes] | float:
+    amplitude: np.ndarray,
+    nbins: int = 100,
+    sigma_criterion: float = 3,
+    plot: bool = False,
+    show: bool = False,
+    save: str = None,
+) -> tuple[float, plt.Axes]:
     """
     Estimate the isosurface value from the amplitude distribution.
 
@@ -109,7 +109,7 @@ def find_isosurface(
 
     # remove the background
     background_value = bins[
-        np.where(counts == counts.max())[0] + 1 + nbins//20
+        np.where(counts == counts.max())[0] + 1 + nbins // 20
     ]
     filtered_amplitude = flattened_amplitude[
         flattened_amplitude > background_value
@@ -148,7 +148,7 @@ def find_isosurface(
             color="dodgerblue",
             alpha=0.9,
             edgecolor=(0, 0, 0, 0.25),
-            label=r"amplitude distribution"
+            label=r"amplitude distribution",
         )
         kdeplot(
             filtered_amplitude,
@@ -156,7 +156,7 @@ def find_isosurface(
             alpha=0.3,
             fill=True,
             color="navy",
-            label=r"density estimate"
+            label=r"density estimate",
         )
         ax.axvspan(
             x[left_HM_index],
@@ -164,7 +164,7 @@ def find_isosurface(
             edgecolor="k",
             facecolor="green",
             alpha=0.2,
-            label="FWHM"
+            label="FWHM",
         )
         ax.plot(
             [isosurface, isosurface],
@@ -172,7 +172,7 @@ def find_isosurface(
             solid_capstyle="round",
             color="lightcoral",
             lw=5,
-            label=fr"isosurface estimated at {isosurface:0.3f}"
+            label=rf"isosurface estimated at {isosurface:0.3f}",
         )
 
         ax.set_xlabel(r"normalised amplitude")
@@ -185,15 +185,15 @@ def find_isosurface(
         if show:
             plt.show()
         return float(isosurface), fig
-    return float(isosurface)
+    return float(isosurface), None
 
 
 def get_histogram(
-        data: np.ndarray,
-        support: np.ndarray = None,
-        bins: int = 50,
-        density: bool = False,
-        region: str = "overall"
+    data: np.ndarray,
+    support: np.ndarray = None,
+    bins: int = 50,
+    density: bool = False,
+    region: str = "overall",
 ) -> dict:
     """
     Calculate histogram and optionally kernel density estimate (KDE) of
@@ -235,8 +235,10 @@ def get_histogram(
 
     # to handle any remaining NaN values, we need to specify the range
     histograms["overall"] = np.histogram(
-        overall_data, bins=bins, density=density,
-        range=(np.nanmin(overall_data), np.nanmax(overall_data))
+        overall_data,
+        bins=bins,
+        density=density,
+        range=(np.nanmin(overall_data), np.nanmax(overall_data)),
     )
     means["overall"] = np.nanmean(overall_data)
     stds["overall"] = np.nanstd(overall_data)
@@ -247,8 +249,10 @@ def get_histogram(
 
         if region == "bulk" or region == "all":
             histograms["bulk"] = np.histogram(
-                bulk_data, bins=bins, density=density,
-                range=(np.nanmin(bulk_data), np.nanmax(bulk_data))
+                bulk_data,
+                bins=bins,
+                density=density,
+                range=(np.nanmin(bulk_data), np.nanmax(bulk_data)),
             )
             means["bulk"] = np.nanmean(bulk_data)
             stds["bulk"] = np.nanstd(bulk_data)
@@ -257,8 +261,10 @@ def get_histogram(
             surface = support - bulk
             surface_data = data[surface > 0]
             histograms["surface"] = np.histogram(
-                surface_data, bins=bins, density=density,
-                range=(np.nanmin(surface_data), np.nanmax(surface_data))
+                surface_data,
+                bins=bins,
+                density=density,
+                range=(np.nanmin(surface_data), np.nanmax(surface_data)),
             )
             means["surface"] = np.nanmean(surface_data)
             stds["surface"] = np.nanstd(surface_data)
@@ -269,15 +275,15 @@ def get_histogram(
 
 
 def plot_histogram(
-        ax: plt.Axes,
-        counts: np.ndarray,
-        bin_edges: np.ndarray,
-        kde_x: np.ndarray = None,
-        kde_y: np.ndarray = None,
-        color: ColorType = "lightcoral",
-        fwhm: bool = True,
-        bar_args: dict = None,
-        kde_args: dict = None
+    ax: plt.Axes,
+    counts: np.ndarray,
+    bin_edges: np.ndarray,
+    kde_x: np.ndarray = None,
+    kde_y: np.ndarray = None,
+    color: ColorType = "lightcoral",
+    fwhm: bool = True,
+    bar_args: dict = None,
+    kde_args: dict = None,
 ) -> float:
     """
     Plot the bars of a histogram as well as the kernel density
@@ -313,14 +319,11 @@ def plot_histogram(
         "alpha": 0.4,
         "edgecolor": color,
         "linewidth": 0.5,
-        "label": ""
+        "label": "",
     }
     _bar_args.update(bar_args or {})
 
-    _kde_args = {
-        "color": color,
-        "label": "Kernel density estimate"
-    }
+    _kde_args = {"color": color, "label": "Kernel density estimate"}
     fill_kde, fill_alpha = False, False
     if kde_args is not None:
         if "fill" in kde_args:
@@ -346,10 +349,7 @@ def plot_histogram(
         ax.plot(kde_x, kde_y, **_kde_args)
 
         if fill_kde:
-            ax.fill_between(
-                kde_x, kde_y, 0,
-                color=color, alpha=fill_alpha
-            )
+            ax.fill_between(kde_x, kde_y, 0, color=color, alpha=fill_alpha)
 
         # Calculate the FWHM
         if fwhm:
@@ -359,10 +359,13 @@ def plot_histogram(
             rightpos = (np.abs(kde_y[maxpos:] - halfmax)).argmin() + maxpos
             fwhm_value = kde_x[rightpos] - kde_x[leftpos]
 
-            fwhm_line, = ax.plot(
-                [], [],
+            (fwhm_line,) = ax.plot(
+                [],
+                [],
                 label=f"FWHM = {fwhm_value:.4f}%",
-                color=color, ls="--", linewidth=1
+                color=color,
+                ls="--",
+                linewidth=1,
             )
 
             def update_fwhm_line(event_ax):
@@ -373,8 +376,8 @@ def plot_histogram(
                 fwhm_line.set_transform(event_ax.transData)
 
             update_fwhm_line(ax)
-            ax.callbacks.connect('xlim_changed', update_fwhm_line)
-            ax.callbacks.connect('ylim_changed', update_fwhm_line)
+            ax.callbacks.connect("xlim_changed", update_fwhm_line)
+            ax.callbacks.connect("ylim_changed", update_fwhm_line)
 
             return fwhm_value
     return None

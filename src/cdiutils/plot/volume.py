@@ -115,16 +115,16 @@ class VolumeViewer:
     @classmethod
     def contour_plot(
             cls,
-            data_path: str,
+            data_path: str | None = None,
             initial_active_scalar: str = "het_strain",
-            **data
+            **data: np.ndarray,
     ):
         """
         Generate a contour plot application using PyVista based on a vti
         file.
 
         Args:
-            data_path (str): the path to the data.
+            data (str | np.ndarray): the path to the data or the data itself.
             initial_active_scalar (str, optional): what scalar field to
                 display fisrt. Defaults to "het_strain".
 
@@ -141,24 +141,37 @@ class VolumeViewer:
         """
         if not IS_TRAME_PYVISTA_AVAILABLE:
             raise TramePyVistaImportError
-        if len(data) > 0:
+        if data_path is not None:
+            # ignoring the **data
+            if not data_path.endswith(".vti"):
+                raise ValueError(
+                    "The provided data_path should points to a .vti file"
+                )
+            structure_grid = pv.read(data_path)  # load volume data
+            available_scalars = structure_grid.array_names  # the available fields
+
+        elif len(data) < 1:
             raise NotImplementedError(
-                "Directly parsing numpy.ndarray is not implemented yet."
+                "Either np.ndarray or data_path must be provided."
             )
-        if not data_path.endswith(".vti"):
-            raise ValueError(
-                "The provided data_path should points to a .vti file"
+        else:
+            initial_active_scalar = list(data.keys())[0]
+            mesh = np.meshgrid(
+                *[np.arange(s) for s in data[initial_active_scalar].shape],
+                indexing="ij"
             )
+            structure_grid = pv.StructuredGrid(*mesh)
+            available_scalars = list(data.keys())
+            for key, d in data.items():
+                structure_grid.point_data[key] = d.flatten()
+
         # server = get_server()
         # state = server.state  # Trame state
-
-        data = pv.read(data_path)  # load volume data
-        available_scalars = data.array_names  # the available fields
 
         plotter = pv.Plotter(notebook=True)
 
         # generate the initial isosurface
-        contours = data.contour(
+        contours = structure_grid.contour(
             [cls.generic_params["isosurface"]], scalars="amplitude"
         )
         if initial_active_scalar not in available_scalars:
