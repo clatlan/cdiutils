@@ -246,33 +246,24 @@ class PhaseRetrievalGUI(widgets.VBox):
         )
 
         self.iobs = widgets.Dropdown(
-            options=[""]
-            + sorted(
-                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
-                key=os.path.getmtime,
-            ),
+            options=[""] + [os.path.basename(f) for f in sorted(glob.glob(
+                work_dir + "*.npz"), key=os.path.getmtime)],
             description="Dataset",
             layout=widgets.Layout(width="90%"),
             style={"description_width": "initial"},
         )
 
         self.mask = widgets.Dropdown(
-            options=[""]
-            + sorted(
-                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
-                key=os.path.getmtime,
-            ),
+            options=[""] + [os.path.basename(f) for f in sorted(glob.glob(
+                work_dir + "*.npz"), key=os.path.getmtime)],
             description="Mask",
             layout=widgets.Layout(width="90%"),
             style={"description_width": "initial"},
         )
 
         self.support = widgets.Dropdown(
-            options=[""]
-            + sorted(
-                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
-                key=os.path.getmtime,
-            ),
+            options=[""] + [os.path.basename(f) for f in sorted(glob.glob(
+                work_dir + "*.npz"), key=os.path.getmtime)],
             value="",
             description="Support",
             layout=widgets.Layout(width="90%"),
@@ -280,11 +271,8 @@ class PhaseRetrievalGUI(widgets.VBox):
         )
 
         self.obj = widgets.Dropdown(
-            options=[""]
-            + sorted(
-                [os.path.basename(f) for f in glob.glob(work_dir + "*.npz")],
-                key=os.path.getmtime,
-            ),
+            options=[""] + [os.path.basename(f) for f in sorted(glob.glob(
+                work_dir + "*.npz"), key=os.path.getmtime)],
             value="",
             description="Object",
             layout=widgets.Layout(width="90%"),
