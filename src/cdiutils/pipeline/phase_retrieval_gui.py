@@ -9,7 +9,6 @@ import ipywidgets as widgets
 from ipywidgets import interactive, Layout, Button
 
 from cdiutils.process.phaser import PyNXImportError
-from cdiutils.pipeline.bcdi import BcdiPipeline
 
 try:
     from pynx.cdi import (
@@ -108,9 +107,9 @@ class PhaseRetrievalGUI(widgets.VBox):
 
     def __init__(
             self,
+            pipeline_instance,
             box_style: str = None,
             work_dir: str = None,
-            pipeline_instance: BcdiPipeline = None,
             search_pattern: str = None
     ):
         """
@@ -123,12 +122,12 @@ class PhaseRetrievalGUI(widgets.VBox):
         The GUI is designed to work in a Jupyter Notebook environment.
 
         Args:
+            pipeline_instance: An instance of BcdiPipeline to handle the
+                handle the analysis of phase retrieval results.
             box_style: The CSS style applied to the widget container.
                 Default is an empty string.
             work_dir: The working directory where input files are located.
                 If not provided, the current working directory is used.
-            pipeline_instance: An instance of BcdiPipeline to handle the
-                handle the analysis of phase retrieval results.
             search_pattern: A string defining the search pattern for
                 input files. If not provided, a default pattern for
                 `.cxi` files is used (`*run*.cxi`).
