@@ -56,6 +56,9 @@ from .parameters import (
     isparameter
 )
 
+# GUI for interactive phase retrieval with PyNX
+from cdiutils.pipeline import phase_retrieval_gui
+
 
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
@@ -912,6 +915,7 @@ retrieval is also computed and will be used in the post-processing stage."""
     def phase_retrieval(
         self,
         jump_to_cluster: bool = False,
+        use_GUI: bool = False,
         pynx_slurm_file_template: str = None,
         clear_former_results: bool = False,
         cmd: str = None,
@@ -925,6 +929,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             jump_to_cluster (bool, optional): whether a job must be
                 submitted to the cluster. Defaults to False.
+            use_gui (bool, optional): whether to use the interactive GUI.
+                Defaults to False.
             pynx_slurm_file_template (str, optional): the template for
                 the pynx slurm file. Defaults to None.
             clear_former_results (bool, optional): whether ti clear the
@@ -949,39 +955,50 @@ retrieval is also computed and will be used in the post-processing stage."""
         # handle pynx params, merge defaults + user inputs
         self.params["pynx"] = self._merge_pynx_params(pynx_params)
 
-        # dynamically assign data and mask paths if not set by the user
-        for name in ("data", "mask"):
-            if self.params["pynx"][name] is None:
-                self.params["pynx"][name] = (
-                    f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
-                    ".npz"
-                )
+        if use_GUI:
+            self.logger.info("Launching interactive GUI.")
 
-        # Make the pynx input file.
-        with open(pynx_input_path, "w", encoding="utf8") as file:
-            for key, value in self.params["pynx"].items():
-                file.write(f"{key} = {value}\n")
-
-        if jump_to_cluster:
-            self.logger.info("Jumping to cluster requested.")
-            self._make_slurm_file(pynx_slurm_file_template)
-            job_id, output_file = self.submit_job(
-                job_file="pynx-id01-cdi.slurm",
-                working_dir=self.pynx_phasing_dir,
+            PhaseRetrievalGUI_ID01 = phase_retrieval_gui.PhaseRetrievalGUI(
+                work_dir=self.params["dump_dir"] + "pynx_phasing/",
+                pipeline_instance=self,
             )
-            self.monitor_job(job_id, output_file)
+            PhaseRetrievalGUI_ID01.show()
 
         else:
-            self.logger.info(
-                "Assuming the current machine is running PyNX. Will run the "
-                "provided command."
-            )
-            if cmd is None:
-                cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
-                self.logger.info(
-                    f"No command provided. Will use the default: {cmd}"
+            self.logger.info("Using non-interactive PyNX CDI phase retrieval.")
+            # dynamically assign data and mask paths if not set by the user
+            for name in ("data", "mask"):
+                if self.params["pynx"][name] is None:
+                    self.params["pynx"][name] = (
+                        f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
+                        ".npz"
+                    )
+
+            # Make the pynx input file.
+            with open(pynx_input_path, "w", encoding="utf8") as file:
+                for key, value in self.params["pynx"].items():
+                    file.write(f"{key} = {value}\n")
+
+            if jump_to_cluster:
+                self.logger.info("Jumping to cluster requested.")
+                self._make_slurm_file(pynx_slurm_file_template)
+                job_id, output_file = self.submit_job(
+                    job_file="pynx-id01-cdi.slurm",
+                    working_dir=self.pynx_phasing_dir,
                 )
-            self._run_cmd(cmd, self.pynx_phasing_dir)
+                self.monitor_job(job_id, output_file)
+
+            else:
+                self.logger.info(
+                    "Assuming the current machine is running PyNX. Will run the "
+                    "provided command."
+                )
+                if cmd is None:
+                    cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
+                    self.logger.info(
+                        f"No command provided. Will use the default: {cmd}"
+                    )
+                self._run_cmd(cmd, self.pynx_phasing_dir)
 
     @staticmethod
     def _merge_pynx_params(user_pynx_params: dict) -> dict:
@@ -1042,6 +1059,7 @@ retrieval is also computed and will be used in the post-processing stage."""
     def analyse_phasing_results(
         self,
         sorting_criterion: str = "mean_to_max",
+        search_pattern: str = "*Run*.cxi",
         plot: bool = True,
         plot_phasing_results: bool = True,
         plot_phase: bool = False,
@@ -1068,6 +1086,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
             plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
@@ -1088,6 +1108,7 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion=sorting_criterion,
+            search_pattern=search_pattern,
             plot=plot,
             plot_phasing_results=plot_phasing_results,
             plot_phase=plot_phase,
@@ -1099,6 +1120,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         output_path: str = None,
         fill: bool = False,
         verbose: bool = True,
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
         Generate the support from the best run or a specific run. The
@@ -1121,6 +1143,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 contains holes.
             verbose (bool, optional): whether to print info and plot the
                 support. Defaults to True.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
         """
         if run == "best":
             selected_path = next(
@@ -1128,14 +1152,14 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             if not self.result_analyser.result_paths:
-                self.result_analyser.find_phasing_results()
+                self.result_analyser.find_phasing_results(search_pattern)
             for path in self.result_analyser.result_paths:
-                if run == int(path.split("Run")[1][:4]):
+                if run == int(path.split("Run")[1][:4]): ## this is wrong
                     selected_path = path
 
         with CXIFile(selected_path) as cxi:
             support = cxi["entry_1/image_1/support"]
-        
+
         if fill:
             filled_support = fill_up_support(support)
 
@@ -1162,7 +1186,10 @@ retrieval is also computed and will be used in the post-processing stage."""
                 )
 
     def select_best_candidates(
-        self, nb_of_best_sorted_runs: int = None, best_runs: list = None
+        self,
+        nb_of_best_sorted_runs: int = None,
+        best_runs: list = None,
+        search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         A function wrapper for
@@ -1178,6 +1205,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 Defaults to None.
             best_runs (list[int], optional): the best runs to select.
                 Defaults to None.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: If the results have not been analysed yet.
@@ -1188,13 +1217,14 @@ retrieval is also computed and will be used in the post-processing stage."""
                 " BcdiPipeline.analyse_phasing_results() first."
             )
         self.result_analyser.select_best_candidates(
-            nb_of_best_sorted_runs, best_runs
+            nb_of_best_sorted_runs, best_runs, search_pattern
         )
 
     @Pipeline.process
     def mode_decomposition(
         self,
         cmd: str = None,
+        search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
@@ -1208,7 +1238,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 result_dir_path=self.pynx_phasing_dir
             )
         try:
-            modes, mode_weights = self.result_analyser.mode_decomposition()
+            modes, mode_weights = self.result_analyser.mode_decomposition(
+                search_pattern=search_pattern)
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
 
         except PyNXImportError:

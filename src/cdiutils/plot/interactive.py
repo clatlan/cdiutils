@@ -1,13 +1,19 @@
 import warnings
 import numpy as np
 import h5py as h5
+import tables as tb
 import os
+import glob
 
 from tornado.ioloop import PeriodicCallback
+
+from h5glance import H5Glance
 
 from skimage.measure import marching_cubes
 from scipy.spatial.transform import Rotation
 from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter
+import numpy as np
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -16,8 +22,8 @@ from matplotlib.colors import LogNorm, Normalize
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 import ipywidgets as widgets
-from ipywidgets import interact, fixed
-from IPython.display import display, HTML
+from ipywidgets import interact, fixed, interactive, Tab
+from IPython.display import display, HTML, clear_output, Image
 import ipyvolume as ipv
 
 from bokeh.plotting import figure
@@ -78,14 +84,14 @@ class Plotter:
     """
 
     def __init__(
-            self,
-            data: str | np.ndarray,
-            plot: str = "slices",
-            log: bool = False,
-            cmap: str = "turbo",
-            figsize: tuple[int, int] = (10, 10),
-            fontsize: int = 15,
-            title: str = None,
+        self,
+        data: str | np.ndarray,
+        plot: str = "slices",
+        log: bool = False,
+        cmap: str = "turbo",
+        figsize: tuple[int, int] = (10, 10),
+        fontsize: int = 15,
+        title: str = None,
     ):
         """Initialize the Plotter class.
 
@@ -170,22 +176,29 @@ class Plotter:
         None
 
         Returns:
-        -------
+        --------
         None
         """
         if self.plot == "2D":
             plot_data(
                 data_array=self.data_array,
-                figsize=self.figsize, fontsize=self.fontsize,
-                log=self.log, cmap=self.cmap, title=self.title,
+                figsize=self.figsize,
+                fontsize=self.fontsize,
+                log=self.log,
+                cmap=self.cmap,
+                title=self.title,
             )
 
         elif self.plot == "slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=False, sum_over_axis=False,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=False,
+                sum_over_axis=False,
             )
 
         elif self.plot == "phase_slices" and self.data_array.ndim == 3:
@@ -204,25 +217,37 @@ class Plotter:
         elif self.plot == "contour_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=True, sum_over_axis=False,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=True,
+                sum_over_axis=False,
             )
 
         elif self.plot == "sum_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=False, sum_over_axis=True,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=False,
+                sum_over_axis=True,
             )
 
         elif self.plot == "sum_contour_slices" and self.data_array.ndim == 3:
             plot_3d_slices(
                 data_array=self.data_array,
-                fontsize=self.fontsize, title=self.title,
-                figsize=None, log=self.log, cmap=self.cmap,
-                contour=True, sum_over_axis=True,
+                fontsize=self.fontsize,
+                title=self.title,
+                figsize=None,
+                log=self.log,
+                cmap=self.cmap,
+                contour=True,
+                sum_over_axis=True,
             )
 
         elif self.plot == "3D" and self.data_array.ndim == 3:
@@ -276,13 +301,15 @@ class Plotter:
 
             elif self.filename.endswith(".cxi"):
                 try:
-                    self.data_array = h5.File(self.filename, mode='r')[
-                        'entry_1/data_1/data'][()]
+                    self.data_array = h5.File(self.filename, mode="r")[
+                        "entry_1/data_1/data"
+                    ][()]
 
                 except (KeyError, OSError):
                     try:
-                        self.data_array = h5.File(self.filename, mode='r')[
-                            'entry_1/image_1/data'][()]
+                        self.data_array = h5.File(self.filename, mode="r")[
+                            "entry_1/image_1/data"
+                        ][()]
                     except (KeyError, OSError):
                         print(
                             "The file could not be loaded, verify that you are"
@@ -296,8 +323,9 @@ class Plotter:
 
             elif self.filename.endswith(".h5"):
                 try:
-                    self.data_array = h5.File(self.filename, mode='r')[
-                        'entry_1/data_1/data'][()]
+                    self.data_array = h5.File(self.filename, mode="r")[
+                        "entry_1/data_1/data"
+                    ][()]
                     if self.data_array.ndim == 4:
                         self.data_array = self.data_array[0]
                     # Due to labelling of axes x,y,z and not z,y,x
@@ -305,8 +333,9 @@ class Plotter:
 
                 except (KeyError, OSError):
                     try:
-                        self.data_array = h5.File(self.filename, mode='r')[
-                            'entry_1/image_1/data'][()]
+                        self.data_array = h5.File(self.filename, mode="r")[
+                            "entry_1/image_1/data"
+                        ][()]
                         if self.data_array.ndim == 4:
                             self.data_array = self.data_array[0]
                         # Due to labelling of axes x,y,z and not z,y,x
@@ -335,8 +364,10 @@ class Plotter:
                     file=widgets.Dropdown(
                         options=rawdata.files,
                         value=rawdata.files[0],
-                        description='Pick an array to load:',
-                        style={'description_width': 'initial'}))
+                        description="Pick an array to load:",
+                        style={"description_width": "initial"},
+                    )
+                )
                 def open_npz(file):
                     # Pick an array
                     try:
@@ -376,9 +407,10 @@ class ThreeDViewer(widgets.Box):
             # flake8: noqa
             # type: ignore
             display(
-                HTML(# type: ignore
-                    fr""" 
-                    <style>.container \{ width:{int(html_width)}% \
+                HTML(  # type: ignore
+                    rf"""
+                    <style>.container \{
+                        width:{int(html_width)}% \
                     !important; \}</style>
                     """
                 )
@@ -391,52 +423,63 @@ class ThreeDViewer(widgets.Box):
             min=0,
             max=20,
             step=0.02,
-            description='Contour.',
+            description="Contour.",
             disabled=False,
             continuous_update=False,
-            orientation='horizontal',
+            orientation="horizontal",
             readout=True,
-            readout_format='.01f',
+            readout_format=".01f",
         )
         self.toggle_phase = widgets.ToggleButtons(
-            options=['Abs', 'Phase'],
-            description='',
+            options=["Abs", "Phase"],
+            description="",
             disabled=False,
-            value='Phase',
-            button_style='',
+            value="Phase",
+            button_style="",
         )
         self.toggle_rotate = widgets.ToggleButton(
             value=False,
-            description='Rotate',
-            tooltips='Rotate',
+            description="Rotate",
+            tooltips="Rotate",
         )
         self.pcb_rotate = None
         hbox1 = widgets.HBox([self.toggle_phase, self.toggle_rotate])
 
         self.toggle_dark = widgets.ToggleButton(
             value=False,
-            description='Dark',
-            tooltips='Dark/Light theme',
+            description="Dark",
+            tooltips="Dark/Light theme",
         )
         self.toggle_box = widgets.ToggleButton(
             value=True,
-            description='Box',
-            tooltips='Box ?',
+            description="Box",
+            tooltips="Box ?",
         )
         self.toggle_axes = widgets.ToggleButton(
             value=True,
-            description='Axes',
-            tooltips='Axes ?',
+            description="Axes",
+            tooltips="Axes ?",
         )
         hbox_toggle = widgets.HBox(
-            [self.toggle_dark, self.toggle_box, self.toggle_axes])
+            [self.toggle_dark, self.toggle_box, self.toggle_axes]
+        )
 
         # Colormap widgets
         self.colormap = widgets.Dropdown(
-            options=['Cool', 'Gray', 'Gray_r', 'Hot', 'Hsv',
-                     'Inferno', 'Jet', 'Plasma', 'Rainbow', 'Viridis'],
-            value='Jet',
-            description='Colors:',
+            options=[
+                "Cool",
+                "Gray",
+                "Gray_r",
+                "Hot",
+                "Hsv",
+                "Inferno",
+                "Jet",
+                "Plasma",
+                "Rainbow",
+                "Viridis",
+            ],
+            value="Jet",
+            description="Colors:",
             disabled=True,
         )
         self.colormap_range = widgets.FloatRangeSlider(
@@ -444,11 +487,11 @@ class ThreeDViewer(widgets.Box):
             min=0,
             max=100,
             step=1,
-            description='Range:',
+            description="Range:",
             disabled=False,
             continuous_update=False,
-            orientation='horizontal',
-            readout=True
+            orientation="horizontal",
+            readout=True,
         )
 
         # Progress bar
@@ -456,10 +499,10 @@ class ThreeDViewer(widgets.Box):
             value=10,
             min=0,
             max=10,
-            description='Processing:',
-            bar_style='',
-            style={'bar_color': 'green'},
-            orientation='horizontal'
+            description="Processing:",
+            bar_style="",
+            style={"bar_color": "green"},
+            orientation="horizontal",
         )
 
         # Set observers
@@ -480,11 +523,16 @@ class ThreeDViewer(widgets.Box):
         self.d0 = None
 
         # Create final vertical box with all the widgets
-        self.vbox = widgets.VBox([
-            self.threshold, hbox1, hbox_toggle, self.colormap,
-            # self.colormap_range, # useless for one contour
-            self.progress,
-        ])
+        self.vbox = widgets.VBox(
+            [
+                self.threshold,
+                hbox1,
+                hbox_toggle,
+                self.colormap,
+                # self.colormap_range, # useless for one contour
+                self.progress,
+            ]
+        )
 
         # Load data
         if isinstance(input_file, np.ndarray):
@@ -509,7 +557,7 @@ class ThreeDViewer(widgets.Box):
         :param change: used to update the values
         :return:
         """
-        if change is not None and change['name'] != 'value':
+        if change is not None and change["name"] != "value":
             return
         self.progress.value = 7
 
@@ -528,18 +576,23 @@ class ThreeDViewer(widgets.Box):
                 color = rgba[..., :3] / 256
 
             # Linear or log colouring
-            elif self.toggle_phase.value in ['Abs', 'log10(Abs)']:
+            elif self.toggle_phase.value in ["Abs", "log10(Abs)"]:
                 self.colormap.disabled = False
                 cs = cm.ScalarMappable(
                     norm=Normalize(
                         vmin=self.colormap_range.value[0],
-                        vmax=self.colormap_range.value[1]),
-                    cmap=self.colormap.value.lower())
+                        vmax=self.colormap_range.value[1],
+                    ),
+                    cmap=self.colormap.value.lower(),
+                )
                 color = cs.to_rgba(abs(vals))[..., :3]
             else:
                 # TODO: Gradient
-                gx, gy, gz = self.rgi_gx(verts), self.rgi_gy(
-                    verts), self.rgi_gz(verts)
+                gx, gy, gz = (
+                    self.rgi_gx(verts),
+                    self.rgi_gy(verts),
+                    self.rgi_gz(verts),
+                )
                 color = np.empty((len(vals), 3), dtype=np.float32)
                 color[:, 0] = abs(gx)
                 color[:, 1] = abs(gy)
@@ -565,15 +618,20 @@ class ThreeDViewer(widgets.Box):
         :param change: dict from widget
         :return:
         """
-        if change['name'] == 'value':
+        if change["name"] == "value":
             if self.toggle_dark.value:
                 ipv.pylab.style.set_style_dark()
             else:
                 ipv.pylab.style.set_style_light()
                 # Fix label colours (see self.fig.style)
                 ipv.pylab.style.use(
-                    {'axes': {'label': {'color': 'black'},
-                              'ticklabel': {'color': 'black'}}})
+                    {
+                        "axes": {
+                            "label": {"color": "black"},
+                            "ticklabel": {"color": "black"},
+                        }
+                    }
+                )
             if self.toggle_box.value:
                 ipv.pylab.style.box_on()
             else:
@@ -585,22 +643,23 @@ class ThreeDViewer(widgets.Box):
 
     def on_change_scale(self, change):
         """Change scale between logarithmic and linear"""
-        if change['name'] == 'value':
-            if isinstance(change['old'], str):
-                newv = change['new']
-                oldv = change['old']
+        if change["name"] == "value":
+            if isinstance(change["old"], str):
+                newv = change["new"]
+                oldv = change["old"]
 
                 # linear scale
-                if 'log' in oldv and 'log' not in newv:
+                if "log" in oldv and "log" not in newv:
                     data = self.d0
-                    self.set_data(data, threshold=10 ** self.threshold.value)
+                    self.set_data(data, threshold=10**self.threshold.value)
 
                 # log scale
-                elif 'log' in newv and 'log' not in oldv:
+                elif "log" in newv and "log" not in oldv:
                     self.d0 = self.data
                     data = np.log10(np.maximum(0.1, abs(self.d0)))
-                    self.set_data(data, threshold=np.log10(
-                        self.threshold.value))
+                    self.set_data(
+                        data, threshold=np.log10(self.threshold.value)
+                    )
                     return
             self.on_update_plot()
 
@@ -621,13 +680,13 @@ class ThreeDViewer(widgets.Box):
         self.toggle_phase.unobserve(self.on_change_scale)
 
         if np.iscomplexobj(data):
-            if self.toggle_phase.value == 'log10(Abs)':
-                self.toggle_phase.value = 'Abs'
-            self.toggle_phase.options = ('Abs', 'Phase')
+            if self.toggle_phase.value == "log10(Abs)":
+                self.toggle_phase.value = "Abs"
+            self.toggle_phase.options = ("Abs", "Phase")
         else:
-            if self.toggle_phase.value == 'Phase':
-                self.toggle_phase.value = 'Abs'
-            self.toggle_phase.options = ('Abs', 'log10(Abs)')
+            if self.toggle_phase.value == "Phase":
+                self.toggle_phase.value = "Abs"
+            self.toggle_phase.options = ("Abs", "log10(Abs)")
         self.toggle_phase.observe(self.on_change_scale)
 
         # Set threshold
@@ -652,7 +711,7 @@ class ThreeDViewer(widgets.Box):
         self.rgi = RegularGridInterpolator(
             (z, y, x),
             self.data,
-            method='linear',
+            method="linear",
             bounds_error=False,
             fill_value=0,
         )
@@ -663,14 +722,26 @@ class ThreeDViewer(widgets.Box):
         ph = self.data / a
         gaz, gay, gax = np.gradient(a)
         self.rgi_gx = RegularGridInterpolator(
-            (z, y, x), ((gx - gax * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gx - gax * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
         self.rgi_gy = RegularGridInterpolator(
-            (z, y, x), ((gy - gay * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gy - gay * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
         self.rgi_gz = RegularGridInterpolator(
-            (z, y, x), ((gz - gaz * ph) / (ph * a)).real,
-            method='linear', bounds_error=False, fill_value=0)
+            (z, y, x),
+            ((gz - gaz * ph) / (ph * a)).real,
+            method="linear",
+            bounds_error=False,
+            fill_value=0,
+        )
 
         # Fix extent otherwise weird things happen
         ipv.pylab.xlim(0, self.data.shape[0])
@@ -682,7 +753,7 @@ class ThreeDViewer(widgets.Box):
     def on_animate(self, v):
         """Trigger the animation (rotation around vertical axis)"""
         if self.pcb_rotate is None:
-            self.pcb_rotate = PeriodicCallback(self.callback_rotate, 50.)
+            self.pcb_rotate = PeriodicCallback(self.callback_rotate, 50.0)
         if self.toggle_rotate.value:
             self.pcb_rotate.start()
         else:
@@ -696,14 +767,594 @@ class ThreeDViewer(widgets.Box):
 
         # Use a quaternion and the camera's 'up' as rotation axis
         x, y, z = self.fig.camera.up
-        n = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        n = np.sqrt(x**2 + y**2 + z**2)
         a = np.deg2rad(2.5) / 2  # angular step
         sa, ca = np.sin(a / 2) / n, np.cos(a / 2)
         r = Rotation.from_quat((sa * x, sa * y, sa * z, ca))
         self.fig.camera.position = tuple(r.apply(self.fig.camera.position))
 
 
+class TabPlotData(widgets.VBox):
+    """
+    A widget for interactive data visualization and
+    support manipulation in BCDI workflows.
+
+    This class provides a GUI tab for loading, plotting,
+    and manipulating data files (e.g., .npy, .npz, .cxi, .h5,
+    .nxs, .png) in the context of Bragg Coherent Diffractive Imaging (BCDI).
+    It allows users to:
+    - Browse and select data files from a directory.
+    - Visualize 1D, 2D, and 3D data interactively.
+    - Create, extract, and smooth supports for BCDI reconstructions.
+    - Display HDF5 file trees and delete selected files.
+
+    The tab is designed as a vertical box of interactive
+    widgets, enabling users to select files, choose colormaps,
+    and specify plotting or support operations.
+
+    Attributes:
+        header (str): A brief description of the tab's purpose.
+        box_style (str): Optional styling for the widget box.
+        parent_folder (widgets.Dropdown): Dropdown to select the parent data directory.
+        filename (widgets.SelectMultiple): Multi-select widget for compatible data files.
+        cmap (widgets.Dropdown): Dropdown to select a colormap for plots.
+        data_use (widgets.ToggleButtons): Toggle buttons for data operations (plot, support, etc.).
+        children (tuple): Ordered collection of child widgets.
+
+    Example:
+        >>> tab = TabPlotData(work_dir="/path/to/data")
+        >>> tab.stand_alone()  # Display the interactive GUI
+    """
+
+    def __init__(self, box_style="", work_dir=None):
+        """
+        Initialize the TabPlotData widget.
+
+        Args:
+            box_style (str, optional): CSS style for the widget box. Defaults to "".
+            work_dir (str, optional): Working directory path. Defaults to current directory.
+        """
+        super(TabPlotData, self).__init__()
+        # Brief header describing the tab
+        self.header = 'Plot data'
+        self.box_style = box_style
+        # Define widgets
+        self.unused_label_plot = widgets.HTML(
+            value="<p style='font-weight: bold;font-size:1.2em'>\
+            Loads data files and displays it in the GUI",
+            style={'description_width': 'initial'},
+            layout=widgets.Layout(width='90%', height="35px")
+        )
+        if work_dir is None:
+            work_dir = os.getcwd()
+        self.parent_folder = widgets.Dropdown(
+            options=[x[0] + "/" for x in os.walk(work_dir)],
+            value=work_dir + "/",
+            placeholder=work_dir + "/",
+            description='Data folder:',
+            continuous_update=False,
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.filename = widgets.SelectMultiple(
+            options=[""]
+            + [os.path.basename(f) for f in sorted(
+                glob.glob(os.getcwd() + "/*.npy")
+                + glob.glob(os.getcwd() + "/*.npz")
+                + glob.glob(os.getcwd() + "/*.cxi")
+                + glob.glob(os.getcwd() + "/*.h5")
+                + glob.glob(os.getcwd() + "/*.nxs")
+                + glob.glob(os.getcwd() + "/*.png"),
+                key=os.path.getmtime)],
+            rows=20,
+            description='Compatible file list',
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.cmap = widgets.Dropdown(
+            options=plt.colormaps(),
+            value="turbo",
+            description="Color map:",
+            continuous_update=False,
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        self.data_use = widgets.ToggleButtons(
+            options=[
+                ("Clear/ Reload folder", False),
+                ('2D plot', "2D"),
+                ("Plot slices", "slices"),
+                ("Plot contour slices", "contour_slices"),
+                ("Plot sum over axes", "sum_slices"),
+                ("Plot contour of sum over axes", "sum_contour_slices"),
+                ("3D plot", "3D"),
+                ("Create support", "create_support"),
+                ("Extract support", "extract_support"),
+                ("Smooth support", "smooth_support"),
+                ("Display .png image", "show_image"),
+                ("Display hdf5 tree", "hf_glance"),
+                ("Delete selected files", "delete")
+            ],
+            value=False,
+            description='Load data',
+            tooltips=[
+                "Clear the output and unload data from GUI, saves RAM",
+                "Load data and plot data slice interactively",
+                "Load data and plot data slices for each dimension in its middle",
+                "Load data and plot 3D data interactively",
+                "Load data and allow for the creation of a support interactively",
+                "Load data and allow for the creation of a support automatically",
+                "Load support and smooth its boundaries",
+                "Delete selected files, careful !!"
+            ],
+            button_style='',
+            icon='fast-forward',
+            layout=widgets.Layout(width='90%'),
+            style={'description_width': 'initial'}
+        )
+        # Define children
+        self.children = (
+            self.unused_label_plot,
+            self.parent_folder,
+            self.filename,
+            self.cmap,
+            self.data_use,
+        )
+        # Assign handlers
+        self.parent_folder.observe(
+            self.plot_folder_handler, names="value")
+
+    def plot_folder_handler(self, change):
+        """
+        Update the filename dropdown when the parent folder changes.
+
+        Args:
+            change (dict): Dictionary containing the new folder path.
+        """
+        if hasattr(change, "new"):
+            change = change.new
+        options = [""] + [os.path.basename(f) for f in sorted(
+            glob.glob(change + "/*.npy")
+            + glob.glob(change + "/*.npz")
+            + glob.glob(change + "/*.cxi")
+            + glob.glob(change + "/*.h5")
+            + glob.glob(change + "/*.nxs")
+            + glob.glob(change + "/*.png"),
+            key=os.path.getmtime)
+        ]
+        self.filename.options = [
+            os.path.basename(f) for f in options]
+
+    def stand_alone(self):
+        """
+        Display the interactive GUI as a standalone widget.
+        """
+        init_plot_tab_gui = interactive(
+            self.init_plot_data_tab,
+            parent_folder=self.parent_folder,
+            filename=self.filename,
+            cmap=self.cmap,
+            data_use=self.data_use
+        )
+        display(init_plot_tab_gui)
+
+    def init_plot_data_tab(
+        self,
+        parent_folder,
+        filename,
+        cmap,
+        data_use,
+    ):
+        """
+        Execute the selected data operation (plot, support, etc.).
+
+        Args:
+            parent_folder (str): Parent folder path.
+            filename (list): Selected filename(s).
+            cmap (str): Colormap for plots.
+            data_use (str): Operation to perform (e.g., "2D", "3D", "create_support").
+        """
+        if data_use == "2D":
+            # Plot 2D data
+            for p in filename:
+                print(f"Showing {p}")
+                Plotter(
+                    parent_folder + "/" + p,
+                    plot=data_use,
+                    log="interact",
+                    cmap=cmap
+                )
+        elif data_use == "3D" and len(filename) == 1:
+            # Plot 3D data
+            Plotter(
+                parent_folder + "/" + filename[0],
+                plot=data_use,
+                log="interact",
+                cmap=cmap
+            )
+        elif data_use in [
+            "slices", "contour_slices", "sum_slices", "sum_contour_slices"
+        ]:
+            # Plot slices or sums
+            for p in filename:
+                print(f"Showing {p}")
+                Plotter(
+                    parent_folder + "/" + p,
+                    plot=data_use,
+                    log="interact",
+                    cmap=cmap
+                )
+        elif data_use == "create_support" and len(filename) == 1:
+            # Create support interactively
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_data=parent_folder + "/" + filename[0])
+            window_support = interactive(
+                sup.compute_support,
+                threshold=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Threshold:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                compute=widgets.ToggleButton(
+                    value=False,
+                    description='Compute support ...',
+                    button_style='',
+                    icon='step-forward',
+                    layout=widgets.Layout(width='45%'),
+                    style={'description_width': 'initial'})
+            )
+            def support_handler(change):
+                if not change.new:
+                    window_support.children[0].disabled = False
+                if change.new:
+                    window_support.children[0].disabled = True
+            window_support.children[1].observe(support_handler, names="value")
+            display(window_support)
+        elif data_use == "extract_support" and len(filename) == 1:
+            # Extract support from data
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_data=parent_folder + "/" + filename[0])
+            sup.extract_support()
+        elif data_use == "smooth_support" and len(filename) == 1:
+            # Smooth support
+            for w in self.children[:-1]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            sup = SupportTools(
+                path_to_support=parent_folder + "/" + filename[0])
+            window_support = interactive(
+                sup.gaussian_convolution,
+                sigma=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Sigma:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                threshold=widgets.FloatText(
+                    value=0.05,
+                    step=0.001,
+                    max=1,
+                    min=0.001,
+                    continuous_update=False,
+                    description='Threshold:',
+                    readout=True,
+                    layout=widgets.Layout(width='20%'),
+                    style={'description_width': 'initial'}),
+                compute=widgets.ToggleButton(
+                    value=False,
+                    description='Compute support ...',
+                    button_style='',
+                    icon='step-forward',
+                    layout=widgets.Layout(width='45%'),
+                    style={'description_width': 'initial'})
+            )
+            def support_handler(change):
+                if not change.new:
+                    window_support.children[0].disabled = False
+                if change.new:
+                    window_support.children[0].disabled = True
+            window_support.children[1].observe(support_handler, names="value")
+            display(window_support)
+        elif data_use == "show_image":
+            # Display PNG image
+            try:
+                for p in filename:
+                    print(f"Showing {p}")
+                    display(Image(filename=parent_folder + "/" + p))
+            except (FileNotFoundError, ValueError):
+                print("Could not load image from file.")
+        elif data_use == "hf_glance":
+            # Display HDF5 tree
+            for p in filename:
+                try:
+                    print(f"Showing {p}")
+                    display(H5Glance(parent_folder + "/" + filename[0]))
+                except TypeError:
+                    print("This tool supports .nxs, .cxi or .hdf5 files only.")
+        elif data_use in [
+            "3D", "create_support", "extract_support", "smooth_support",
+        ] and len(filename) != 1:
+            print("Please select only one file.")
+        elif data_use == "delete":
+            # Delete selected files
+            for w in self.children[:-2]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = True
+            button_delete_data = widgets.Button(
+                description="Delete files ?",
+                button_style='',
+                layout=widgets.Layout(width='70%'),
+                style={'description_width': 'initial'},
+                icon='step-forward')
+            @button_delete_data.on_click
+            def action_button_delete_data(selfbutton):
+                for p in filename:
+                    try:
+                        os.remove(parent_folder + "/" + p)
+                        print(f"Removed {p}")
+                    except FileNotFoundError:
+                        print(f"Could not remove {p}")
+            display(button_delete_data)
+        elif data_use is False:
+            # Clear output
+            plt.close()
+            for w in self.children[:-2]:
+                if not isinstance(w, widgets.HTML):
+                    w.disabled = False
+            self.plot_folder_handler(change=parent_folder)
+            print("Cleared window.")
+            clear_output(True)
+
+
+class SupportTools:
+    """
+    A utility class for creating, extracting, and
+    optimizing supports in BCDI workflows.
+
+    This class provides methods to:
+    - Extract a support (binary mask) from reconstructed
+    BCDI data files (e.g., .cxi, .npz).
+    - Create a support from reconstructed electronic
+    density data using a threshold.
+    - Smooth a support using Gaussian convolution to
+    remove holes and refine boundaries.
+
+    The support is typically a 3D binary array (0s and 1s)
+    representing the region of interest in the reconstructed object.
+    The class is designed to work with common BCDI file formats
+    and supports interactive and automated workflows.
+
+    Attributes:
+        path_to_data (str): Path to the reconstructed object data file.
+        path_to_support (str): Path to the support file.
+        saving_directory (str): Directory where results (e.g., supports, figures) are saved.
+
+    Example:
+        >>> # Extract support from a .cxi file
+        >>> sup = SupportTools(path_to_data="reconstruction.cxi")
+        >>> sup.extract_support()
+
+        >>> # Create a support from data using a threshold
+        >>> sup = SupportTools(path_to_data="reconstruction.cxi")
+        >>> sup.compute_support(threshold=0.1)
+
+        >>> # Smooth an existing support
+        >>> sup = SupportTools(path_to_support="support.npz")
+        >>> sup.gaussian_convolution(sigma=0.5, threshold=0.2)
+    """
+
+    def __init__(
+        self,
+        path_to_data=None,
+        path_to_support=None,
+        saving_directory=None
+    ):
+        """
+        Initialize the SupportTools class.
+
+        Args:
+            path_to_data (str, optional): Path to the reconstructed object data file.
+                Supported formats: .cxi, .h5, .npz.
+            path_to_support (str, optional): Path to the support file.
+                Supported formats: .npz, .npy.
+            saving_directory (str, optional): Directory to save results.
+                Defaults to the directory of `path_to_data` or `path_to_support`.
+        """
+        self.path_to_data = path_to_data
+        self.path_to_support = path_to_support
+        if saving_directory is None:
+            try:
+                self.saving_directory = self.path_to_data.replace(
+                    self.path_to_data.split("/")[-1], "")
+            except AttributeError:
+                try:
+                    self.saving_directory = self.path_to_support.replace(
+                        self.path_to_support.split("/")[-1], "")
+                except AttributeError:
+                    raise AttributeError("Please provide a saving_directory.")
+        else:
+            self.saving_directory = saving_directory
+
+    def extract_support(self, compute=True):
+        """
+        Extract a support (binary mask) from a reconstructed object file.
+
+        For .cxi files, the support is extracted from the `/entry_1/image_1/mask` dataset.
+        The extracted support is saved as a compressed .npz file.
+
+        Args:
+            compute (bool, optional): If True, perform the extraction. Defaults to True.
+
+        Raises:
+            tb.NoSuchNodeError: If the file structure is not as expected.
+            ValueError: If the file format is not supported.
+        """
+        if compute:
+            if self.path_to_data.endswith(".cxi"):
+                try:
+                    with tb.open_file(self.path_to_data, "r") as f:
+                        support = f.root.entry_1.image_1.mask[:]
+                        print(
+                            "\n###################"
+                            "#####################"
+                            "#####################"
+                            "#####################"
+                        )
+                        np.savez_compressed(
+                            self.saving_directory + "extracted_support.npz",
+                            support=support
+                        )
+                        print(f"Saved support in {self.saving_directory} as:")
+                        print("\textracted_support.npz")
+                        print(
+                            "#####################"
+                            "#####################"
+                            "#####################"
+                            "###################\n"
+                        )
+                        plot_3d_slices(support, log="interact")
+                except tb.NoSuchNodeError:
+                    print("Data type not supported")
+            else:
+                print("Data type not supported")
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
+
+    def gaussian_convolution(self, sigma, threshold, compute=True):
+        """
+        Apply Gaussian convolution to a support to smooth its boundaries.
+
+        This method helps remove holes and refine the support by applying a Gaussian filter
+        and thresholding the result. The smoothed support is saved as a compressed .npz file.
+
+        Args:
+            sigma (float): Standard deviation for the Gaussian kernel.
+            threshold (float): Threshold for binarizing the convolved support (0 to 1).
+            compute (bool, optional): If True, perform the convolution. Defaults to True.
+
+        Raises:
+            KeyError: If the support file does not contain a 'support' or 'data' array.
+            ValueError: If the file format is not supported.
+        """
+        if compute:
+            try:
+                old_support = np.load(self.path_to_support)["support"]
+            except KeyError:
+                try:
+                    old_support = np.load(self.path_to_support)["data"]
+                except KeyError:
+                    try:
+                        old_support = np.load(self.path_to_support)
+                    except Exception as E:
+                        print("Could not load 'data' or 'support' array from file.")
+                        raise E
+            except ValueError:
+                print("Data type not supported")
+            try:
+                bigdata = 100 * old_support
+                conv_support = np.where(
+                    gaussian_filter(bigdata, sigma) > threshold, 1, 0
+                )
+                print(
+                    "\n###################"
+                    "#####################"
+                    "#####################"
+                    "#####################"
+                )
+                np.savez_compressed(
+                    f"{self.saving_directory}filter_sig{sigma}_t{threshold}",
+                    oldsupport=old_support,
+                    support=conv_support
+                )
+                print(f"Saved support in {self.saving_directory} as:")
+                print(f"\tfilter_sig{sigma}_t{threshold}")
+                print(
+                    "#####################"
+                    "#####################"
+                    "#####################"
+                    "###################\n"
+                )
+                plot_3d_slices(conv_support, log="interact")
+            except UnboundLocalError:
+                pass
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
+
+    def compute_support(self, threshold, compute=True):
+        """
+        Create a support from reconstructed electronic density data using a threshold.
+
+        The support is created by thresholding the amplitude of the electronic density.
+        The resulting support is saved as a compressed .npz file.
+
+        Args:
+            threshold (float): Threshold for binarizing the amplitude (0 to 1).
+            compute (bool, optional): If True, perform the computation. Defaults to True.
+
+        Raises:
+            tb.HDF5ExtError: If the file format is not supported.
+        """
+        if compute:
+            try:
+                with tb.open_file(self.path_to_data, "r") as f:
+                    if self.path_to_data.endswith(".cxi"):
+                        electronic_density = f.root.entry_1.data_1.data[:]
+                    elif self.path_to_data.endswith(".h5"):
+                        electronic_density = f.root.entry_1.data_1.data[:][0]
+                    print(
+                        "\n###################"
+                        "#####################"
+                        "#####################"
+                        "#####################"
+                    )
+                    print("Shape of real space complex electronic density array:")
+                    print(f"\t{np.shape(electronic_density)}")
+                    amp = np.abs(electronic_density)
+                    print(f"\tMaximum value in amplitude array: {amp.max()}")
+                    support = np.where(amp < threshold * amp.max(), 0, 1)
+                    rocc = np.where(support == 1)
+                    rnocc = np.where(support == 0)
+                    print("Percentage of 3D array occupied by support:")
+                    print(f"\t{np.shape(rocc)[1] / np.shape(rnocc)[1]}")
+                    np.savez_compressed(
+                        self.saving_directory + "computed_support.npz",
+                        support=support
+                    )
+                    print(f"Saved support in {self.saving_directory} as:")
+                    print("\tcomputed_support.npz")
+                    print(
+                        "#####################"
+                        "#####################"
+                        "#####################"
+                        "###################\n"
+                    )
+                    plot_3d_slices(support, log="interact")
+            except tb.HDF5ExtError:
+                print("Data type not supported")
+        else:
+            clear_output(True)
+            print("Set compute to true to continue")
+
+
 # Methods
+
 
 def plot_data(
     data_array: np.ndarray,
@@ -750,24 +1401,26 @@ def plot_data(
         # Depends on log scale
         if log:
             ax.plot(np.log(data_array))
-            plt.title(title, fontsize=fontsize+2)
+            plt.title(title, fontsize=fontsize + 2)
             plt.tight_layout()
             plt.show()
 
         elif log is False:
             ax.plot(data_array)
-            plt.title(title, fontsize=fontsize+2)
+            plt.title(title, fontsize=fontsize + 2)
             plt.tight_layout()
             plt.show()
 
         elif log == "interact":
+
             @interact(
                 scale=widgets.ToggleButtons(
                     options=["linear", "logarithmic"],
                     value="linear",
-                    description='Scale',
+                    description="Scale",
                     disabled=False,
-                    style={'description_width': 'initial'}),
+                    style={"description_width": "initial"},
+                ),
             )
             def plot_with_interactive_scale(scale, figsize):
                 # Create figure
@@ -784,7 +1437,7 @@ def plot_data(
                 else:
                     ax.plot(data_array)
 
-                plt.title(title, fontsize=fontsize+2)
+                plt.title(title, fontsize=fontsize + 2)
                 plt.tight_layout()
                 plt.show()
 
@@ -798,13 +1451,19 @@ def plot_data(
             fig, ax = plt.subplots(figsize=figsize)
 
             img = plot_2d_image(
-                data_array, log=log, fig=fig, ax=ax, cmap=cmap,
-                title=title, fontsize=fontsize
+                data_array,
+                log=log,
+                fig=fig,
+                ax=ax,
+                cmap=cmap,
+                title=title,
+                fontsize=fontsize,
             )
 
             # Create axis for colorbar
             cbar_ax = make_axes_locatable(ax).append_axes(
-                position='right', size='5%', pad=0.1)
+                position="right", size="5%", pad=0.1
+            )
 
             # Create colorbar
             fig.colorbar(mappable=img, cax=cbar_ax)
@@ -814,14 +1473,16 @@ def plot_data(
             plt.show()
 
         elif log == "interact":
+
             @interact(
                 scale=widgets.ToggleButtons(
                     options=["linear", "logarithmic"],
                     value="linear",
-                    description='Scale',
+                    description="Scale",
                     disabled=False,
-                    style={'description_width': 'initial'}),
-                figsize=fixed(figsize)
+                    style={"description_width": "initial"},
+                ),
+                figsize=fixed(figsize),
             )
             def plot_with_interactive_scale(scale, figsize):
                 # Create figure
@@ -840,7 +1501,8 @@ def plot_data(
 
                 # Create axis for colorbar
                 cbar_ax = make_axes_locatable(ax).append_axes(
-                    position='right', size='5%', pad=0.1)
+                    position="right", size="5%", pad=0.1
+                )
 
                 # Create colorbar
                 fig.colorbar(mappable=img, cax=cbar_ax)
@@ -850,7 +1512,6 @@ def plot_data(
                 plt.show()
 
     elif data_dimensions == 3:
-
         # Define function used to get data slice
         def get_data_slice(
             data: np.ndarray,
@@ -919,9 +1580,7 @@ def plot_data(
         ]
 
         # List of compatible cmaps in bokeh
-        bokey_cmaps = [
-            p for p in bp.__palettes__ if p.endswith("256")
-        ]
+        bokey_cmaps = [p for p in bp.__palettes__ if p.endswith("256")]
 
         palette = "Magma256"
         for p in bokey_cmaps:
@@ -943,7 +1602,7 @@ def plot_data(
             active_tap="auto",
             active_drag="box_zoom",
             active_inspect="auto",
-            tooltips=TOOLTIPS
+            tooltips=TOOLTIPS,
         )
 
         # Define source
@@ -976,13 +1635,13 @@ def plot_data(
 
         slider_index = Slider(
             start=0,
-            end=data_array.shape[0]-1,
+            end=data_array.shape[0] - 1,
             value=0,
             step=1,
             title="Position",
             orientation="horizontal",
         )
-        slider_index.on_change('value', callback_change_index)
+        slider_index.on_change("value", callback_change_index)
 
         # Axis
         def callback_change_axis(attr, old, new):
@@ -1021,13 +1680,13 @@ def plot_data(
                 fig.axis[1].axis_label = "y"
 
             # Change slider range
-            slider_index.end = slider_range-1
+            slider_index.end = slider_range - 1
 
         select_axis = RadioButtonGroup(
             labels=["x", "y", "z"],
             active=0,
         )
-        select_axis.on_change('active', callback_change_axis)
+        select_axis.on_change("active", callback_change_axis)
 
         # Data type
         def callback_change_data_type(attr, old, new):
@@ -1051,7 +1710,7 @@ def plot_data(
             labels=["Real", "Imaginary", "Module", "Phase"],
             active=2,
         )
-        select_data_type.on_change('active', callback_change_data_type)
+        select_data_type.on_change("active", callback_change_data_type)
 
         # Color bar
         def callback_change_cbar(attr, old, new):
@@ -1075,7 +1734,7 @@ def plot_data(
             labels=["linear", "logarithmic"],
             active=0,
         )
-        select_cbar.on_change('active', callback_change_cbar)
+        select_cbar.on_change("active", callback_change_cbar)
 
         # Background
         fig.background_fill_color = "white"
@@ -1094,7 +1753,7 @@ def plot_data(
         )
         lin_color_bar = ColorBar(color_mapper=lin_color_mapper)
 
-        fig.add_layout(lin_color_bar, 'right')
+        fig.add_layout(lin_color_bar, "right")
 
         # Image
         fig.image(
@@ -1125,7 +1784,7 @@ def plot_data(
                 row(
                     fig,
                 )
-            )
+            ),
         )
 
         display(app)
@@ -1184,23 +1843,19 @@ def plot_2d_image(
 
     try:
         if np.iscomplex(two_d_array).any():
-            print(
-                "Using complex data, switching to array module for plot."
-            )
+            print("Using complex data, switching to array module for plot.")
             two_d_array = np.abs(two_d_array)
         if contour:
             img = ax.contourf(
                 two_d_array,
-                norm={"linear": None, "logarithmic": LogNorm()}[
-                    scale],
+                norm={"linear": None, "logarithmic": LogNorm()}[scale],
                 cmap=cmap,
                 origin="lower",
             )
         else:
             img = ax.imshow(
                 two_d_array,
-                norm={"linear": None, "logarithmic": LogNorm()}[
-                    scale],
+                norm={"linear": None, "logarithmic": LogNorm()}[scale],
                 cmap=cmap,
                 origin="lower",
             )
@@ -1291,8 +1946,12 @@ def plot_3d_slices(
         if isinstance(title, str):
             fig.suptitle(title, fontsize=fontsize + 2, y=0.95)
             titles = [None, None, None]
-        elif isinstance(title, tuple) and len(title) == 3\
-                or isinstance(title, list) and len(title) == 3:
+        elif (
+            isinstance(title, tuple)
+            and len(title) == 3
+            or isinstance(title, list)
+            and len(title) == 3
+        ):
             titles = title
         else:
             titles = [None, None, None]
@@ -1305,16 +1964,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(0))
 
         else:  # Get middle slice
-            two_d_array = data_array[shape[0]//2, :, :]
+            two_d_array = data_array[shape[0] // 2, :, :]
         img_x = plot_2d_image(
-            two_d_array, fig=fig, title=titles[0], ax=axs[0], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="z", y_label="y",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[0],
+            ax=axs[0],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="z",
+            y_label="y",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[0]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_x, cax=cbar_ax)
@@ -1324,16 +1991,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(1))
 
         else:  # Get middle slice
-            two_d_array = data_array[:, shape[1]//2, :]
+            two_d_array = data_array[:, shape[1] // 2, :]
         img_y = plot_2d_image(
-            two_d_array, fig=fig, title=titles[1], ax=axs[1], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="z", y_label="x",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[1],
+            ax=axs[1],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="z",
+            y_label="x",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[1]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_y, cax=cbar_ax)
@@ -1343,16 +2018,24 @@ def plot_3d_slices(
             two_d_array = np.sum(np.nan_to_num(data_array), axis=(2))
 
         else:  # Get middle slice
-            two_d_array = data_array[:, :, shape[2]//2]
+            two_d_array = data_array[:, :, shape[2] // 2]
         img_z = plot_2d_image(
-            two_d_array, fig=fig, title=titles[2], ax=axs[2], log=log,
-            cmap=cmap, fontsize=fontsize, x_label="y", y_label="x",
-            contour=contour
+            two_d_array,
+            fig=fig,
+            title=titles[2],
+            ax=axs[2],
+            log=log,
+            cmap=cmap,
+            fontsize=fontsize,
+            x_label="y",
+            y_label="x",
+            contour=contour,
         )
 
         # Create axis for colorbar
         cbar_ax = make_axes_locatable(axs[2]).append_axes(
-            position='right', size='5%', pad=0.1)
+            position="right", size="5%", pad=0.1
+        )
 
         # Create colorbar
         fig.colorbar(mappable=img_z, cax=cbar_ax)
@@ -1362,6 +2045,7 @@ def plot_3d_slices(
         fig.show()
 
     else:
+
         @interact(
             scale=widgets.ToggleButtons(
                 options=[
@@ -1369,10 +2053,11 @@ def plot_3d_slices(
                     ("logarithmic", True),
                 ],
                 value=False,
-                description='Scale',
+                description="Scale",
                 disabled=False,
-                style={'description_width': 'initial'}),
-            figsize=fixed(figsize)
+                style={"description_width": "initial"},
+            ),
+            figsize=fixed(figsize),
         )
         def plot_with_interactive_scale(scale, figsize):
             try:
@@ -1398,7 +2083,7 @@ def complex2rgbalin(
     smin: float = None,
     percentile: tuple[float, float] = (None, None),
     alpha: tuple[float, float] = (0, 1),
-    final_type: str = 'uint8'
+    final_type: str = "uint8",
 ) -> np.ndarray:
     """
     Convert a complex valued array into an RGBA image with the magnitude
@@ -1443,9 +2128,9 @@ def complex2rgbalin(
     if smin is not None:
         a = (a - smin) * (a >= smin)
     a /= a.max()
-    a = a ** gamma
+    a = a**gamma
     rgba[..., 3] = alpha[0] + alpha[1] * a
-    if final_type == 'float':
+    if final_type == "float":
         return rgba
     return (rgba * 255).astype(np.uint8)
 
@@ -1472,11 +2157,19 @@ def phase2rgb(s: np.ndarray) -> np.ndarray:
     ph = np.angle(s)
     t = np.pi / 3
     rgba = np.zeros(list(s.shape) + [4])
-    rgba[..., 0] = (ph < t) * (ph > -t) + (ph > t) * (ph < 2 * t) * \
-        (2 * t - ph) / t + (ph > -2 * t) * (ph < -t) * (
-        ph + 2 * t) / t
-    rgba[..., 1] = (ph > t) + (ph < -2 * t) * (-2 * t - ph) / \
-        t + (ph > 0) * (ph < t) * ph / t
-    rgba[..., 2] = (ph < -t) + (ph > -t) * (ph < 0) * (-ph) / \
-        t + (ph > 2 * t) * (ph - 2 * t) / t
+    rgba[..., 0] = (
+        (ph < t) * (ph > -t)
+        + (ph > t) * (ph < 2 * t) * (2 * t - ph) / t
+        + (ph > -2 * t) * (ph < -t) * (ph + 2 * t) / t
+    )
+    rgba[..., 1] = (
+        (ph > t)
+        + (ph < -2 * t) * (-2 * t - ph) / t
+        + (ph > 0) * (ph < t) * ph / t
+    )
+    rgba[..., 2] = (
+        (ph < -t)
+        + (ph > -t) * (ph < 0) * (-ph) / t
+        + (ph > 2 * t) * (ph - 2 * t) / t
+    )
     return rgba

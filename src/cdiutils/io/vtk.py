@@ -1,12 +1,13 @@
 import numpy as np
+
 # handling vtk case
 try:
     import vtk
     from vtk.util.numpy_support import numpy_to_vtk
+
     IS_VTK_AVAILABLE = True
 
 except ImportError:
-    print("vtk package is not installed.")
     IS_VTK_AVAILABLE = False
 
 
@@ -47,11 +48,11 @@ def load_vtk(file_path: str):
 
 
 def save_as_vti(
-        output_path: str,
-        voxel_size: tuple | list | np.ndarray,
-        cxi_convention: bool = False,
-        origin: tuple = (0, 0, 0),
-        **np_arrays: dict[np.ndarray]
+    output_path: str,
+    voxel_size: tuple | list | np.ndarray,
+    cxi_convention: bool = False,
+    origin: tuple = (0, 0, 0),
+    **np_arrays: dict[np.ndarray],
 ) -> None:
     """Save numpy arrays to .vti file."""
     if not IS_VTK_AVAILABLE:
@@ -76,9 +77,7 @@ def save_as_vti(
             image_data.SetOrigin(origin)
             image_data.SetSpacing(voxel_size)
             image_data.SetExtent(
-                0, shape[0] - 1,
-                0, shape[1] - 1,
-                0, shape[2] - 1
+                0, shape[0] - 1, 0, shape[1] - 1, 0, shape[2] - 1
             )
             point_data = image_data.GetPointData()
             is_init = True

@@ -18,19 +18,19 @@ class ID01Loader(H5TypeLoader):
         "sample_outofplane_angle": "eta",
         "sample_inplane_angle": "phi",
         "detector_outofplane_angle": "delta",
-        "detector_inplane_angle": "nu"
+        "detector_inplane_angle": "nu",
     }
     authorised_detector_names = ("mpxgaas", "mpx1x4", "eiger2M")
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise ID01Loader with experiment data file path and
@@ -55,14 +55,12 @@ class ID01Loader(H5TypeLoader):
             sample_name,
             detector_name,
             flat_field,
-            alien_mask
+            alien_mask,
         )
 
     @h5_safe_load
     def get_detector_name(
-            self,
-            start_scan: int = 1,
-            max_attempts: int = 5
+        self, start_scan: int = 1, max_attempts: int = 5
     ) -> str:
         """
         Get the detector name from the HDF5 file by searching through
@@ -120,9 +118,7 @@ class ID01Loader(H5TypeLoader):
 
     @h5_safe_load
     def load_det_calib_params(
-            self,
-            scan: int = None,
-            sample_name: str = None
+        self, scan: int = None, sample_name: str = None
     ) -> dict:
         """
         Load the detector calibration parameters from the scan directly.
@@ -143,9 +139,9 @@ class ID01Loader(H5TypeLoader):
                 "pwidth1": float(self.h5file[key_path + "/y_pixel_size"][()]),
                 "pwidth2": float(self.h5file[key_path + "/x_pixel_size"][()]),
                 "distance": float(self.h5file[key_path + "/distance"][()]),
-                "tiltazimuth": 0.,
-                "tilt": 0.,
-                "detrot": 0.,
+                "tiltazimuth": 0.0,
+                "tilt": 0.0,
+                "detrot": 0.0,
             }
         except KeyError as exc:
             raise KeyError(
@@ -155,9 +151,9 @@ class ID01Loader(H5TypeLoader):
 
     @h5_safe_load
     def load_detector_shape(
-            self,
-            scan: int = None,
-            sample_name: str = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
     ) -> tuple:
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
@@ -167,17 +163,17 @@ class ID01Loader(H5TypeLoader):
         )
         return (
             self.h5file[f"{key_path}/dim_j"][()],
-            self.h5file[f"{key_path}/dim_i"][()]
+            self.h5file[f"{key_path}/dim_i"][()],
         )
 
     @h5_safe_load
     def load_detector_data(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         """
         Load the detector data.
@@ -223,16 +219,16 @@ class ID01Loader(H5TypeLoader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @h5_safe_load
     def load_motor_positions(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> dict:
         """
         Load the motor positions, i.e diffractometer angles associated
@@ -261,10 +257,7 @@ class ID01Loader(H5TypeLoader):
             key: angles.get(name, 0.0)
             for key, name in ID01Loader.angle_names.items()
         }
-        try:
-            self.rocking_angle = self.get_rocking_angle(formatted_angles)
-        except ValueError:
-            print("No rocking angle found.")
+        self.rocking_angle = self.get_rocking_angle(formatted_angles)
 
         scan_axis_roi = self._check_roi(roi)[0]
 
@@ -272,7 +265,7 @@ class ID01Loader(H5TypeLoader):
         formatted_values = self.format_scanned_counters(
             *formatted_angles.values(),
             scan_axis_roi=scan_axis_roi,
-            rocking_angle_binning=rocking_angle_binning
+            rocking_angle_binning=rocking_angle_binning,
         )
 
         # return a dictionary mapping original angle keys to their
@@ -281,11 +274,7 @@ class ID01Loader(H5TypeLoader):
         return dict(zip(formatted_angles.keys(), formatted_values))
 
     @h5_safe_load
-    def load_energy(
-            self,
-            scan: int = None,
-            sample_name: str = None
-    ) -> float:
+    def load_energy(self, scan: int = None, sample_name: str = None) -> float:
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         key_path = f"{sample_name}_{scan}.1/instrument/positioners/"
         try:
@@ -299,9 +288,9 @@ class ID01Loader(H5TypeLoader):
 
     @h5_safe_load
     def show_scan_attributes(
-            self,
-            scan: int = None,
-            sample_name: str = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
     ) -> None:
         """Print the attributes (keys) of a given scan number"""
         scan, sample_name = self._check_scan_sample(scan, sample_name)
@@ -310,59 +299,48 @@ class ID01Loader(H5TypeLoader):
 
     @h5_safe_load
     def load_measurement_parameters(
-            self,
-            parameter_name: str,
-            scan: int = None,
-            sample_name: str = None
+        self, parameter_name: str, scan: int = None, sample_name: str = None
     ) -> tuple:
         """Load the measurement parameters of the specified scan."""
         scan, sample_name = self._check_scan_sample(scan, sample_name)
-        key_path = "_".join(
-             (sample_name, str(scan))
-        ) + ".1/measurement"
-        requested_mes_parameters = self.h5file[
-            f"{key_path}/{parameter_name}"
-        ][()]
+        key_path = "_".join((sample_name, str(scan))) + ".1/measurement"
+        requested_mes_parameters = self.h5file[f"{key_path}/{parameter_name}"][
+            ()
+        ]
         return requested_mes_parameters
 
     @h5_safe_load
     def load_instrument_parameters(
-            self,
-            instrument_parameter: str,
-            scan: int = None,
-            sample_name: str = None
+        self,
+        instrument_parameter: str,
+        scan: int = None,
+        sample_name: str = None,
     ) -> tuple:
         """Load the instrument parameters of the specified scan."""
         scan, sample_name = self._check_scan_sample(scan, sample_name)
-        key_path = "_".join(
-             (sample_name, str(scan))
-             ) + ".1/instrument"
+        key_path = "_".join((sample_name, str(scan))) + ".1/instrument"
 
         return self.h5file[key_path + "/" + instrument_parameter][()]
 
     @h5_safe_load
     def load_sample_parameters(
-            self,
-            sam_parameter: str,
-            scan: int = None,
-            sample_name: str = None,
+        self,
+        sam_parameter: str,
+        scan: int = None,
+        sample_name: str = None,
     ) -> tuple:
         """Load the sample parameters of the specified scan."""
         scan, sample_name = self._check_scan_sample(scan, sample_name)
-        key_path = "_".join(
-             (sample_name, str(scan))
-             ) + ".1/sample"
-        requested_parameters = self.h5file[
-            key_path + "/" + sam_parameter
-        ][()]
+        key_path = "_".join((sample_name, str(scan))) + ".1/sample"
+        requested_parameters = self.h5file[key_path + "/" + sam_parameter][()]
         return requested_parameters
 
     @h5_safe_load
     def load_plotselect_parameter(
-            self,
-            plot_parameter,
-            scan: int = None,
-            sample_name: str = None,
+        self,
+        plot_parameter,
+        scan: int = None,
+        sample_name: str = None,
     ) -> tuple:
         """Load the plotselect parameters of the specified scan."""
         scan, sample_name = self._check_scan_sample(scan, sample_name)
@@ -388,6 +366,7 @@ def safe(func):
     def wrap(self, *args, **kwargs):
         with silx.io.open(self.experiment_file_path) as self.specfile:
             return func(self, *args, **kwargs)
+
     return wrap
 
 
@@ -399,19 +378,19 @@ class SpecLoader(Loader):
         "sample_outofplane_angle": "eta",
         "sample_inplane_angle": "phi",
         "detector_outofplane_angle": "del",
-        "detector_inplane_angle": "nu"
+        "detector_inplane_angle": "nu",
     }
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            detector_data_path: str,
-            edf_file_template: str,
-            detector_name: str,
-            scan: int = None,
-            flat_field: str | np.ndarray = None,
-            alien_mask: np.ndarray | str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        detector_data_path: str,
+        edf_file_template: str,
+        detector_name: str,
+        scan: int = None,
+        flat_field: str | np.ndarray = None,
+        alien_mask: np.ndarray | str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise SpecLoader with experiment data and detector
@@ -440,11 +419,11 @@ class SpecLoader(Loader):
 
     @safe
     def load_detector_data(
-            self,
-            scan: int = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ):
         scan, _ = self._check_scan_sample(scan, None)
         roi = self._check_roi(roi)
@@ -471,15 +450,15 @@ class SpecLoader(Loader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @safe
     def load_motor_positions(
-            self,
-            scan: int = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ):
         scan, _ = self._check_scan_sample(scan, None)
         roi = self._check_roi(roi)
@@ -495,6 +474,8 @@ class SpecLoader(Loader):
                 angles[angle] = angles[angle] = positioners[name][()]
 
         self.rocking_angle = self.get_rocking_angle(angles)
+        if self.rocking_angle is None:
+            raise ValueError("No rocking angle found.")
 
         angles[self.rocking_angle] = self.bin_rocking_angle_values(
             angles[self.rocking_angle], rocking_angle_binning

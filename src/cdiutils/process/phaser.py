@@ -1,6 +1,7 @@
 import copy
 import glob
 import os
+import re
 from typing import Type
 
 import matplotlib
@@ -413,7 +414,7 @@ class PyNXPhaser:
 
         Args:
             run_nb (int): the number of reconstructions
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             init_cdi (bool, optional):  whether to initialise the cdi
@@ -458,7 +459,7 @@ class PyNXPhaser:
             run_nb (int): the number of reconstructions.
             genetic_pass_nb (int): the number of genetic pass, i.e. the
                 number of times the recipe is applied.
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             selection_method (str, optional): The metric used to select
@@ -721,20 +722,30 @@ class PhasingResultAnalyser:
                 sorted_results[path] = self._sorted_phasing_results[path]
         return sorted_results
 
-    def find_phasing_results(self) -> None:
+    def find_phasing_results(self, search_pattern: str = "*Run*.cxi") -> None:
         """
-        Find the last phasing results (.cxi files) and add them to the
-        given list if provided, otherwise create the list.
+        Find phasing results (.cxi files) that match the given pattern.
+
+        Args:
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
+
+        Raises:
+            ValueError: If no files match the given pattern.
         """
         self.result_paths = []
-        fetched_paths = glob.glob(self.result_dir_path + "/*Run*.cxi")
+        # Handle the path joining properly without duplicate slashes
+        full_path_pattern = os.path.join(self.result_dir_path, search_pattern)
+        fetched_paths = glob.glob(full_path_pattern)
+
         for path in fetched_paths:
             if os.path.isfile(path):
                 self.result_paths.append(path)
+
         if not self.result_paths:
             raise ValueError(
-                "No result found that match the pattern '*Run*.cxi' in the "
-                f"result_dir_path ({self.result_dir_path})"
+                f"No result found that match the pattern '{search_pattern}' "
+                f"in the result_dir_path ({self.result_dir_path})"
             )
 
     @staticmethod
@@ -784,6 +795,7 @@ class PhasingResultAnalyser:
     def analyse_phasing_results(
             self,
             sorting_criterion: str = "mean_to_max",
+            search_pattern: str = "*Run*.cxi",
             plot: bool = True,
             plot_phasing_results: bool = True,
             plot_phase: bool = False,
@@ -806,6 +818,8 @@ class PhasingResultAnalyser:
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
             plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
@@ -856,7 +870,7 @@ class PhasingResultAnalyser:
                     for m in ["mean_to_max", "std", "sharpness"]:
                         self._metrics[m][run] = amplitude_based_metrics[m]
             else:
-                self.find_phasing_results()
+                self.find_phasing_results(search_pattern)
 
                 for p in self.result_paths:
                     with silx.io.h5py_utils.File(p, "r") as file:
@@ -902,12 +916,12 @@ class PhasingResultAnalyser:
             )
         if self.cdi_results is not None:
             runs = [
-                run.split("Run")[1][2:4]
+                str(extract_run_info(run)[0]).zfill(2)
                 for run in self._sorted_phasing_results
             ]
         else:
             runs = [
-                file.split("Run")[1][2:4]
+                str(extract_run_info(file)[0]).zfill(2)
                 for file in self._sorted_phasing_results
             ]
 
@@ -963,16 +977,17 @@ class PhasingResultAnalyser:
                     with silx.io.h5py_utils.File(result, "r") as file:
                         data = file["entry_1/data_1/data"][()]
                         support = file["entry_1/image_1/support"][()]
-                run = int(result.split("Run")[1][:4])
+                run = extract_run_info(result)[0]
                 title = (
-                    f"Phasing results, run {int(result.split('Run')[1][:4])}"
+                    f"Phasing results, run {extract_run_info(result)[0]}"
                 )
                 self.plot_phasing_result(data, support, title, plot_phase)
 
     def select_best_candidates(
             self,
             nb_of_best_sorted_runs: int = None,
-            best_runs: list[int] = None
+            best_runs: list[int] = None,
+            search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         Select the best candidates, two methods are possible. Either
@@ -986,6 +1001,8 @@ class PhasingResultAnalyser:
                 Defaults to None.
             best_runs (list[int], optional): the best runs to select.
                 Defaults to None.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: If nb_of_best_sorted_runs but reconstructions
@@ -1002,14 +1019,14 @@ class PhasingResultAnalyser:
         if best_runs:
             if self.cdi_results:
                 # This is the notebook mode
-                self.best_candidates = [f'Run{r:04d}' for r in best_runs]
+                self.best_candidates = [f'Run{r:04d}' for r in best_runs] # this is wrong
             else:
                 # This is the script/pipeline mode
                 self.best_candidates = []
                 if not self.result_paths:
-                    self.find_phasing_results()
+                    self.find_phasing_results(search_pattern)
                 for path in self.result_paths:
-                    run_nb = int(path.split("Run")[1][:4])
+                    run_nb = extract_run_info(path)[0]
                     if run_nb in best_runs:
                         self.best_candidates.append(path)
 
@@ -1028,13 +1045,17 @@ class PhasingResultAnalyser:
             # Remove the previous candidate files
             for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
                 os.remove(f)
+            printout_list = [
+                str(extract_run_info(f)[0]).zfill(2)
+                for f in self.best_candidates
+            ]
             print(
                 "[INFO] Best candidates selected:\n"
-                f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
+                f"{printout_list}"
             )
             for i, f in enumerate(self.best_candidates):
                 dir_name, file_name = os.path.split(f)
-                run_nb = file_name.split("Run")[1][2:4]
+                run_nb = str(extract_run_info(file_name)[0]).zfill(2)
                 scan_nb = file_name.split("_")[0]
                 file_name = (
                     f"/candidate_{i+1}-{len(self.best_candidates)}"
@@ -1044,7 +1065,10 @@ class PhasingResultAnalyser:
 
     # Note: this method only works if PyNX is installed. If not, use
     # the BcdiPipeline method.
-    def mode_decomposition(self, verbose: bool = True) -> np.ndarray:
+    def mode_decomposition(
+            self, verbose: bool = True,
+            search_pattern: str = "*Run*.cxi"
+    ) -> np.ndarray:
         """
         Run a mode decomposition à la PyNX. See pynx_cdi_analysis.py
         script. Note that this method only works if PyNX is installed.
@@ -1053,6 +1077,8 @@ class PhasingResultAnalyser:
         Args:
             verbose (bool, optional): whether to print some logs.
                 Defaults to True.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: in script/notebook mode, if not results are
@@ -1081,7 +1107,7 @@ class PhasingResultAnalyser:
                         "done against the best result."
                     )
                 if self.result_paths is None:
-                    self.find_phasing_results()
+                    self.find_phasing_results(search_pattern)
                 result_keys = self.result_paths
         results = []
         for r in result_keys:
@@ -1237,7 +1263,7 @@ class PhasingResultAnalyser:
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Implementation of the check-up for the twin image problem as
-        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa 
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa
         The function takes two reconstructions, one is considered a
         reference. After the two reconstuctions being registered, their
         phase in the Fourier space are compared (difference). The same
@@ -1362,3 +1388,37 @@ class PhasingResultAnalyser:
             add_colorbar(ax, extend="both")
 
         return figure, axes
+
+
+def extract_run_info(filename: str) -> tuple[int, str]:
+    """
+    Extract run number and scan info from a filename.
+
+    Args:
+        filename (str): Path or filename containing run information
+
+    Returns:
+        tuple[int, str]: Run number and original run string
+    """
+    # Extract just the filename if a full path is given
+    base_filename = os.path.basename(filename)
+
+    # Try multiple patterns to extract run numbers
+    run_patterns = [
+        # Pattern for "Run0001" style
+        (r'Run(\d+)', lambda m: int(m.group(1))),
+        # Pattern for files with "_run_01" style
+        (r'_run_(\d+)', lambda m: int(m.group(1))),
+        # Pattern for "r0001" style
+        (r'r(\d+)', lambda m: int(m.group(1)))
+    ]
+
+    for pattern, extractor in run_patterns:
+        match = re.search(pattern, base_filename)
+        if match:
+            run_num = extractor(match)
+            run_str = match.group(0)
+            return run_num, run_str
+
+    # If no pattern matches, return a default
+    return 0, "unknown"
