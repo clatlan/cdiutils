@@ -828,7 +828,7 @@ class TabPlotData(widgets.VBox):
         if work_dir is None:
             work_dir = os.getcwd()
         self.parent_folder = widgets.Dropdown(
-            options=[x[0] + "/" for x in os.walk(work_dir)],
+            options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
             value=work_dir + "/",
             placeholder=work_dir + "/",
             description='Data folder:',
