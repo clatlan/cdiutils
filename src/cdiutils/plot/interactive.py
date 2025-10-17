@@ -872,6 +872,7 @@ class TabPlotData(widgets.VBox):
         self.data_use = widgets.ToggleButtons(
             options=[
                 ("Clear/ Reload folder", False),
+                ('1D plot', "1D"),
                 ('2D plot', "2D"),
                 ("Plot slices", "slices"),
                 ("Plot contour slices", "contour_slices"),
@@ -889,12 +890,18 @@ class TabPlotData(widgets.VBox):
             description='Load data',
             tooltips=[
                 "Clear the output and unload data from GUI, saves RAM",
+                "Load data and plot vector",
                 "Load data and plot data slice interactively",
                 "Load data and plot data slices for each dimension in its middle",
+                "Load data and plot data contours of slices for each dimension in its middle",
+                "Load data and plot data summed for each dimension",
+                "Load data and plot contours of data summed for each dimension in its middle",
                 "Load data and plot 3D data interactively",
                 "Load data and allow for the creation of a support interactively",
                 "Load data and allow for the creation of a support automatically",
                 "Load support and smooth its boundaries",
+                "Display .png image",
+                "Display hdf5 tree",
                 "Delete selected files, careful !!"
             ],
             button_style='',
