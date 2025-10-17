@@ -51,7 +51,7 @@ class Plotter:
     plot : str, optional
         Specifies the type of plot to create. Available options are:
         '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-        'sum_contour_slices', '3D', by default 'slices'.
+        'sum_contour_slices', '3D', "1D", by default 'slices'.
     log : bool, optional
         Whether to display the plot in log scale, by default False.
     cmap : str, optional
@@ -103,7 +103,7 @@ class Plotter:
             plot : str, optional
                 Specifies the type of plot to create. Available options
                 are: '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-                'sum_contour_slices', '3D', by default 'slices'.
+                'sum_contour_slices', '3D', "1D", by default 'slices'.
             log : bool, optional
                 Whether to display the plot in log scale, by default
                 False.
@@ -253,6 +253,16 @@ class Plotter:
         elif self.plot == "3D" and self.data_array.ndim == 3:
             ThreeDViewer(self.data_array)
 
+        elif self.plot == "1D" and self.data_array.ndim == 1:
+            print(self.data_array)
+            plot_data(
+                data_array=self.data_array,
+                figsize=self.figsize,
+                fontsize=self.fontsize,
+                log=self.log,
+                cmap=self.cmap,
+                title=self.title,
+            )
         else:
             print(
                 "#########################################################"
