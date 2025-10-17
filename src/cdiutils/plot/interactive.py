@@ -837,8 +837,14 @@ class TabPlotData(widgets.VBox):
         )
         if work_dir is None:
             work_dir = os.getcwd()
+
+        options = sorted([x[0] + "/" for x in os.walk(work_dir)])
+        for root in options:
+            if '.ipynb' in root:
+                options.remove(root)
+
         self.parent_folder = widgets.Dropdown(
-            options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
+            options=options,
             value=work_dir + "/",
             placeholder=work_dir + "/",
             description='Data folder:',
@@ -971,7 +977,7 @@ class TabPlotData(widgets.VBox):
             cmap (str): Colormap for plots.
             data_use (str): Operation to perform (e.g., "2D", "3D", "create_support").
         """
-        if data_use == "2D":
+        if data_use in ("2D", "1D"):
             # Plot 2D data
             for p in filename:
                 print(f"Showing {p}")

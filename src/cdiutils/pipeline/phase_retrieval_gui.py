@@ -224,9 +224,6 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.modes = None
         self.mode_weights = None
 
-        if work_dir is None:
-            work_dir = os.getcwd()
-
         # define widgets
         self.unused_label_data = widgets.HTML(
             value="<p style='font-weight: bold;font-size:1.2em'>\
@@ -235,8 +232,16 @@ class PhaseRetrievalGUI(widgets.VBox):
             layout=widgets.Layout(width="90%", height="35px"),
         )
 
+        if work_dir is None:
+            work_dir = os.getcwd()
+
+        options = sorted([x[0] + "/" for x in os.walk(work_dir)])
+        for root in options:
+            if '.ipynb' in root:
+                options.remove(root)
+
         self.parent_folder = widgets.Dropdown(
-            options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
+            options=options,
             value=work_dir + "/",
             placeholder=work_dir + "/",
             description="Parent folder:",
