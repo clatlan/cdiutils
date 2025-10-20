@@ -998,7 +998,7 @@ class TabPlotData(widgets.VBox):
                 cmap=cmap
             )
         elif data_use in [
-            "slices", "contour_slices", "sum_slices", "sum_contour_slices"
+            "slices", "contour_slices", "sum_slices", "sum_contour_slices", "phase_slices",
         ]:
             # Plot slices or sums
             for p in filename:
