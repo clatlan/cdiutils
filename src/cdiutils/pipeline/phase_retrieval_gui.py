@@ -1308,16 +1308,6 @@ class PhaseRetrievalGUI(widgets.VBox):
 
         # Run PR with operators
         if run_phase_retrieval and not run_pynx_tools:
-            # Get scan nb
-            try:
-                scan = int(parent_folder.split("/")[-3].replace("S", ""))
-                params["scan"] = scan
-                print("Scan n°", scan)
-            except Exception as E:
-                print(E)
-                print("Could not get scan nb.")
-                scan = 0
-
             # Keep a list of the resulting scans
             reconstruction_file_list = []
 
@@ -1695,7 +1685,7 @@ class PhaseRetrievalGUI(widgets.VBox):
 
                         fn = (
                             f"{params['parent_folder']}/"
-                            f"result_scan_{params['scan']}_run_{i}_"
+                            f"Run_{i}_"
                             f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
                             f"support_threshold_{threshold_relative:.4f}_"
                             f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
