@@ -9,10 +9,10 @@ description = "A Python package for (Bragg) Coherent X-ray Diffraction Imaging p
 
 authors = [
     { name = "Clement Atlan", email = "clement.atlan@esrf.fr" },
-    { name = "Corentin Chatelier" },
     { name = "David Simonne" },
-    { name = "Matthieu Deschamps" },
+    { name = "Corentin Chatelier" },
     { name = "Kyle Olson" },
+    { name = "Matthieu Deschamps" },
 ]
 maintainers = [
     {name = "Clement Atlan", email = "clement.atlan@esrf.fr"}
@@ -32,30 +32,48 @@ license-files = ["LICENSE"]
 
 dependencies = [
     "colorcet>=3.0.0",
-    "h5py>=3.6.0",
+    "h5py>=3.6.0", 
     "hdf5plugin>=3.2.0",
-    "ipykernel",
     "matplotlib>=3.8",
     "numpy",
     "pandas>=1.4.2",
     "scikit-image>=0.19.2",
     "scikit-learn>=1.1.3",
     "scipy>=1.8.0",
-    "seaborn>=0.12.1",
     "silx",
     "tabulate",
     "xrayutilities>=1.7.3",
-    "ipyvolume",
-    "ipython_genutils",
-    "bokeh",
-    "panel",
-    "tornado",
-    "ipywidgets",
-    "datetime",
 ]
 
 [project.optional-dependencies]
 vtk = ["vtk>=9.0.1"]
+interactive = [
+    "ipywidgets",
+    "ipyvolume", 
+    "bokeh",
+    "panel",
+    "tornado",
+    "tables",
+    "h5glance",
+    "ipykernel",
+]
+docs = [
+    "sphinx>=4.0",
+    "pydata-sphinx-theme",
+]
+all = [
+    "vtk>=9.0.1",
+    "ipywidgets",
+    "ipyvolume",
+    "bokeh", 
+    "panel",
+    "tornado",
+    "tables",
+    "h5glance",
+    "ipykernel",
+    "sphinx>=4.0",
+    "pydata-sphinx-theme",
+]
 
 [project.urls]
 Homepage = "https://github.com/clatlan/cdiutils"
