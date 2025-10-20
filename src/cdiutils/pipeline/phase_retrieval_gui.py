@@ -216,9 +216,10 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.pipeline = pipeline_instance
 
         # define global search pattern for cxi files
-        self.search_pattern = search_pattern
-        if self.search_pattern is None:
-            self.search_pattern = "*run*.cxi"
+        if search_pattern is None:
+            self.search_pattern = "*Run*.cxi"
+        else:
+            self.search_pattern = search_pattern
 
         # define future attributes
         self.modes = None

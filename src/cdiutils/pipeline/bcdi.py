@@ -919,6 +919,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         pynx_slurm_file_template: str = None,
         clear_former_results: bool = False,
         cmd: str = None,
+        search_pattern: str = "*Run*.cxi",
         **pynx_params,
     ) -> None:
         """
@@ -958,9 +959,10 @@ retrieval is also computed and will be used in the post-processing stage."""
         if use_GUI:
             self.logger.info("Launching interactive GUI.")
 
-            gui = PhaseRetrievalGUI(
+            gui = phase_retrieval_gui.PhaseRetrievalGUI(
                 work_dir=self.pynx_phasing_dir,
                 pipeline_instance=self,
+                search_pattern=search_pattern,
             )
             gui.show()
 
@@ -1154,7 +1156,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             if not self.result_analyser.result_paths:
                 self.result_analyser.find_phasing_results(search_pattern)
             for path in self.result_analyser.result_paths:
-                if run == int(path.split("Run")[1][:4]): ## this is wrong
+                if run == int(path.split("Run")[1][:4]):
                     selected_path = path
 
         with CXIFile(selected_path) as cxi:
