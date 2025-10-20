@@ -959,7 +959,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         if use_GUI:
             self.logger.info("Launching interactive GUI.")
 
-            gui = phase_retrieval_gui.PhaseRetrievalGUI(
+            gui = PhaseRetrievalGUI(
                 work_dir=self.pynx_phasing_dir,
                 pipeline_instance=self,
                 search_pattern=search_pattern,
