@@ -57,7 +57,7 @@ from .parameters import (
 )
 
 # GUI for interactive phase retrieval with PyNX
-from cdiutils.pipeline import phase_retrieval_gui
+from cdiutils.pipeline.phase_retrieval_gui import PhaseRetrievalGUI
 
 
 class PyNXScriptError(Exception):
@@ -958,11 +958,11 @@ retrieval is also computed and will be used in the post-processing stage."""
         if use_GUI:
             self.logger.info("Launching interactive GUI.")
 
-            PhaseRetrievalGUI_ID01 = phase_retrieval_gui.PhaseRetrievalGUI(
-                work_dir=self.params["dump_dir"] + "pynx_phasing/",
+            gui = PhaseRetrievalGUI(
+                work_dir=self.pynx_phasing_dir,
                 pipeline_instance=self,
             )
-            PhaseRetrievalGUI_ID01.show()
+            gui.show()
 
         else:
             self.logger.info("Using non-interactive PyNX CDI phase retrieval.")
