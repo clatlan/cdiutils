@@ -5,6 +5,20 @@ authors:
   - family-names: Atlan
     given-names: Clement
     orcid: https://orcid.org/0000-0001-8531-7864
+  - family-names: Simonne
+    given-names: David
+    orcid: https://orcid.org/0000-0002-0639-6742
+  - family-names: Chatelier
+    given-names: Corentin
+    orcid: https://orcid.org/0000-0002-0821-8309
+  - family-names: Bellec
+    given-names: Ewen
+    orcid: https://orcid.org/0000-0001-6863-0293
+  - family-names: Olson
+    given-names: Kyle
+    orcid: https://orcid.org/0000-0002-2966-0147
+  - family-names: Deschamps
+    given-names: Matthieu
 
 doi: 10.5281/zenodo.7656853
 version: 0.2.0
