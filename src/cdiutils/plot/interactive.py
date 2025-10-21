@@ -51,7 +51,7 @@ class Plotter:
     plot : str, optional
         Specifies the type of plot to create. Available options are:
         '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-        'sum_contour_slices', '3D', by default 'slices'.
+        'sum_contour_slices', '3D', "1D", by default 'slices'.
     log : bool, optional
         Whether to display the plot in log scale, by default False.
     cmap : str, optional
@@ -103,7 +103,7 @@ class Plotter:
             plot : str, optional
                 Specifies the type of plot to create. Available options
                 are: '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-                'sum_contour_slices', '3D', by default 'slices'.
+                'sum_contour_slices', '3D', "1D", by default 'slices'.
             log : bool, optional
                 Whether to display the plot in log scale, by default
                 False.
@@ -253,6 +253,16 @@ class Plotter:
         elif self.plot == "3D" and self.data_array.ndim == 3:
             ThreeDViewer(self.data_array)
 
+        elif self.plot == "1D" and self.data_array.ndim == 1:
+            print(self.data_array)
+            plot_data(
+                data_array=self.data_array,
+                figsize=self.figsize,
+                fontsize=self.fontsize,
+                log=self.log,
+                cmap=self.cmap,
+                title=self.title,
+            )
         else:
             print(
                 "#########################################################"
@@ -827,8 +837,14 @@ class TabPlotData(widgets.VBox):
         )
         if work_dir is None:
             work_dir = os.getcwd()
+
+        options = sorted([x[0] + "/" for x in os.walk(work_dir)])
+        for root in options:
+            if '.ipynb' in root:
+                options.remove(root)
+
         self.parent_folder = widgets.Dropdown(
-            options=[x[0] + "/" for x in os.walk(work_dir)],
+            options=options,
             value=work_dir + "/",
             placeholder=work_dir + "/",
             description='Data folder:',
@@ -862,8 +878,10 @@ class TabPlotData(widgets.VBox):
         self.data_use = widgets.ToggleButtons(
             options=[
                 ("Clear/ Reload folder", False),
+                ('1D plot', "1D"),
                 ('2D plot', "2D"),
                 ("Plot slices", "slices"),
+                ("Plot phase slices", "phase_slices"),
                 ("Plot contour slices", "contour_slices"),
                 ("Plot sum over axes", "sum_slices"),
                 ("Plot contour of sum over axes", "sum_contour_slices"),
@@ -879,12 +897,19 @@ class TabPlotData(widgets.VBox):
             description='Load data',
             tooltips=[
                 "Clear the output and unload data from GUI, saves RAM",
+                "Load data and plot vector",
                 "Load data and plot data slice interactively",
+                "Load data and plot phase slice interactively",
                 "Load data and plot data slices for each dimension in its middle",
+                "Load data and plot data contours of slices for each dimension in its middle",
+                "Load data and plot data summed for each dimension",
+                "Load data and plot contours of data summed for each dimension in its middle",
                 "Load data and plot 3D data interactively",
                 "Load data and allow for the creation of a support interactively",
                 "Load data and allow for the creation of a support automatically",
                 "Load support and smooth its boundaries",
+                "Display .png image",
+                "Display hdf5 tree",
                 "Delete selected files, careful !!"
             ],
             button_style='',
@@ -954,7 +979,7 @@ class TabPlotData(widgets.VBox):
             cmap (str): Colormap for plots.
             data_use (str): Operation to perform (e.g., "2D", "3D", "create_support").
         """
-        if data_use == "2D":
+        if data_use in ("2D", "1D"):
             # Plot 2D data
             for p in filename:
                 print(f"Showing {p}")
@@ -973,7 +998,7 @@ class TabPlotData(widgets.VBox):
                 cmap=cmap
             )
         elif data_use in [
-            "slices", "contour_slices", "sum_slices", "sum_contour_slices"
+            "slices", "contour_slices", "sum_slices", "sum_contour_slices", "phase_slices",
         ]:
             # Plot slices or sums
             for p in filename:

@@ -1019,7 +1019,7 @@ class PhasingResultAnalyser:
         if best_runs:
             if self.cdi_results:
                 # This is the notebook mode
-                self.best_candidates = [f'Run{r:04d}' for r in best_runs] # this is wrong
+                self.best_candidates = [f'Run{r:04d}' for r in best_runs]
             else:
                 # This is the script/pipeline mode
                 self.best_candidates = []

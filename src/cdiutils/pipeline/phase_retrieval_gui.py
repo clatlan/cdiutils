@@ -216,16 +216,14 @@ class PhaseRetrievalGUI(widgets.VBox):
         self.pipeline = pipeline_instance
 
         # define global search pattern for cxi files
-        self.search_pattern = search_pattern
-        if self.search_pattern is None:
-            self.search_pattern = "*run*.cxi"
+        if search_pattern is None:
+            self.search_pattern = "*Run*.cxi"
+        else:
+            self.search_pattern = search_pattern
 
         # define future attributes
         self.modes = None
         self.mode_weights = None
-
-        if work_dir is None:
-            work_dir = os.getcwd()
 
         # define widgets
         self.unused_label_data = widgets.HTML(
@@ -235,8 +233,16 @@ class PhaseRetrievalGUI(widgets.VBox):
             layout=widgets.Layout(width="90%", height="35px"),
         )
 
+        if work_dir is None:
+            work_dir = os.getcwd()
+
+        options = sorted([x[0] + "/" for x in os.walk(work_dir)])
+        for root in options:
+            if '.ipynb' in root:
+                options.remove(root)
+
         self.parent_folder = widgets.Dropdown(
-            options=sorted([x[0] + "/" for x in os.walk(work_dir)]),
+            options=options,
             value=work_dir + "/",
             placeholder=work_dir + "/",
             description="Parent folder:",
@@ -1303,16 +1309,6 @@ class PhaseRetrievalGUI(widgets.VBox):
 
         # Run PR with operators
         if run_phase_retrieval and not run_pynx_tools:
-            # Get scan nb
-            try:
-                scan = int(parent_folder.split("/")[-3].replace("S", ""))
-                params["scan"] = scan
-                print("Scan n°", scan)
-            except Exception as E:
-                print(E)
-                print("Could not get scan nb.")
-                scan = 0
-
             # Keep a list of the resulting scans
             reconstruction_file_list = []
 
@@ -1690,7 +1686,7 @@ class PhaseRetrievalGUI(widgets.VBox):
 
                         fn = (
                             f"{params['parent_folder']}/"
-                            f"result_scan_{params['scan']}_run_{i}_"
+                            f"Run_{i}_"
                             f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
                             f"support_threshold_{threshold_relative:.4f}_"
                             f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
