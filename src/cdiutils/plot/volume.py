@@ -8,6 +8,7 @@ import os
 try:
     import pyvista as pv
     from pyvista.trame.ui.vuetify3 import divider, slider, select
+
     IS_TRAME_PYVISTA_AVAILABLE = True
 except ImportError:
     IS_TRAME_PYVISTA_AVAILABLE = False
@@ -17,12 +18,12 @@ from cdiutils.plot.formatting import (
     get_extent,
     save_fig,
     CXI_VIEW_PARAMETERS,
-    XU_VIEW_PARAMETERS
+    XU_VIEW_PARAMETERS,
 )
 from cdiutils.utils import (
     find_suitable_array_shape,
     CroppingHandler,
-    nan_to_zero
+    nan_to_zero,
 )
 
 
@@ -51,26 +52,41 @@ class VolumeViewer:
         "displacement": {"cmap": "cet_CET_D1A", "centred_clim": True},
         "het_strain": {"cmap": "cet_CET_D13", "centred_clim": True},
         "het_strain_from_dspacing": {
-            "cmap": "cet_CET_D13", "centred_clim": True
+            "cmap": "cet_CET_D13",
+            "centred_clim": True,
         },
         "lattice_parameter": {"cmap": "turbo", "centred_clim": False},
         "dspacing": {"cmap": "turbo", "centred_clim": False},
         "isosurface": 0.50,
-        "cmap": "turbo"
+        "cmap": "turbo",
     }
 
     cmap_options = (
-        "turbo", "viridis", "spectral", "inferno", "magma", "plasma",
-        "cividis", "RdBu", "coolwarm", "Blues", "Greens", "Greys", "Purples",
-        "Oranges", "Reds", "cet_CET_D13", "cet_CET_C9s_r", "cet_CET_D1A"
+        "turbo",
+        "viridis",
+        "spectral",
+        "inferno",
+        "magma",
+        "plasma",
+        "cividis",
+        "RdBu",
+        "coolwarm",
+        "Blues",
+        "Greens",
+        "Greys",
+        "Purples",
+        "Oranges",
+        "Reds",
+        "cet_CET_D13",
+        "cet_CET_C9s_r",
+        "cet_CET_D1A",
+        "jch_const",
+        "jch_max",
     )
 
     @classmethod
     def _generate_toolbar_tools(
-        cls,
-        initial_scalar: str,
-        available_scalars: list[str],
-        **kwargs
+        cls, initial_scalar: str, available_scalars: list[str], **kwargs
     ) -> callable:
         def toolbar_tools() -> None:
             divider(vertical=True, classes="mx-1")
@@ -110,14 +126,15 @@ class VolumeViewer:
                 dense=True,
                 outlined=True,
             )
+
         return toolbar_tools
 
     @classmethod
     def contour_plot(
-            cls,
-            data_path: str | None = None,
-            initial_active_scalar: str = "het_strain",
-            **data: np.ndarray,
+        cls,
+        data_path: str | None = None,
+        initial_active_scalar: str = "het_strain",
+        **data: np.ndarray,
     ):
         """
         Generate a contour plot application using PyVista based on a vti
@@ -148,7 +165,9 @@ class VolumeViewer:
                     "The provided data_path should points to a .vti file"
                 )
             structure_grid = pv.read(data_path)  # load volume data
-            available_scalars = structure_grid.array_names  # the available fields
+            available_scalars = (
+                structure_grid.array_names
+            )  # the available fields
 
         elif len(data) < 1:
             raise NotImplementedError(
@@ -158,7 +177,7 @@ class VolumeViewer:
             initial_active_scalar = list(data.keys())[0]
             mesh = np.meshgrid(
                 *[np.arange(s) for s in data[initial_active_scalar].shape],
-                indexing="ij"
+                indexing="ij",
             )
             structure_grid = pv.StructuredGrid(*mesh)
             available_scalars = list(data.keys())
@@ -184,7 +203,7 @@ class VolumeViewer:
         if cls.generic_params[initial_active_scalar]["centred_clim"]:
             initial_clim = (
                 -np.max(data[initial_active_scalar]),
-                np.max(data[initial_active_scalar])
+                np.max(data[initial_active_scalar]),
             )
 
         mesh_actor = plotter.add_mesh(
@@ -201,10 +220,12 @@ class VolumeViewer:
 
         # get the IPython widget
         widget = plotter.show(
-            jupyter_kwargs={"add_menu_items": cls._generate_toolbar_tools(
-                initial_active_scalar, available_scalars
-            )},
-            return_viewer=True
+            jupyter_kwargs={
+                "add_menu_items": cls._generate_toolbar_tools(
+                    initial_active_scalar, available_scalars
+                )
+            },
+            return_viewer=True,
         )
 
         # connect Trame state with Pyvista
@@ -270,7 +291,7 @@ class VolumeViewer:
             plotter.remove_scalar_bar()  # Remove old colourbar
             plotter.add_scalar_bar(
                 title=state.scalar_field.replace("_", " ").capitalize(),
-                n_labels=5
+                n_labels=5,
             )
 
             ctrl.view_update()  # Refresh the visualization
@@ -279,15 +300,15 @@ class VolumeViewer:
 
     @staticmethod
     def multi_mesh(
-            scalar_field: np.ndarray,
-            isosurfaces: list[float] | np.ndarray,
-            initial_view: dict[str, float] = None,
-            kwargs_mesh: dict[str, float | str | bool] = None,
-            scalar_field_name: str = "Values",
-            window_size: list[int] = None,
-            plot_title: str = "3D view",
-            interactive: bool = True,
-            jupyter_backend: str = "client",
+        scalar_field: np.ndarray,
+        isosurfaces: list[float] | np.ndarray,
+        initial_view: dict[str, float] = None,
+        kwargs_mesh: dict[str, float | str | bool] = None,
+        scalar_field_name: str = "Values",
+        window_size: list[int] = None,
+        plot_title: str = "3D view",
+        interactive: bool = True,
+        jupyter_backend: str = "client",
     ) -> None:
         """
         Visualise a 3D scalar field using PyVista, with isosurfaces and
@@ -400,7 +421,7 @@ class VolumeViewer:
         x = np.arange(nx, dtype=np.float32)
         y = np.arange(ny, dtype=np.float32)
         z = np.arange(nz, dtype=np.float32)
-        X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         grid = pv.StructuredGrid(X, Y, Z)
 
         # Add the scalar field data as point data to the grid, room to play
@@ -410,7 +431,7 @@ class VolumeViewer:
         # Generate contours for different isosurfaces
         contours = grid.contour(
             isosurfaces=isosurfaces,
-            method="contour"  # Other methods do not work
+            method="contour",  # Other methods do not work
         )
 
         plotter = pv.Plotter()
@@ -442,15 +463,15 @@ class VolumeViewer:
 
     @staticmethod
     def save_rotating_contours(
-            scalar_field: np.ndarray,
-            isosurfaces: list[float] | np.ndarray,
-            save_directory: str,
-            scalar_field_name: str = "Values",
-            rotation_axis: str = "z",
-            n_frames: int = 18,
-            initial_view: dict[str, float] = None,
-            kwargs_mesh: dict[str, float | str | bool] = None,
-            window_size: list[int] = None,
+        scalar_field: np.ndarray,
+        isosurfaces: list[float] | np.ndarray,
+        save_directory: str,
+        scalar_field_name: str = "Values",
+        rotation_axis: str = "z",
+        n_frames: int = 18,
+        initial_view: dict[str, float] = None,
+        kwargs_mesh: dict[str, float | str | bool] = None,
+        window_size: list[int] = None,
     ) -> None:
         """
         Generate and save images of a 3D scalar field contour plot with
@@ -511,7 +532,7 @@ class VolumeViewer:
         x = np.arange(nx, dtype=np.float32)
         y = np.arange(ny, dtype=np.float32)
         z = np.arange(nz, dtype=np.float32)
-        X, Y, Z = np.meshgrid(x, y, z, indexing='ij')
+        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
         grid = pv.StructuredGrid(X, Y, Z)
         grid.point_data[scalar_field_name] = scalar_field.flatten(order="F")
 
@@ -555,11 +576,11 @@ class VolumeViewer:
 
 
 def plot_3d_voxels(
-        data: np.ndarray,
-        support: np.ndarray,
-        view: str = "y+",
-        convention: str = "cxi",
-        **plot_params
+    data: np.ndarray,
+    support: np.ndarray,
+    view: str = "y+",
+    convention: str = "cxi",
+    **plot_params,
 ) -> plt.Figure:
     """
     Plot a 3D volumetric representation of data. Voxel are plotted as
@@ -584,7 +605,7 @@ def plot_3d_voxels(
     _plot_params = {
         "cmap": plt.get_cmap("turbo"),
         "norm": Normalize(data.min(), data.max()),
-        "figsize": (6, 2)
+        "figsize": (6, 2),
     }
     if plot_params is not None:
         _plot_params.update(plot_params)
@@ -619,19 +640,17 @@ def plot_3d_voxels(
     ax.view_init(elev=views[view][0], azim=views[view][1], roll=views[view][2])
 
     ax.voxels(
-        support,
-        facecolors=colors,
-        edgecolors=np.clip(2*colors-0.85, 0, 1)
+        support, facecolors=colors, edgecolors=np.clip(2 * colors - 0.85, 0, 1)
     )
     # ax.set_box_aspect(None, zoom=1.25)
     return figure
 
 
 def hemisphere_projection(
-        data: np.ndarray,
-        support: np.ndarray,
-        axis: int,
-        looking_from_downstream: bool = True
+    data: np.ndarray,
+    support: np.ndarray,
+    axis: int,
+    looking_from_downstream: bool = True,
 ) -> np.ndarray:
     """Compute the hemisphere projection of a volume along one axis.
 
@@ -670,16 +689,16 @@ def hemisphere_projection(
 
 
 def plot_3d_surface_projections(
-        data: np.ndarray,
-        support: np.ndarray,
-        voxel_size: tuple | list | np.ndarray,
-        view_parameters: dict = None,
-        convention: str | None = None,
-        figsize: tuple = None,
-        title: str = None,
-        cbar_title: str = None,
-        save: str = None,
-        **plot_params
+    data: np.ndarray,
+    support: np.ndarray,
+    voxel_size: tuple | list | np.ndarray,
+    view_parameters: dict = None,
+    convention: str | None = None,
+    figsize: tuple = None,
+    title: str = None,
+    cbar_title: str = None,
+    save: str = None,
+    **plot_params,
 ) -> plt.Figure:
     """Plot 3D projected views from a 3D object.
 
@@ -717,14 +736,15 @@ def plot_3d_surface_projections(
 
     cbar_size, cbar_pad = 0.07, 0.4
     figure, axes = plt.subplots(
-        2, 3,
+        2,
+        3,
         layout="tight",
         figsize=figsize,
-        gridspec_kw={'height_ratios': [1/(1-(cbar_pad+cbar_size)), 1]}
+        gridspec_kw={"height_ratios": [1 / (1 - (cbar_pad + cbar_size)), 1]},
     )
     shape = find_suitable_array_shape(support, symmetrical=False)
 
-    cropped_support,  _, _, roi = CroppingHandler.chain_centring(
+    cropped_support, _, _, roi = CroppingHandler.chain_centring(
         support,
         output_shape=shape,
         methods=["com"],
@@ -745,7 +765,7 @@ def plot_3d_surface_projections(
             cropped_data,
             cropped_support,
             axis=view_parameters[v]["axis"],
-            looking_from_downstream=looking_from_downstream
+            looking_from_downstream=looking_from_downstream,
         )
 
         # Swap axes for matshow if the first plane axis is less than the
@@ -758,11 +778,7 @@ def plot_3d_surface_projections(
 
         # to handle extent and origin please refer to
         # https://matplotlib.org/stable/users/explain/artists/imshow_extent.html#imshow-extent
-        extent = get_extent(
-            shape,
-            voxel_size,
-            view_parameters[v]["plane"]
-        )
+        extent = get_extent(shape, voxel_size, view_parameters[v]["plane"])
 
         if view_parameters[v]["xaxis_points_left"]:
             # flip the horizontal extent, and the image horizontally
@@ -770,10 +786,7 @@ def plot_3d_surface_projections(
             projection = projection[np.s_[:, ::-1]]
 
         image = ax.imshow(
-            projection,
-            extent=extent,
-            origin="lower",
-            **plot_params
+            projection, extent=extent, origin="lower", **plot_params
         )
         ax.set_title(v, y=0.95)
 
@@ -781,12 +794,13 @@ def plot_3d_surface_projections(
         yaxis_left = view_parameters[v]["xaxis_points_left"]
 
         # Remove the useless spines
-        ax.spines[
-            ["top", "left" if yaxis_left else "right"]].set_visible(False)
+        ax.spines[["top", "left" if yaxis_left else "right"]].set_visible(
+            False
+        )
 
         # Set the position of the spines
         ax.spines["right" if yaxis_left else "left"].set_position(
-                ("axes", yaxis_left)
+            ("axes", yaxis_left)
         )
 
         # Customize ticks and tick labels
@@ -795,25 +809,20 @@ def plot_3d_surface_projections(
         ax.yaxis.set_label_position("right" if yaxis_left else "left")
 
         # Plot the shaft of the axis
+        ax.plot(yaxis_left, 1, "^k", transform=ax.transAxes, clip_on=False)
         ax.plot(
-            yaxis_left,
-            1,
-            "^k",
-            transform=ax.transAxes,
-            clip_on=False
-        )
-        ax.plot(
-            1-yaxis_left, 0,
+            1 - yaxis_left,
+            0,
             "<k" if yaxis_left else ">k",
             transform=ax.transAxes,
-            clip_on=False
+            clip_on=False,
         )
         xlabel = view_parameters[v]["xlabel"]
         ylabel = view_parameters[v]["ylabel"]
 
         ax.set_xlabel(xlabel, labelpad=1)
         ax.set_ylabel(ylabel, labelpad=1)
-        ax.tick_params(axis='both', which='major', pad=1.5)
+        ax.tick_params(axis="both", which="major", pad=1.5)
 
         ax.locator_params(nbins=5)
 
@@ -834,17 +843,16 @@ def plot_3d_surface_projections(
 
 
 def plot_3d_object(
-        data,
-        support=None,
-        cmap="turbo",
-        title="",
-        vmin=None,
-        vmax=None,
-        show=True,
-        marker="H",
-        alpha=1
+    data,
+    support=None,
+    cmap="turbo",
+    title="",
+    vmin=None,
+    vmax=None,
+    show=True,
+    marker="H",
+    alpha=1,
 ):
-
     """
     Plot a 3D object.
 
@@ -870,9 +878,13 @@ def plot_3d_object(
 
     data_of_interest = np.where(support > 0, data, 0)
     nonzero_coordinates = data_of_interest.nonzero()
-    nonzero_data = data_of_interest[(nonzero_coordinates[0],
-                                     nonzero_coordinates[1],
-                                     nonzero_coordinates[2])]
+    nonzero_data = data_of_interest[
+        (
+            nonzero_coordinates[0],
+            nonzero_coordinates[1],
+            nonzero_coordinates[2],
+        )
+    ]
     if vmin is None:
         vmin = np.min(nonzero_data)
     if vmax is None:
@@ -889,7 +901,7 @@ def plot_3d_object(
         marker=marker,
         vmin=vmin,
         vmax=vmax,
-        alpha=alpha
+        alpha=alpha,
     )
     fig.colorbar(p)
     fig.suptitle(title)
@@ -902,15 +914,15 @@ def plot_3d_object(
 
 
 def plot_3d_vector_field(
-        data,
-        support,
-        arrow=True,
-        scale=5,
-        cmap="jet",
-        title="",
-        vmin=None,
-        vmax=None,
-        verbose=False
+    data,
+    support,
+    arrow=True,
+    scale=5,
+    cmap="jet",
+    title="",
+    vmin=None,
+    vmax=None,
+    verbose=False,
 ):
     """
     Plot a 3D vector field represented by arrows.
@@ -938,10 +950,12 @@ def plot_3d_vector_field(
     """
 
     nonzero_coordinates = np.where(support > 0)
-    data_of_interest = data[nonzero_coordinates[0],
-                            nonzero_coordinates[1],
-                            nonzero_coordinates[2],
-                            ...]
+    data_of_interest = data[
+        nonzero_coordinates[0],
+        nonzero_coordinates[1],
+        nonzero_coordinates[2],
+        ...,
+    ]
 
     norm = np.empty(data_of_interest.shape[0])
 
@@ -972,11 +986,11 @@ def plot_3d_vector_field(
             arrow_length_ratio=0.2,
             normalize=True,
             length=scale,
-            colors=colors
-            )
+            colors=colors,
+        )
 
         sm.set_array(np.linspace(vmin, vmax))
-        fig.colorbar(sm, ax=ax, orientation='vertical')
+        fig.colorbar(sm, ax=ax, orientation="vertical")
         q.set_edgecolor(colors)
         q.set_facecolor(colors)
 
@@ -987,10 +1001,10 @@ def plot_3d_vector_field(
             nonzero_coordinates[2],
             c=norm,
             cmap=cmap,
-            marker='o',
+            marker="o",
             vmin=vmin,
-            vmax=vmax
-            )
+            vmax=vmax,
+        )
 
         fig.colorbar(p)
 
