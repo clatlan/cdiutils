@@ -10,16 +10,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import colorcet  # noqa, F401
 
-from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.colors import LinearSegmentedColormap, BivarColormapFromImage
 from matplotlib import colormaps
 
+
+AVAILABLE_2D_CMAPS = ["abyss", "peak", "barrel", "jch_max", "jch_const"]
+
 # module-level cache for 2D LUTs (loaded on demand)
-_JCH_2D_LUTS = {}
+_LUTS = {}
 
 
-def _load_jch_lut(cmap_name: str) -> np.ndarray:
+def _load_lut(cmap_name: str) -> np.ndarray:
     """
-    Lazy-load 2D JCh LUT from disk.
+    Lazy-load 2D LUT from disk.
 
     LUTs are cached after first load to avoid repeated file I/O.
 
@@ -29,22 +32,21 @@ def _load_jch_lut(cmap_name: str) -> np.ndarray:
     Returns:
         2D LUT array of shape (256, 256, 3).
     """
-    if cmap_name not in _JCH_2D_LUTS:
+    if cmap_name not in _LUTS:
         from pathlib import Path
 
-        lut_path = Path(__file__).parent / f"jch_{cmap_name}_chroma_2d_lut.npz"
+        lut_path = Path(__file__).parent / f"lut_{cmap_name}.npz"
         if lut_path.exists():
             with np.load(lut_path) as data:
-                _JCH_2D_LUTS[cmap_name] = data["lut"]
+                _LUTS[cmap_name] = data["lut"]
         else:
-            raise FileNotFoundError(f"Could not find JCh LUT file: {lut_path}")
-    return _JCH_2D_LUTS[cmap_name]
+            raise FileNotFoundError(f"Could not find LUT file: {lut_path}")
+    return _LUTS[cmap_name]
 
 
 def complex_to_rgb(
     complex_array: np.ndarray,
-    cmap: str = "jch_const",
-    output_type: str = "float",
+    cmap: str = "abyss",
 ) -> np.ndarray:
     """
     Map complex array to RGB using perceptually uniform JCh colormap.
@@ -55,7 +57,10 @@ def complex_to_rgb(
 
     Args:
         complex_array: Complex-valued array of any shape.
-        cmap: JCh-based colormap to use. Options:
+        cmap: 2D colormap to use. Options:
+            - 'abyss': Perceptually uniform colormap (dark to light)
+            - 'peak': High-contrast colormap (emphasizes peaks)
+            - 'barrel': Cylindrical colormap (smooth transitions)
             - 'jch_max': Maximum chroma colormap (vivid, saturated colors)
             - 'jch_const': Constant chroma colormap (uniform brightness across hues)
             Default is 'jch_const'.
@@ -87,53 +92,56 @@ def complex_to_rgb(
         Magnitude is fully encoded in RGB lightness - no alpha channel needed.
 
     References:
-        Li, C., et al. "Comprehensive color solutions: CAM02, CAM16, and CAM16-UCS"
-        Color Research & Application, 2017.
+        - https://colorstamps.readthedocs.io/en/latest/index.html
+        - https://github.com/endolith/complex_colormap
     """
     # load appropriate 2D LUT (lazy-loaded and cached)
-    cmap_key = cmap.replace("jch_", "")
-    if cmap_key not in ("max", "const"):
+    if cmap not in AVAILABLE_2D_CMAPS:
         raise ValueError(
-            f"cmap must be 'jch_max' or 'jch_const', got '{cmap}'"
+            f"cmap must be 'abyss', 'peak', 'barrel', 'jch_max', 'jch_const', got '{cmap}'"
         )
-    lut_2d = _load_jch_lut(cmap_key)
+    lut_2d = _load_lut(cmap)
 
     # get phase and magnitude
     phase = np.angle(complex_array)  # [-pi, pi]
     magnitude = np.abs(complex_array)
 
     # normalise magnitude to [0, 1]
-    magnitude = (magnitude - magnitude.min()) / np.ptp(magnitude)
+    magnitude = (magnitude - magnitude.min()) / (np.ptp(magnitude) + 1e-12)
 
-    # convert phase [-pi, pi] to hue [0, 360] deg
-    h_degrees = np.rad2deg(phase + np.pi)
+    # convert phase [-pi, pi] to hue [0, 1]
+    h_degrees = (phase + np.pi) / (2 * np.pi)
 
-    # convert normalised magnitude to lightness [0, 100]
-    J_lightness = 100 * magnitude
-
-    # map to LUT indices
-    J_lutsize, h_lutsize = lut_2d.shape[:2]
-    J_indices = (
-        (J_lightness * (J_lutsize - 1) / 100)
-        .astype(int)
-        .clip(0, J_lutsize - 1)
-    )
-    h_indices = (
-        (h_degrees * (h_lutsize - 1) / 360).astype(int).clip(0, h_lutsize - 1)
-    )
-
-    # lookup RGB values from LUT
-    rgb = lut_2d[J_indices, h_indices]
-
-    # convert to requested type
-    if output_type == "uint8":
-        rgb = (rgb * 255).astype(np.uint8)
-    elif output_type != "float":
-        raise ValueError(
-            f"output_type must be 'float' or 'uint8', got '{output_type}'"
-        )
-
+    bivar_cmap = BivarColormapFromImage(lut_2d, shape="circle")
+    rgb = bivar_cmap((magnitude, h_degrees))
     return rgb
+
+    # # convert normalised magnitude to lightness [0, 100]
+    # J_lightness = 100 * magnitude
+
+    # # map to LUT indices
+    # J_lutsize, h_lutsize = lut_2d.shape[:2]
+    # J_indices = (
+    #     (J_lightness * (J_lutsize - 1) / 100)
+    #     .astype(int)
+    #     .clip(0, J_lutsize - 1)
+    # )
+    # h_indices = (
+    #     (h_degrees * (h_lutsize - 1) / 360).astype(int).clip(0, h_lutsize - 1)
+    # )
+
+    # # lookup RGB values from LUT
+    # rgb = lut_2d[J_indices, h_indices]
+
+    # # convert to requested type
+    # if output_type == "uint8":
+    #     rgb = (rgb * 255).astype(np.uint8)
+    # elif output_type != "float":
+    #     raise ValueError(
+    #         f"output_type must be 'float' or 'uint8', got '{output_type}'"
+    #     )
+
+    # return rgb
 
 
 def save_json_cmap(colormap_name: str, output_path: str) -> None:
