@@ -90,9 +90,9 @@ where = ["src"]
     "pipeline/pynx-id01-cdi_template.slurm",
     "templates/bcdi_pipeline.ipynb",
     "templates/step_by_step_bcdi_analysis.ipynb",
-    "templates/detector_calibration.ipynb"
+    "templates/detector_calibration.ipynb",
+    "plot/lut_*.npz"
 ]
-
 
 [tool.black]
 line-length = 79
