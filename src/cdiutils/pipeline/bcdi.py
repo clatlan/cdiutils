@@ -33,7 +33,7 @@ from cdiutils.utils import (
     hot_pixel_filter,
     get_oversampling_ratios,
     normalise,
-    fill_up_support
+    fill_up_support,
 )
 from cdiutils.analysis.stats import find_isosurface
 
@@ -53,11 +53,11 @@ from .parameters import (
     validate_and_fill_params,
     convert_np_arrays,
     DEFAULT_PIPELINE_PARAMS,
-    isparameter
+    isparameter,
 )
 
 # GUI for interactive phase retrieval with PyNX
-from cdiutils.pipeline.phase_retrieval_gui import PhaseRetrievalGUI
+from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
 
 
 class PyNXScriptError(Exception):
@@ -304,7 +304,7 @@ class BcdiPipeline(Pipeline):
             sample_orientation=self.params.get("sample_orientation", None),
             sample_surface_normal=self.params.get(
                 "sample_surface_normal", None
-            )
+            ),
         )
         self.converter = SpaceConverter(
             geometry=geometry,
@@ -743,12 +743,12 @@ class BcdiPipeline(Pipeline):
         # that correspond to the requested roi
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                self.angles[key] = value[np.s_[roi[0]: roi[1]]]
+                self.angles[key] = value[np.s_[roi[0] : roi[1]]]
 
         # if energy scan, crop the energy values according to the roi
         if isinstance(self.params["energy"], (list, np.ndarray)):
             self.params["energy"] = self.params["energy"][
-                np.s_[roi[0]: roi[1]]
+                np.s_[roi[0] : roi[1]]
             ]
 
         return cropped_detector_data, roi
@@ -854,7 +854,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 sample_name=self.sample_name,
                 experiment_file_path=exp_path,
                 experiment_identifier=(
-                    None if exp_path is None
+                    None
+                    if exp_path is None
                     else exp_path.split("/")[-1].split(".")[0]
                 ),
             )
@@ -911,11 +912,22 @@ retrieval is also computed and will be used in the post-processing stage."""
         ) as file:
             file.write(pynx_slurm_text)
 
+    def phase_retrieval_gui(self) -> None:
+        """
+        Launch the phase retrieval GUI.
+        """
+        self.logger.info("Launching interactive GUI.")
+        gui = PhaseRetrievalGUI(
+            work_dir=self.pynx_phasing_dir,
+            pipeline_instance=self,
+            search_pattern="*Run*.cxi",
+        )
+        gui.show()
+
     @Pipeline.process
     def phase_retrieval(
         self,
         jump_to_cluster: bool = False,
-        use_GUI: bool = False,
         pynx_slurm_file_template: str = None,
         clear_former_results: bool = False,
         cmd: str = None,
@@ -930,8 +942,6 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             jump_to_cluster (bool, optional): whether a job must be
                 submitted to the cluster. Defaults to False.
-            use_gui (bool, optional): whether to use the interactive GUI.
-                Defaults to False.
             pynx_slurm_file_template (str, optional): the template for
                 the pynx slurm file. Defaults to None.
             clear_former_results (bool, optional): whether ti clear the
@@ -956,51 +966,39 @@ retrieval is also computed and will be used in the post-processing stage."""
         # handle pynx params, merge defaults + user inputs
         self.params["pynx"] = self._merge_pynx_params(pynx_params)
 
-        if use_GUI:
-            self.logger.info("Launching interactive GUI.")
+        # dynamically assign data and mask paths if not set by the user
+        for name in ("data", "mask"):
+            if self.params["pynx"][name] is None:
+                self.params["pynx"][name] = (
+                    f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
+                    ".npz"
+                )
 
-            gui = PhaseRetrievalGUI(
-                work_dir=self.pynx_phasing_dir,
-                pipeline_instance=self,
-                search_pattern=search_pattern,
+        # Make the pynx input file.
+        with open(pynx_input_path, "w", encoding="utf8") as file:
+            for key, value in self.params["pynx"].items():
+                file.write(f"{key} = {value}\n")
+
+        if jump_to_cluster:
+            self.logger.info("Jumping to cluster requested.")
+            self._make_slurm_file(pynx_slurm_file_template)
+            job_id, output_file = self.submit_job(
+                job_file="pynx-id01-cdi.slurm",
+                working_dir=self.pynx_phasing_dir,
             )
-            gui.show()
+            self.monitor_job(job_id, output_file)
 
         else:
-            self.logger.info("Using non-interactive PyNX CDI phase retrieval.")
-            # dynamically assign data and mask paths if not set by the user
-            for name in ("data", "mask"):
-                if self.params["pynx"][name] is None:
-                    self.params["pynx"][name] = (
-                        f"{self.pynx_phasing_dir}S{self.scan}_pynx_input_{name}"
-                        ".npz"
-                    )
-
-            # Make the pynx input file.
-            with open(pynx_input_path, "w", encoding="utf8") as file:
-                for key, value in self.params["pynx"].items():
-                    file.write(f"{key} = {value}\n")
-
-            if jump_to_cluster:
-                self.logger.info("Jumping to cluster requested.")
-                self._make_slurm_file(pynx_slurm_file_template)
-                job_id, output_file = self.submit_job(
-                    job_file="pynx-id01-cdi.slurm",
-                    working_dir=self.pynx_phasing_dir,
-                )
-                self.monitor_job(job_id, output_file)
-
-            else:
+            self.logger.info(
+                "Assuming the current machine is running PyNX. Will run the "
+                "provided command."
+            )
+            if cmd is None:
+                cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
                 self.logger.info(
-                    "Assuming the current machine is running PyNX. Will run the "
-                    "provided command."
+                    f"No command provided. Will use the default: {cmd}"
                 )
-                if cmd is None:
-                    cmd = "pynx-cdi-id01 pynx-cdi-inputs.txt"
-                    self.logger.info(
-                        f"No command provided. Will use the default: {cmd}"
-                    )
-                self._run_cmd(cmd, self.pynx_phasing_dir)
+            self._run_cmd(cmd, self.pynx_phasing_dir)
 
     @staticmethod
     def _merge_pynx_params(user_pynx_params: dict) -> dict:
@@ -1191,7 +1189,7 @@ retrieval is also computed and will be used in the post-processing stage."""
         self,
         nb_of_best_sorted_runs: int = None,
         best_runs: list = None,
-        search_pattern: str = "*Run*.cxi"
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
         A function wrapper for
@@ -1224,9 +1222,7 @@ retrieval is also computed and will be used in the post-processing stage."""
 
     @Pipeline.process
     def mode_decomposition(
-        self,
-        cmd: str = None,
-        search_pattern: str = "*Run*.cxi"
+        self, cmd: str = None, search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
         Run the mode decomposition using PyNX pynx-cdi-analysis.py
@@ -1241,7 +1237,8 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         try:
             modes, mode_weights = self.result_analyser.mode_decomposition(
-                search_pattern=search_pattern)
+                search_pattern=search_pattern
+            )
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
 
         except PyNXImportError:
@@ -1824,9 +1821,7 @@ reconstruction (best solution).""",
             save_as_vti(
                 f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
                 voxel_size=self.params["voxel_size"],
-                cxi_convention=(
-                    self.params["convention"].lower() == "cxi"
-                ),
+                cxi_convention=(self.params["convention"].lower() == "cxi"),
                 **to_save_as_vti,
             )
         else:
