@@ -1412,6 +1412,10 @@ def _register_colormaps():
     # also register without prefix for convenience (lowercase to avoid conflicts)
     colormaps.register(name="jch_max", cmap=JCH_MAX)
     colormaps.register(name="jch_const", cmap=JCH_CONST)
+    colormaps.register(name="parula", cmap=PARULA)
+    colormaps.register(name="red_to_teal", cmap=RED_TO_TEAL)
+    colormaps.register(name="turbo_first_half", cmap=TURBO_FIRST_HALF)
+    colormaps.register(name="turbo_second_half", cmap=TURBO_SECOND_HALF)
 
 
 # register colormaps automatically when module is imported
