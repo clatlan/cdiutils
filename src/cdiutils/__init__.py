@@ -5,7 +5,7 @@ Imaging processing, analysis and visualisation workflows.
 
 __version__ = "0.2.0"
 __author__ = "Clément Atlan"
-__email__ = "clement.atlan@esrf.fr"
+__email__ = "c.atlan@outlook.com"
 __license__ = "MIT"
 
 
@@ -17,7 +17,7 @@ from .utils import (
     make_support,
     get_centred_slices,
     hot_pixel_filter,
-    CroppingHandler
+    CroppingHandler,
 )
 
 __submodules__ = {
@@ -29,7 +29,7 @@ __submodules__ = {
     "io",
     "process",
     "pipeline",
-    "plot"
+    "plot",
 }
 
 __class_submodules__ = {
@@ -37,15 +37,19 @@ __class_submodules__ = {
     "SpaceConverter": "converter",
     "BcdiPipeline": "pipeline",
     "Loader": "io",
-    "CXIFile": "io"
+    "CXIFile": "io",
 }
 
 __function_submodules__ = {
     "update_plot_params": "plot",
 }
 __all__ = [
-    "energy_to_wavelength", "wavelength_to_energy", "make_support",
-    "get_centred_slices", "CroppingHandler", "hot_pixel_filter"
+    "energy_to_wavelength",
+    "wavelength_to_energy",
+    "make_support",
+    "get_centred_slices",
+    "CroppingHandler",
+    "hot_pixel_filter",
 ]
 __all__ += (
     list(__submodules__)
