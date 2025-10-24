@@ -34,7 +34,7 @@ dependencies = [
     "colorcet>=3.0.0",
     "h5py>=3.6.0", 
     "hdf5plugin>=3.2.0",
-    "matplotlib>=3.8",
+    "matplotlib>=3.10",
     "numpy",
     "pandas>=1.4.2",
     "scikit-image>=0.19.2",
