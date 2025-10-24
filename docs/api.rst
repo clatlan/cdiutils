@@ -158,14 +158,6 @@ Plotting and Visualisation
    :undoc-members:
    :show-inheritance:
 
-Interactive Plotting
-~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: cdiutils.plot.interactive
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Slice Plotting
 ~~~~~~~~~~~~~~
 
@@ -199,6 +191,45 @@ Formatting and Styling
    :show-inheritance:
 
 .. automodule:: cdiutils.plot.colormap
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Interactive Widgets
+-------------------
+
+.. automodule:: cdiutils.interactive
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Interactive Plotting
+~~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: cdiutils.interactive.plotting
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: cdiutils.interactive.plotter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: cdiutils.interactive.viewer_3d
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: cdiutils.interactive.data_browser
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Phase Retrieval GUI
+~~~~~~~~~~~~~~~~~~~
+
+.. automodule:: cdiutils.interactive.phase_retrieval
    :members:
    :undoc-members:
    :show-inheritance:
