@@ -1382,10 +1382,10 @@ def extract_run_info(filename: str) -> tuple[int, str]:
     Extract run number and scan info from a filename.
 
     Args:
-        filename (str): Path or filename containing run information
+        filename: Path or filename containing run information
 
     Returns:
-        tuple[int, str]: Run number and original run string
+        Run number and original run string
     """
     # Extract just the filename if a full path is given
     base_filename = os.path.basename(filename)
@@ -1394,6 +1394,8 @@ def extract_run_info(filename: str) -> tuple[int, str]:
     run_patterns = [
         # Pattern for "Run0001" style
         (r"Run(\d+)", lambda m: int(m.group(1))),
+        # Pattern for "Run_0001" style
+        (r"Run_(\d+)", lambda m: int(m.group(1))),
         # Pattern for files with "_run_01" style
         (r"_run_(\d+)", lambda m: int(m.group(1))),
         # Pattern for "r0001" style
