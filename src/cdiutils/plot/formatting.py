@@ -11,7 +11,7 @@ from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from cdiutils.plot.colormap import complex_to_rgb
+from cdiutils.plot.colormap import complex_to_rgb, AVAILABLE_2D_CMAPS
 
 # Planes are given with the indexing convention,
 # i.e. [n, m] -> x-axis = m, y-axis = n
@@ -706,7 +706,7 @@ def make_colorwheel(ax, cmap="jch_max"):
     """
 
     # determine if this is a 2D colormap that encodes magnitude
-    is_2d_colormap = cmap in ["jch_max", "jch_const"]
+    is_2d_colormap = cmap in AVAILABLE_2D_CMAPS
 
     # create grid in Cartesian coordinates
     n = 256
