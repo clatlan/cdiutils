@@ -4,7 +4,6 @@ from matplotlib.typing import ColorType
 import numpy as np
 from scipy.ndimage import binary_erosion
 from scipy.stats import gaussian_kde
-from seaborn import kdeplot
 
 from cdiutils.utils import normalise
 from cdiutils.plot.formatting import save_fig
@@ -138,6 +137,10 @@ def find_isosurface(
     sigma_estimate = fwhm / (2 * np.sqrt(2 * np.log(2)))
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
+    # Ensure isosurface is non-negative
+    if isosurface < 0:
+        isosurface = 0
+
     if plot or show:
         figsize = (6, 4)  # (5.812, 3.592)  # golden ratio
         fig, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
@@ -150,14 +153,16 @@ def find_isosurface(
             edgecolor=(0, 0, 0, 0.25),
             label=r"amplitude distribution",
         )
-        kdeplot(
-            filtered_amplitude,
-            ax=ax,
+
+        kde_x, kde_y = kde_from_histogram(counts, bins)
+        ax.fill_between(
+            kde_x,
+            kde_y,
             alpha=0.3,
-            fill=True,
             color="navy",
             label=r"density estimate",
         )
+
         ax.axvspan(
             x[left_HM_index],
             x[right_HM_index],
