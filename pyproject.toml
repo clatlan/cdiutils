@@ -56,6 +56,15 @@ interactive = [
     "tables",
     "h5glance",
     "ipykernel",
+    "plotly>=5.0.0",
+    "anywidget",
+    "kaleido>=0.2.0",
+]
+pyvista = [
+    "pyvista>=0.43.0",
+    "trame>=3.0.0",
+    "trame-vuetify>=2.0.0",
+    "trame-vtk>=2.0.0",
 ]
 docs = [
     "sphinx>=4.0",
@@ -71,6 +80,13 @@ all = [
     "tables",
     "h5glance",
     "ipykernel",
+    "plotly>=5.0.0",
+    "anywidget",
+    "kaleido>=0.2.0",
+    "pyvista>=0.43.0",
+    "trame>=3.0.0",
+    "trame-vuetify>=2.0.0",
+    "trame-vtk>=2.0.0",
     "sphinx>=4.0",
     "pydata-sphinx-theme",
 ]
