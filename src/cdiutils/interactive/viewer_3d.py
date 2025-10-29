@@ -1,42 +1,84 @@
 """
-3D viewer widget for interactive visualization of CDI reconstruction data.
+3D viewer widget for interactive visualisation of CDI reconstruction data.
 
 This module provides the ThreeDViewer class for displaying 3D objects
-from CDI optimization results using ipyvolume.
+from CDI optimisation results using Plotly.
 """
 
 import numpy as np
 import ipywidgets as widgets
 from IPython.display import display, HTML
-import ipyvolume as ipv
-from skimage.measure import marching_cubes
-from scipy.spatial.transform import Rotation
-from scipy.interpolate import RegularGridInterpolator
-from matplotlib import cm
-from matplotlib.colors import Normalize
-from tornado.ioloop import PeriodicCallback
 
-from cdiutils.plot.colormap import complex_to_rgb
+try:
+    import plotly.graph_objects as go
+    from skimage.measure import marching_cubes
+    from scipy.interpolate import RegularGridInterpolator
+
+    IS_PLOTLY_AVAILABLE = True
+except ImportError:
+    IS_PLOTLY_AVAILABLE = False
+
+# check if volume module is available for shared utilities
+try:
+    from .volume import (
+        colorcet_to_plotly,
+        _extract_isosurface_with_values,
+    )
+
+    HAS_VOLUME_UTILS = True
+except ImportError:
+    HAS_VOLUME_UTILS = False
+    import matplotlib.pyplot as plt
+
+    def colorcet_to_plotly(cmap_name: str, n_colors: int = 256):
+        """Fallback colormap converter."""
+        if cmap_name not in plt.colormaps():
+            raise ValueError(f"Colormap '{cmap_name}' not found.")
+        cmap = plt.get_cmap(cmap_name)
+        colors = [cmap(i) for i in np.linspace(0, 1, n_colors)]
+        return [
+            [
+                i / (n_colors - 1),
+                f"rgb({int(c[0] * 255)},{int(c[1] * 255)},{int(c[2] * 255)})",
+            ]
+            for i, c in enumerate(colors)
+        ]
 
 
 class ThreeDViewer(widgets.Box):
     """
-    Widget to display 3D objects from CDI optimisation, loaded from a result
-    CXI file or a mode file.
+    Widget to display 3D objects from CDI optimisation using Plotly.
 
-    Simplified from the widgets class in PyNX @Vincent Favre Nicolin (ESRF)
+    This class provides interactive 3D visualisation of volumetric data
+    with controls for threshold, phase/amplitude display, and colormap
+    selection.
+
+    Interactive controls:
+        - Threshold slider: controls the isosurface level
+        - Phase/Amplitude toggle: switches between phase and amplitude
+          display
+        - Colormap dropdown: selects the colormap for the surface colour
+        - Auto-scale checkbox: automatically scales the colorbar to data
+          range
+        - Symmetric checkbox: forces the colorbar to be symmetric around
+          zero
+        - Set limits checkbox: enables manual vmin/vmax input fields
+        - Replace NaN with mean checkbox: replaces NaN values in the
+          displayed quantity with the mean value to avoid weird
+          colouring artefacts
     """
 
+    # colormaps (1D - standard matplotlib/colorcet)
     cmap_options = (
         "turbo",
         "viridis",
-        "spectral",
         "inferno",
         "magma",
         "plasma",
         "cividis",
         "RdBu",
         "coolwarm",
+        "twilight",
         "Blues",
         "Greens",
         "Greys",
@@ -50,372 +92,482 @@ class ThreeDViewer(widgets.Box):
         "jch_max",
     )
 
-    def __init__(self, input_file=None, html_width=None):
+    def __init__(
+        self,
+        input_file: np.ndarray | None = None,
+        html_width: int | None = None,
+        voxel_size: tuple = (1, 1, 1),
+        figsize: tuple = (9, 6),
+    ):
         """
-        Initialise the output and widgets.
+        Initialise the 3D viewer with Plotly backend.
 
         Args:
-            input_file: The data filename or directly the 3D data array.
-            html_width: html width in %. If given, the width of the
-                notebook will be changed to that value (e.g. full width with 100).
+            input_file (np.ndarray | None, optional): 3D complex array
+                to visualise. Defaults to None.
+            html_width (int | None, optional): HTML width in %. If
+                given, the width of the notebook will be changed to that
+                value (e.g. full width with 100). Defaults to None.
+            voxel_size (tuple, optional): voxel size (dx, dy, dz) for
+                proper scaling. Defaults to (1, 1, 1).
+            figsize (tuple, optional): figure size in inches
+                (width, height). Defaults to (9, 6).
+
+        Raises:
+            ImportError: if plotly or required packages are not
+                installed.
         """
-        super(ThreeDViewer, self).__init__()
+        if not IS_PLOTLY_AVAILABLE:
+            raise ImportError(
+                "ThreeDViewer requires plotly, scikit-image, and scipy. "
+                "Install with: pip install cdiutils[interactive]"
+            )
+
+        super().__init__()
 
         if html_width is not None:
-            # flake8: noqa
-            # type: ignore
             html_code = f"""
-                    <style>.container {{
-                        width:{int(html_width)}%
-                    !important; }}</style>
-                    """
-            display(HTML(html_code))  # type: ignore
-            # type: ignore
+                <style>.container {{
+                    width:{int(html_width)}%
+                !important; }}</style>
+                """
+            display(HTML(html_code))
 
-        # focus_label = widgets.Label(value='Focal distance (cm):')
+        # store parameters
+        self.voxel_size = np.array(voxel_size)
+        self.figsize = figsize
+
+        # create plotly figure
+        self.fig = go.FigureWidget()
+        self.fig.update_layout(
+            template="plotly_white",
+            scene=dict(
+                xaxis=dict(showbackground=True, title="x"),
+                yaxis=dict(showbackground=True, title="y"),
+                zaxis=dict(showbackground=True, title="z"),
+                aspectmode="data",
+                camera=dict(
+                    eye=dict(x=1.5, y=1.5, z=1.5),
+                    # improve zoom sensitivity
+                    projection=dict(type="perspective"),
+                ),
+            ),
+            width=figsize[0] * 96,
+            height=figsize[1] * 96,
+            dragmode="orbit",
+        )
+
+        # create control widgets
         self.threshold = widgets.FloatSlider(
             value=5,
             min=0,
             max=20,
             step=0.02,
-            description="Contour.",
+            description="Threshold:",
             disabled=False,
             continuous_update=False,
             orientation="horizontal",
             readout=True,
-            readout_format=".01f",
+            readout_format=".2f",
         )
+
         self.toggle_phase = widgets.ToggleButtons(
-            options=["Abs", "Phase"],
-            description="",
+            options=["Amplitude", "Phase"],
+            description="Display:",
             disabled=False,
             value="Phase",
             button_style="",
         )
+
         self.toggle_rotate = widgets.ToggleButton(
             value=False,
             description="Rotate",
-            tooltips="Rotate",
-        )
-        self.pcb_rotate = None
-        hbox1 = widgets.HBox([self.toggle_phase, self.toggle_rotate])
-
-        self.toggle_dark = widgets.ToggleButton(
-            value=False,
-            description="Dark",
-            tooltips="Dark/Light theme",
-        )
-        self.toggle_box = widgets.ToggleButton(
-            value=True,
-            description="Box",
-            tooltips="Box ?",
-        )
-        self.toggle_axes = widgets.ToggleButton(
-            value=True,
-            description="Axes",
-            tooltips="Axes ?",
-        )
-        hbox_toggle = widgets.HBox(
-            [self.toggle_dark, self.toggle_box, self.toggle_axes]
+            tooltips="Rotate view",
         )
 
-        # Colormap widgets
+        # colormap dropdown - default depends on mode
         self.colormap = widgets.Dropdown(
             options=self.cmap_options,
-            value="turbo",
-            description="Colors:",
-            disabled=True,
-        )
-        self.colormap_range = widgets.FloatRangeSlider(
-            value=[20, 80],
-            min=0,
-            max=100,
-            step=1,
-            description="Range:",
+            value="cet_CET_C9s_r",
+            description="Colormap:",
             disabled=False,
-            continuous_update=False,
-            orientation="horizontal",
-            readout=True,
         )
 
-        # Progress bar
-        self.progress = widgets.IntProgress(
-            value=10,
-            min=0,
-            max=10,
-            description="Processing:",
-            bar_style="",
-            style={"bar_color": "green"},
-            orientation="horizontal",
+        self.theme_toggle = widgets.ToggleButton(
+            value=False,
+            description="Dark Theme",
+            tooltips="Toggle dark/light theme",
         )
 
-        # Set observers
-        self.threshold.observe(self.on_update_plot)
-        self.toggle_phase.observe(self.on_change_scale)
-        self.colormap.observe(self.on_update_plot)
-        self.colormap_range.observe(self.on_update_plot)
+        # colorbar control checkboxes
+        self.auto_scale = widgets.Checkbox(
+            value=True,
+            description="Auto-scale colorbar",
+            tooltips="Scale colorbar to min/max of current plot",
+            indent=False,
+        )
 
-        self.toggle_dark.observe(self.on_update_style)
-        self.toggle_box.observe(self.on_update_style)
-        self.toggle_axes.observe(self.on_update_style)
+        self.symmetric_scale = widgets.Checkbox(
+            value=False,
+            description="Symmetric colorbar",
+            tooltips="Center colorbar at 0 (for strain, phase, etc.)",
+            indent=False,
+        )
 
-        self.toggle_rotate.observe(self.on_animate)
+        self.replace_nan = widgets.Checkbox(
+            value=False,
+            description="Replace NaN with mean",
+            tooltips="Replace NaN values with mean (fixes weird colouring)",
+            indent=False,
+        )
 
-        # Future attributes
-        self.mesh = None
-        self.color = None
-        self.d0 = None
+        # set observers
+        self.threshold.observe(self._on_update_plot, names="value")
+        self.toggle_phase.observe(self._on_change_display, names="value")
+        self.colormap.observe(self._on_update_plot, names="value")
+        self.theme_toggle.observe(self._on_update_style, names="value")
+        self.toggle_rotate.observe(self._on_animate, names="value")
+        self.auto_scale.observe(self._on_update_plot, names="value")
+        self.symmetric_scale.observe(self._on_update_plot, names="value")
+        self.replace_nan.observe(self._on_update_plot, names="value")
 
-        # Create final vertical box with all the widgets
+        # internal state
+        self.data = None
+        self.rgi = None  # interpolator
+        self._rotation_angle = 0
+        self._rotation_callback = None
+
+        # create layout
+        controls_row1 = widgets.HBox([self.threshold])
+        controls_row2 = widgets.HBox([self.toggle_phase, self.toggle_rotate])
+        controls_row3 = widgets.HBox([self.colormap, self.theme_toggle])
+        controls_row4 = widgets.HBox(
+            [self.auto_scale, self.symmetric_scale, self.replace_nan]
+        )
+
         self.vbox = widgets.VBox(
-            [
-                self.threshold,
-                hbox1,
-                hbox_toggle,
-                self.colormap,
-                # self.colormap_range, # useless for one contour
-                self.progress,
-            ]
+            [controls_row1, controls_row2, controls_row3, controls_row4]
         )
 
-        # Load data
+        # load data if provided
         if isinstance(input_file, np.ndarray):
-            # We create an output for ipyvolume
-            self.output_view = widgets.Output()
-            with self.output_view:
-                self.fig = ipv.figure()
-                self.set_data(input_file)
-                display(self.fig)
+            self.set_data(input_file)
 
-            self.window = widgets.HBox([self.output_view, self.vbox])
-            display(self.window)
+        # set children for the Box widget
+        self.children = [self.fig, self.vbox]
 
-        else:
-            print("Could not load data")
+    def show(self) -> None:
+        """Display the 3D viewer widget."""
+        display(self)
 
-    def on_update_plot(self, change=None):
+    def set_data(
+        self, data: np.ndarray, threshold: float | None = None
+    ) -> None:
         """
-        Update the plot according to parameters. The points are
-        recomputed.
+        Set the 3D data to visualise.
 
         Args:
-            change: Used to update the values.
+            data (np.ndarray): 3D complex array to visualise.
+            threshold (float | None, optional): initial threshold value.
+                If None, uses current slider value. Defaults to None.
         """
-        if change is not None and change["name"] != "value":
-            return
-        self.progress.value = 7
-
-        try:
-            verts, faces, _, _ = marching_cubes(
-                abs(self.data),
-                level=self.threshold.value,
-                step_size=1,
-            )
-            vals = self.rgi(verts)
-
-            # Phase colouring
-            if self.toggle_phase.value == "Phase":
-                self.colormap.disabled = True
-                rgb = complex_to_rgb(
-                    vals, cmap="jch_const", output_type="float"
-                )
-                color = rgb  # Already in [0, 1] range
-
-            # Linear or log colouring
-            elif self.toggle_phase.value in ["Abs", "log10(Abs)"]:
-                self.colormap.disabled = False
-                cs = cm.ScalarMappable(
-                    norm=Normalize(
-                        vmin=self.colormap_range.value[0],
-                        vmax=self.colormap_range.value[1],
-                    ),
-                    cmap=self.colormap.value.lower(),
-                )
-                color = cs.to_rgba(abs(vals))[..., :3]
-            else:
-                # TODO: Gradient
-                gx, gy, gz = (
-                    self.rgi_gx(verts),
-                    self.rgi_gy(verts),
-                    self.rgi_gz(verts),
-                )
-                color = np.empty((len(vals), 3), dtype=np.float32)
-                color[:, 0] = abs(gx)
-                color[:, 1] = abs(gy)
-                color[:, 2] = abs(gz)
-                color *= 100
-                self.color = color
-            x, y, z = verts.T
-            self.mesh = ipv.plot_trisurf(x, y, z, triangles=faces, color=color)
-            self.fig.meshes = [self.mesh]
-
-        # Keep general exception for debugging purposes
-        except Exception as E:
-            print(E)
-
-        # Update progress bar
-        self.progress.value = 10
-
-    def on_update_style(self, change):
-        """
-        Update the plot style - for all parameters which
-        do not involve recomputing the displayed object.
-
-        Args:
-            change: Dict from widget.
-        """
-        if change["name"] == "value":
-            if self.toggle_dark.value:
-                ipv.pylab.style.set_style_dark()
-            else:
-                ipv.pylab.style.set_style_light()
-                # Fix label colours (see self.fig.style)
-                ipv.pylab.style.use(
-                    {
-                        "axes": {
-                            "label": {"color": "black"},
-                            "ticklabel": {"color": "black"},
-                        }
-                    }
-                )
-            if self.toggle_box.value:
-                ipv.pylab.style.box_on()
-            else:
-                ipv.pylab.style.box_off()
-            if self.toggle_axes.value:
-                ipv.pylab.style.axes_on()
-            else:
-                ipv.pylab.style.axes_off()
-
-    def on_change_scale(self, change):
-        """Change scale between logarithmic and linear."""
-        if change["name"] == "value":
-            if isinstance(change["old"], str):
-                newv = change["new"]
-                oldv = change["old"]
-
-                # linear scale
-                if "log" in oldv and "log" not in newv:
-                    data = self.d0
-                    self.set_data(data, threshold=10**self.threshold.value)
-
-                # log scale
-                elif "log" in newv and "log" not in oldv:
-                    self.d0 = self.data
-                    data = np.log10(np.maximum(0.1, abs(self.d0)))
-                    self.set_data(
-                        data, threshold=np.log10(self.threshold.value)
-                    )
-                    return
-            self.on_update_plot()
-
-    def set_data(self, data, threshold=None):
-        """
-        Check if data is complex or not.
-
-        Args:
-            data: Data 3d array, complex or not, to be plotted.
-            threshold: Threshold for contour, if None set to max/2.
-        """
-        # Update progress bar
-        self.progress.value = 5
-
-        # Save data
         self.data = data
 
-        # Change scale options depending on data
-        self.toggle_phase.unobserve(self.on_change_scale)
+        # create interpolator for getting values at mesh vertices
+        nz, ny, nx = data.shape
+        grid_z = np.arange(nz)
+        grid_y = np.arange(ny)
+        grid_x = np.arange(nx)
+        self.rgi = RegularGridInterpolator(
+            (grid_z, grid_y, grid_x),
+            data,
+            bounds_error=False,
+            fill_value=0,
+        )
 
-        if np.iscomplexobj(data):
-            if self.toggle_phase.value == "log10(Abs)":
-                self.toggle_phase.value = "Abs"
-            self.toggle_phase.options = ("Abs", "Phase")
-        else:
-            if self.toggle_phase.value == "Phase":
-                self.toggle_phase.value = "Abs"
-            self.toggle_phase.options = ("Abs", "log10(Abs)")
-        self.toggle_phase.observe(self.on_change_scale)
-
-        # Set threshold
-        self.threshold.unobserve(self.on_update_plot)
-        self.colormap_range.unobserve(self.on_update_plot)
-        self.threshold.max = abs(self.data).max()
-        if threshold is None:
-            self.threshold.value = self.threshold.max / 2
-        else:
+        # update threshold range if needed, handle NaN values
+        amp = np.abs(data)
+        self.threshold.max = float(np.nanmax(amp))
+        if threshold is not None:
             self.threshold.value = threshold
 
-        # Set colormap
-        self.colormap_range.max = abs(self.data).max()
-        self.colormap_range.value = [0, abs(self.data).max()]
-        self.threshold.observe(self.on_update_plot)
-        self.colormap_range.observe(self.on_update_plot)
+        # initial plot
+        self._on_update_plot()
 
-        nz, ny, nx = self.data.shape
-        z, y, x = np.arange(nz), np.arange(ny), np.arange(nx)
+    def _on_update_plot(self, change=None) -> None:
+        """
+        Update the plot according to parameters.
 
-        # Interpolate probe to object grid
-        self.rgi = RegularGridInterpolator(
-            (z, y, x),
-            self.data,
-            method="linear",
-            bounds_error=False,
-            fill_value=0,
-        )
+        Args:
+            change: widget change event (not used but required by
+                observer).
+        """
+        if self.data is None:
+            return
 
-        # Also prepare the phase gradient
-        gz, gy, gx = np.gradient(self.data)
-        a = np.maximum(abs(self.data), 1e-6)
-        ph = self.data / a
-        gaz, gay, gax = np.gradient(a)
-        self.rgi_gx = RegularGridInterpolator(
-            (z, y, x),
-            ((gx - gax * ph) / (ph * a)).real,
-            method="linear",
-            bounds_error=False,
-            fill_value=0,
-        )
-        self.rgi_gy = RegularGridInterpolator(
-            (z, y, x),
-            ((gy - gay * ph) / (ph * a)).real,
-            method="linear",
-            bounds_error=False,
-            fill_value=0,
-        )
-        self.rgi_gz = RegularGridInterpolator(
-            (z, y, x),
-            ((gz - gaz * ph) / (ph * a)).real,
-            method="linear",
-            bounds_error=False,
-            fill_value=0,
-        )
+        try:
+            # use shared helper function if available
+            if HAS_VOLUME_UTILS:
+                verts_scaled, faces, vals = _extract_isosurface_with_values(
+                    self.data,
+                    self.data,
+                    self.threshold.value,
+                    self.voxel_size,
+                    use_interpolator=True,  # needed for complex
+                )
+            else:
+                # fallback: inline implementation
+                verts, faces, _, _ = marching_cubes(
+                    np.abs(self.data),
+                    level=self.threshold.value,
+                    step_size=1,
+                )
+                verts_scaled = verts * self.voxel_size
+                vals = self.rgi(verts)
 
-        # Fix extent otherwise weird things happen
-        ipv.pylab.xlim(0, self.data.shape[0])
-        ipv.pylab.ylim(0, self.data.shape[1])
-        ipv.pylab.zlim(0, self.data.shape[2])
-        # ipv.squarelim()
-        self.on_update_plot()
+            # optionally replace NaN values with mean to fix weird
+            # colouring
+            if self.replace_nan.value and np.any(np.isnan(vals)):
+                mean_val = np.nanmean(vals)
+                vals = np.where(np.isnan(vals), mean_val, vals)
 
-    def on_animate(self, v):
-        """Trigger the animation (rotation around vertical axis)."""
-        if self.pcb_rotate is None:
-            self.pcb_rotate = PeriodicCallback(self.callback_rotate, 50.0)
-        if self.toggle_rotate.value:
-            self.pcb_rotate.start()
-        else:
-            self.pcb_rotate.stop()
+            # determine colours based on display mode
+            if self.toggle_phase.value == "Phase":
+                # get phase values
+                phase_vals = np.angle(vals)
 
-    def callback_rotate(self):
-        """Used for periodic rotation."""
-        # ipv.view() only supports a rotation against
-        # the starting azimuth and elevation
-        # ipv.view(azimuth=ipv.view()[0]+1)
+                # determine colour range based on settings
+                if self.symmetric_scale.value:
+                    # symmetric around 0, use actual phase values
+                    intensity = phase_vals
+                    cmin, cmax = -np.pi, np.pi
+                    colorbar = dict(
+                        title="Phase (rad)",
+                        tickmode="array",
+                        tickvals=[-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi],
+                        ticktext=["-π", "-π/2", "0", "π/2", "π"],
+                        len=0.7,
+                        x=0.85,
+                        showticklabels=True,
+                        thickness=20,
+                        lenmode="fraction",
+                        xanchor="left",
+                    )
+                elif self.auto_scale.value:
+                    # auto-scale to actual data range, handle NaN
+                    intensity = phase_vals
+                    cmin, cmax = (
+                        float(np.nanmin(phase_vals)),
+                        float(np.nanmax(phase_vals)),
+                    )
+                    colorbar = dict(
+                        title="Phase (rad)",
+                        len=0.7,
+                        x=0.85,
+                        showticklabels=True,
+                        thickness=20,
+                        lenmode="fraction",
+                        xanchor="left",
+                    )
+                else:
+                    # normalise to [0, 1] for full range
+                    intensity = (phase_vals + np.pi) / (2 * np.pi)
+                    cmin, cmax = 0, 1
+                    colorbar = dict(
+                        title="Phase (rad)",
+                        tickmode="array",
+                        tickvals=[0, 0.25, 0.5, 0.75, 1],
+                        ticktext=["-π", "-π/2", "0", "π/2", "π"],
+                        len=0.7,
+                        x=0.85,
+                        showticklabels=True,
+                        thickness=20,
+                        lenmode="fraction",
+                        xanchor="left",
+                    )
 
-        # Use a quaternion and the camera's 'up' as rotation axis
-        x, y, z = self.fig.camera.up
-        n = np.sqrt(x**2 + y**2 + z**2)
-        a = np.deg2rad(2.5) / 2  # angular step
-        sa, ca = np.sin(a / 2) / n, np.cos(a / 2)
-        r = Rotation.from_quat((sa * x, sa * y, sa * z, ca))
-        self.fig.camera.position = tuple(r.apply(self.fig.camera.position))
+                vertex_colors = None
+                colorscale = colorcet_to_plotly(self.colormap.value)
+
+            else:  # amplitude
+                # use actual amplitude values (not normalised)
+                intensity = np.abs(vals)
+
+                # determine colour range based on settings
+                if self.symmetric_scale.value:
+                    # symmetric around 0 - doesn't make much sense
+                    # for amplitude but keep for consistency; centre
+                    # at mean
+                    mean_val = float(np.nanmean(intensity))
+                    max_dev = float(
+                        max(
+                            np.nanmax(intensity) - mean_val,
+                            mean_val - np.nanmin(intensity),
+                        )
+                    )
+                    cmin = mean_val - max_dev
+                    cmax = mean_val + max_dev
+                elif self.auto_scale.value:
+                    # auto-scale to actual data range, handle NaN
+                    cmin, cmax = (
+                        float(np.nanmin(intensity)),
+                        float(np.nanmax(intensity)),
+                    )
+                else:
+                    # use full range from data, handle NaN
+                    cmin, cmax = (
+                        float(np.nanmin(intensity)),
+                        float(np.nanmax(intensity)),
+                    )
+
+                vertex_colors = None
+                colorscale = colorcet_to_plotly(self.colormap.value)
+                colorbar = dict(
+                    title="Amplitude",
+                    len=0.7,
+                    x=0.85,
+                    showticklabels=True,
+                    thickness=20,
+                    lenmode="fraction",
+                    xanchor="left",
+                )
+
+            # update or create mesh
+            with self.fig.batch_update():
+                if len(self.fig.data) == 0:
+                    # first time - add mesh
+                    mesh_args = dict(
+                        x=verts_scaled[:, 0],
+                        y=verts_scaled[:, 1],
+                        z=verts_scaled[:, 2],
+                        i=faces[:, 0],
+                        j=faces[:, 1],
+                        k=faces[:, 2],
+                        intensity=intensity,
+                        vertexcolor=vertex_colors,
+                        colorscale=colorscale,
+                        colorbar=colorbar,
+                        cmin=cmin,
+                        cmax=cmax,
+                        opacity=1.0,
+                        flatshading=False,
+                        lighting=dict(
+                            ambient=0.85,
+                            diffuse=0.1,
+                            specular=0.5,
+                            roughness=0.2,
+                            fresnel=0.5,
+                        ),
+                    )
+                    self.fig.add_trace(go.Mesh3d(**mesh_args))
+
+                else:
+                    # update existing mesh
+                    self.fig.data[0].x = verts_scaled[:, 0]
+                    self.fig.data[0].y = verts_scaled[:, 1]
+                    self.fig.data[0].z = verts_scaled[:, 2]
+                    self.fig.data[0].i = faces[:, 0]
+                    self.fig.data[0].j = faces[:, 1]
+                    self.fig.data[0].k = faces[:, 2]
+                    self.fig.data[0].intensity = intensity
+                    self.fig.data[0].vertexcolor = vertex_colors
+                    self.fig.data[0].colorscale = colorscale
+                    self.fig.data[0].colorbar = colorbar
+                    self.fig.data[0].cmin = cmin
+                    self.fig.data[0].cmax = cmax
+
+        except Exception as e:
+            print(f"Error updating plot: {e}")
+
+    def _on_change_display(self, change) -> None:
+        """
+        Handle display mode change (amplitude/phase).
+
+        Args:
+            change: widget change event.
+        """
+        if change["name"] == "value":
+            # switch default colormap based on mode
+            if change["new"] == "Phase":
+                # use cyclic colormap for phase (good defaults)
+                if self.colormap.value not in [
+                    "twilight",
+                    "cet_CET_C9s_r",
+                    "jch_const",
+                    "jch_max",
+                ]:
+                    self.colormap.value = "cet_CET_C9s_r"
+                # enable symmetric scale for phase (centered at 0)
+                if not self.symmetric_scale.value:
+                    self.symmetric_scale.value = True
+            else:
+                # use sequential colormap for amplitude
+                if self.colormap.value in [
+                    "twilight",
+                    "cet_CET_C9s_r",
+                    "jch_const",
+                    "jch_max",
+                ]:
+                    self.colormap.value = "turbo"
+                # disable symmetric scale for amplitude (usually not needed)
+                if self.symmetric_scale.value:
+                    self.symmetric_scale.value = False
+
+            # update plot
+            self._on_update_plot()
+
+    def _on_update_style(self, change) -> None:
+        """
+        Update the plot style (theme).
+
+        Args:
+            change: widget change event.
+        """
+        if change["name"] == "value":
+            if self.theme_toggle.value:
+                self.fig.update_layout(template="plotly_dark")
+            else:
+                self.fig.update_layout(template="plotly_white")
+
+    def _on_animate(self, change) -> None:
+        """
+        Handle rotation animation toggle.
+
+        Args:
+            change: widget change event.
+        """
+        if change["name"] == "value":
+            if change["new"]:  # start rotation
+                self._start_rotation()
+            else:  # stop rotation
+                self._stop_rotation()
+
+    def _start_rotation(self) -> None:
+        """Start continuous rotation animation."""
+        import asyncio
+
+        async def rotate():
+            """Async rotation loop."""
+            while self.toggle_rotate.value:
+                self._rotation_angle += 2
+                # update camera azimuth
+                eye_x = 1.5 * np.cos(np.radians(self._rotation_angle))
+                eye_y = 1.5 * np.sin(np.radians(self._rotation_angle))
+                eye_z = 1.5
+
+                with self.fig.batch_update():
+                    self.fig.layout.scene.camera.eye = dict(
+                        x=eye_x, y=eye_y, z=eye_z
+                    )
+
+                await asyncio.sleep(0.05)  # ~20 FPS
+
+        # create and run task
+        loop = asyncio.get_event_loop()
+        self._rotation_callback = loop.create_task(rotate())
+
+    def _stop_rotation(self) -> None:
+        """Stop rotation animation."""
+        if self._rotation_callback is not None:
+            self._rotation_callback.cancel()
+            self._rotation_callback = None

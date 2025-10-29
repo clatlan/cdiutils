@@ -7,10 +7,13 @@ Bragg Coherent Diffractive Imaging (BCDI) data analysis.
 Components have different optional dependencies:
 - Plotter: requires ipywidgets
 - Plotting functions: require ipywidgets, bokeh, panel
-- ThreeDViewer: requires ipywidgets, ipyvolume, tornado
+- ThreeDViewer: requires ipywidgets, plotly, scikit-image, scipy
 - TabPlotData: requires ipywidgets, h5glance
+- plot_3d_isosurface: requires ipywidgets, plotly
+- VolumeViewer (PyVista): requires pyvista, trame (separate install)
 
-Install all with: pip install cdiutils[interactive]
+Install interactive dependencies: pip install cdiutils[interactive]
+Install PyVista dependencies: pip install cdiutils[pyvista]
 """
 
 # check for different dependency groups
@@ -33,14 +36,9 @@ try:
 except ImportError:
     _DEPS["plotting"] = False
 
-# 3D visualisation dependencies (for viewer_3d.py)
-try:
-    import ipyvolume  # noqa: F401
-    import tornado  # noqa: F401
-
-    _DEPS["3d"] = True
-except ImportError:
-    _DEPS["3d"] = False
+# 3D visualisation dependencies (for viewer_3d.py - now Plotly based)
+# note: plotly is checked separately below
+_DEPS["3d"] = _DEPS.get("plotly", False)
 
 # data browser dependencies (for data_browser.py)
 try:
@@ -50,9 +48,28 @@ try:
 except ImportError:
     _DEPS["browser"] = False
 
+# Plotly dependencies (for volume.py and viewer_3d.py)
+try:
+    import plotly  # noqa: F401
+
+    _DEPS["plotly"] = True
+except ImportError:
+    _DEPS["plotly"] = False
+
+# PyVista/Trame dependencies (for volume.py - VolumeViewer only)
+try:
+    import pyvista  # noqa: F401
+    from pyvista.trame.ui import vuetify3  # noqa: F401
+
+    _DEPS["pyvista"] = True
+except ImportError:
+    _DEPS["pyvista"] = False
+
 # convenience flags
 IS_INTERACTIVE_AVAILABLE = _DEPS["ipywidgets"]
-IS_FULL_INTERACTIVE = all(_DEPS.values())
+IS_FULL_INTERACTIVE = all(
+    _DEPS[k] for k in ["ipywidgets", "plotting", "3d", "browser", "plotly"]
+)
 
 
 # factory function for creating helpful error classes
@@ -73,6 +90,19 @@ def _make_unavailable_class(name, missing_deps):
     return UnavailableClass
 
 
+def _make_unavailable_func(fname, deps):
+    def unavailable(*args, **kwargs):
+        deps_str = ", ".join(deps)
+        raise ImportError(
+            f"{fname}() requires: {deps_str}\n"
+            f"Install with: pip install {' '.join(deps)}\n"
+            f"Or: pip install cdiutils[interactive]"
+        )
+
+    unavailable.__name__ = fname
+    return unavailable
+
+
 # conditional imports with helpful error messages
 # plotter - requires only ipywidgets
 if _DEPS["ipywidgets"]:
@@ -90,31 +120,19 @@ else:
     if not _DEPS["plotting"]:
         missing.extend(["bokeh", "panel"])
 
-    def _make_unavailable_func(fname, deps):
-        def unavailable(*args, **kwargs):
-            deps_str = ", ".join(deps)
-            raise ImportError(
-                f"{fname}() requires: {deps_str}\n"
-                f"Install with: pip install {' '.join(deps)}\n"
-                f"Or: pip install cdiutils[interactive]"
-            )
-
-        unavailable.__name__ = fname
-        return unavailable
-
     plot_2d_image = _make_unavailable_func("plot_2d_image", missing)
     plot_3d_slices = _make_unavailable_func("plot_3d_slices", missing)
     plot_data = _make_unavailable_func("plot_data", missing)
 
-# ThreeDViewer - requires ipywidgets, ipyvolume, tornado
-if _DEPS["ipywidgets"] and _DEPS["3d"]:
+# ThreeDViewer - requires ipywidgets, plotly, scikit-image, scipy
+if _DEPS["ipywidgets"] and _DEPS["plotly"]:
     from .viewer_3d import ThreeDViewer
 else:
     missing = []
     if not _DEPS["ipywidgets"]:
         missing.append("ipywidgets")
-    if not _DEPS["3d"]:
-        missing.extend(["ipyvolume", "tornado"])
+    if not _DEPS["plotly"]:
+        missing.extend(["plotly", "scikit-image", "scipy"])
     ThreeDViewer = _make_unavailable_class("ThreeDViewer", missing)
 
 # TabPlotData - requires ipywidgets, h5glance
@@ -128,14 +146,36 @@ else:
         missing.append("h5glance")
     TabPlotData = _make_unavailable_class("TabPlotData", missing)
 
+# VolumeViewer - requires pyvista, trame (separate optional dependency)
+if _DEPS["pyvista"]:
+    from .volume import VolumeViewer
+else:
+    VolumeViewer = _make_unavailable_class(
+        "VolumeViewer", ["pyvista", "trame", "trame-vuetify", "trame-vtk"]
+    )
+
+# plot_3d_isosurface - requires ipywidgets, plotly (part of interactive)
+if _DEPS["ipywidgets"] and _DEPS["plotly"]:
+    from .volume import plot_3d_isosurface
+else:
+    missing = []
+    if not _DEPS["ipywidgets"]:
+        missing.append("ipywidgets")
+    if not _DEPS["plotly"]:
+        missing.extend(["plotly", "kaleido"])
+
+    plot_3d_isosurface = _make_unavailable_func("plot_3d_isosurface", missing)
+
 
 __all__ = [
     "TabPlotData",
     "Plotter",
     "ThreeDViewer",
+    "VolumeViewer",
     "plot_data",
     "plot_2d_image",
     "plot_3d_slices",
+    "plot_3d_isosurface",
     "IS_INTERACTIVE_AVAILABLE",
     "IS_FULL_INTERACTIVE",
 ]

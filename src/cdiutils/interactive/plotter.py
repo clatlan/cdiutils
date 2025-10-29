@@ -13,6 +13,7 @@ import numpy as np
 import h5py as h5
 from ipywidgets import interact
 import ipywidgets
+from IPython.display import display
 
 # Import plotting functions from the same package
 from .plotting import plot_data, plot_3d_slices
@@ -195,7 +196,8 @@ class Plotter:
             )
 
         elif self.plot == "3D" and self.data_array.ndim == 3:
-            ThreeDViewer(self.data_array)
+            viewer = ThreeDViewer(self.data_array)
+            viewer.show()
 
         elif self.plot == "1D" and self.data_array.ndim == 1:
             print(self.data_array)
