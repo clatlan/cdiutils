@@ -39,9 +39,20 @@ class CXIFile:
     """
 
     IMAGE_MEMBERS = (
-        "title", "data", "data_error", "data_space", "data_type", "detector_",
-        "dimensionality", "image_center", "image_size", "is_fft_shifted",
-        "mask", "process_", "reciprocal_coordinates", "source_"
+        "title",
+        "data",
+        "data_error",
+        "data_space",
+        "data_type",
+        "detector_",
+        "dimensionality",
+        "image_center",
+        "image_size",
+        "is_fft_shifted",
+        "mask",
+        "process_",
+        "reciprocal_coordinates",
+        "source_",
     )
 
     def __init__(self, file_path: str, mode: str = "r"):
@@ -104,15 +115,15 @@ class CXIFile:
             data = node[()]
             # Check for byte-like data and decode if necessary
             if isinstance(data, bytes):  # Single byte string
-                return data.decode('utf-8')
+                return data.decode("utf-8")
             # Array of byte strings
             if isinstance(data, np.ndarray):
-                if data.dtype.kind == 'S':
+                if data.dtype.kind == "S":
                     return data.astype(str)
                 if node.attrs.get("original_type") == "tuple":
                     for i, item in enumerate(data):
                         if isinstance(item, bytes):
-                            data[i] = item.decode('utf-8')
+                            data[i] = item.decode("utf-8")
                     return tuple(data)
             # Convert NaN to None if needed
             if isinstance(data, float) and np.isnan(data):  # Single NaN
@@ -169,11 +180,11 @@ class CXIFile:
         raise KeyError(f"Entry '{path}' does not exist in the CXI file.")
 
     def copy(
-            self,
-            source_path: str,
-            dest_file: str = None,
-            dest_path: str = None,
-            **kwargs
+        self,
+        source_path: str,
+        dest_file: str = None,
+        dest_path: str = None,
+        **kwargs,
     ) -> None:
         """
         Copy a group or dataset from this CXI file to another location,
@@ -196,7 +207,8 @@ class CXIFile:
         """
         if source_path not in self.file:
             raise KeyError(
-                f"Source path '{source_path}' does not exist in the CXI file.")
+                f"Source path '{source_path}' does not exist in the CXI file."
+            )
 
         # Determine the destination file
         if dest_file is None:
@@ -249,12 +261,12 @@ class CXIFile:
         return self._entry_counters[entry][group_type]
 
     def create_cxi_group(
-            self,
-            group_type: str,
-            default: str = None,
-            index: int = None,
-            attrs: dict = None,
-            **kwargs,
+        self,
+        group_type: str,
+        default: str = None,
+        index: int = None,
+        attrs: dict = None,
+        **kwargs,
     ) -> str:
         """
         Create a CXI-compliant group with optional NeXus class.
@@ -306,10 +318,7 @@ class CXIFile:
         return path
 
     def create_group(
-            self,
-            path: str,
-            nx_class: str = None,
-            attrs: dict = None
+        self, path: str, nx_class: str = None, attrs: dict = None
     ) -> bool:
         """
         Method to handle the creation of groups in the context
@@ -334,12 +343,7 @@ class CXIFile:
         return False
 
     def create_cxi_dataset(
-            self,
-            path: str,
-            data,
-            dtype=None,
-            nx_class: str = None,
-            **attrs
+        self, path: str, data, dtype=None, nx_class: str = None, **attrs
     ) -> h5py.Dataset | h5py.Group:
         """
         Create a CXI-compliant dataset with optional NeXus class.
@@ -358,10 +362,11 @@ class CXIFile:
         # If data is a string or a list of strings, set dtype to store
         # as UTF-8.
         if isinstance(data, str):
-            dtype = h5py.string_dtype(encoding='utf-8')
+            dtype = h5py.string_dtype(encoding="utf-8")
         elif isinstance(data, list) and all(
-                isinstance(item, str) for item in data):
-            dtype = h5py.string_dtype(encoding='utf-8')
+            isinstance(item, str) for item in data
+        ):
+            dtype = h5py.string_dtype(encoding="utf-8")
 
         # Handle nested dictionary by creating a group and populating it
         # recursively.
@@ -426,10 +431,7 @@ class CXIFile:
         return node[()]
 
     def softlink(
-            self,
-            path: str,
-            target: str,
-            raise_on_error: bool = False
+        self, path: str, target: str, raise_on_error: bool = False
     ) -> None:
         """
         Create a soft link at the specified path pointing to an existing
@@ -466,15 +468,11 @@ class CXIFile:
         self.create_cxi_dataset("file_path", data=self.file_path)
         self.create_cxi_dataset("cxi_version", data=__cxi_version__)
         self.create_cxi_dataset(
-            "time",
-            data=np.bytes_(np.datetime64("now").astype(str))
+            "time", data=np.bytes_(np.datetime64("now").astype(str))
         )
 
     def create_cxi_image(
-            self,
-            data: np.ndarray,
-            link_data: bool = True,
-            **members
+        self, data: np.ndarray, link_data: bool = True, **members
     ) -> str:
         """
         Create a minimal CXI image entry with associated metadata and
@@ -506,7 +504,7 @@ class CXIFile:
                 if index:
                     self.softlink(
                         f"{path}/{member_base}{index}",
-                        f"{self._current_entry}/{v}"
+                        f"{self._current_entry}/{v}",
                     )
                 else:
                     self.create_cxi_dataset(f"{path}/{k}", v)
@@ -526,12 +524,12 @@ class CXIFile:
         # the first image, it should be default attribute of the parent
         # entry_.
         if "default_entry" not in self._entry_counters[self._current_entry]:
-            self._entry_counters[
-                self._current_entry
-            ]["default_entry"] = "data_1" if link_data else "image_1"
-            self.file[
-                self._current_entry
-            ].attrs["default"] = "data_1" if link_data else "image_1"
+            self._entry_counters[self._current_entry]["default_entry"] = (
+                "data_1" if link_data else "image_1"
+            )
+            self.file[self._current_entry].attrs["default"] = (
+                "data_1" if link_data else "image_1"
+            )
 
         return path
 
@@ -565,7 +563,7 @@ def save_as_cxi(output_path: str, **to_be_saved: dict) -> None:
         cxi.create_cxi_group("result", **results)
 
 
-def load_cxi(path: str, *key: str) -> dict:
+def load_cxi(path: str, *key: str) -> np.ndarray | dict:
     """
     Load a CXI file and return its content as a dictionary.
 
@@ -573,7 +571,10 @@ def load_cxi(path: str, *key: str) -> dict:
         path (str): the path to the CXI file.
 
     Returns:
-        dict: the content of the CXI file.
+        np.ndarray or dict: the content of the CXI file. If a single
+            key_path is provided, returns the corresponding dataset.
+            If multiple key_paths are provided, returns a dictionary
+            with the datasets.
     """
     data = {}
     with CXIFile(path, "r") as cxi:
@@ -597,9 +598,9 @@ def load_cxi(path: str, *key: str) -> dict:
                 while f"entry_{e_counter}" in cxi:
                     key_path = f"entry_{e_counter}/{k}"
                     if (
-                            key_path in cxi and cxi.get_node(
-                                key_path
-                            ).attrs["NX_class"] == "NXdata"
+                        key_path in cxi
+                        and cxi.get_node(key_path).attrs["NX_class"]
+                        == "NXdata"
                     ):
                         data[k] = cxi[f"{key_path}/data"]
                         e_counter = 0
