@@ -1,0 +1,25 @@
+name: cdiutils-docs
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.10
+  - pip
+  # Sphinx and documentation tools
+  - sphinx>=7.0,<8.2
+  - pydata-sphinx-theme>=0.13.0
+  # Jupyter notebook support
+  - nbsphinx>=0.9.0
+  - ipykernel>=6.0.0
+  - ipywidgets>=8.0.0
+  - jupyter_client
+  # For rendering interactive plots
+  - plotly>=5.0.0
+  # Core dependencies needed for imports in notebooks
+  - numpy
+  - matplotlib
+  - h5py
+  - scipy
+  - scikit-image
+  - pip:
+    - pandoc

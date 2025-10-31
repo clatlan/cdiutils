@@ -7,6 +7,12 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
    :maxdepth: 2
    :caption: Example Notebooks
 
+   ../bcdi_pipeline_example
+   ../interactive_features
+   ../bcdi_reconstruction_analysis
+   ../explore_cxi_file
+   ../pole_figure
+
 Jupyter Notebook Examples
 --------------------------
 
@@ -25,6 +31,21 @@ Interactive 3D Visualisation
 * Colormap selection and colorbar control (auto-scale, symmetric, manual limits)
 * NaN handling for clean visualisations
 * Theme toggle and rotation animations
+
+BCDI Pipeline Example
+~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`bcdi_pipeline_example.ipynb <../../examples/bcdi_pipeline_example.ipynb>`
+
+**Complete end-to-end pipeline** This comprehensive example demonstrates a full BCDI analysis workflow:
+
+* Setting up and running the ``BcdiPipeline`` class
+* Automated data processing and phase retrieval
+* Post-processing and strain analysis
+* **Interactive 3D visualisation** with ``plot_3d_isosurface`` (new in v0.2.0)
+* Advanced plotting and figure generation
+
+This example showcases the complete workflow from raw data to publication-ready visualisations, including the new Plotly-based interactive 3D plots.
 
 BCDI Reconstruction Analysis
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
