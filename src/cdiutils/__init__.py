@@ -30,6 +30,7 @@ __submodules__ = {
     "process",
     "pipeline",
     "plot",
+    "interactive",
 }
 
 __class_submodules__ = {

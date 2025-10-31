@@ -36,6 +36,7 @@ from . import io as io
 from . import process as process
 from . import pipeline as pipeline
 from . import plot as plot
+from . import interactive as interactive
 
 # classes
 from .geometry import Geometry as Geometry
