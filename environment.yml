@@ -1,9 +1,8 @@
 name: cdiutils-env
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  # Core dependencies
+  # core dependencies
   - python>=3.10
   - numpy
   - scipy>=1.8.0
@@ -21,7 +20,7 @@ dependencies:
   # VTK dependencies
   - vtk>=9.0.1
   
-  # Interactive dependencies
+  # interactive dependencies
   - ipywidgets
   - ipyvolume
   - bokeh
