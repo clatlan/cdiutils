@@ -154,7 +154,8 @@ else:
         "VolumeViewer", ["pyvista", "trame", "trame-vuetify", "trame-vtk"]
     )
 
-# plot_3d_isosurface - requires ipywidgets, plotly (part of interactive)
+# plot_3d_isosurface - requires ipywidgets, plotly, scikit-image, scipy
+# (part of interactive - same as ThreeDViewer)
 if _DEPS["ipywidgets"] and _DEPS["plotly"]:
     from .volume import plot_3d_isosurface
 else:
@@ -162,7 +163,7 @@ else:
     if not _DEPS["ipywidgets"]:
         missing.append("ipywidgets")
     if not _DEPS["plotly"]:
-        missing.extend(["plotly", "kaleido"])
+        missing.extend(["plotly", "scikit-image", "scipy"])
 
     plot_3d_isosurface = _make_unavailable_func("plot_3d_isosurface", missing)
 
