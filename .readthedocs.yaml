@@ -11,9 +11,6 @@ build:
   tools:
     python: "mambaforge-latest"
   jobs:
-    post_create_environment:
-      # Install documentation-specific dependencies
-      - conda env update --file docs/environment.yml --name $READTHEDOCS_VIRTUALENV_NAME
     post_install:
       - pip install -e .
 

@@ -5,21 +5,26 @@ channels:
 dependencies:
   - python>=3.10
   - pip
-  # Sphinx and documentation tools
+  # sphinx and documentation tools
   - sphinx>=7.0,<8.2
   - pydata-sphinx-theme>=0.13.0
-  # Jupyter notebook support
+  # jupyter notebook support
   - nbsphinx>=0.9.0
   - ipykernel>=6.0.0
   - ipywidgets>=8.0.0
   - jupyter_client
-  # For rendering interactive plots
+  # for rendering interactive plots
   - plotly>=5.0.0
-  # Core dependencies needed for imports in notebooks
+  # core dependencies needed for cdiutils imports
   - numpy
-  - matplotlib
-  - h5py
-  - scipy
-  - scikit-image
+  - matplotlib>=3.10
+  - h5py>=3.6.0
+  - scipy>=1.8.0
+  - scikit-image>=0.19.2
+  - scikit-learn>=1.1.3
+  - pandas>=1.4.2
+  - colorcet>=3.0.0
+  - tabulate
   - pip:
+    - hdf5plugin>=3.2.0
     - pandoc
