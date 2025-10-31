@@ -910,12 +910,39 @@ retrieval is also computed and will be used in the post-processing stage."""
             file.write(pynx_slurm_text)
 
     def phase_retrieval_gui(self) -> None:
+        """Launch the interactive phase retrieval GUI.
+
+        This method lazily imports and launches the PhaseRetrievalGUI from
+        cdiutils.interactive.phase_retrieval. The lazy import avoids requiring the
+        optional GUI-related dependencies (pynx and ipywidgets) unless this method
+        is invoked.
+
+        The GUI is initialized with the pipeline instance and the pipeline's
+        pynx_phasing_dir as the working directory, and it searches for CXI files
+        matching the pattern "*Run*.cxi". After initialization, the GUI's show()
+        method is called to display the interface.
+
+        Raises:
+            ImportError: If the PhaseRetrievalGUI cannot be imported because the
+                required dependencies ('pynx' and 'ipywidgets') are not installed.
+                The raised error suggests installing them via:
+                pip install pynx ipywidgets
+
+        Returns:
+            None
+
+        Example:
+            pipeline.phase_retrieval_gui()
         """
-        Launch the phase retrieval GUI.
-        """
-        # Lazy import to avoid requiring ipywidgets/pynx when not using GUI
-        from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
-        
+        # lazy import to avoid requiring ipywidgets/pynx when not using GUI
+        try:
+            from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
+        except ImportError as e:
+            raise ImportError(
+                "PhaseRetrievalGUI requires both 'pynx' and 'ipywidgets' to be installed. "
+                "Please install them with: pip install pynx ipywidgets"
+            ) from e
+
         self.logger.info("Launching interactive GUI.")
         gui = PhaseRetrievalGUI(
             work_dir=self.pynx_phasing_dir,
