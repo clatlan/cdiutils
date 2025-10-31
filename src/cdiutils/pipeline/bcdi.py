@@ -22,7 +22,7 @@ import yaml
 # space conversion.
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
-from cdiutils.io import Loader, CXIFile
+from cdiutils.io import Loader, CXIFile, load_cxi
 from cdiutils.io.vtk import IS_VTK_AVAILABLE, save_as_vti
 
 # Utility functions
@@ -55,9 +55,6 @@ from .parameters import (
     DEFAULT_PIPELINE_PARAMS,
     isparameter,
 )
-
-# GUI for interactive phase retrieval with PyNX
-from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
 
 
 class PyNXScriptError(Exception):
@@ -916,6 +913,9 @@ retrieval is also computed and will be used in the post-processing stage."""
         """
         Launch the phase retrieval GUI.
         """
+        # Lazy import to avoid requiring ipywidgets/pynx when not using GUI
+        from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
+        
         self.logger.info("Launching interactive GUI.")
         gui = PhaseRetrievalGUI(
             work_dir=self.pynx_phasing_dir,
@@ -1838,3 +1838,37 @@ reconstruction (best solution).""",
             self.dump_dir,
         )
         facet_anlysis_processor.facet_analysis()
+
+    def show_3d_final_result(self):
+        """
+        Show plotly interactive figure of the final post-processed
+        reconstruction.
+        """
+        from cdiutils.interactive import plot_3d_isosurface
+
+        path = f"{self.dump_dir}S{self.scan}_postprocessed_data.cxi"
+        # first check whether the file exists:
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"The result file ({path}) does not exist yet, have you run the post-processing method?"
+            )
+
+        loaded_data = load_cxi(
+            path,
+            "amplitude",
+            "support",
+            "phase",
+            "displacement",
+            "het_strain",
+            "het_strain_from_dspacing",
+            "dspacing",
+            "lattice_parameter",
+        )
+
+        loaded_voxel_size = load_cxi(path, "voxel_size")
+
+        return plot_3d_isosurface(
+            loaded_data["amplitude"],
+            loaded_data,
+            voxel_size=loaded_voxel_size,
+        )
