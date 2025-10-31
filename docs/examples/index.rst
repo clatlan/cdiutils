@@ -12,6 +12,20 @@ Jupyter Notebook Examples
 
 The following Jupyter notebooks provide hands-on examples of CDIutils usage:
 
+Interactive 3D Visualisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`interactive_features.ipynb <../../examples/interactive_features.ipynb>`
+
+**New in v0.2.0!** Learn to use the modern interactive 3D visualisation tools:
+
+* ``plot_3d_isosurface`` - Quick interactive isosurface plotting with multiple quantities
+* ``ThreeDViewer`` - Widget for exploring complex 3D arrays (amplitude + phase)
+* ``TabPlotData`` - Interactive browser for CDI reconstruction results
+* Colormap selection and colorbar control (auto-scale, symmetric, manual limits)
+* NaN handling for clean visualisations
+* Theme toggle and rotation animations
+
 BCDI Reconstruction Analysis
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -216,10 +216,21 @@ Interactive Plotting
    :undoc-members:
    :show-inheritance:
 
+3D Visualisation
+~~~~~~~~~~~~~~~~
+
 .. automodule:: cdiutils.interactive.viewer_3d
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: cdiutils.interactive.volume
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Data Browser
+~~~~~~~~~~~~
 
 .. automodule:: cdiutils.interactive.data_browser
    :members:

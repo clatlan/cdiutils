@@ -12,10 +12,12 @@ The package is designed to handle the three primary stages of a BCDI data proces
 Key Features
 ------------
 
+* **Modern Interactive 3D Visualisation**: Plotly-based tools (``ThreeDViewer``, ``plot_3d_isosurface``) with extensive controls for colormaps, colorbar settings, and NaN handling
 * **Flexibility in Hardware**: GPU support for phase retrieval, CPU support for pre/post-processing
 * **Multiple Beamlines**: Support for various synchrotron beamlines (ID01, P10, SIXS, etc.)
 * **Comprehensive Analysis**: Full toolkit for strain analysis, phase manipulation, and visualization
 * **Publication-Ready Plots**: High-quality figures suitable for scientific publications
+* **Optional Dependencies**: Modular installation - install only what you need (``[interactive]``, ``[pyvista]``, ``[vtk]``)
 
 .. toctree::
    :maxdepth: 2

@@ -10,15 +10,36 @@ Version 0.2.0 (Current)
 
 **New Features:**
 
+* **Interactive 3D Visualisation Overhaul:**
+  
+  * ``ThreeDViewer`` migrated from ipyvolume to Plotly for modern, performant 3D rendering
+  * New ``plot_3d_isosurface`` function for quick interactive isosurface visualisation
+  * Support for 20+ colormaps including perceptually uniform options (viridis, turbo, colorcet)
+  * Advanced colorbar controls: auto-scale, symmetric mode, manual limits (vmin/vmax)
+  * NaN handling: replace NaN values with mean to avoid visualisation artefacts
+  * Rotation animation and theme toggle (light/dark) in ``ThreeDViewer``
+  * Improved zoom sensitivity and camera controls
+  
 * Comprehensive API documentation with Sphinx
 * Professional PyData documentation theme
 * Tutorial notebooks for BCDI workflows
 * Template notebooks for common analysis tasks
 * Improved type hints throughout the codebase
-* Enhanced plotting capabilities with interactive viewers
 
 **Improvements:**
 
+* **Better Dependency Management:**
+  
+  * Optional dependencies now properly organised: ``[interactive]``, ``[pyvista]``, ``[vtk]``
+  * Graceful fallback when optional packages are not installed
+  * Clear error messages indicating which packages to install
+  
+* **Code Quality:**
+  
+  * Google-style docstrings throughout
+  * Type hints for all public functions
+  * 79-character line length for better readability
+  
 * Better error handling and validation
 * Optimised memory usage for large datasets
 * Improved CXI file handling
@@ -31,14 +52,21 @@ Version 0.2.0 (Current)
 * Resolved import issues with optional dependencies
 * Fixed documentation build configuration
 * Corrected type annotation compatibility
+* Fixed colorbar tick label visibility in 3D plots
+* Resolved NaN propagation issues in min/max calculations
 
 **Documentation:**
 
 * Complete API reference documentation
 * Step-by-step tutorials for beginners
-* Example notebooks with real datasets
-* Installation and setup guides
+* Example notebooks with real datasets including ``interactive_features.ipynb``
+* Installation and setup guides with optional dependency information
 * Contributing guidelines
+
+**Breaking Changes:**
+
+* ``ThreeDViewer`` now requires ``plotly``, ``scikit-image``, and ``scipy`` instead of ``ipyvolume``
+* Install with: ``pip install cdiutils[interactive]`` for full interactive functionality
 
 Version 0.1.x
 --------------

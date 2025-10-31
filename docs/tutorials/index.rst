@@ -11,6 +11,7 @@ Welcome to the CDIutils tutorials! These comprehensive guides will walk you thro
    step_by_step_tutorial
    detector_calibration_tutorial
    bcdi_reconstruction_analysis_tutorial
+   interactive_3d_tutorial
    cxi_explorer_tutorial
    pole_figure_tutorial
 
@@ -26,12 +27,13 @@ Advanced Topics
 
 The :doc:`detector_calibration_tutorial` covers detector calibration procedures essential for accurate reconstructions.
 
-Data Analysis and Exploration
-------------------------------
+Data Analysis and Visualisation
+--------------------------------
 
-For post-processing and analysis workflows:
+For post-processing, analysis, and visualisation workflows:
 
 * :doc:`bcdi_reconstruction_analysis_tutorial` - Comprehensive guide for analysing and comparing BCDI reconstruction results from CXI files
+* :doc:`interactive_3d_tutorial` - **New!** Modern interactive 3D visualisation with Plotly (``ThreeDViewer``, ``plot_3d_isosurface``)
 * :doc:`cxi_explorer_tutorial` - Learn to navigate and explore CXI file structure and contents  
 * :doc:`pole_figure_tutorial` - Generate crystallographic pole figures using stereographic projection
 
