@@ -89,13 +89,13 @@ You can also install the latest development version directly from GitHub:
 You can install the package directly from GitHub:
 
 ```bash
-pip install git+https://github.com/clatlan/cdiutils.git
+pip install git+https://github.com/clatlan/cdiutils@master # or @dev for the dev branch
 ```
 
 To update your environment with the latest commits:
 
 ```bash
-pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
+pip install -I --no-deps git+https://github.com/clatlan/cdiutils@master # or @dev for the dev branch
 ```
 
 _Note: Check out the dev branch for the latest features and bug fixes. The dev branch is not guaranteed to be stable._
