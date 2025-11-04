@@ -60,6 +60,53 @@ from .parameters import (
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
 
+    def __init__(self, msg: object = None) -> None:
+        """
+        Initialise PyNXScriptError with an informative message.
+
+        The `msg` argument may be a string, an exception, or a file-like
+        object (for example an open stderr pipe). This constructor will
+        coerce non-string inputs into a readable string representation
+        and avoid TypeError when concatenating.
+
+        Args:
+            msg (object, optional): additional error message. Can be a
+                str, Exception, file-like object or None.
+        """
+        base_message = "PyNX script failed due to the following error:"
+
+        if msg is None:
+            super().__init__(base_message)
+            return
+
+        # try to produce a human friendly string from msg without
+        # raising further exceptions
+        extra_message = ""
+        try:
+            # if already a string, use it directly
+            if isinstance(msg, str):
+                extra_message = msg
+            # file-like objects often expose a read() method
+            elif hasattr(msg, "read") and callable(getattr(msg, "read")):
+                try:
+                    # read content (may consume the stream)
+                    extra_message = msg.read()
+                except Exception:
+                    # fallback to representation
+                    extra_message = str(msg)
+            else:
+                # for Exceptions and other objects
+                extra_message = str(msg)
+        except Exception:
+            # last-resort fallback if anything goes wrong
+            extra_message = "<unrepresentable error message>"
+
+        full_message = base_message
+        if extra_message:
+            full_message = base_message + "\n" + extra_message
+
+        super().__init__(full_message)
+
 
 class BcdiPipeline(Pipeline):
     """
@@ -1048,35 +1095,60 @@ retrieval is also computed and will be used in the post-processing stage."""
         return merged_pynx
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
+        """
+        Run a command in a subprocess and stream output to logger.
+
+        Args:
+            cmd (str): the command to execute.
+            cwd (str): the working directory for the subprocess.
+
+        Raises:
+            PyNXScriptError: if the subprocess returns a non-zero exit
+                code.
+        """
         try:
+            # accumulate stderr lines for error reporting
+            stderr_lines = []
+
             with subprocess.Popen(
                 ["bash", "-l", "-c", cmd],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=cwd,  # Change to this directory
-                text=True,  # Ensures stdout/stderr are str, not bytes
+                cwd=cwd,  # change to this directory
+                text=True,  # ensures stdout/stderr are str, not bytes
                 env=os.environ.copy(),
                 bufsize=1,
             ) as proc:
-                # Stream stdout
+                # stream stdout
                 for line in iter(proc.stdout.readline, ""):
                     self.logger.info(line.strip())
 
-                # Stream stderr
+                # stream stderr and capture for error reporting
                 for line in iter(proc.stderr.readline, ""):
-                    self.logger.error(line.strip())
+                    stripped_line = line.strip()
+                    self.logger.error(stripped_line)
+                    stderr_lines.append(stripped_line)
 
-                # Wait for the process to complete and check the
-                # return code.
+                # wait for the process to complete and check the
+                # return code
                 proc.wait()
                 if proc.returncode != 0:
+                    # compile captured stderr into a single message
+                    stderr_text = (
+                        "\n".join(stderr_lines)
+                        if stderr_lines
+                        else (
+                            f"Process exited with code {proc.returncode} "
+                            "(no stderr output captured)"
+                        )
+                    )
                     self.logger.error(
                         "PyNX phasing process failed with return code "
                         f"{proc.returncode}"
                     )
-                    raise PyNXScriptError
+                    raise PyNXScriptError(stderr_text)
         except subprocess.CalledProcessError as e:
-            # Log the error if the job submission fails
+            # log the error if the job submission fails
             self.logger.error(
                 "Subprocess process failed with return code "
                 f"{e.returncode}: {e.stderr}"
@@ -1874,10 +1946,11 @@ reconstruction (best solution).""",
         from cdiutils.interactive import plot_3d_isosurface
 
         path = f"{self.dump_dir}S{self.scan}_postprocessed_data.cxi"
-        # first check whether the file exists:
+        # first check whether the file exists
         if not os.path.exists(path):
             raise FileNotFoundError(
-                f"The result file ({path}) does not exist yet, have you run the post-processing method?"
+                f"The result file ({path}) does not exist yet, have you "
+                "run the post-processing method?"
             )
 
         loaded_data = load_cxi(
@@ -1894,8 +1967,19 @@ reconstruction (best solution).""",
 
         loaded_voxel_size = load_cxi(path, "voxel_size")
 
+        # the default quantity to visualise is the heterogeneous strain
+        # with cmap cet_CET_D13
+        # calculate symmetric limits based on absolute max
+        data_abs_max = np.abs(loaded_data["het_strain_from_dspacing"]).max()
+        vmin = -data_abs_max
+        vmax = data_abs_max
+
         return plot_3d_isosurface(
             loaded_data["amplitude"],
             loaded_data,
             voxel_size=loaded_voxel_size,
+            initial_quantity="het_strain_from_dspacing",
+            cmap="cet_CET_D13",
+            vmin=vmin,
+            vmax=vmax,
         )
