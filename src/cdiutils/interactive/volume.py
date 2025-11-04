@@ -44,24 +44,25 @@ except ImportError:
 
 def plot_3d_isosurface(
     amplitude: np.ndarray,
-    quantities: dict,
-    voxel_size: tuple | None = None,
-    cmaps: dict | None = None,
-    vmin_dict: dict | None = None,
-    vmax_dict: dict | None = None,
+    quantities: dict[str, np.ndarray],
+    voxel_size: tuple[float, float, float] | None = None,
+    initial_quantity: str | None = None,
+    cmap: str | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
     convention: str | None = None,
-    figsize: tuple = (9, 6),
+    figsize: tuple[int, int] = (9, 6),
     title: str | None = None,
-    lighting_params: dict | None = None,
+    lighting_params: dict[str, float] | None = None,
     camera_position: dict | None = None,
     theme: str = "plotly_white",
 ):
     """
     Plot an interactive 3D isosurface using Plotly and ipywidgets.
 
-    This function creates an interactive 3D visualization where users can
+    This function creates an interactive 3D visualisation where users can
     adjust the isosurface threshold, switch between different scalar
-    quantities, change colormaps, and control colorbar scaling using
+    quantities, change colormaps, and control colourbar scaling using
     interactive widgets. The camera view is preserved when updating.
 
     Interactive Controls:
@@ -82,27 +83,31 @@ def plot_3d_isosurface(
     Args:
         amplitude (np.ndarray): 3D array for determining isosurface
             levels.
-        quantities (dict): Dictionary of 3D arrays to visualize, with
-            keys as quantity names and values as numpy arrays.
-        voxel_size (tuple | None, optional): Size of voxels (dx, dy, dz)
-            for proper scaling. Defaults to (1, 1, 1).
-        cmaps (dict | None, optional): Dictionary mapping quantity names
-            to colormap names. Initial colormap selection. Defaults to
-            "viridis" for all.
-        vmin_dict (dict | None, optional): Dictionary of minimum values
-            for color scales. Not used by default (auto-scaling).
-            Defaults to data minimum.
-        vmax_dict (dict | None, optional): Dictionary of maximum values
-            for color scales. Not used by default (auto-scaling).
-            Defaults to data maximum.
+        quantities (dict[str, np.ndarray]): Dictionary of 3D arrays to
+            visualise, with keys as quantity names and values as numpy
+            arrays.
+        voxel_size (tuple[float, float, float] | None, optional): Size
+            of voxels (dx, dy, dz) for proper scaling. Defaults to
+            (1.0, 1.0, 1.0).
+        initial_quantity (str | None, optional): Name of the quantity to
+            display initially. Must be a key in quantities dict. If None,
+            uses the first key in quantities. Defaults to None.
+        cmap (str | None, optional): Initial colourmap name. Defaults to
+            "viridis".
+        vmin (float | None, optional): Initial minimum value for colour
+            scale. If None, auto-scales to data minimum. Defaults to
+            None.
+        vmax (float | None, optional): Initial maximum value for colour
+            scale. If None, auto-scales to data maximum. Defaults to
+            None.
         convention (str | None, optional): Coordinate convention
             ("cxi" or "xu"). Defaults to "cxi".
-        figsize (tuple, optional): Figure size in inches (width, height).
-            Defaults to (9, 6).
+        figsize (tuple[int, int], optional): Figure size in inches
+            (width, height). Defaults to (9, 6).
         title (str | None, optional): Plot title. Defaults to
             "Interactive 3D Isosurface".
-        lighting_params (dict | None, optional): Plotly lighting
-            parameters. Defaults to preset values.
+        lighting_params (dict[str, float] | None, optional): Plotly
+            lighting parameters. Defaults to preset values.
         camera_position (dict | None, optional): Initial camera position.
             Defaults to eye=dict(x=1.5, y=1.5, z=1.5).
         theme (str, optional): Plotly theme. Defaults to "plotly_white".
@@ -113,17 +118,20 @@ def plot_3d_isosurface(
     Raises:
         PlotlyImportError: if plotly or required packages are not
             installed.
-        ValueError: if amplitude and quantities have different shapes.
+        ValueError: if amplitude and quantities have different shapes, or
+            if initial_quantity is not in quantities dict.
 
     Example:
         >>> import numpy as np
         >>> amp = np.random.rand(50, 50, 50)
         >>> strain = np.random.randn(50, 50, 50) * 0.01
         >>> phase = np.random.randn(50, 50, 50) * np.pi
-        >>> widget = plot_3d_isosurface_widget(
+        >>> widget = plot_3d_isosurface(
         ...     amp,
-        ...     {"strain": strain, "phase": phase},
-        ...     voxel_size=(1.0, 1.0, 1.0)
+        ...     {"het_strain": strain, "phase": phase},
+        ...     voxel_size=(1.0, 1.0, 1.0),
+        ...     initial_quantity="het_strain",
+        ...     cmap="cet_CET_D13"
         ... )
         >>> display(widget)
     """
@@ -145,7 +153,7 @@ def plot_3d_isosurface(
             "Install with: pip install cdiutils[interactive]"
         )
 
-    # Validate inputs
+    # validate inputs
     for name, quantity in quantities.items():
         if amplitude.shape != quantity.shape:
             raise ValueError(
@@ -153,15 +161,9 @@ def plot_3d_isosurface(
                 f"shape. Got {amplitude.shape} and {quantity.shape}"
             )
 
-    # Set defaults
+    # set defaults
     if voxel_size is None:
         voxel_size = (1.0, 1.0, 1.0)
-    if cmaps is None:
-        cmaps = {name: "viridis" for name in quantities.keys()}
-    if vmin_dict is None:
-        vmin_dict = {}
-    if vmax_dict is None:
-        vmax_dict = {}
     if lighting_params is None:
         lighting_params = dict(
             ambient=0.90,
@@ -177,9 +179,25 @@ def plot_3d_isosurface(
     if convention is None:
         convention = "cxi"
 
-    # create initial isosurface using shared helper
+    # determine initial quantity to display
     quantity_names = list(quantities.keys())
-    initial_qty_name = quantity_names[0]
+    if initial_quantity is None:
+        initial_qty_name = quantity_names[0]
+    else:
+        if initial_quantity not in quantities:
+            raise ValueError(
+                f"initial_quantity '{initial_quantity}' not found in "
+                f"quantities dict. Available: {quantity_names}"
+            )
+        initial_qty_name = initial_quantity
+
+    # set initial colourmap
+    if cmap is None:
+        initial_cmap = "viridis"
+    else:
+        initial_cmap = cmap
+
+    # create initial isosurface using shared helper
     isosurface_default = 0.5
 
     # handle NaN values in amplitude when calculating threshold
@@ -191,15 +209,19 @@ def plot_3d_isosurface(
         voxel_size,
     )
 
-    # get initial colourmap and limits, handle NaN values
-    initial_cmap = cmaps.get(initial_qty_name, "viridis")
+    # set initial colourbar limits, handle NaN values
+    if vmin is None:
+        initial_vmin = np.nanmin(quantity_at_verts)
+    else:
+        initial_vmin = vmin
+
+    if vmax is None:
+        initial_vmax = np.nanmax(quantity_at_verts)
+    else:
+        initial_vmax = vmax
+
+    # convert colourmap to plotly format
     initial_plotly_cmap = colorcet_to_plotly(initial_cmap)
-    initial_vmin = vmin_dict.get(
-        initial_qty_name, np.nanmin(quantity_at_verts)
-    )
-    initial_vmax = vmax_dict.get(
-        initial_qty_name, np.nanmax(quantity_at_verts)
-    )
 
     # Create FigureWidget (allows in-place updates)
     fig = go.FigureWidget(
