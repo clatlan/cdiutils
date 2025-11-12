@@ -16,6 +16,7 @@ dependencies:
   - tabulate
   - silx
   - xrayutilities>=1.7.3
+  - pyyaml
   
   # VTK dependencies
   - vtk>=9.0.1
