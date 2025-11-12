@@ -9,52 +9,52 @@ Authors:
 import copy
 import glob
 import os
-from string import Template
 import subprocess
+from string import Template
 
 # Dependencies.
 import h5py
 import numpy as np
-from tabulate import tabulate
 import yaml
+from tabulate import tabulate
+
+from cdiutils.analysis.stats import find_isosurface
 
 # General cdiutils classes, to handle loading/saving, beamline geometry and
 # space conversion.
 from cdiutils.converter import SpaceConverter
 from cdiutils.geometry import Geometry
-from cdiutils.io import Loader, CXIFile, load_cxi
+from cdiutils.io import CXIFile, Loader, load_cxi
 from cdiutils.io.vtk import IS_VTK_AVAILABLE, save_as_vti
+from cdiutils.plot.colormap import RED_TO_TEAL
+from cdiutils.plot.slice import plot_volume_slices
+from cdiutils.plot.volume import plot_3d_surface_projections
+from cdiutils.process.facet_analysis import FacetAnalysisProcessor
+from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
+from cdiutils.process.postprocessor import PostProcessor
 
 # Utility functions
 from cdiutils.utils import (
     CroppingHandler,
-    oversampling_from_diffraction,
     ensure_pynx_shape,
-    hot_pixel_filter,
-    get_oversampling_ratios,
-    normalise,
     fill_up_support,
+    get_oversampling_ratios,
+    hot_pixel_filter,
+    normalise,
+    oversampling_from_diffraction,
 )
-from cdiutils.analysis.stats import find_isosurface
-
-# Plot functions.
-from .pipeline_plotter import PipelinePlotter
-from cdiutils.plot.colormap import RED_TO_TEAL
-from cdiutils.plot.volume import plot_3d_surface_projections
-from cdiutils.plot.slice import plot_volume_slices
-
-from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
-from cdiutils.process.postprocessor import PostProcessor
-from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
 from .parameters import (
-    validate_and_fill_params,
-    convert_np_arrays,
     DEFAULT_PIPELINE_PARAMS,
+    convert_np_arrays,
     isparameter,
+    validate_and_fill_params,
 )
+
+# Plot functions.
+from .pipeline_plotter import PipelinePlotter
 
 
 class PyNXScriptError(Exception):

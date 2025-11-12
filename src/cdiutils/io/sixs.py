@@ -11,20 +11,20 @@ class SIXSLoader(H5TypeLoader):
         "sample_outofplane_angle": "mu",
         "sample_inplane_angle": "omega",
         "detector_outofplane_angle": "gamma",
-        "detector_inplane_angle": "delta"
+        "detector_inplane_angle": "delta",
     }
-    authorised_detector_names = ("maxipix", )
+    authorised_detector_names = ("maxipix",)
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            version: str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        version: str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise SIXSLoader with experiment data directory path and
@@ -52,17 +52,17 @@ class SIXSLoader(H5TypeLoader):
             sample_name,
             detector_name,
             flat_field,
-            alien_mask
+            alien_mask,
         )
 
     @h5_safe_load
     def load_detector_data(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         """
         Load detector data for a given scan and sample.
@@ -98,16 +98,16 @@ class SIXSLoader(H5TypeLoader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @h5_safe_load
     def load_motor_positions(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> dict:
         """
         Load the motor positions, i.e diffractometer angles associated
@@ -146,9 +146,9 @@ class SIXSLoader(H5TypeLoader):
             node_name = "actuator_1_1"
         else:
             raise ValueError(f"Version {self.version} not supported yet.")
-        angles[self.rocking_angle] = self.h5file[
-            f"com/scan_data/{node_name}"
-        ][()]
+        angles[self.rocking_angle] = self.h5file[f"com/scan_data/{node_name}"][
+            ()
+        ]
 
         if rocking_angle_binning:
             angles[self.rocking_angle] = self.bin_rocking_angle_values(

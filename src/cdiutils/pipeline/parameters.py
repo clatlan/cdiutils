@@ -1,6 +1,7 @@
-from collections.abc import Mapping  # more flexible than dict
-import numpy as np
 import warnings
+from collections.abc import Mapping  # more flexible than dict
+
+import numpy as np
 
 DEFAULT_PIPELINE_PARAMS = {
     # Formerly the "metadata"
@@ -17,7 +18,6 @@ DEFAULT_PIPELINE_PARAMS = {
     "alien_mask": None,
     "sample_orientation": None,
     "sample_surface_normal": None,
-
     "background_level": None,
     "preprocess_shape": (150, 150),
     "energy": None,
@@ -73,7 +73,7 @@ DEFAULT_PIPELINE_PARAMS = {
         "output_format": "cxi",
         "live_plot": False,
         "save_plot": True,
-        "mpi": "run"
+        "mpi": "run",
     },
     "support": {
         "support_method": None,
@@ -90,9 +90,9 @@ DEFAULT_PIPELINE_PARAMS = {
         "authorised_index": 1,
         "nb_nghbs_min": 0,
         "index_to_display": None,
-        "display_f_e_c": 'facet',
+        "display_f_e_c": "facet",
         "size": 10,
-    }
+    },
 }
 
 
@@ -101,8 +101,7 @@ _VALID_KEYS_CACHE = None  # global variable to store keys
 
 
 def validate_and_fill_params(
-        user_params: dict,
-        defaults: dict = DEFAULT_PIPELINE_PARAMS
+    user_params: dict, defaults: dict = DEFAULT_PIPELINE_PARAMS
 ) -> dict:
     """
     Validate user parameters against DEFAULT_PIPELINE_PARAMS. Ensures
@@ -146,7 +145,7 @@ def validate_and_fill_params(
         if key not in known_keys:
             warnings.warn(
                 f"Parameter '{key}' is unknown and will not be used.",
-                UserWarning
+                UserWarning,
             )
 
     return filled_params
@@ -174,10 +173,7 @@ def isparameter(string: str) -> bool:
     return string in _VALID_KEYS_CACHE
 
 
-def get_params_from_variables(
-            dir_list: list,
-            globals_dict: dict
-) -> dict:
+def get_params_from_variables(dir_list: list, globals_dict: dict) -> dict:
     """
     Return a dictionary of parameters whose keys are authorized by the
     DEFAULT_PIPELINE_PARAMS list.
@@ -208,6 +204,7 @@ def convert_np_arrays(**data) -> dict:
         dict: A dictionary with all numpy types converted to standard
             Python types.
     """
+
     def convert_value(value):
         # Handle numpy arrays
         if isinstance(value, np.ndarray):
@@ -237,6 +234,4 @@ def convert_np_arrays(**data) -> dict:
         return value
 
     # Apply the conversion function to each dictionary entry
-    return {
-        key: convert_value(value) for key, value in data.items()
-    }
+    return {key: convert_value(value) for key, value in data.items()}

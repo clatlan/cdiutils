@@ -1,25 +1,26 @@
+import copy
+import json
 import os
 import shutil
-from os.path import dirname
-import h5py
-import numpy as np
-from numpy.linalg import norm as npnorm
-from sklearn.cluster import SpectralClustering
-from sklearn.cluster import DBSCAN
-from scipy.ndimage import binary_erosion as erosion
 from collections import defaultdict
-import json
-import copy
-from scipy.optimize import minimize
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from os.path import dirname
 
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
+from numpy.linalg import norm as npnorm
+from scipy.ndimage import binary_erosion as erosion
+from scipy.optimize import minimize
+from sklearn.cluster import DBSCAN, SpectralClustering
 
 from cdiutils.plot.formatting import get_figure_size
 
 
 def distance_voxel(a, b):
-    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
+    return np.sqrt(
+        (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+    )
 
 
 def rotation_x(alpha):
@@ -66,7 +67,9 @@ def rotation(u, alpha):
 
 
 def error_metrics(v1, v2):
-    return np.sqrt((v2[0] - v1[0]) ** 2 + (v2[1] - v1[1]) ** 2 + (v2[2] - v1[2]) ** 2)
+    return np.sqrt(
+        (v2[0] - v1[0]) ** 2 + (v2[1] - v1[1]) ** 2 + (v2[2] - v1[2]) ** 2
+    )
 
 
 def retrieve_original_index(normalized_index, dict_authorized_coord_index):
@@ -93,7 +96,6 @@ class FacetAnalysisProcessor:
         dump_dir: str,
         support_path: str = None,
     ) -> None:
-
         # Parameters
         self.params = params
         self.support_method = support_method
@@ -111,21 +113,22 @@ class FacetAnalysisProcessor:
 
         if self.params["nb_facets"] is None:
             raise ValueError(
-                "Please indicate the expected number of facets :" '"nb_facets" = n .'
+                "Please indicate the expected number of facets :"
+                '"nb_facets" = n .'
             )
 
         self.dump_dir = dump_dir
         if support_path is None:
-
             if self.support_method == "amplitude_variation":
                 self.path_surface = (
-                    f"{self.dump_dir}surface_calculation/" f"{self.support_method}/"
+                    f"{self.dump_dir}surface_calculation/"
+                    f"{self.support_method}/"
                 )
             elif self.support_method == "isosurface":
                 self.path_surface = (
                     f"{self.dump_dir}surface_calculation/"
                     f"{self.support_method}"
-                    f'={self.params["isosurface"]}/'
+                    f"={self.params['isosurface']}/"
                 )
             else:
                 raise ValueError(
@@ -137,7 +140,7 @@ class FacetAnalysisProcessor:
             if self.support_method == "amplitude_variation":
                 if self.order_of_derivative is not None:
                     self.path_order = (
-                        f"{self.path_surface}" f"{self.order_of_derivative}/"
+                        f"{self.path_surface}{self.order_of_derivative}/"
                     )
                 else:
                     raise ValueError(
@@ -148,11 +151,13 @@ class FacetAnalysisProcessor:
             elif self.support_method == "isosurface":
                 self.path_order = self.path_surface
 
-            self.path_f = f"{self.path_order}nb_facets=" f'{self.params["nb_facets"]}/'
+            self.path_f = (
+                f"{self.path_order}nb_facets={self.params['nb_facets']}/"
+            )
 
             h5_file_path = (
                 f"{self.dump_dir}/cdiutils_S"
-                f'{self.params["scan"]}'
+                f"{self.params['scan']}"
                 f"_structural_properties.h5"
             )
 
@@ -177,7 +182,8 @@ class FacetAnalysisProcessor:
 
         else:
             self.path_f = (
-                f"{dirname(support_path)}/" f'nb_facets={self.params["nb_facets"]}/'
+                f"{dirname(support_path)}/"
+                f"nb_facets={self.params['nb_facets']}/"
             )
             self.support = np.load(support_path)
 
@@ -254,7 +260,9 @@ class FacetAnalysisProcessor:
                 for file in files_to_remove:
                     try:
                         os.remove(f"{self.path_f}/{file}")
-                        print(f"The file {file} " f"has been successfully removed.")
+                        print(
+                            f"The file {file} has been successfully removed."
+                        )
                     except OSError as e:
                         print(f"The file {file} doesn't exist.")
                 try:
@@ -264,19 +272,24 @@ class FacetAnalysisProcessor:
                         f" has been successfully removed."
                     )
                 except:
-                    print(f"The folder {self.path_visu}" f"doesn't exist.")
+                    print(f"The folder {self.path_visu}doesn't exist.")
 
             elif (
-                (self.input_parameters[0][0] != self.previous_input_parameters[0][0])
+                (
+                    self.input_parameters[0][0]
+                    != self.previous_input_parameters[0][0]
+                )
                 or not np.array_equal(
-                    self.input_parameters[0][1:], self.previous_input_parameters[0][1:]
+                    self.input_parameters[0][1:],
+                    self.previous_input_parameters[0][1:],
                 )
                 or not np.array_equal(
                     self.input_parameters[1], self.previous_input_parameters[1]
                 )
             ):
                 print(
-                    "authorised_index or top_facet_reference_index" "has been changed"
+                    "authorised_index or top_facet_reference_index"
+                    "has been changed"
                 )
                 files_to_remove = [
                     "facet_label_index.json",
@@ -287,7 +300,9 @@ class FacetAnalysisProcessor:
                 for file in files_to_remove:
                     try:
                         os.remove(f"{self.path_f}/{file}")
-                        print(f"The file {file} " f"has been successfully removed.")
+                        print(
+                            f"The file {file} has been successfully removed."
+                        )
                     except OSError as e:
                         print(f"The file {file} doesn't exist.")
                 try:
@@ -371,7 +386,6 @@ class FacetAnalysisProcessor:
         return smooth_dir
 
     def find_edges(self, smooth_dir) -> None:
-
         try:
             edges = np.load(f"{self.path_f}/edges.npy")
 
@@ -380,8 +394,11 @@ class FacetAnalysisProcessor:
             edges = np.zeros((self.X, self.Y, self.Z))
             n = 2
             for x, y, z in zip(*np.nonzero(self.surface > 0)):
-                if n < x < self.X - n and n < y < self.Y - n and n < z < self.Z - n:
-
+                if (
+                    n < x < self.X - n
+                    and n < y < self.Y - n
+                    and n < z < self.Z - n
+                ):
                     directions = smooth_dir[
                         x - n : x + n + 1, y - n : y + n + 1, z - n : z + n + 1
                     ]
@@ -399,7 +416,6 @@ class FacetAnalysisProcessor:
                     ]
 
                     if len(vecteurs) > 0:
-
                         eps = 0.25
                         min_samples = 5
 
@@ -551,7 +567,9 @@ class FacetAnalysisProcessor:
         try:
             edge_label = np.load(f"{self.path_f}/edge_label.npy")
             corner_label = np.load(f"{self.path_f}/corner_label.npy")
-            nb_edges, nb_corners = np.load(f"{self.path_f}/" f"nb_edges_corners.npy")
+            nb_edges, nb_corners = np.load(
+                f"{self.path_f}/nb_edges_corners.npy"
+            )
             print("nb_edges = ", nb_edges)
             print("nb_corners = ", nb_corners)
 
@@ -565,7 +583,6 @@ class FacetAnalysisProcessor:
             edge_lbl = self.params["nb_facets"] + 2
 
             for i, j, k in zip(*np.nonzero(facet_label > 0)):
-
                 voxel = [i, j, k]
 
                 dict_label = {}
@@ -663,13 +680,18 @@ class FacetAnalysisProcessor:
                 pos_label = int(list_corner_pos[i, j, k])
                 spect_label_corner = spect_labels[pos_label]
                 corner_label[i, j, k] = int(
-                    spect_label_corner + self.params["nb_facets"] + 3 + nb_edges + 2
+                    spect_label_corner
+                    + self.params["nb_facets"]
+                    + 3
+                    + nb_edges
+                    + 2
                 )
 
             np.save(f"{self.path_f}/edge_label.npy", edge_label)
             np.save(f"{self.path_f}/corner_label.npy", corner_label)
             np.save(
-                f"{self.path_f}/nb_edges_corners.npy", np.array([nb_edges, nb_corners])
+                f"{self.path_f}/nb_edges_corners.npy",
+                np.array([nb_edges, nb_corners]),
             )
 
         return edge_label, corner_label, nb_edges
@@ -677,11 +699,10 @@ class FacetAnalysisProcessor:
     def def_smooth_dir_facet_edge_corner(
         self, smooth_dir, facet_label, edge_label, corner_label
     ) -> None:
-
         try:
-            smooth_dir_f = np.load(f"{self.path_f}/" f"smooth_dir_facet.npy")
-            smooth_dir_e = np.load(f"{self.path_f}/" f"smooth_dir_edge.npy")
-            smooth_dir_c = np.load(f"{self.path_f}/" f"smooth_dir_corner.npy")
+            smooth_dir_f = np.load(f"{self.path_f}/smooth_dir_facet.npy")
+            smooth_dir_e = np.load(f"{self.path_f}/smooth_dir_edge.npy")
+            smooth_dir_c = np.load(f"{self.path_f}/smooth_dir_corner.npy")
 
         except:
             print(
@@ -743,7 +764,6 @@ class FacetAnalysisProcessor:
         corner_label,
         nb_edges,
     ) -> None:
-
         facet_directions = []
         weights = {}
         total_weight = np.sum(facet_label > 0)
@@ -862,7 +882,6 @@ class FacetAnalysisProcessor:
                 dict_index[tuple(normalized_index)] = index
                 authorized_coordinates.append(normalized_index)
             else:
-
                 if npnorm(index) < npnorm(dict_index[tuple(normalized_index)]):
                     dict_index[tuple(normalized_index)] = index
 
@@ -911,7 +930,9 @@ class FacetAnalysisProcessor:
         # Set bounds for the optimization
         angle_bounds1 = [(-np.pi, np.pi), (-np.pi, np.pi), (-np.pi, np.pi)]
 
-        result1 = minimize(objective_function1, initial_angles1, bounds=angle_bounds1)
+        result1 = minimize(
+            objective_function1, initial_angles1, bounds=angle_bounds1
+        )
 
         # Get the optimal angles
         optimal_angles1 = result1.x
@@ -1056,11 +1077,17 @@ class FacetAnalysisProcessor:
 
         angle_bounds2 = [(-np.pi, np.pi)]
 
-        result2 = minimize(objective_function2, initial_angle2, bounds=angle_bounds2)
+        result2 = minimize(
+            objective_function2, initial_angle2, bounds=angle_bounds2
+        )
 
         # Get the optimal angles
         optimal_angle2 = result2.x
-        print("Total error for indexing : ", objective_function2(optimal_angle2), "\n")
+        print(
+            "Total error for indexing : ",
+            objective_function2(optimal_angle2),
+            "\n",
+        )
 
         final_facet_directions = copy.deepcopy(inter_facet_directions)
         for i in range(len(final_facet_directions)):
@@ -1089,7 +1116,8 @@ class FacetAnalysisProcessor:
             queue.append(lbl)
 
             closest_index = min(
-                auth_coord_temp, key=lambda coords: error_metrics(coords, direction)
+                auth_coord_temp,
+                key=lambda coords: error_metrics(coords, direction),
             )
             error = error_metrics(direction, closest_index)
             if not lbl in closest_lbl_idx:
@@ -1122,7 +1150,9 @@ class FacetAnalysisProcessor:
                 for lbl in closest_idx_lbls[tuple(index)]:
                     closest_index = min(
                         auth_coord_temp,
-                        key=lambda coords: error_metrics(coords, directions[lbl]),
+                        key=lambda coords: error_metrics(
+                            coords, directions[lbl]
+                        ),
                     )
 
                     error = error_metrics(directions[lbl], closest_index)
@@ -1139,7 +1169,10 @@ class FacetAnalysisProcessor:
                             closest_idx_lbls[tpl].append(lbl)
 
         facet_label_index = [
-            [label_index[0], list(retrieve_original_index(label_index[1], dict_index))]
+            [
+                label_index[0],
+                list(retrieve_original_index(label_index[1], dict_index)),
+            ]
             for label_index in facet_label_index
         ]
 
@@ -1172,7 +1205,6 @@ class FacetAnalysisProcessor:
 
         for lbl in list(np.unique(edge_label)):
             if lbl >= self.params["nb_facets"] + 3:
-
                 direction = smooth_dir_e[int(lbl)]
                 new_direction = list(np.dot(rotation_matrix, direction))
 
@@ -1295,11 +1327,9 @@ class FacetAnalysisProcessor:
         return facet_label_index, edge_label_index, corner_label_index
 
     def def_mean_strain(self, strain, facet_label, edge_label, corner_label):
-
         name_list = ["facet", "edge", "corner"]
 
         for label_index_name in name_list:
-
             if label_index_name == "facet":
                 fec_label = facet_label
             if label_index_name == "edge":
@@ -1307,7 +1337,7 @@ class FacetAnalysisProcessor:
             if label_index_name == "corner":
                 fec_label = corner_label
 
-            path = f"{self.path_f}/{label_index_name}" f"_label_index.json"
+            path = f"{self.path_f}/{label_index_name}_label_index.json"
 
             with open(path, "r") as f:
                 label_index = json.load(f)
@@ -1328,9 +1358,13 @@ class FacetAnalysisProcessor:
                         if not (label_index[i][-1][1] == strain_label):
                             label_index[i][-1][1] = strain_label
                     else:
-                        label_index[i] = label_index[i] + [["strain", strain_label]]
+                        label_index[i] = label_index[i] + [
+                            ["strain", strain_label]
+                        ]
                 except:
-                    label_index[i] = label_index[i] + [["strain", strain_label]]
+                    label_index[i] = label_index[i] + [
+                        ["strain", strain_label]
+                    ]
 
             for i in range(len(label_index)):
                 lbl = label_index[i][0]
@@ -1353,12 +1387,16 @@ class FacetAnalysisProcessor:
                     if not (label_index[i][-1][2] == standard_deviation):
                         label_index[i][-1][2] = standard_deviation
                 except:
-                    label_index[i][-1] = label_index[i][-1] + [standard_deviation]
+                    label_index[i][-1] = label_index[i][-1] + [
+                        standard_deviation
+                    ]
                 try:
                     if not (label_index[i][-1][3] == strain_max - strain_min):
                         label_index[i][-1][2] = strain_max - strain_min
                 except:
-                    label_index[i][-1] = label_index[i][-1] + [strain_max - strain_min]
+                    label_index[i][-1] = label_index[i][-1] + [
+                        strain_max - strain_min
+                    ]
 
             if label_index_name == "facet":
                 label_index = sorted(label_index, key=lambda elem: elem[1])
@@ -1375,9 +1413,7 @@ class FacetAnalysisProcessor:
         edge_label,
         corner_label,
     ):
-
         def create_3d_view_frames(c_label, c_label_index, angle, c):
-
             xmin, xmax = np.inf, 0
             ymin, ymax = np.inf, 0
             zmin, zmax = np.inf, 0
@@ -1397,7 +1433,9 @@ class FacetAnalysisProcessor:
 
             fig = plt.figure()
             ax = fig.add_subplot(111, projection="3d")
-            ax.set_box_aspect([np.ptp(coord) for coord in np.where(c_label >= 1)])
+            ax.set_box_aspect(
+                [np.ptp(coord) for coord in np.where(c_label >= 1)]
+            )
             ax.set_axis_off()
 
             def update(frame, angle):
@@ -1411,7 +1449,6 @@ class FacetAnalysisProcessor:
             # Create a list to store frames for saving as PNG
 
             def animate(frame):
-
                 update(frame, angle)
                 ax.cla()  # Clear the previous axes
 
@@ -1462,8 +1499,12 @@ class FacetAnalysisProcessor:
                             bbox_inches="tight",
                         )
 
-            anim = FuncAnimation(fig, animate, frames=40, interval=100, blit=False)
-            anim.save(f"{self.path_visu}/{c}_gif_{angle}.gif", writer="Pillow", fps=8)
+            anim = FuncAnimation(
+                fig, animate, frames=40, interval=100, blit=False
+            )
+            anim.save(
+                f"{self.path_visu}/{c}_gif_{angle}.gif", writer="Pillow", fps=8
+            )
 
         for angle in range(3):
             if (
@@ -1475,10 +1516,13 @@ class FacetAnalysisProcessor:
                     and os.path.exists(f"{self.path_visu}/facet_gif_1.gif")
                     and os.path.exists(f"{self.path_visu}/facet_gif_2.gif")
                     and np.array_equal(
-                        self.input_parameters[4], self.previous_input_parameters[4]
+                        self.input_parameters[4],
+                        self.previous_input_parameters[4],
                     )
                 ):
-                    with open(f"{self.path_f}facet_label_index.json", "r") as f:
+                    with open(
+                        f"{self.path_f}facet_label_index.json", "r"
+                    ) as f:
                         facet_label_index = json.load(f)
 
                     create_3d_view_frames(
@@ -1494,13 +1538,16 @@ class FacetAnalysisProcessor:
                     and os.path.exists(f"{self.path_visu}/edge_gif_1.gif")
                     and os.path.exists(f"{self.path_visu}/edge_gif_2.gif")
                     and np.array_equal(
-                        self.input_parameters[4], self.previous_input_parameters[4]
+                        self.input_parameters[4],
+                        self.previous_input_parameters[4],
                     )
                 ):
                     with open(f"{self.path_f}edge_label_index.json", "r") as f:
                         edge_label_index = json.load(f)
 
-                    create_3d_view_frames(edge_label, edge_label_index, angle, "edge")
+                    create_3d_view_frames(
+                        edge_label, edge_label_index, angle, "edge"
+                    )
             if (
                 self.params["display_f_e_c"] == "corner"
                 or self.params["display_f_e_c"] == "all"
@@ -1510,10 +1557,13 @@ class FacetAnalysisProcessor:
                     and os.path.exists(f"{self.path_visu}/corner_gif_1.gif")
                     and os.path.exists(f"{self.path_visu}/corner_gif_2.gif")
                     and np.array_equal(
-                        self.input_parameters[4], self.previous_input_parameters[4]
+                        self.input_parameters[4],
+                        self.previous_input_parameters[4],
                     )
                 ):
-                    with open(f"{self.path_f}corner_label_index.json", "r") as f:
+                    with open(
+                        f"{self.path_f}corner_label_index.json", "r"
+                    ) as f:
                         corner_label_index = json.load(f)
                     create_3d_view_frames(
                         corner_label, corner_label_index, angle, "corner"
@@ -1522,14 +1572,15 @@ class FacetAnalysisProcessor:
     # Pipeline
 
     def facet_analysis(self) -> np.ndarray:
-
         self.check_previous_data()
 
         smooth_dir = self.def_smooth_supp_dir()
         edges = None
         if self.params["remove_edges"]:
             edges = self.find_edges(smooth_dir)
-        cluster_list, cluster_pos = self.def_list_facet_analysis(smooth_dir, edges)
+        cluster_list, cluster_pos = self.def_list_facet_analysis(
+            smooth_dir, edges
+        )
         label = self.def_label(cluster_list, cluster_pos, edges)
         facet_label = self.clustering(smooth_dir, label)
         edge_label, corner_label, nb_edges = self.def_edge_corner(facet_label)
@@ -1544,7 +1595,6 @@ class FacetAnalysisProcessor:
             and os.path.exists(f"{self.path_f}/corner_label_index.json")
             and os.path.exists(f"{self.path_f}/rotation_matrix.npy")
         ):
-
             with open(f"{self.path_f}/facet_label_index.json", "r") as f:
                 facet_label_index = json.load(f)
             with open(f"{self.path_f}/edge_label_index.json", "r") as f:
@@ -1563,14 +1613,16 @@ class FacetAnalysisProcessor:
                 "edge_label_index or corner_label_index, "
                 "or rotation_matrix found"
             )
-            (facet_label_index, edge_label_index, corner_label_index) = self.def_index(
-                smooth_dir_f,
-                smooth_dir_e,
-                smooth_dir_c,
-                facet_label,
-                edge_label,
-                corner_label,
-                nb_edges,
+            (facet_label_index, edge_label_index, corner_label_index) = (
+                self.def_index(
+                    smooth_dir_f,
+                    smooth_dir_e,
+                    smooth_dir_c,
+                    facet_label,
+                    edge_label,
+                    corner_label,
+                    nb_edges,
+                )
             )
 
         elif os.path.exists(f"{self.path_f}/rotation_matrix.npy"):
@@ -1631,7 +1683,7 @@ class FacetAnalysisProcessor:
 
         h5_file_path = (
             f"{self.dump_dir}/cdiutils_S"
-            f'{self.params["scan"]}'
+            f"{self.params['scan']}"
             f"_structural_properties.h5"
         )
         try:
@@ -1652,7 +1704,9 @@ class FacetAnalysisProcessor:
                             "\n",
                         )
                 else:
-                    print(f'The dataset "volume" does not exist ' f"in {file}.", "\n")
+                    print(
+                        f'The dataset "volume" does not exist in {file}.', "\n"
+                    )
         except:
             print(
                 f"The file {h5_file_path} was not found."

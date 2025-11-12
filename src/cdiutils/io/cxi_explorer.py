@@ -136,9 +136,7 @@ class CXIExplorer:
             return False, None
 
     def tree(
-            self,
-            max_depth: int = None,
-            show_attributes: bool = False
+        self, max_depth: int = None, show_attributes: bool = False
     ) -> None:
         """
         Print a tree view of the CXI file structure similar to the Linux
@@ -188,7 +186,9 @@ class CXIExplorer:
                 if max_depth is not None and depth == max_depth:
                     # Only count direct children at this level
                     if keys:  # Only show if there are actually children
-                        print(f"{child_prefix}└── {len(keys)} more entrie(s)...")  # noqa: E501
+                        print(
+                            f"{child_prefix}└── {len(keys)} more entrie(s)..."
+                        )  # noqa: E501
                     return
 
                 # Process all children
@@ -216,25 +216,23 @@ class CXIExplorer:
 
                 # Truncate type string if it's too long
                 if len(type_str) > self.tree_max_string_length:
-                    type_str = type_str[:self.tree_max_string_length-3] + "..."
+                    type_str = (
+                        type_str[: self.tree_max_string_length - 3] + "..."
+                    )
 
                 # Add short data preview for small datasets
                 data_preview = ""
                 if node.size <= self.tree_max_array_size:  # small datasets
                     value = self.cxi[name]
                     if (
-                            isinstance(value, np.ndarray)
-                            and value.size <= self.tree_max_array_size
+                        isinstance(value, np.ndarray)
+                        and value.size <= self.tree_max_array_size
                     ):
                         data_preview = f" = {value}"
-                    elif np.isscalar(value) or isinstance(
-                        value, (str, bytes)
-                    ):
+                    elif np.isscalar(value) or isinstance(value, (str, bytes)):
                         if isinstance(value, (bytes, np.bytes_)):
                             try:
-                                data_preview = (
-                                    f" = '{value.decode('utf-8')}'"
-                                )
+                                data_preview = f" = '{value.decode('utf-8')}'"
                             except UnicodeDecodeError:
                                 data_preview = f" = {value}"
                             else:

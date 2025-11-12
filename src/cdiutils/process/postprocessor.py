@@ -5,25 +5,25 @@ Author:
     Clément Atlan - 27.10.2023
 """
 
+import copy
+
 import numpy as np
 from scipy.fft import fftn, fftshift, ifftn, ifftshift
 from scipy.ndimage import binary_erosion
-from skimage.restoration import unwrap_phase
 from skimage.filters import window
+from skimage.restoration import unwrap_phase
 from sklearn.linear_model import LinearRegression
-import copy
 
+from cdiutils.process.support_processor import SupportProcessor
 from cdiutils.utils import (
     CroppingHandler,
     find_suitable_array_shape,
-    zero_to_nan,
+    hybrid_gradient,
+    make_support,
     nan_to_zero,
     normalise,
-    make_support,
-    hybrid_gradient
+    zero_to_nan,
 )
-
-from cdiutils.process.support_processor import SupportProcessor
 
 
 class PostProcessor:
@@ -33,10 +33,10 @@ class PostProcessor:
 
     @staticmethod
     def prepare_volume(
-            complex_object: np.ndarray,
-            isosurface,
-            support_parameters: dict = None,
-            final_shape: np.ndarray | tuple | list = None,
+        complex_object: np.ndarray,
+        isosurface,
+        support_parameters: dict = None,
+        final_shape: np.ndarray | tuple | list = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Prepare the volume by finding a smaller array shape, centering
@@ -58,44 +58,37 @@ class PostProcessor:
             support = make_support(
                 normalise(np.abs(complex_object)),
                 isosurface=isosurface,
-                nan_values=False
+                nan_values=False,
             )
             if final_shape is None:
                 final_shape = find_suitable_array_shape(
-                    support,
-                    pad=np.repeat(10, support.ndim)
+                    support, pad=np.repeat(10, support.ndim)
                 )
             # center the arrays at the center of mass of the support
             com = CroppingHandler.get_position(support, "com")
             complex_object = CroppingHandler.force_centred_cropping(
-                complex_object,
-                where=com,
-                output_shape=final_shape
+                complex_object, where=com, output_shape=final_shape
             )
             support = CroppingHandler.force_centred_cropping(
-                support,
-                where=com,
-                output_shape=final_shape
+                support, where=com, output_shape=final_shape
             )
             bulk = binary_erosion(support)
             surface = support - bulk
             return complex_object, support, surface
 
         support_pre_crop = make_support(
-            normalise(np.abs(complex_object)),
-            isosurface=0.2
+            normalise(np.abs(complex_object)), isosurface=0.2
         )
         final_shape_pre_crop = copy.copy(final_shape)
         if final_shape_pre_crop is None:
             final_shape_pre_crop = find_suitable_array_shape(
-                support_pre_crop,
-                pad=[6, 6, 6]
+                support_pre_crop, pad=[6, 6, 6]
             )
         com_pre_crop = CroppingHandler.get_position(support_pre_crop, "com")
         complex_object_pre_crop = CroppingHandler.force_centred_cropping(
             complex_object,
             where=com_pre_crop,
-            output_shape=final_shape_pre_crop
+            output_shape=final_shape_pre_crop,
         )
 
         support_processor = SupportProcessor(
@@ -111,19 +104,13 @@ class PostProcessor:
         # center the arrays at the center of mass of the support
         com = CroppingHandler.get_position(support, "com")
         complex_object = CroppingHandler.force_centred_cropping(
-            complex_object_pre_crop,
-            where=com,
-            output_shape=final_shape
+            complex_object_pre_crop, where=com, output_shape=final_shape
         )
         support = CroppingHandler.force_centred_cropping(
-            support,
-            where=com,
-            output_shape=final_shape
+            support, where=com, output_shape=final_shape
         )
         surface = CroppingHandler.force_centred_cropping(
-            surface,
-            where=com,
-            output_shape=final_shape
+            surface, where=com, output_shape=final_shape
         )
 
         return complex_object, support, surface
@@ -143,9 +130,9 @@ class PostProcessor:
 
     @staticmethod
     def apodize(
-            direct_space_data: np.ndarray,
-            window_type: str = "blackman",
-            scale: float = 1
+        direct_space_data: np.ndarray,
+        window_type: str = "blackman",
+        scale: float = 1,
     ) -> np.ndarray:
         """
         Apodization in the direct space data using Blackman window.
@@ -169,8 +156,7 @@ class PostProcessor:
 
     @staticmethod
     def unwrap_phase(
-            phase: np.ndarray,
-            support: np.ndarray = None
+        phase: np.ndarray, support: np.ndarray = None
     ) -> np.ndarray:
         """
         Unwrap phase for voxels that belong to the given support.
@@ -221,8 +207,8 @@ class PostProcessor:
 
     @staticmethod
     def phase_offset_to_zero(
-            phase: np.ndarray,
-            support: np.ndarray = None,
+        phase: np.ndarray,
+        support: np.ndarray = None,
     ) -> np.ndarray:
         """
         Set the phase offset to the mean phase value.
@@ -233,8 +219,8 @@ class PostProcessor:
 
     @staticmethod
     def get_displacement(
-            phase: np.ndarray,
-            g_vector: np.ndarray | tuple | list,
+        phase: np.ndarray,
+        g_vector: np.ndarray | tuple | list,
     ) -> np.ndarray:
         """
         Calculate the displacement from phase and g_vector.
@@ -243,9 +229,9 @@ class PostProcessor:
 
     @staticmethod
     def get_displacement_gradient(
-            displacement: np.ndarray,
-            voxel_size: np.ndarray | tuple | list,
-            gradient_method: str = "hybrid"
+        displacement: np.ndarray,
+        voxel_size: np.ndarray | tuple | list,
+        gradient_method: str = "hybrid",
     ) -> np.ndarray:
         """
         Calculate the gradient of the displacement.
@@ -277,11 +263,11 @@ class PostProcessor:
 
     @classmethod
     def get_het_normal_strain(
-            cls,
-            displacement: np.ndarray,
-            g_vector: np.ndarray | tuple | list,
-            voxel_size: np.ndarray | tuple | list,
-            gradient_method: str = "hybrid",
+        cls,
+        displacement: np.ndarray,
+        g_vector: np.ndarray | tuple | list,
+        voxel_size: np.ndarray | tuple | list,
+        gradient_method: str = "hybrid",
     ) -> np.ndarray:
         """
         Compute the heterogeneous normal strain, i.e. the gradient of
@@ -304,31 +290,28 @@ class PostProcessor:
             np.ndarray: the heterogeneous normal strain
         """
         displacement_gradient = cls.get_displacement_gradient(
-            displacement,
-            voxel_size,
-            gradient_method
+            displacement, voxel_size, gradient_method
         )
         displacement_gradient = np.moveaxis(
             np.asarray(displacement_gradient),
             source=0,
-            destination=displacement.ndim
+            destination=displacement.ndim,
         )
         return np.dot(
-            displacement_gradient,
-            g_vector / np.linalg.norm(g_vector)
+            displacement_gradient, g_vector / np.linalg.norm(g_vector)
         )
 
     @classmethod
     def get_structural_properties(
-            cls,
-            complex_object: np.ndarray,
-            isosurface: np.ndarray,
-            g_vector: np.ndarray | tuple | list,
-            hkl: tuple | list,
-            voxel_size: np.ndarray | tuple | list,
-            phase_factor: int = -1,
-            handle_defects: bool = False,
-            support_parameters: dict = None
+        cls,
+        complex_object: np.ndarray,
+        isosurface: np.ndarray,
+        g_vector: np.ndarray | tuple | list,
+        hkl: tuple | list,
+        voxel_size: np.ndarray | tuple | list,
+        phase_factor: int = -1,
+        handle_defects: bool = False,
+        support_parameters: dict = None,
     ) -> dict:
         """
         Main method used in the post-processing workflow. The method
@@ -366,7 +349,7 @@ class PostProcessor:
             complex_object,
             support_parameters=support_parameters,
             isosurface=isosurface,
-            final_shape=None
+            final_shape=None,
         )
         # extract phase and amplitude
         amplitude = np.abs(complex_object)
@@ -387,7 +370,7 @@ class PostProcessor:
 
         if handle_defects:
             het_strain_with_ramp = np.zeros(amplitude.shape)
-            displacement_gradient = np.zeros((3, ) + amplitude.shape)
+            displacement_gradient = np.zeros((3,) + amplitude.shape)
             phases = [
                 np.mod(phase_with_ramp * support + i * (np.pi / 2), 2 * np.pi)
                 for i in range(3)
@@ -397,7 +380,7 @@ class PostProcessor:
                     cls.get_displacement(phases[i], g_vector) * 1e-1,
                     g_vector,
                     voxel_size,
-                    gradient_method="hybrid"
+                    gradient_method="hybrid",
                 )
                 for i in range(3)
             ]
@@ -405,7 +388,7 @@ class PostProcessor:
                 cls.get_displacement_gradient(
                     cls.get_displacement(phases[i], g_vector) * 1e-1,
                     voxel_size,
-                    gradient_method="hybrid"
+                    gradient_method="hybrid",
                 )
                 for i in range(3)
             ]
@@ -418,7 +401,7 @@ class PostProcessor:
                 for k in range(3):
                     mask = np.isclose(
                         displacement_gradients[k][i % 3],
-                        displacement_gradients[k][(i + 3) % 3]
+                        displacement_gradients[k][(i + 3) % 3],
                     )
                     displacement_gradient[k][mask == 1] = (
                         displacement_gradients[k][i][mask == 1]
@@ -431,40 +414,35 @@ class PostProcessor:
                 displacement * 1e-1,  # displacement values converted in nm.
                 g_vector,
                 voxel_size,
-                gradient_method="numpy"
+                gradient_method="numpy",
             )
             het_strain = cls.get_het_normal_strain(
                 displacement * 1e-1,
                 g_vector,
                 voxel_size,
-                gradient_method="hybrid"
+                gradient_method="hybrid",
             )
             het_strain_with_ramp = cls.get_het_normal_strain(
                 displacement_with_ramp * 1e-1,
                 g_vector,
                 voxel_size,
-                gradient_method="hybrid"
+                gradient_method="hybrid",
             )
 
             # compute the displacement gradient
             displacement_gradient = cls.get_displacement_gradient(
-                displacement,
-                voxel_size,
-                gradient_method="hybrid"
+                displacement, voxel_size, gradient_method="hybrid"
             )
 
         # compute the dspacing and lattice_parameter
         dspacing = (
-            2 * np.pi
-            / np.linalg.norm(g_vector)
-            * (1 + het_strain_with_ramp)
+            2 * np.pi / np.linalg.norm(g_vector) * (1 + het_strain_with_ramp)
         )
         lattice_parameter = (
-            np.sqrt(hkl[0]**2 + hkl[1]**2 + hkl[2]**2)
-            * dspacing
+            np.sqrt(hkl[0] ** 2 + hkl[1] ** 2 + hkl[2] ** 2) * dspacing
         )
         dspacing_mean = np.nanmean(dspacing)
-        het_strain_from_dspacing = (dspacing - dspacing_mean)/dspacing_mean
+        het_strain_from_dspacing = (dspacing - dspacing_mean) / dspacing_mean
         if handle_defects:
             het_strain = het_strain_from_dspacing.copy()
         # all strains are saved in percent
@@ -477,12 +455,12 @@ class PostProcessor:
             "displacement_gradient": nan_to_zero(displacement_gradient),
             "het_strain": nan_to_zero(het_strain) * 100,
             "het_strain_with_ramp": nan_to_zero(het_strain_with_ramp) * 100,
-            "het_strain_from_dspacing": nan_to_zero(
-                het_strain_from_dspacing) * 100,
+            "het_strain_from_dspacing": nan_to_zero(het_strain_from_dspacing)
+            * 100,
             "numpy_het_strain": numpy_het_strain * 100,
             "dspacing": dspacing,
             "lattice_parameter": lattice_parameter,
             "hkl": hkl,
             "g_vector": g_vector,
-            "voxel_size": voxel_size
+            "voxel_size": voxel_size,
         }

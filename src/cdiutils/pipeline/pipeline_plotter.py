@@ -1,17 +1,17 @@
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm, Normalize
 import numpy as np
+from matplotlib.colors import LogNorm, Normalize
 
-from cdiutils.utils import num_to_nan, symmetric_pad
+from cdiutils.analysis.stats import get_histogram, plot_histogram
 from cdiutils.plot.formatting import (
     add_colorbar,
     add_labels,
     save_fig,
     set_plot_configs,
-    white_interior_ticks_labels
+    white_interior_ticks_labels,
 )
 from cdiutils.plot.slice import plot_contour, plot_volume_slices
-from cdiutils.analysis.stats import get_histogram, plot_histogram
+from cdiutils.utils import num_to_nan, symmetric_pad
 
 
 class PipelinePlotter:
@@ -19,15 +19,14 @@ class PipelinePlotter:
 
     @classmethod
     def detector_data(
-            cls,
-            det_data: np.ndarray,
-            voxels: dict = None,
-            full_det_data: np.ndarray = None,
-            integrate: bool = False,
-            title: str = "",
-            save: str = None
+        cls,
+        det_data: np.ndarray,
+        voxels: dict = None,
+        full_det_data: np.ndarray = None,
+        integrate: bool = False,
+        title: str = "",
+        save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
-
         def sub_get(voxels, k1, k2):
             """
             Handle the voxels dictionary. Check whenever a value
@@ -45,16 +44,16 @@ class PipelinePlotter:
         norm = LogNorm()
 
         plot_params = {
-            "norm": norm, "slice_shift": (0, 0, 0),
-            "show": False, "views": ("z-", "y+", "x+"),  # natural views,
-            "integrate": integrate
+            "norm": norm,
+            "slice_shift": (0, 0, 0),
+            "show": False,
+            "views": ("z-", "y+", "x+"),  # natural views,
+            "integrate": integrate,
         }
         vox = sub_get(voxels, "cropped", "ref")
         if vox is not None:
             plot_params["slice_shift"] = [
-                p - s // 2 for s, p in zip(
-                    det_data.shape, vox
-                )
+                p - s // 2 for s, p in zip(det_data.shape, vox)
             ]
         _, axes1 = plot_volume_slices(det_data, **plot_params)
 
@@ -63,9 +62,7 @@ class PipelinePlotter:
             vox = sub_get(voxels, "full", "ref")
             if vox is not None:
                 plot_params["slice_shift"] = [
-                    p - s // 2 for s, p in zip(
-                        full_det_data.shape, vox
-                    )
+                    p - s // 2 for s, p in zip(full_det_data.shape, vox)
                 ]
             _, axes2 = plot_volume_slices(full_det_data, **plot_params)
             fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
@@ -74,7 +71,9 @@ class PipelinePlotter:
                 for new_ax, old_ax in zip(axes[i].flat, old_axes[i].flat):
                     im = old_ax.get_images()[0]
                     new_ax.imshow(
-                        im.get_array(), cmap=im.get_cmap(), norm=norm,
+                        im.get_array(),
+                        cmap=im.get_cmap(),
+                        norm=norm,
                     )
 
                 for ax, p in zip(axes[i].flat, ((2, 1), (2, 0), (0, 1))):
@@ -86,7 +85,7 @@ class PipelinePlotter:
                             cls._plot_markers(
                                 ax,
                                 *[voxels[frame][style][i] for i in p],
-                                style=style
+                                style=style,
                             )
 
             axes[0, 1].set_title("Cropped detector data")
@@ -101,8 +100,11 @@ class PipelinePlotter:
                 axes[i, 2].set_xlabel(r"axis$_{0}$, rocking curve")
                 axes[i, 2].set_ylabel(r"axis$_{1}$, det. vert.")
             axes[1, 1].legend(
-                loc="center", ncol=2, frameon=False,
-                bbox_to_anchor=(0.5, 0.5), bbox_transform=fig.transFigure
+                loc="center",
+                ncol=2,
+                frameon=False,
+                bbox_to_anchor=(0.5, 0.5),
+                bbox_transform=fig.transFigure,
             )
 
         else:
@@ -117,14 +119,10 @@ class PipelinePlotter:
                 )
                 vox = sub_get(voxels, "cropped", "max")
                 if vox is not None:
-                    cls._plot_markers(
-                        ax, *[vox[i] for i in p], style="max"
-                    )
+                    cls._plot_markers(ax, *[vox[i] for i in p], style="max")
                 vox = sub_get(voxels, "cropped", "com")
                 if vox is not None:
-                    cls._plot_markers(
-                        ax, *[vox[i] for i in p], style="com"
-                    )
+                    cls._plot_markers(ax, *[vox[i] for i in p], style="com")
 
             axes[0].set_xlabel(r"axis$_{2}$, det. horiz.")
             axes[0].set_ylabel(r"axis$_{1}$, det. vert.")
@@ -135,7 +133,9 @@ class PipelinePlotter:
             axes[2].set_xlabel(r"axis$_{0}$, rocking curve")
             axes[2].set_ylabel(r"axis$_{1}$, det. vert.")
             axes[1].legend(
-                loc="upper center", ncol=2, frameon=False,
+                loc="upper center",
+                ncol=2,
+                frameon=False,
                 bbox_to_anchor=(0.5, 1.3),
             )
         for ax in axes.flat:
@@ -148,7 +148,7 @@ class PipelinePlotter:
 
     @staticmethod
     def _plot_markers(
-            ax: plt.Axes, x: int, y: int, style: str = "ref"
+        ax: plt.Axes, x: int, y: int, style: str = "ref"
     ) -> None:
         if style.lower() not in ("ref", "max", "com"):
             raise ValueError("style must be in ('ref', 'max', 'com').")
@@ -157,17 +157,22 @@ class PipelinePlotter:
             ax.plot(
                 np.repeat(x, 2),
                 y + np.array([-0.1, 0.1]) * shape[0],
-                color="w", lw=0.5
+                color="w",
+                lw=0.5,
             )
             ax.plot(
                 x + np.array([-0.1, 0.1]) * shape[1],
                 np.repeat(y, 2),
-                color="w", lw=0.5
+                color="w",
+                lw=0.5,
             )
         else:
             plot_params = {
-                "marker": "x", "markersize": 4, "linestyle": "None",
-                "color": "green", "label": "com"
+                "marker": "x",
+                "markersize": 4,
+                "linestyle": "None",
+                "color": "green",
+                "label": "com",
             }
 
             if style == "max":
@@ -177,11 +182,11 @@ class PipelinePlotter:
 
     @staticmethod
     def ortho_detector_data(
-            det_data: np.ndarray,
-            ortho_data: np.ndarray,
-            q_grid: np.ndarray,
-            title: str = "",
-            save: str = None
+        det_data: np.ndarray,
+        ortho_data: np.ndarray,
+        q_grid: np.ndarray,
+        title: str = "",
+        save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         q_spacing = [q[1] - q[0] for q in q_grid]
         q_centre = (q_grid[0].mean(), q_grid[1].mean(), q_grid[2].mean())
@@ -190,7 +195,7 @@ class PipelinePlotter:
             det_data,
             views=("z-", "y+", "x+"),  # natural views,
             norm=LogNorm(),
-            show=False
+            show=False,
         )
         _, ortho_axes = plot_volume_slices(
             ortho_data,
@@ -198,7 +203,7 @@ class PipelinePlotter:
             data_centre=q_centre,
             norm=LogNorm(),
             convention="xu",
-            show=False
+            show=False,
         )
         fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
         for new_axes, old_axes in zip(axes, (raw_axes, ortho_axes)):
@@ -206,8 +211,11 @@ class PipelinePlotter:
                 # replot with same configuration
                 im = old_ax.get_images()[0]
                 new_ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(),
-                    extent=im.get_extent(), origin=im.origin
+                    im.get_array(),
+                    cmap=im.get_cmap(),
+                    norm=LogNorm(),
+                    extent=im.get_extent(),
+                    origin=im.origin,
                 )
                 new_ax.axis(old_ax.axis())
         axes[0, 0].set_xlabel(r"axis$_{2}$, det. horiz.")
@@ -230,19 +238,18 @@ class PipelinePlotter:
 
     @staticmethod
     def summary_plot(
-            title: str = None,
-            support: np.ndarray = None,
-            table_info: dict = None,
-            voxel_size: tuple = None,
-            save: str = None,
-            unique_vmin: float = None,
-            unique_vmax: float = None,
-            cmap: str = None,
-            figsize: tuple = (6, 4),
-            convention: str = "cxi",
-            **to_plot
+        title: str = None,
+        support: np.ndarray = None,
+        table_info: dict = None,
+        voxel_size: tuple = None,
+        save: str = None,
+        unique_vmin: float = None,
+        unique_vmax: float = None,
+        cmap: str = None,
+        figsize: tuple = (6, 4),
+        convention: str = "cxi",
+        **to_plot,
     ) -> tuple[plt.Figure, plt.Axes]:
-
         _, _, PLOT_CONFIGS = set_plot_configs()
 
         fig, axes = plt.subplots(3, len(to_plot), figsize=figsize)
@@ -305,16 +312,23 @@ class PipelinePlotter:
 
             norm = Normalize(vmin, vmax)
             plot_params = {
-                "norm": norm, "data_centre": (0, 0, 0), "support": support,
-                "show": False, "cmap": cmap, "voxel_size": voxel_size,
-                "convention": convention
+                "norm": norm,
+                "data_centre": (0, 0, 0),
+                "support": support,
+                "show": False,
+                "cmap": cmap,
+                "voxel_size": voxel_size,
+                "convention": convention,
             }
             _, helper_axes = plot_volume_slices(array, **plot_params)
             for ax, helper_ax in zip(axes[:, i].flat, helper_axes.flat):
                 im = helper_ax.get_images()[0]
                 ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=norm,
-                    extent=im.get_extent(), origin=im.origin
+                    im.get_array(),
+                    cmap=im.get_cmap(),
+                    norm=norm,
+                    extent=im.get_extent(),
+                    origin=im.origin,
                 )
             mappables[key] = axes[2, i].get_images()[0]
 
@@ -325,21 +339,21 @@ class PipelinePlotter:
                         support[shape[0] // 2],
                         color="k",
                         pixel_size=(voxel_size[1], voxel_size[2]),
-                        data_centre=(0, 0)
+                        data_centre=(0, 0),
                     )
                     plot_contour(
                         axes[1, i],
                         support[:, shape[1] // 2, :],
                         color="k",
                         pixel_size=(voxel_size[0], voxel_size[2]),
-                        data_centre=(0, 0)
+                        data_centre=(0, 0),
                     )
                     plot_contour(
                         axes[2, i],
                         np.swapaxes(support[..., shape[2] // 2], 0, 1),
                         color="k",
                         pixel_size=(voxel_size[1], voxel_size[0]),
-                        data_centre=(0, 0)
+                        data_centre=(0, 0),
                     )
                 else:
                     # TODO: XU case, to be implemented.
@@ -351,11 +365,15 @@ class PipelinePlotter:
             table_ax.axis("off")
             for k in table_info:
                 table_info[k] = round(table_info[k], 4)
-            cell_text = [[
-                np.array2string(
-                    np.array(voxel_size),
-                    formatter={"float_kind": lambda x: f"{x:.2f}", }
-                )]
+            cell_text = [
+                [
+                    np.array2string(
+                        np.array(voxel_size),
+                        formatter={
+                            "float_kind": lambda x: f"{x:.2f}",
+                        },
+                    )
+                ]
             ] + [[v] for v in table_info.values()]
             n_cols = len(list(table_info.keys())) + 1
             table = table_ax.table(
@@ -363,7 +381,7 @@ class PipelinePlotter:
                 colLabels=["Voxel size (nm)"] + list(table_info.keys()),
                 colWidths=[1 / n_cols] * n_cols,
                 loc="center",
-                cellLoc="center"
+                cellLoc="center",
             )
             table.scale(1.5, 1.5)
             table.set_fontsize(10)
@@ -372,23 +390,25 @@ class PipelinePlotter:
 
         for i, key in enumerate(to_plot.keys()):
             l, _, w, _ = axes[0, i].get_position().bounds
-            cax = fig.add_axes([l+0.01, 0.93, w-0.02, .02])
+            cax = fig.add_axes([l + 0.01, 0.93, w - 0.02, 0.02])
             try:
                 cax.set_title(PLOT_CONFIGS[key]["title"])
             except KeyError:
                 cax.set_title(key)
             fig.colorbar(
-                mappables[key], cax=cax, extend="both",
-                orientation="horizontal"
+                mappables[key],
+                cax=cax,
+                extend="both",
+                orientation="horizontal",
             )
-            cax.tick_params(axis='x', which='major', pad=1)
+            cax.tick_params(axis="x", which="major", pad=1)
 
         fig.canvas.draw()
         for i, ax in enumerate(axes.ravel()):
             ax.set_aspect("equal")
             if (
-                    i % len(to_plot) == 0
-                    and list(to_plot.keys())[i % len(to_plot)] == "amplitude"
+                i % len(to_plot) == 0
+                and list(to_plot.keys())[i % len(to_plot)] == "amplitude"
             ):
                 ax.locator_params(nbins=5)
                 white_interior_ticks_labels(ax, -10, -5)
@@ -406,20 +426,19 @@ class PipelinePlotter:
 
     @staticmethod
     def plot_final_object_fft(
-            obj: np.ndarray,
-            voxel_size: tuple,
-            q_space_shift: tuple,
-            exp_ortho_data: np.ndarray,
-            exp_data_q_grid: np.ndarray,
-            title: str = None,
-            save: str = None
+        obj: np.ndarray,
+        voxel_size: tuple,
+        q_space_shift: tuple,
+        exp_ortho_data: np.ndarray,
+        exp_data_q_grid: np.ndarray,
+        title: str = None,
+        save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
-
         # Prepare the object fft
         shape = exp_ortho_data.shape
         q_voxel_size = 2 * np.pi / (10 * np.multiply(voxel_size, shape))
         obj_q_grid = [
-            np.arange(-shape[i]//2, shape[i]//2) * q_voxel_size[i]
+            np.arange(-shape[i] // 2, shape[i] // 2) * q_voxel_size[i]
             for i in range(3)
         ]
 
@@ -436,7 +455,7 @@ class PipelinePlotter:
             data_centre=q_space_shift,
             norm=LogNorm(),
             convention="xu",
-            show=False
+            show=False,
         )
 
         q_spacing = [q[1] - q[0] for q in exp_data_q_grid]
@@ -448,7 +467,7 @@ class PipelinePlotter:
             data_centre=q_centre,
             norm=LogNorm(),
             convention="xu",
-            show=False
+            show=False,
         )
         fig, axes = plt.subplots(2, 3, layout="tight", figsize=(6, 4))
         for new_axes, old_axes in zip(axes, (object_fft_axes, exp_axes)):
@@ -456,8 +475,11 @@ class PipelinePlotter:
                 # replot with same configuration
                 im = old_ax.get_images()[0]
                 new_ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(),
-                    extent=im.get_extent(), origin=im.origin
+                    im.get_array(),
+                    cmap=im.get_cmap(),
+                    norm=LogNorm(),
+                    extent=im.get_extent(),
+                    origin=im.origin,
                 )
                 new_ax.axis(old_ax.axis())
 
@@ -474,12 +496,12 @@ class PipelinePlotter:
 
     @staticmethod
     def strain_statistics(
-            strain: np.ndarray,
-            support: np.ndarray,
-            bins: np.ndarray | int = 50,
-            colors: dict = None,
-            title: str = "",
-            save: str = None
+        strain: np.ndarray,
+        support: np.ndarray,
+        bins: np.ndarray | int = 50,
+        colors: dict = None,
+        title: str = "",
+        save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot a strain statistics graph displaying distribution of strain
@@ -500,20 +522,16 @@ class PipelinePlotter:
         """
         # Get the histograms with density=False to get counts
         histograms, kdes, means, _ = get_histogram(
-                data=strain,
-                support=support,
-                bins=bins,
-                density=False,
-                region="all"
+            data=strain,
+            support=support,
+            bins=bins,
+            density=False,
+            region="all",
         )
 
         # Get the histogram with density=True to get probability density
         density_histograms, density_kdes, density_means, _ = get_histogram(
-            data=strain,
-            support=support,
-            bins=bins,
-            density=True,
-            region="all"
+            data=strain, support=support, bins=bins, density=True, region="all"
         )
         # Update the histograms, kdes and means dictionnary
         histograms["bulk_density"] = density_histograms["bulk"]
@@ -540,47 +558,72 @@ class PipelinePlotter:
         # First plot the three histograms separately
         for e, key in zip(("overall", "bulk", "surface"), ("A", "B", "C")):
             fwhms[e] = plot_histogram(
-                axes[key], *histograms[e], *kdes[e], color=colors[e],
+                axes[key],
+                *histograms[e],
+                *kdes[e],
+                color=colors[e],
                 bar_args={"edgecolor": "w"},
                 kde_args={
-                    "fill": True, "fill_alpha": 0.45, "color": "k", "lw": 0.2
+                    "fill": True,
+                    "fill_alpha": 0.45,
+                    "color": "k",
+                    "lw": 0.2,
                 },
             )
 
             # Plot the mean
             axes[key].plot(
-                means[e], 0, color=colors[e], ms=4,
-                markeredgecolor="k", marker="o", mew=0.5,
-                label=f"Mean = {means[e]:.4f} %"
+                means[e],
+                0,
+                color=colors[e],
+                ms=4,
+                markeredgecolor="k",
+                marker="o",
+                mew=0.5,
+                label=f"Mean = {means[e]:.4f} %",
             )
 
         # Plot the density histograms for bulk and surface on the same subplot
         for e in ("bulk_density", "surface_density"):
             fwhms[e] = plot_histogram(
-                axes["D"], *histograms[e], *kdes[e], color=colors[e],
+                axes["D"],
+                *histograms[e],
+                *kdes[e],
+                color=colors[e],
                 bar_args={"edgecolor": "w"},
                 kde_args={
-                    "fill": True, "fill_alpha": 0.45, "color": "k", "lw": 0.2
-                }
+                    "fill": True,
+                    "fill_alpha": 0.45,
+                    "color": "k",
+                    "lw": 0.2,
+                },
             )
 
             axes["D"].plot(
-                means[e], 0, color=colors[e], ms=4,
-                markeredgecolor="k", marker="o", mew=0.5,
-                label=f"Mean = {means[e]:.4f} %"
+                means[e],
+                0,
+                color=colors[e],
+                ms=4,
+                markeredgecolor="k",
+                marker="o",
+                mew=0.5,
+                label=f"Mean = {means[e]:.4f} %",
             )
 
-        for key in (("A", "B", "C")):
+        for key in ("A", "B", "C"):
             axes[key].set_ylabel(r"Counts")
             handles, labels = axes[key].get_legend_handles_labels()
             handles = handles[1:-1]
             labels = labels[1:-1]
             axes[key].legend(
-                handles, labels,
+                handles,
+                labels,
                 frameon=False,
-                loc="upper center",  bbox_to_anchor=(0.25, 0.8, 0.5, 0.5),
-                fontsize=6, markerscale=0.7,
-                ncols=1
+                loc="upper center",
+                bbox_to_anchor=(0.25, 0.8, 0.5, 0.5),
+                fontsize=6,
+                markerscale=0.7,
+                ncols=1,
             )
 
         axes["D"].set_ylabel(r"Normalised counts")
@@ -591,11 +634,14 @@ class PipelinePlotter:
         box = axes["D"].get_position()
         axes["D"].set_position([box.x0, box.y0, box.width * 0.8, box.height])
         axes["D"].legend(
-            handles, labels,
+            handles,
+            labels,
             frameon=False,
-            loc="center left", bbox_to_anchor=(1, 0.5),
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
             # loc="right", bbox_to_anchor=(1.5, 0.25, 0.5, 0.5),
-            fontsize=6, markerscale=0.7
+            fontsize=6,
+            markerscale=0.7,
         )
         axes["D"].set_title("Density distributions")
 
@@ -604,11 +650,11 @@ class PipelinePlotter:
         )
         axes["B"].set_xlabel(
             r"Bulk strain, $\varepsilon_{\text{bulk}}$ (%)",
-            color=colors["bulk"]
+            color=colors["bulk"],
         )
         axes["C"].set_xlabel(
             r"Surface strain, $\varepsilon_{\text{surface}}$ (%)",
-            color=colors["surface"]
+            color=colors["surface"],
         )
         axes["D"].set_xlabel(
             r"$\varepsilon_{\text{bulk}}$, $\varepsilon_{\text{surface}}$ (%)"

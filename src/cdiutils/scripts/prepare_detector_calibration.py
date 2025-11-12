@@ -27,18 +27,20 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "-p", "--path",
+        "-p",
+        "--path",
         type=str,
-        help="The directory path where the notebooks will be created."
+        help="The directory path where the notebooks will be created.",
     )
     parser.add_argument(
-        "-f", "--force",
+        "-f",
+        "--force",
         default=False,
         action="store_true",
         help=(
             "Whether or not to force the creation of the files if they "
             "already exist."
-        )
+        ),
     )
 
     args = parser.parse_args()

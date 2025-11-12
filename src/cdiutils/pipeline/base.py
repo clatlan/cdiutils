@@ -1,22 +1,18 @@
-
-from abc import ABC
-from functools import wraps
 import logging
 import os
-from typing import Callable
 import signal
 import subprocess
 import sys
 import textwrap
 import time
-
+from abc import ABC
+from functools import wraps
+from typing import Callable
 
 import numpy as np
 import yaml
 
-
 from cdiutils.plot.formatting import update_plot_params
-
 
 # Define a custom log level for JOB
 JOB_LOG_LEVEL = 25  # Between INFO (20) and WARNING (30)
@@ -73,11 +69,7 @@ class Pipeline(ABC):
     application.
     """
 
-    def __init__(
-            self,
-            params: dict = None,
-            param_file_path: str = None
-    ):
+    def __init__(self, params: dict = None, param_file_path: str = None):
         """
         Initialisation method.
 
@@ -121,8 +113,7 @@ class Pipeline(ABC):
                 f"saved in:\n{dump_dir}."
             )
         else:
-            print(
-                f"Creating the dump directory at: {dump_dir}")
+            print(f"Creating the dump directory at: {dump_dir}")
             os.makedirs(dump_dir, exist_ok=True)
 
     @staticmethod
@@ -160,7 +151,7 @@ class Pipeline(ABC):
         file_handler.setLevel(logging.DEBUG)
         file_format = logging.Formatter(
             fmt="%(asctime)s [%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         file_handler.setFormatter(file_format)
         self.logger.addHandler(file_handler)
@@ -170,7 +161,6 @@ class Pipeline(ABC):
     def process(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, *args, **kwargs) -> None:
-
             # Setup a new log file for this process
             file_handler = self._init_process_logger(
                 f"{self.dump_dir}/{func.__name__}_output"
@@ -178,7 +168,7 @@ class Pipeline(ABC):
             msg = self.pretty_print(
                 f"Starting process: {func.__name__}",
                 do_print=False,
-                return_text=True
+                return_text=True,
             )
             self.logger.info(msg)
 
@@ -193,8 +183,7 @@ class Pipeline(ABC):
                 )
             except Exception as e:
                 self.logger.error(
-                    "\nError occurred in the "
-                    f"'{func.__name__}' process:\n{e}"
+                    f"\nError occurred in the '{func.__name__}' process:\n{e}"
                 )
                 # traceback.print_exception(e)
                 raise
@@ -203,6 +192,7 @@ class Pipeline(ABC):
                 sys.stdout = original_stdout
                 self.logger.removeHandler(file_handler)
                 file_handler.close()
+
         return wrapper
 
     def _unwrap_logs(self) -> None:
@@ -214,8 +204,7 @@ class Pipeline(ABC):
         sys.stdout = LoggerWriter(self.logger, logging.INFO, wrap=True)
 
     def _subprocess_run(
-            self,
-            cmd: str | list[str]
+        self, cmd: str | list[str]
     ) -> subprocess.CompletedProcess:
         """
         Run a subprocess command and return the result.
@@ -241,7 +230,7 @@ class Pipeline(ABC):
                 result.returncode,
                 result.args,
                 output=result.stdout,
-                stderr=result.stderr
+                stderr=result.stderr,
             )
         return result
 
@@ -255,12 +244,12 @@ class Pipeline(ABC):
         cmd = f"sbatch {job_file}"
         try:
             with subprocess.Popen(
-                    ["bash", "-l", "-c", cmd],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    cwd=working_dir,  # Change to this directory first
-                    text=True,  # Ensures stdout/stderr are str, not bytes
-                    env=os.environ.copy()
+                ["bash", "-l", "-c", cmd],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=working_dir,  # Change to this directory first
+                text=True,  # Ensures stdout/stderr are str, not bytes
+                env=os.environ.copy(),
             ) as proc:
                 stdout, stderr = proc.communicate()
 
@@ -274,7 +263,7 @@ class Pipeline(ABC):
                         proc.returncode,
                         proc.args,
                         output=stdout,
-                        stderr=stderr
+                        stderr=stderr,
                     )
 
                 # Extract job ID from the output
@@ -349,11 +338,7 @@ class Pipeline(ABC):
             raise
 
     def monitor_job(
-            self,
-            job_id: str,
-            output_file: str,
-            retries: int = 10,
-            delay: int = 1
+        self, job_id: str, output_file: str, retries: int = 10, delay: int = 1
     ) -> None:
         """
         Monitor the job and stream its output in real time. Check the
@@ -425,8 +410,11 @@ class Pipeline(ABC):
         """
         result = self._subprocess_run(
             [
-                "sacct", "-j", job_id,
-                "--format=JobID,State,ExitCode", "--noheader"
+                "sacct",
+                "-j",
+                job_id,
+                "--format=JobID,State,ExitCode",
+                "--noheader",
             ]
         )
         state, exit_code = None, None
@@ -461,14 +449,10 @@ class Pipeline(ABC):
         self.interrupted = True  # Set flag to interrupt monitoring
         self.cancel_job(job_id)
         raise JobCancelledError(
-            "Keyboard interruption. "
-            f"Job {job_id} was cancelled by the user."
+            f"Keyboard interruption. Job {job_id} was cancelled by the user."
         )
 
-    def load_parameters(
-            self,
-            file_path: str = None
-    ) -> dict:
+    def load_parameters(self, file_path: str = None) -> dict:
         """Load the parameters from the configuration files."""
         if file_path is None:
             file_path = self.param_file_path
@@ -479,10 +463,10 @@ class Pipeline(ABC):
 
     @staticmethod
     def pretty_print(
-            text: str,
-            max_char_per_line: int = 79,
-            do_print: bool = True,
-            return_text: bool = False
+        text: str,
+        max_char_per_line: int = 79,
+        do_print: bool = True,
+        return_text: bool = False,
     ) -> None | str:
         """Print text with a frame of stars."""
         pretty_text = "\n".join(
@@ -490,7 +474,7 @@ class Pipeline(ABC):
                 "",
                 "*" * (max_char_per_line),
                 *[
-                    f"* {w[::-1].center(max_char_per_line-4)[::-1]} *"
+                    f"* {w[::-1].center(max_char_per_line - 4)[::-1]} *"
                     for w in textwrap.wrap(text, width=max_char_per_line - 4)
                 ],
                 "*" * max_char_per_line,

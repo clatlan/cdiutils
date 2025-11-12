@@ -11,20 +11,20 @@ class P10Loader(Loader):
         "sample_outofplane_angle": "om",
         "sample_inplane_angle": "phi",
         "detector_outofplane_angle": "del",
-        "detector_inplane_angle": "gam"
+        "detector_inplane_angle": "gam",
     }
-    authorised_detector_names = ("eiger4m", )
+    authorised_detector_names = ("eiger4m",)
 
     def __init__(
-            self,
-            experiment_data_dir_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            hutch: str = "EH1",
-            **kwargs
+        self,
+        experiment_data_dir_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        hutch: str = "EH1",
+        **kwargs,
     ) -> None:
         """
         Initialise P10Loader with experiment data directory path and
@@ -60,10 +60,7 @@ class P10Loader(Loader):
             )
 
     def _get_file_path(
-            self,
-            scan: int,
-            sample_name: str,
-            data_type: str = "detector_data"
+        self, scan: int, sample_name: str, data_type: str = "detector_data"
     ) -> str:
         """
         Get the file path based on scan number, sample name, and data
@@ -97,12 +94,12 @@ class P10Loader(Loader):
         )
 
     def load_detector_data(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> None:
         """
         Load detector data for a given scan and sample.
@@ -139,25 +136,25 @@ class P10Loader(Loader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
         # Must apply mask on P10 Eiger data
         mask = self.get_mask(
             channel=data.shape[0],
             detector_name=self.detector_name,
-            roi=(slice(None), roi[1], roi[2])
+            roi=(slice(None), roi[1], roi[2]),
         )
         data = data * np.where(mask, 0, 1)
 
         return data
 
     def load_motor_positions(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> None:
         """
         Load motor positions for a given scan and sample.
@@ -176,9 +173,7 @@ class P10Loader(Loader):
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         path = self._get_file_path(
-            scan,
-            sample_name,
-            data_type="motor_positions"
+            scan, sample_name, data_type="motor_positions"
         )
         if roi is None or len(roi) == 2:
             roi = slice(None)
@@ -232,16 +227,13 @@ class P10Loader(Loader):
             angles[rocking_angle] = angles[rocking_angle][roi]
 
         return {
-            angle: angles[name]
-            for angle, name in self.angle_names.items()
+            angle: angles[name] for angle, name in self.angle_names.items()
         }
 
     def load_energy(self, scan: int = None, sample_name: str = None) -> float:
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         path = self._get_file_path(
-            scan,
-            sample_name,
-            data_type="motor_positions"
+            scan, sample_name, data_type="motor_positions"
         )
         with open(path, encoding="utf8") as fio_file:
             lines = fio_file.readlines()

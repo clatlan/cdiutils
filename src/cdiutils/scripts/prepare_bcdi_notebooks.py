@@ -24,18 +24,20 @@ def main() -> None:
         description="Prepare the notebooks required for BCDI analysis.",
     )
     parser.add_argument(
-        "-p", "--path",
+        "-p",
+        "--path",
         type=str,
-        help="The directory path where the notebooks will be created."
+        help="The directory path where the notebooks will be created.",
     )
     parser.add_argument(
-        "-f", "--force",
+        "-f",
+        "--force",
         default=False,
         action="store_true",
         help=(
             "Whether or not to force the creation of the files if they "
             "already exist."
-        )
+        ),
     )
 
     args = parser.parse_args()
@@ -49,9 +51,8 @@ def main() -> None:
         templates_dir, "step_by_step_bcdi_analysis.ipynb"
     )
 
-    if (
-            not os.path.exists(bcdi_notebook)
-            or not os.path.exists(step_by_step_notebook)
+    if not os.path.exists(bcdi_notebook) or not os.path.exists(
+        step_by_step_notebook
     ):
         raise FileNotFoundError(
             "Examples notebooks not found. "
@@ -73,7 +74,7 @@ def main() -> None:
         bcdi_notebook: os.path.join(path, os.path.basename(bcdi_notebook)),
         step_by_step_notebook: os.path.join(
             path, os.path.basename(step_by_step_notebook)
-        )
+        ),
     }
 
     for source, dest in files.items():

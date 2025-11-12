@@ -1,42 +1,43 @@
-import matplotlib.pyplot as plt
-import matplotlib
-from mpl_toolkits.axes_grid1 import AxesGrid
-from matplotlib.image import AxesImage
-import numpy as np
 import warnings
 
-from cdiutils.utils import (
-    nan_to_zero,
-    extract_reduced_shape,
-    get_centred_slices
-)
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.image import AxesImage
+from mpl_toolkits.axes_grid1 import AxesGrid
+
 from cdiutils.plot.formatting import (
-    get_figure_size,
+    CXI_VIEW_PARAMETERS,
+    NATURAL_VIEW_PARAMETERS,
+    XU_VIEW_PARAMETERS,
     add_colorbar,
+    get_figure_size,
     get_x_y_limits_extents,
     set_x_y_limits_extents,
-    XU_VIEW_PARAMETERS,
-    CXI_VIEW_PARAMETERS,
-    NATURAL_VIEW_PARAMETERS
+)
+from cdiutils.utils import (
+    extract_reduced_shape,
+    get_centred_slices,
+    nan_to_zero,
 )
 
 
 def plot_volume_slices(
-        data: np.ndarray,
-        support: np.ndarray = None,
-        voxel_size: tuple | list = None,
-        data_centre: tuple | list = None,
-        views: tuple[str] = None,
-        convention: str = None,
-        title: str = None,
-        equal_limits: bool = True,
-        slice_shift: tuple | list = None,
-        integrate: bool = False,
-        opacity: np.ndarray = None,
-        plot_type: str = "imshow",
-        contour_levels: int = 100,
-        show: bool = True,
-        **plot_params
+    data: np.ndarray,
+    support: np.ndarray = None,
+    voxel_size: tuple | list = None,
+    data_centre: tuple | list = None,
+    views: tuple[str] = None,
+    convention: str = None,
+    title: str = None,
+    equal_limits: bool = True,
+    slice_shift: tuple | list = None,
+    integrate: bool = False,
+    opacity: np.ndarray = None,
+    plot_type: str = "imshow",
+    contour_levels: int = 100,
+    show: bool = True,
+    **plot_params,
 ) -> tuple[plt.Figure, plt.Axes]:
     """
     Generic function for plotting 2D slices (cross section or sum, with
@@ -129,9 +130,7 @@ def plot_volume_slices(
             _plot_params["alpha"] = opacity[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
-            _plot_params["alpha"] = np.swapaxes(
-                _plot_params["alpha"], 1, 0
-            )
+            _plot_params["alpha"] = np.swapaxes(_plot_params["alpha"], 1, 0)
 
         if view_params[v]["xaxis_points_left"]:
             to_plot = to_plot[np.s_[:, ::-1]]
@@ -152,12 +151,14 @@ def plot_volume_slices(
                 X, Y = np.meshgrid(x_coords, y_coords)
             else:
                 X, Y = np.meshgrid(np.arange(nx), np.arange(ny))
-            
+
             alpha = _plot_params.pop("alpha", None)
-            im = axes[i].contourf(X, Y, to_plot, levels=contour_levels, **_plot_params)
-            
+            im = axes[i].contourf(
+                X, Y, to_plot, levels=contour_levels, **_plot_params
+            )
+
             # 2D array of opacity is not supported in contourf, so we
-            # need a workaround: we add a contourf with the alpha values 
+            # need a workaround: we add a contourf with the alpha values
             if opacity is not None:
                 whites = [
                     (1, 1, 1, 1 - i / (contour_levels - 1))
@@ -175,15 +176,17 @@ def plot_volume_slices(
 
             if voxel_size is not None:
                 set_x_y_limits_extents(
-                    axes[i], extents, limits,
-                    plane, view_params[v]["xaxis_points_left"]
+                    axes[i],
+                    extents,
+                    limits,
+                    plane,
+                    view_params[v]["xaxis_points_left"],
                 )
         else:
             raise ValueError(
                 f"Unknown plot type '{plot_type}'. "
                 "Options are 'imshow' or 'contourf'."
             )
-        
 
     figure.suptitle(title)
     if show:
@@ -194,22 +197,22 @@ def plot_volume_slices(
 
 
 def plot_multiple_volume_slices(
-        *data_arrays: np.ndarray,
-        data_labels: list[str] = None,
-        supports: list[np.ndarray] = None,
-        voxel_sizes: list = None,
-        data_centres: list = None,
-        slice_shifts: list = None,
-        data_stacking: str = "horizontal",
-        pvs_args: dict = None,
-        cbar_args: dict = None,
-        xlim: tuple = None,
-        ylim: tuple = None,
-        remove_ticks: bool = False,
-        figsize: tuple = None,
-        title: str = None,
-        show: bool = True,
-        **plot_params
+    *data_arrays: np.ndarray,
+    data_labels: list[str] = None,
+    supports: list[np.ndarray] = None,
+    voxel_sizes: list = None,
+    data_centres: list = None,
+    slice_shifts: list = None,
+    data_stacking: str = "horizontal",
+    pvs_args: dict = None,
+    cbar_args: dict = None,
+    xlim: tuple = None,
+    ylim: tuple = None,
+    remove_ticks: bool = False,
+    figsize: tuple = None,
+    title: str = None,
+    show: bool = True,
+    **plot_params,
 ) -> plt.Figure:
     """
     Plot 2D slices of multiple 3D volumes with customizable layout.
@@ -260,7 +263,7 @@ def plot_multiple_volume_slices(
         "convention": None,
         "equal_limits": True,
         "integrate": False,
-        "show": False  # Always False since we manage display ourselves
+        "show": False,  # Always False since we manage display ourselves
     }
     if pvs_args:
         _pvs_args.update(pvs_args)
@@ -278,7 +281,7 @@ def plot_multiple_volume_slices(
         view_labels = ["x- (y, z)", "y- (x, z)", "z- (x, y)"]
     else:
         # Fallback to generic labels for unknown convention
-        view_labels = [f"View {i+1}" for i in range(3)]
+        view_labels = [f"View {i + 1}" for i in range(3)]
 
     # Use specified views if provided
     if _pvs_args.get("views") is not None:
@@ -286,8 +289,12 @@ def plot_multiple_volume_slices(
 
     # Setup input lists with proper defaults
     input_lists = _prepare_input_lists(
-        n_datasets, data_labels, supports, voxel_sizes,
-        data_centres, slice_shifts
+        n_datasets,
+        data_labels,
+        supports,
+        voxel_sizes,
+        data_centres,
+        slice_shifts,
     )
 
     # Set up colorbar arguments
@@ -302,7 +309,7 @@ def plot_multiple_volume_slices(
             "extend": "both",
             "ticks": None,
             "size": "5%",
-            "pad": "3%"
+            "pad": "3%",
         }
         if cbar_args.get("location", "right") == "bottom":
             _cbar_args["pad"] = "10%"
@@ -410,13 +417,19 @@ def plot_multiple_volume_slices(
             else:
                 if j != 0:  # Remove y-ticks for all columns except the first
                     ax.tick_params(
-                        axis="y", which="both", left=False, right=False,
-                        labelleft=False
+                        axis="y",
+                        which="both",
+                        left=False,
+                        right=False,
+                        labelleft=False,
                     )
                 if i != nrows - 1:  # Remove x-ticks for all rows except last
                     ax.tick_params(
-                        axis="x", which="both", bottom=False, top=False,
-                        labelbottom=False
+                        axis="x",
+                        which="both",
+                        bottom=False,
+                        top=False,
+                        labelbottom=False,
                     )
 
     # Add colorbar if requested
@@ -429,12 +442,13 @@ def plot_multiple_volume_slices(
             )
 
         cbar = grid.cbar_axes[0].colorbar(
-            images[0], extend=_cbar_args['extend']
+            images[0], extend=_cbar_args["extend"]
         )
 
         if _cbar_args["title"]:
             orientation = (
-                "horizontal" if _cbar_args["location"] == "bottom"
+                "horizontal"
+                if _cbar_args["location"] == "bottom"
                 else "vertical"
             )
 
@@ -442,8 +456,10 @@ def plot_multiple_volume_slices(
                 # For vert. colorbar, rotate the title and position it properly
                 if _cbar_args["location"] == "right":
                     cbar.ax.set_ylabel(
-                        _cbar_args["title"], rotation=270,
-                        labelpad=10, va="bottom"
+                        _cbar_args["title"],
+                        rotation=270,
+                        labelpad=10,
+                        va="bottom",
                     )
                     # Adjust the y label position to align with colorbar
                     cbar.ax.yaxis.set_label_position("right")
@@ -470,33 +486,38 @@ def plot_multiple_volume_slices(
 
 
 def _prepare_input_lists(
-        n_datasets: int,
-        data_labels: list[str] | None,
-        supports: list[np.ndarray] | None,
-        voxel_sizes: list[tuple[float, float, float]] | None,
-        data_centres: list[tuple[float, float, float]] | None,
-        slice_shifts: list[tuple[int, int, int]] | None
+    n_datasets: int,
+    data_labels: list[str] | None,
+    supports: list[np.ndarray] | None,
+    voxel_sizes: list[tuple[float, float, float]] | None,
+    data_centres: list[tuple[float, float, float]] | None,
+    slice_shifts: list[tuple[int, int, int]] | None,
 ) -> dict[str, list]:
     """Prepare lists of inputs with proper defaults."""
     result = {
         "data_labels": (
-            data_labels if data_labels and len(data_labels) == n_datasets
+            data_labels
+            if data_labels and len(data_labels) == n_datasets
             else [f"Dataset {i + 1}" for i in range(n_datasets)]
         ),
         "supports": (
-            supports if supports and len(supports) == n_datasets
+            supports
+            if supports and len(supports) == n_datasets
             else [None] * n_datasets
         ),
         "voxel_sizes": (
-            voxel_sizes if voxel_sizes and len(voxel_sizes) == n_datasets
+            voxel_sizes
+            if voxel_sizes and len(voxel_sizes) == n_datasets
             else [None] * n_datasets
         ),
         "data_centres": (
-            data_centres if data_centres and len(data_centres) == n_datasets
+            data_centres
+            if data_centres and len(data_centres) == n_datasets
             else [None] * n_datasets
         ),
         "slice_shifts": (
-            slice_shifts if slice_shifts and len(slice_shifts) == n_datasets
+            slice_shifts
+            if slice_shifts and len(slice_shifts) == n_datasets
             else [None] * n_datasets
         ),
     }
@@ -504,8 +525,7 @@ def _prepare_input_lists(
 
 
 def _copy_image_to_axes(
-        src_image: AxesImage,
-        target_ax: plt.Axes
+    src_image: AxesImage, target_ax: plt.Axes
 ) -> AxesImage:
     """Copy an image from one axes to another, preserving properties."""
     array = src_image.get_array()
@@ -525,7 +545,7 @@ def _add_axis_labels(
     view_idx: int,
     dataset_idx: int,
     data_label: str,
-    view_label: str
+    view_label: str,
 ) -> None:
     """Add dataset and view labels to the appropriate axes."""
     if stacking_vertical:
@@ -579,45 +599,45 @@ def _add_axis_labels(
 
 
 def _generate_individual_plots(
-    data_arrays: list[np.ndarray],
-    input_lists: dict,
-    pvs_args: dict
+    data_arrays: list[np.ndarray], input_lists: dict, pvs_args: dict
 ) -> list[tuple[plt.Figure, np.ndarray]]:
     """Generate individual plots using plot_volume_slices."""
     individual_plots = []
     for i, data in enumerate(data_arrays):
         dataset_params = pvs_args.copy()
-        dataset_params.update({
-            "support": input_lists["supports"][i],
-            "voxel_size": input_lists["voxel_sizes"][i],
-            "data_centre": input_lists["data_centres"][i],
-            "slice_shift": input_lists["slice_shifts"][i]
-        })
+        dataset_params.update(
+            {
+                "support": input_lists["supports"][i],
+                "voxel_size": input_lists["voxel_sizes"][i],
+                "data_centre": input_lists["data_centres"][i],
+                "slice_shift": input_lists["slice_shifts"][i],
+            }
+        )
         fig, axes = plot_volume_slices(data, **dataset_params)
         individual_plots.append((fig, axes))
     return individual_plots
 
 
 def plot_slices(
-        *data: list[np.ndarray],
-        slice_labels: list = None,
-        figsize: tuple[float] = None,
-        data_stacking: str = "vertical",
-        nan_supports: list = None,
-        vmin: float = None,
-        vmax: float = None,
-        alphas: list = None,
-        origin: str = "lower",
-        cmap: str = "turbo",
-        show_cbar: bool = True,
-        cbar_title: str = None,
-        cbar_location: str = "top",
-        cbar_extend: str = "both",
-        norm: matplotlib.colors.Normalize = None,
-        cbar_ticks: list = None,
-        slice_name: str = None,
-        suptitle: str = None,
-        show: bool = True,
+    *data: list[np.ndarray],
+    slice_labels: list = None,
+    figsize: tuple[float] = None,
+    data_stacking: str = "vertical",
+    nan_supports: list = None,
+    vmin: float = None,
+    vmax: float = None,
+    alphas: list = None,
+    origin: str = "lower",
+    cmap: str = "turbo",
+    show_cbar: bool = True,
+    cbar_title: str = None,
+    cbar_location: str = "top",
+    cbar_extend: str = "both",
+    norm: matplotlib.colors.Normalize = None,
+    cbar_ticks: list = None,
+    slice_name: str = None,
+    suptitle: str = None,
+    show: bool = True,
 ) -> matplotlib.figure.Figure:
     """Plot 2D slices of the provided data."""
 
@@ -631,8 +651,7 @@ def plot_slices(
     elif data_stacking in ("horizontal", "h"):
         nrows_ncols = (1, len(data))
     else:
-        raise ValueError(
-            "data_stacking should be 'vertical' or 'horizontal'.")
+        raise ValueError("data_stacking should be 'vertical' or 'horizontal'.")
     if slice_labels is None:
         slice_labels = [None for i in range(len(data))]
     elif len(slice_labels) != len(data):
@@ -654,7 +673,7 @@ def plot_slices(
         cbar_mode="single" if show_cbar else None,
         cbar_location=cbar_location,
         cbar_pad=0.25 if show_cbar else None,
-        cbar_size=0.2 if show_cbar else None
+        cbar_size=0.2 if show_cbar else None,
     )
 
     for i, to_plot in enumerate(data):
@@ -671,7 +690,7 @@ def plot_slices(
             cmap=cmap,
             origin=origin,
             norm=norm,
-            alpha=None if alphas is None else alphas[i]
+            alpha=None if alphas is None else alphas[i],
         )
 
         if data_stacking in ("vertical", "v"):
@@ -680,9 +699,9 @@ def plot_slices(
                 xy=(0.2, 0.5),
                 xytext=(-grid[i].yaxis.labelpad - 2, 0),
                 xycoords=grid[i].yaxis.label,
-                textcoords='offset points',
-                ha='right',
-                va='center'
+                textcoords="offset points",
+                ha="right",
+                va="center",
             )
         else:
             grid[i].annotate(
@@ -690,20 +709,20 @@ def plot_slices(
                 xy=(0.5, 0.9),
                 xytext=(0, -grid[i].xaxis.labelpad - 2),
                 xycoords=grid[i].xaxis.label,
-                textcoords='offset points',
-                ha='center',
-                va='top'
+                textcoords="offset points",
+                ha="center",
+                va="top",
             )
 
     if data_stacking in ("vertical", "v"):
-        grid[len(data)-1].annotate(
+        grid[len(data) - 1].annotate(
             slice_name,
             xy=(0.5, 0.2),
-            xytext=(0, -grid[len(data)-1].xaxis.labelpad - 2),
-            xycoords=grid[len(data)-1].xaxis.label,
-            textcoords='offset points',
-            ha='center',
-            va='top'
+            xytext=(0, -grid[len(data) - 1].xaxis.labelpad - 2),
+            xycoords=grid[len(data) - 1].xaxis.label,
+            textcoords="offset points",
+            ha="center",
+            va="top",
         )
     else:
         grid[0].annotate(
@@ -711,9 +730,9 @@ def plot_slices(
             xy=(0.2, 0.5),
             xytext=(-grid[0].yaxis.labelpad - 2, 0),
             xycoords=grid[0].yaxis.label,
-            textcoords='offset points',
-            ha='right',
-            va='center'
+            textcoords="offset points",
+            ha="right",
+            va="center",
         )
     for i, ax in enumerate(grid):
         ax.axes.xaxis.set_ticks([])
@@ -723,9 +742,7 @@ def plot_slices(
             "bottom" if cbar_location in ("top", "bottom") else "auto"
         )
         cbar = grid.cbar_axes[0].colorbar(
-            im,
-            extend=cbar_extend,
-            ticklocation=ticklocation
+            im, extend=cbar_extend, ticklocation=ticklocation
         )
         grid.cbar_axes[0].set_title(cbar_title)
         if cbar_ticks:
@@ -739,12 +756,7 @@ def plot_slices(
 
 
 def plot_contour(
-        ax,
-        support_2d,
-        linewidth=1,
-        color="k",
-        pixel_size=None,
-        data_centre=None
+    ax, support_2d, linewidth=1, color="k", pixel_size=None, data_centre=None
 ):
     shape = support_2d.shape
     x_range = np.arange(0, shape[1])
