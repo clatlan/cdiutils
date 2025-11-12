@@ -114,6 +114,13 @@ where = ["src"]
 [tool.ruff]
 line-length = 79
 extend-include = ["*.ipynb"]
+# Exclude experimental/obsolete packages from linting
+exclude = [
+    "src/cdiutils/multibcdi/",
+    "src/cdiutils/facetanalysis/",
+    "src/cdiutils/process/facet_analysis.py",
+    "src/cdiutils/process/support_processor.py",
+]
 
 [tool.ruff.format]
 # ruff format respects line-length from [tool.ruff]
@@ -128,7 +135,11 @@ select = [
     "W",   # pycodestyle warnings
     "I",   # isort (import sorting)
 ]
-ignore = []
+# Ignore rules that require manual fixes across large codebase
+# These should be addressed gradually in future PRs
+ignore = [
+    "E501",  # line too long (docstrings/comments not auto-formatted)
+]
 
 
 [project.scripts]
