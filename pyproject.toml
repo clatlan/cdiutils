@@ -110,12 +110,24 @@ where = ["src"]
     "plot/lut_*.npz"
 ]
 
-[tool.black]
-line-length = 79
-
 [tool.ruff]
 line-length = 79
 extend-include = ["*.ipynb"]
+
+[tool.ruff.format]
+# ruff format respects line-length from [tool.ruff]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+# enable recommended rules
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort (import sorting)
+]
+ignore = []
 
 
 [project.scripts]
@@ -126,3 +138,40 @@ prepare_detector_calibration = "cdiutils.scripts.prepare_detector_calibration:ma
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+# custom markers for test categorisation
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may be slow)",
+    "gpu: Requires GPU and PyNX",
+    "slow: Tests that take > 10 seconds",
+    "beamline: Beamline-specific tests requiring real data",
+    "sixs: SIXS beamline tests",
+    "id01: ID01 beamline tests",
+    "id27: ID27 beamline tests",
+    "cristal: Cristal beamline tests",
+    "p10: P10 beamline tests",
+    "nanomax: NanoMAX beamline tests",
+]
+# configure test output
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+# set minimum Python version for tests
+minversion = "3.10"
+# configure pytest-cov if installed
+[tool.coverage.run]
+source = ["cdiutils"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if not IS_.*_AVAILABLE:",
+]
