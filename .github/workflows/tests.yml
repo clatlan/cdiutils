@@ -135,17 +135,10 @@ jobs:
         with:
           python-version: '3.10'
       
-
-      - name: Set up conda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-activate-base: true
-          miniforge-variant: Mambaforge
-    
-      - name: Install pandoc
+      - name: Install system dependencies
         run: |
-          conda install -y -c conda-forge pandoc=2.19.2
-
+          sudo apt-get update
+          sudo apt-get install -y pandoc
       
       - name: Install documentation dependencies
         run: |
