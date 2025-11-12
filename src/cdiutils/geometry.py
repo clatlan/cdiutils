@@ -19,13 +19,13 @@ class Geometry:
 
     def __init__(
         self,
-        sample_circles: list = None,
-        detector_circles: list = None,
-        detector_axis0_orientation: str = "y-",
-        detector_axis1_orientation: str = "x+",
-        beam_direction: list = None,
-        sample_surface_normal: list = None,
-        name: str = None,
+        sample_circles: list | None = None,
+        detector_circles: list | None = None,
+        detector_axis0_orientation: str | None = None,
+        detector_axis1_orientation: str | None = None,
+        beam_direction: list | None = None,
+        sample_surface_normal: list | None = None,
+        name: str | None = None,
         is_cxi: bool = True,
     ) -> None:
         """
@@ -52,7 +52,7 @@ class Geometry:
 
         self.sample_circles = sample_circles
         if self.sample_circles is None:
-            self.sample_circles = ["x+", "y-"]
+            self.sample_circles = ["x-", "y-"]
 
         self.detector_circles = detector_circles
         if self.detector_circles is None:
