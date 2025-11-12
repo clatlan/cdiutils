@@ -424,7 +424,7 @@ class FacetAnalysisProcessor:
                         clusters = dbscan.fit_predict(vecteurs)
 
                         n_clusters_ = len(set(clusters))
-                        n_noise_ = list(clusters).count(-1)
+                        # n_noise_ = list(clusters).count(-1)  # Unused
 
                         if n_clusters_ > 1:
                             edges[x, y, z] = 1
@@ -1461,7 +1461,7 @@ class FacetAnalysisProcessor:
                 x, y, z = np.where(c_label >= 1)
                 values = c_label[x, y, z]
 
-                scatter = ax.scatter(
+                ax.scatter(
                     x, y, z, c=values, cmap="hsv", s=self.params["voxel_size"]
                 )
 

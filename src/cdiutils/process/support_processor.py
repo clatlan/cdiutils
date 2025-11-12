@@ -95,12 +95,12 @@ class SupportProcessor:
         this method deletes the files affected.
         """
 
-        if self.params["derivative_threshold"] == None:
+        if self.params["derivative_threshold"] is None:
             self.derivative_threshold = 0.2
         else:
             self.derivative_threshold = self.params["derivative_threshold"]
 
-        if self.params["amplitude_threshold"] == None:
+        if self.params["amplitude_threshold"] is None:
             self.amplitude_threshold = 0.2
         else:
             self.amplitude_threshold = self.params["amplitude_threshold"]

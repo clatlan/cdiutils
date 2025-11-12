@@ -389,8 +389,8 @@ class PipelinePlotter:
         fig.subplots_adjust(hspace=0.01, wspace=0.02)
 
         for i, key in enumerate(to_plot.keys()):
-            l, _, w, _ = axes[0, i].get_position().bounds
-            cax = fig.add_axes([l + 0.01, 0.93, w - 0.02, 0.02])
+            left, _, width, _ = axes[0, i].get_position().bounds
+            cax = fig.add_axes([left + 0.01, 0.93, width - 0.02, 0.02])
             try:
                 cax.set_title(PLOT_CONFIGS[key]["title"])
             except KeyError:
