@@ -8,16 +8,17 @@ in Jupyter notebooks.
 """
 
 import numpy as np
-from IPython.display import clear_output
 from scipy.ndimage import gaussian_filter
 
 # Optional dependencies for interactive features
 try:
     import tables as tb
+    from IPython.display import clear_output
 
     HAS_SUPPORT_TOOLS_DEPS = True
 except ImportError:
     HAS_SUPPORT_TOOLS_DEPS = False
+    clear_output = None  # Will not be used if dependencies missing
 
 
 if HAS_SUPPORT_TOOLS_DEPS:
@@ -43,7 +44,8 @@ if HAS_SUPPORT_TOOLS_DEPS:
         Attributes:
             path_to_data: Path to the reconstructed object data file.
             path_to_support: Path to the support file.
-            saving_directory: Directory where results (e.g., supports, figures) are saved.
+            saving_directory: Directory where results (e.g., supports, figures)
+                are saved.
 
         Example:
             >>> # Extract support from a .cxi file
@@ -74,7 +76,8 @@ if HAS_SUPPORT_TOOLS_DEPS:
                 path_to_support: Path to the support file.
                     Supported formats: .npz, .npy.
                 saving_directory: Directory to save results.
-                    Defaults to the directory of `path_to_data` or `path_to_support`.
+                    Defaults to the directory of `path_to_data` or
+                    `path_to_support`.
             """
             self.path_to_data = path_to_data
             self.path_to_support = path_to_support
@@ -280,11 +283,14 @@ if HAS_SUPPORT_TOOLS_DEPS:
 else:
     # Placeholder class when dependencies are not available
     class SupportTools:
-        """Placeholder for SupportTools when optional dependencies are not installed."""
+        """
+        Placeholder for SupportTools when optional dependencies are
+        not installed.
+        """
 
         def __init__(self, *args, **kwargs):
             raise ImportError(
                 "SupportTools requires tables package. "
-                "Can be installed with pip install tables, or with interactive "
-                "option: pip install cdiutils[interactive]"
+                "Can be installed with pip install tables, or with interactive"
+                " option: pip install cdiutils[interactive]"
             )
