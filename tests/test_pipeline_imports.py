@@ -1,5 +1,6 @@
 """
-Test that pipeline imports work correctly without requiring optional dependencies.
+Test that pipeline imports work correctly without requiring optional
+dependencies.
 
 This ensures that notebooks can import cdiutils.pipeline without needing
 PyNX or ipywidgets installed.
@@ -27,14 +28,17 @@ def test_bcdi_pipeline_class_import():
 
 
 def test_phase_retrieval_gui_lazy_import():
-    """Test that PhaseRetrievalGUI import is lazy and doesn't break BcdiPipeline."""
+    """Test that PhaseRetrievalGUI import is lazy and doesn't break
+    BcdiPipeline.
+    """
     from cdiutils.pipeline import BcdiPipeline
 
     # BcdiPipeline should import successfully
     assert hasattr(BcdiPipeline, "phase_retrieval_gui")
 
     # The GUI method should exist but not import PhaseRetrievalGUI until called
-    # (we can't actually call it without dependencies, but we can verify it exists)
+    # (we can't actually call it without dependencies, but we can verify it
+    # exists)
     assert callable(BcdiPipeline.phase_retrieval_gui)
 
 

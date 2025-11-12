@@ -5,8 +5,8 @@ This module tests the ThreeDViewer and plot_3d_isosurface functionality,
 including widget creation, data handling, and NaN management.
 """
 
-import pytest
 import numpy as np
+import pytest
 
 # check if interactive dependencies are available
 pytest.importorskip("plotly", reason="plotly not installed")

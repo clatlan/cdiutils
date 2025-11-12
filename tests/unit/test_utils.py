@@ -5,16 +5,16 @@ These tests verify individual utility functions work correctly
 in isolation.
 """
 
-import pytest
 import numpy as np
+import pytest
 
 from cdiutils.utils import (
     CroppingHandler,
+    ensure_pynx_shape,
+    make_support,
+    nan_to_zero,
     normalise,
     zero_to_nan,
-    nan_to_zero,
-    make_support,
-    ensure_pynx_shape,
 )
 
 

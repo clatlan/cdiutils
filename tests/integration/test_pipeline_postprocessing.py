@@ -6,10 +6,11 @@ including orthogonalisation, strain computation, and structural property
 analysis.
 """
 
-import pytest
-import numpy as np
 from pathlib import Path
+
 import h5py
+import numpy as np
+import pytest
 
 cdiutils = pytest.importorskip("cdiutils", reason="cdiutils not installed")
 from cdiutils.pipeline import BcdiPipeline  # noqa: E402

@@ -5,9 +5,10 @@ These tests verify the complete BCDI pipeline workflow from preprocessing
 through phase retrieval to postprocessing. GPU tests are marked separately.
 """
 
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
 
 cdiutils = pytest.importorskip("cdiutils", reason="cdiutils not installed")
 from cdiutils.pipeline import BcdiPipeline  # noqa: E402

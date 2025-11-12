@@ -6,13 +6,14 @@ real beamline data, including data loading, centring, cropping, and
 orthogonalisation parameter computation.
 """
 
-import pytest
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
 
 # import cdiutils only within tests to allow proper skip handling
 cdiutils = pytest.importorskip("cdiutils", reason="cdiutils not installed")
-from cdiutils.pipeline import BcdiPipeline
+from cdiutils.pipeline import BcdiPipeline  # noqa: E402
 
 
 @pytest.mark.integration
