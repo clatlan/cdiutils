@@ -263,7 +263,7 @@ class FacetAnalysisProcessor:
                         print(
                             f"The file {file} has been successfully removed."
                         )
-                    except OSError as e:
+                    except OSError:
                         print(f"The file {file} doesn't exist.")
                 try:
                     shutil.rmtree(self.path_visu)
@@ -303,7 +303,7 @@ class FacetAnalysisProcessor:
                         print(
                             f"The file {file} has been successfully removed."
                         )
-                    except OSError as e:
+                    except OSError:
                         print(f"The file {file} doesn't exist.")
                 try:
                     shutil.rmtree(self.path_visu)
@@ -550,7 +550,7 @@ class FacetAnalysisProcessor:
                     if label_adj_voxel == lbl:
                         nb_voisins += 1
                     if label_adj_voxel > 0:
-                        if not label_adj_voxel in nghbs_label:
+                        if label_adj_voxel not in nghbs_label:
                             nghbs_label[label_adj_voxel] = 1
                         else:
                             nghbs_label[label_adj_voxel] += 1
@@ -603,7 +603,7 @@ class FacetAnalysisProcessor:
                     ):
                         label_adj_voxel = facet_label[adj_voxel]
                         if label_adj_voxel >= 1:
-                            if not label_adj_voxel in dict_label:
+                            if label_adj_voxel not in dict_label:
                                 dict_label[label_adj_voxel] = 1
                             else:
                                 dict_label[label_adj_voxel] += 1
@@ -633,7 +633,7 @@ class FacetAnalysisProcessor:
                     )
                     label_adj_voxel = facet_label[adj_voxel]
                     if label_adj_voxel > 0:
-                        if not label_adj_voxel in nghbs_label:
+                        if label_adj_voxel not in nghbs_label:
                             nghbs_label[label_adj_voxel] = 1
                         else:
                             nghbs_label[label_adj_voxel] += 1
@@ -644,7 +644,7 @@ class FacetAnalysisProcessor:
                 labels = list([label_1, label_2])
                 labels.sort()
                 labels = tuple(labels)
-                if not labels in labels_edges:
+                if labels not in labels_edges:
                     edge_label[i, j, k] = lbl
                     if corner_label[i, j, k] == edge_lbl:
                         corner_label[i, j, k] = lbl
@@ -850,7 +850,7 @@ class FacetAnalysisProcessor:
                                     index.append(s1 * index_i[y])
                                     index_i.pop(y)
                                     index.append(s2 * index_i[0])
-                                    if not tuple(index) in added:
+                                    if tuple(index) not in added:
                                         added[tuple(index)] = True
                                         authorised_index.append(index)
 
@@ -878,7 +878,7 @@ class FacetAnalysisProcessor:
         for i, element in enumerate(authorised_index):
             index = element
             normalized_index = index / npnorm(index)
-            if not tuple(normalized_index) in dict_index:
+            if tuple(normalized_index) not in dict_index:
                 dict_index[tuple(normalized_index)] = index
                 authorized_coordinates.append(normalized_index)
             else:
@@ -986,12 +986,12 @@ class FacetAnalysisProcessor:
                 )
 
                 error = error_metrics(new_direction, closest_index)
-                if not lbl in closest_lbl_idx:
+                if lbl not in closest_lbl_idx:
                     closest_lbl_idx[lbl] = [closest_index, error]
                 else:
                     if error < closest_lbl_idx[lbl][1]:
                         closest_lbl_idx[lbl] = [closest_index, error]
-                if not tuple(closest_index) in closest_idx_lbl:
+                if tuple(closest_index) not in closest_idx_lbl:
                     closest_idx_lbl[tuple(closest_index)] = lbl
                     closest_idx_lbls[tuple(closest_index)] = [lbl]
                 else:
@@ -1033,7 +1033,7 @@ class FacetAnalysisProcessor:
                             closest_lbl_idx[lbl] = [closest, error]
 
                             closest_idx_lbl[tuple(closest)] = lbl
-                            if not tuple(closest) in closest_idx_lbls:
+                            if tuple(closest) not in closest_idx_lbls:
                                 closest_idx_lbls[tuple(closest)] = [lbl]
                             else:
                                 closest_idx_lbls[tuple(closest)].append(lbl)
@@ -1120,12 +1120,12 @@ class FacetAnalysisProcessor:
                 key=lambda coords: error_metrics(coords, direction),
             )
             error = error_metrics(direction, closest_index)
-            if not lbl in closest_lbl_idx:
+            if lbl not in closest_lbl_idx:
                 closest_lbl_idx[lbl] = [closest_index, error]
             else:
                 if error < closest_lbl_idx[lbl][1]:
                     closest_lbl_idx[lbl] = [closest_index, error]
-            if not tuple(closest_index) in closest_idx_lbl:
+            if tuple(closest_index) not in closest_idx_lbl:
                 closest_idx_lbl[tuple(closest_index)] = lbl
                 closest_idx_lbls[tuple(closest_index)] = [lbl]
             else:
@@ -1163,7 +1163,7 @@ class FacetAnalysisProcessor:
                         closest_lbl_idx[lbl] = [closest_index, error]
                         tpl = tuple(closest_index)
                         closest_idx_lbl[tpl] = lbl
-                        if not tpl in closest_idx_lbls:
+                        if tpl not in closest_idx_lbls:
                             closest_idx_lbls[tpl] = [lbl]
                         else:
                             closest_idx_lbls[tpl].append(lbl)

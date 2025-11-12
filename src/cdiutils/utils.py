@@ -1,11 +1,11 @@
 import inspect
 import warnings
 
-import numpy as np
-from scipy.fft import fftshift, ifftshift, fftn
 import matplotlib
+import numpy as np
 import scipy.constants as cts
-from scipy.ndimage import convolve, center_of_mass, median_filter
+from scipy.fft import fftn, fftshift, ifftshift
+from scipy.ndimage import center_of_mass, convolve, median_filter
 
 
 def bin_along_axis(

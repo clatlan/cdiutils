@@ -1,8 +1,9 @@
+import warnings
+
 import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 from cdiutils.utils import wavelength_to_energy
-import warnings
 
 
 class ID27Loader(H5TypeLoader):

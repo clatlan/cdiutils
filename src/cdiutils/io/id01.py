@@ -1,11 +1,11 @@
-import dateutil.parser
-import numpy as np
 import warnings
 
+import dateutil.parser
 import fabio
+import numpy as np
 import silx.io
 
-from cdiutils.io.loader import H5TypeLoader, h5_safe_load, Loader
+from cdiutils.io.loader import H5TypeLoader, Loader, h5_safe_load
 
 
 class ID01Loader(H5TypeLoader):

@@ -5,14 +5,14 @@ This module provides the ThreeDViewer class for displaying 3D objects
 from CDI optimisation results using Plotly.
 """
 
-import numpy as np
 import ipywidgets as widgets
-from IPython.display import display, HTML
+import numpy as np
+from IPython.display import HTML, display
 
 try:
     import plotly.graph_objects as go
-    from skimage.measure import marching_cubes
     from scipy.interpolate import RegularGridInterpolator
+    from skimage.measure import marching_cubes
 
     IS_PLOTLY_AVAILABLE = True
 except ImportError:
@@ -21,8 +21,8 @@ except ImportError:
 # check if volume module is available for shared utilities
 try:
     from .volume import (
-        colorcet_to_plotly,
         _extract_isosurface_with_values,
+        colorcet_to_plotly,
     )
 
     HAS_VOLUME_UTILS = True

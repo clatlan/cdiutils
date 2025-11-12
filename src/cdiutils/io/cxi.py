@@ -3,13 +3,12 @@ A submodule for cxi file handling. The CXIFile class provides methods to
 make CXI-compliant HDF5 files.
 """
 
-import h5py
-import numpy as np
 import re
 
+import h5py
+import numpy as np
 
 from cdiutils import __version__
-
 
 __cxi_version__ = 150
 

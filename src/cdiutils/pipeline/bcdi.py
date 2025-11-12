@@ -937,7 +937,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             self.logger.info(
-                f"Pynx slurm file template provided {template = }."  # noqa, E251, E202
+                f"Pynx slurm file template provided {template = }."  # noqa: E251, E202
             )
         with open(template, "r", encoding="utf8") as file:
             source = Template(file.read())
@@ -1541,7 +1541,7 @@ reconstruction (best solution).""",
             self.params["isosurface"] = self.class_isosurface
             self.logger.info(
                 f"isosurface estimate has a wrong value ({isosurface}) and "
-                f"will be set set to {self.class_isosurface = }."  # noqa, E251
+                f"will be set set to {self.class_isosurface = }."  # noqa: E251
             )
         else:
             self.params["isosurface"] = isosurface

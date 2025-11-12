@@ -8,9 +8,8 @@ import importlib
 
 from .base import Pipeline
 from .bcdi import BcdiPipeline
-from .pipeline_plotter import PipelinePlotter
 from .parameters import get_params_from_variables
-
+from .pipeline_plotter import PipelinePlotter
 
 __class_func_submodules__ = {
     "Pipeline": "base",

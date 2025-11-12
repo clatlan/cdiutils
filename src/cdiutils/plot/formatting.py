@@ -1,7 +1,6 @@
 # flake8: noqa, E501
 import warnings
 
-import colorcet  # ruff: noqa: F401
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -11,7 +10,7 @@ from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from cdiutils.plot.colormap import complex_to_rgb, AVAILABLE_2D_CMAPS
+from cdiutils.plot.colormap import AVAILABLE_2D_CMAPS, complex_to_rgb
 
 # Planes are given with the indexing convention,
 # i.e. [n, m] -> x-axis = m, y-axis = n

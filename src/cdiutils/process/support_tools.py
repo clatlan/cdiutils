@@ -8,8 +8,8 @@ in Jupyter notebooks.
 """
 
 import numpy as np
-from scipy.ndimage import gaussian_filter
 from IPython.display import clear_output
+from scipy.ndimage import gaussian_filter
 
 # Optional dependencies for interactive features
 try:

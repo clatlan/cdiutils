@@ -2,12 +2,13 @@
 
 from abc import ABC, abstractmethod
 from typing import Callable
+
 import matplotlib.pyplot as plt
 import numpy as np
 import silx.io.h5py_utils
 
-from cdiutils.utils import CroppingHandler, get_centred_slices, bin_along_axis
 from cdiutils.plot import add_colorbar
+from cdiutils.utils import CroppingHandler, bin_along_axis, get_centred_slices
 
 
 class Loader(ABC):
@@ -109,7 +110,7 @@ class Loader(ABC):
             from . import ID27Loader
 
             return ID27Loader(**metadata)
-        raise ValueError(f"Invalid beamline setup: {beamline_setup = }")  # noqa, E251
+        raise ValueError(f"Invalid beamline setup: {beamline_setup = }")  # noqa: E251
 
     @staticmethod
     def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
@@ -169,7 +170,7 @@ class Loader(ABC):
             tuple[slice]: the prepared roi.
         """
         usage_text = (
-            f"Wrong value for roi ({roi = }), roi should be:\n"  # noqa, E251
+            f"Wrong value for roi ({roi = }), roi should be:\n"  # noqa: E251
             "\t - either a tuple of slices with len = 2 or len = 3"
             "\t - either a tuple of int with len = 4 or len = 6"
         )

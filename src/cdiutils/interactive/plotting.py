@@ -8,22 +8,26 @@ Note: This module requires ipywidgets, bokeh, and panel. Dependency checking
 is handled at the package level (cdiutils.interactive.__init__).
 """
 
-import numpy as np
+import bokeh.palettes as bp
+import ipywidgets as widgets
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import panel as pn
+from bokeh.io import output_notebook
+from bokeh.layouts import row
+from bokeh.models import (
+    ColorBar,
+    ColumnDataSource,
+    LinearColorMapper,
+    RadioButtonGroup,
+    Slider,
+)
+from bokeh.plotting import figure
+from IPython.display import display
+from ipywidgets import fixed, interact
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
-
-from ipywidgets import interact, fixed
-import ipywidgets as widgets
-from bokeh.plotting import figure
-from bokeh.layouts import row
-from bokeh.io import output_notebook
-from bokeh.models import ColumnDataSource, ColorBar, LinearColorMapper
-from bokeh.models import Slider, RadioButtonGroup
-import bokeh.palettes as bp
-import panel as pn
-from IPython.display import display
 
 pn.extension()
 

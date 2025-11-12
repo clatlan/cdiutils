@@ -1,5 +1,5 @@
-import numpy as np
 import h5py
+import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 

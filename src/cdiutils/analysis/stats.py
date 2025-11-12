@@ -1,12 +1,11 @@
 import matplotlib.pyplot as plt
-from matplotlib.typing import ColorType
-
 import numpy as np
+from matplotlib.typing import ColorType
 from scipy.ndimage import binary_erosion
 from scipy.stats import gaussian_kde
 
-from cdiutils.utils import normalise
 from cdiutils.plot.formatting import save_fig
+from cdiutils.utils import normalise
 
 
 def kde_from_histogram(

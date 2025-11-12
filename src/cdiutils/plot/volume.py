@@ -10,23 +10,23 @@ Note:
     compatibility.
 """
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from matplotlib.colors import Normalize
-import numpy as np
 import warnings
-import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import Normalize
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from cdiutils.plot.formatting import (
-    get_figure_size,
-    get_extent,
-    save_fig,
     CXI_VIEW_PARAMETERS,
     XU_VIEW_PARAMETERS,
+    get_extent,
+    get_figure_size,
+    save_fig,
 )
 from cdiutils.utils import (
-    find_suitable_array_shape,
     CroppingHandler,
+    find_suitable_array_shape,
     nan_to_zero,
 )
 

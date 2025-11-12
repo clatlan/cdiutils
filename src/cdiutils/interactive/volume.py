@@ -15,14 +15,15 @@ excellent interactive performance and are included in the standard interactive
 dependencies. PyVista/Trame is available for specialised workflows.
 """
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 # PyVista/Trame availability checked in __init__.py, but we need the imports
 try:
     import pyvista as pv
-    from pyvista.trame.ui.vuetify3 import divider, slider, select
+    from pyvista.trame.ui.vuetify3 import divider, select, slider
 
     IS_PYVISTA_AVAILABLE = True
 except ImportError:
@@ -32,9 +33,9 @@ except ImportError:
 # Plotly and related imports
 try:
     import plotly.graph_objects as go
-    from skimage import measure
-    from scipy.ndimage import map_coordinates
     from scipy.interpolate import RegularGridInterpolator
+    from scipy.ndimage import map_coordinates
+    from skimage import measure
 
     IS_PLOTLY_AVAILABLE = True
 except ImportError:
@@ -140,12 +141,12 @@ def plot_3d_isosurface(
 
     try:
         from ipywidgets import (
-            FloatSlider,
-            Dropdown,
-            VBox,
-            HBox,
             Checkbox,
+            Dropdown,
+            FloatSlider,
             FloatText,
+            HBox,
+            VBox,
         )
     except ImportError as e:
         raise PlotlyImportError(

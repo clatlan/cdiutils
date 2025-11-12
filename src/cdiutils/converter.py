@@ -253,7 +253,7 @@ class SpaceConverter:
             if self.det_calib_params is None:
                 raise ValueError(
                     "det_calib_params not provided and no attribute set "
-                    f"({self.det_calib_params = })."  # noqa, E251
+                    f"({self.det_calib_params = })."  # noqa: E251
                 )
             det_calib_params = self.det_calib_params
         if "outerangle_offset" in det_calib_params:
@@ -267,7 +267,7 @@ class SpaceConverter:
         if roi is None:
             if self.roi is None:
                 raise ValueError(
-                    f"roi not provided and no attribute set ({self.roi = })."  # noqa, E251
+                    f"roi not provided and no attribute set ({self.roi = })."  # noqa: E251
                 )
             roi = self.roi
 

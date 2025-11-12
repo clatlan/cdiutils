@@ -11,13 +11,14 @@ is handled at the package level (cdiutils.interactive.__init__).
 import glob
 import os
 
-import matplotlib.pyplot as plt
 import ipywidgets as widgets
+import matplotlib.pyplot as plt
 from h5glance import H5Glance
 from IPython.display import Image, clear_output, display
 from ipywidgets import interactive
 
 from cdiutils.process.support_tools import SupportTools
+
 from .plotter import Plotter
 
 

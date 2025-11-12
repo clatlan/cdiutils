@@ -2,36 +2,36 @@ import copy
 import glob
 import os
 import re
+import shutil
 from typing import Type
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import silx.io
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import numpy as np
-import shutil
 from scipy.fft import fftn, fftshift, ifftshift
-from scipy.stats import gaussian_kde
 from scipy.ndimage import fourier_shift
+from scipy.stats import gaussian_kde
 from skimage.registration import phase_cross_correlation
-import silx.io
 
 try:
     from pynx.cdi import (
         CDI,
+        ER,
+        HIO,
+        RAAR,
         AutoCorrelationSupport,
+        DetwinHIO,
+        DetwinRAAR,
+        FourierApplyAmplitude,
+        InitPSF,
         InitSupportShape,
         ScaleObj,
-        SupportUpdate,
-        HIO,
-        DetwinHIO,
-        RAAR,
-        DetwinRAAR,
-        ER,
-        FourierApplyAmplitude,
         SupportTooLarge,
         SupportTooSmall,
-        InitPSF,
+        SupportUpdate,
     )
     from pynx.cdi.selection import match2
     from pynx.utils.math import ortho_modes
@@ -43,10 +43,9 @@ except ImportError:
     IS_PYNX_AVAILABLE = False
     CDI_Type = None
 
-from cdiutils.plot import get_plot_configs, add_colorbar
-from cdiutils.utils import get_centred_slices, valid_args_only, CroppingHandler
+from cdiutils.plot import add_colorbar, get_plot_configs
 from cdiutils.process.postprocessor import PostProcessor
-
+from cdiutils.utils import CroppingHandler, get_centred_slices, valid_args_only
 
 DEFAULT_PYNX_PARAMS = {
     # support-related params

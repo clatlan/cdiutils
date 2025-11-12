@@ -1,14 +1,13 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.interpolate import splev, splrep
 from scipy.ndimage import rotate
 
 from cdiutils.utils import (
-    normalise,
-    size_up_support,
     crop_at_center,
-    to_bool,
     nan_to_zero,
+    normalise,
+    to_bool,
 )
 
 

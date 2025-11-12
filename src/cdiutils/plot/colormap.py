@@ -6,13 +6,11 @@ arrays to RGB(A) representations, particularly useful for visualising phase
 information in BCDI reconstructions.
 """
 
+import colorcet  # noqa: F401
 import matplotlib.pyplot as plt
 import numpy as np
-import colorcet  # noqa, F401
-
-from matplotlib.colors import LinearSegmentedColormap, BivarColormapFromImage
 from matplotlib import colormaps
-
+from matplotlib.colors import BivarColormapFromImage, LinearSegmentedColormap
 
 AVAILABLE_2D_CMAPS = ["abyss", "peak", "barrel", "jch_max", "jch_const"]
 

@@ -1,15 +1,14 @@
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fftshift, ifftshift, fft2, ifft2
-from scipy.signal import find_peaks, peak_widths
-from scipy.optimize import curve_fit
-from scipy.ndimage import center_of_mass
-
 from matplotlib.patches import Ellipse
-import matplotlib.gridspec as gridspec
+from scipy.fft import fft2, fftshift, ifft2, ifftshift
+from scipy.ndimage import center_of_mass
+from scipy.optimize import curve_fit
+from scipy.signal import find_peaks, peak_widths
 
-from cdiutils.utils import CroppingHandler
 from cdiutils.plot.formatting import add_colorbar
+from cdiutils.utils import CroppingHandler
 
 
 def angular_spectrum_propagation(

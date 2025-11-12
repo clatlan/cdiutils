@@ -4,15 +4,16 @@ browser functionality.
 """
 
 from pathlib import Path
-import numpy as np
-import matplotlib.pyplot as plt
+
 import h5py
 import ipywidgets
+import matplotlib.pyplot as plt
+import numpy as np
 from IPython.display import display
 
 from cdiutils.io.cxi import CXIFile
-from cdiutils.plot.slice import plot_volume_slices
 from cdiutils.plot.formatting import add_colorbar
+from cdiutils.plot.slice import plot_volume_slices
 
 
 class CXIExplorer:

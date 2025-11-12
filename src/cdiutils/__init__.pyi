@@ -16,34 +16,44 @@ __license__: str
 
 # re-exported utilities
 # these are actually imported in __init__.py, not lazy loaded
-from .utils import (
-    energy_to_wavelength as energy_to_wavelength,
-    wavelength_to_energy as wavelength_to_energy,
-    make_support as make_support,
-    get_centred_slices as get_centred_slices,
-    hot_pixel_filter as hot_pixel_filter,
-    CroppingHandler as CroppingHandler,
-)
+from . import analysis as analysis
+from . import converter as converter
+from . import geometry as geometry
+from . import interactive as interactive
+from . import io as io
+from . import pipeline as pipeline
+from . import plot as plot
+from . import process as process
 
 # submodules
 # these imports tell the type checker they exist, but don't run at runtime
 from . import utils as utils
-from . import analysis as analysis
-from . import geometry as geometry
-from . import converter as converter
 from . import wavefront as wavefront
-from . import io as io
-from . import process as process
-from . import pipeline as pipeline
-from . import plot as plot
-from . import interactive as interactive
+from .converter import SpaceConverter as SpaceConverter
 
 # classes
 from .geometry import Geometry as Geometry
-from .converter import SpaceConverter as SpaceConverter
-from .pipeline.bcdi import BcdiPipeline as BcdiPipeline
-from .io.loader import Loader as Loader
 from .io.cxi_protocol import CXIFile as CXIFile
+from .io.loader import Loader as Loader
+from .pipeline.bcdi import BcdiPipeline as BcdiPipeline
 
 # functions
 from .plot import update_plot_params as update_plot_params
+from .utils import (
+    CroppingHandler as CroppingHandler,
+)
+from .utils import (
+    energy_to_wavelength as energy_to_wavelength,
+)
+from .utils import (
+    get_centred_slices as get_centred_slices,
+)
+from .utils import (
+    hot_pixel_filter as hot_pixel_filter,
+)
+from .utils import (
+    make_support as make_support,
+)
+from .utils import (
+    wavelength_to_energy as wavelength_to_energy,
+)

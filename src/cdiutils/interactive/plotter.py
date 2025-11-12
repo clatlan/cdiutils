@@ -9,14 +9,14 @@ the package level (cdiutils.interactive.__init__).
 """
 
 import os
-import numpy as np
+
 import h5py as h5
-from ipywidgets import interact
 import ipywidgets
-from IPython.display import display
+import numpy as np
+from ipywidgets import interact
 
 # Import plotting functions from the same package
-from .plotting import plot_data, plot_3d_slices
+from .plotting import plot_3d_slices, plot_data
 
 
 class Plotter:

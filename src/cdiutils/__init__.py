@@ -12,12 +12,12 @@ __license__ = "MIT"
 import importlib
 
 from .utils import (
+    CroppingHandler,
     energy_to_wavelength,
-    wavelength_to_energy,
-    make_support,
     get_centred_slices,
     hot_pixel_filter,
-    CroppingHandler,
+    make_support,
+    wavelength_to_energy,
 )
 
 __submodules__ = {
