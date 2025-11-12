@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 This is a simple script to handle the creation of the Jupyter
 notebooks required for running the detector calibration using the cdiutils

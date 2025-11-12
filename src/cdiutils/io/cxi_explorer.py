@@ -6,10 +6,16 @@ browser functionality.
 from pathlib import Path
 
 import h5py
-import ipywidgets
 import matplotlib.pyplot as plt
 import numpy as np
-from IPython.display import display
+
+try:
+    import ipywidgets
+    from IPython.display import display
+
+    HAS_IPYWIDGETS = True
+except ImportError:
+    HAS_IPYWIDGETS = False
 
 from cdiutils.io.cxi import CXIFile
 from cdiutils.plot.formatting import add_colorbar
@@ -39,7 +45,19 @@ class CXIExplorer:
         Args:
             cxi_file (str | CXIFile): Either a string path to a CXI file
             or a CXIFile object
+
+        Raises:
+            ImportError: If ipywidgets is not installed (required for
+                interactive features)
         """
+        if not HAS_IPYWIDGETS:
+            raise ImportError(
+                "CXIExplorer requires ipywidgets for interactive features. "
+                "Install with: pip install ipywidgets\n"
+                "Or install all interactive dependencies: "
+                "pip install cdiutils[interactive]"
+            )
+
         # handle both string paths and CXIFile objects
         if isinstance(cxi_file, str):
             self.file_path = cxi_file
