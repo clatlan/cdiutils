@@ -70,6 +70,8 @@ pyvista = [
 docs = [
     "sphinx>=4.0",
     "pydata-sphinx-theme",
+    "nbsphinx",
+    "pandoc",
 ]
 all = [
     "vtk>=9.0.1",
