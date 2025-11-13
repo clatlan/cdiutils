@@ -120,9 +120,11 @@ jobs:
       
       - name: Run light integration tests
         run: |
-          # run only fast integration tests (exclude slow and gpu)
-          pytest tests/integration -m "not slow and not gpu" -v --timeout=300
-        continue-on-error: true  # allow failures for now
+          # run integration tests but exclude gpu tests
+          # Note: Most integration tests are marked 'slow' but we run them anyway
+          # since they're necessary to validate the pipeline
+          pytest tests/integration -m "integration and not gpu" -v --timeout=300
+        continue-on-error: true  # allow failures for now (need test data)
 
   docs:
     name: Documentation Build
