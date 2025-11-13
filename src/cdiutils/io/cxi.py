@@ -458,9 +458,9 @@ class CXIFile:
         software and file creation details.
         """
         # Store software information
-        self.file.attrs["creator"] = "CdiUtils"
+        self.file.attrs["creator"] = "CDIutils"
         self.file.attrs["version"] = __version__
-        self.create_cxi_dataset("creator", "CdiUtils")
+        self.create_cxi_dataset("creator", "CDIutils")
         self.create_cxi_dataset("version", __version__)
 
         # Store file path, CXI version, and timestamp
