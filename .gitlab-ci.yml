@@ -1,246 +1,66 @@
-# GitLab CI configuration for CDIutils
-# This file is for running tests on ESRF GitLab infrastructure
-# with access to GPU resources for PyNX phase retrieval tests
+# Simplified GitLab CI for CDIutils
+# Based on your actual needs - no unnecessary complexity!
 
-# define stages
 stages:
   - lint
-  - test-unit
-  - test-integration
-  - test-gpu
-  - performance
-  - deploy
+  - test
 
-# define common variables
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  PYTEST_CACHE: "$CI_PROJECT_DIR/.pytest_cache"
-  GIT_DEPTH: "50"  # shallow clone for speed
-
-# cache configuration
+# Cache pip packages to speed up builds
 cache:
   paths:
     - .cache/pip
-    - .pytest_cache
 
-# before script for all jobs (except where overridden)
-before_script:
-  - python --version
-  - pip install --upgrade pip
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-# Linting job
+# Check code quality
 lint:
   stage: lint
-  image: python:3.10
   script:
-    - pip install ruff
+    - export PATH="$HOME/.local/bin:$PATH"
+    - pip install --user ruff
     - ruff check src/cdiutils tests
     - ruff format --check --line-length 79 src/cdiutils tests
-  allow_failure: false
 
-# unit tests - fast tests without GPU
+# Run unit tests
 test-unit:
-  stage: test-unit
-  image: python:3.10
-  script:
-    - pip install -e .
-    - pip install pytest pytest-cov
-    - pytest -m "unit and not slow" -v --cov=cdiutils --cov-report=xml --cov-report=term
-  coverage: '/^TOTAL.+?(\d+\%)$/'
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-    paths:
-      - coverage.xml
-    expire_in: 1 week
-
-# unit tests on multiple Python versions
-test-unit-python-versions:
-  stage: test-unit
-  image: python:${PYTHON_VERSION}
-  parallel:
-    matrix:
-      - PYTHON_VERSION: ['3.10', '3.11', '3.12']
+  stage: test
   script:
     - pip install -e .
     - pip install pytest
-    - pytest -m "unit and not slow" -v
-  allow_failure:
-    exit_codes: [1]  # allow test failures but not errors
+    - pytest tests/unit -v
 
-# integration tests without GPU
+# Run integration tests (no GPU)
+# Manual trigger - run when you have test data ready
 test-integration:
-  stage: test-integration
-  image: python:3.10
+  stage: test
+  when: manual
   script:
     - pip install -e .
     - pip install pytest pytest-timeout
-    # Link to test data if on ESRF infrastructure
     - |
-      if [ -d "/data/projects/cdiutils_test_data" ]; then
-        ln -s /data/projects/cdiutils_test_data tests/raw_data
+      if [ -d "/scisoft/cdiutils_test_data" ]; then
+        ln -s /scisoft/cdiutils_test_data tests/raw_data
       fi
-    - pytest tests/integration -m "integration and not gpu and not slow" -v --timeout=600
+    - pytest tests/integration -m "integration and not gpu" -v --timeout=600
   timeout: 30 minutes
   allow_failure: true
-
-# integration tests - slow but no GPU
-test-integration-slow:
-  stage: test-integration
-  image: python:3.10
-  when: manual  # run manually or on schedule
-  script:
-    - pip install -e .
-    - pip install pytest pytest-timeout
-    - |
-      if [ -d "/data/projects/cdiutils_test_data" ]; then
-        ln -s /data/projects/cdiutils_test_data tests/raw_data
-      fi
-    - pytest tests/integration -m "integration and not gpu" -v --timeout=1200
-  timeout: 1 hour
   artifacts:
     when: always
     paths:
       - tests/results/
     expire_in: 1 week
 
-# GPU tests - requires PyNX and GPU runner
-test-gpu:
-  stage: test-gpu
-  tags:
-    - gpu
-    - cuda
-  when: manual  # run manually or on schedule
-  before_script:
-    - module load pynx  # load PyNX module on ESRF machines
-    - python --version
-    - pip install --upgrade pip
-  script:
-    - pip install -e .
-    - pip install pytest pytest-timeout
-    - |
-      if [ -d "/data/projects/cdiutils_test_data" ]; then
-        ln -s /data/projects/cdiutils_test_data tests/raw_data
-      fi
-    # run GPU tests with extended timeout
-    - pytest tests/integration -m "gpu" -v --timeout=3600 --run-gpu-tests
-  timeout: 2 hours
-  artifacts:
-    when: always
-    paths:
-      - tests/results/
-    expire_in: 1 week
-  allow_failure: true
-
-# full pipeline test with all beamlines
-test-full-pipeline:
-  stage: test-gpu
-  tags:
-    - gpu
-    - cuda
-  when: manual
-  before_script:
-    - module load pynx
-    - python --version
-    - pip install --upgrade pip
-  script:
-    - pip install -e .
-    - pip install pytest pytest-timeout
-    - |
-      if [ -d "/data/projects/cdiutils_test_data" ]; then
-        ln -s /data/projects/cdiutils_test_data tests/raw_data
-      fi
-    # run all integration tests including GPU
-    - pytest tests/integration -v --timeout=7200 --run-gpu-tests
-  timeout: 4 hours
-  artifacts:
-    when: always
-    paths:
-      - tests/results/
-    expire_in: 2 weeks
-
-# performance benchmarks
-performance:
-  stage: performance
-  tags:
-    - gpu
-  when: manual
-  before_script:
-    - module load pynx
-    - python --version
-    - pip install --upgrade pip
-  script:
-    - pip install -e .
-    - pip install pytest pytest-benchmark
-    - pytest tests/performance -v --benchmark-only
-  artifacts:
-    paths:
-      - benchmarks/
-    expire_in: 4 weeks
-  allow_failure: true
-
-# nightly full test suite
-nightly-tests:
-  stage: test-integration
-  tags:
-    - gpu
-  only:
-    - schedules
-  script:
-    - module load pynx
-    - pip install -e .
-    - pip install pytest pytest-timeout pytest-cov
-    - |
-      if [ -d "/data/projects/cdiutils_test_data" ]; then
-        ln -s /data/projects/cdiutils_test_data tests/raw_data
-      fi
-    # run all tests except those marked as extremely slow
-    - pytest tests -v --timeout=7200 --cov=cdiutils --cov-report=html
-  timeout: 6 hours
-  coverage: '/^TOTAL.+?(\d+\%)$/'
-  artifacts:
-    when: always
-    paths:
-      - tests/results/
-      - htmlcov/
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-    expire_in: 1 month
-
-# deploy to PyPI (manual, for releases)
-deploy-pypi:
-  stage: deploy
-  image: python:3.10
-  only:
-    - tags
-  when: manual
-  script:
-    - pip install build twine
-    - python -m build
-    - twine check dist/*
-    - twine upload dist/*
-  artifacts:
-    paths:
-      - dist/
-    expire_in: 1 year
-
-# build and deploy documentation
-deploy-docs:
-  stage: deploy
-  image: python:3.10
-  only:
-    - master
-    - tags
-  script:
-    - pip install -e ".[docs]"
-    - pip install sphinx pydata-sphinx-theme
-    - cd docs
-    - make html
-  artifacts:
-    paths:
-      - docs/_build/html
-    expire_in: 1 year
+# Optional: Test on multiple Python versions
+# Uncomment when needed
+# test-python-versions:
+#   stage: test
+#   when: manual
+#   image: python:${PYTHON_VERSION}
+#   parallel:
+#     matrix:
+#       - PYTHON_VERSION: ['3.10', '3.11', '3.12']
+#   script:
+#     - pip install -e .
+#     - pip install pytest
+#     - pytest tests/unit -v
