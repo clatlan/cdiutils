@@ -118,13 +118,18 @@ jobs:
           # tar -xzf test_data.tar.gz -C tests/raw_data/
           echo "Test data should be in repository or downloaded here"
       
-      - name: Run light integration tests
+      - name: Run integration tests (no GPU required)
         run: |
-          # run integration tests but exclude gpu tests
-          # Note: Most integration tests are marked 'slow' but we run them anyway
-          # since they're necessary to validate the pipeline
+          # Run integration tests that mock PyNX phase retrieval
+          # These tests validate the full pipeline workflow without GPU
+          pytest tests/integration/test_pipeline_no_gpu.py -v --timeout=600
+          
+      - name: Run integration tests with real data (optional)
+        run: |
+          # Run integration tests that require real beamline data
+          # These will be skipped if test data is not available
           pytest tests/integration -m "integration and not gpu" -v --timeout=300
-        continue-on-error: true  # allow failures for now (need test data)
+        continue-on-error: true  # allow failures (test data may not be available)
 
   docs:
     name: Documentation Build
