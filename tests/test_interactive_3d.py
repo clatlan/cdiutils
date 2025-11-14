@@ -14,8 +14,8 @@ pytest.importorskip("skimage", reason="scikit-image not installed")
 pytest.importorskip("scipy", reason="scipy not installed")
 pytest.importorskip("ipywidgets", reason="ipywidgets not installed")
 
-from cdiutils.interactive import ThreeDViewer, plot_3d_isosurface
-from cdiutils.interactive.volume import (
+from cdiutils.interactive import ThreeDViewer, plot_3d_isosurface  # noqa: E402
+from cdiutils.interactive.volume import (  # noqa: E402
     _extract_isosurface_with_values,
     colorcet_to_plotly,
 )
