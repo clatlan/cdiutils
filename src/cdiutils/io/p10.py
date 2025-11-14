@@ -13,7 +13,7 @@ class P10Loader(Loader):
         "detector_outofplane_angle": "del",
         "detector_inplane_angle": "gam",
     }
-    authorised_detector_names = ("eiger4m",)
+    authorised_detector_names = ("eiger4m", "e2500")
 
     def __init__(
         self,

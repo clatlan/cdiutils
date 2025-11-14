@@ -449,7 +449,7 @@ class Loader(ABC):
             mask[2162:2200, :] = 1
             mask[2712:2750, :] = 1
 
-        elif detector_name.lower() == "eiger500k":
+        elif detector_name.lower() in ("eiger500k", "e2500"):
             mask = np.zeros(shape=(512, 1028))
         elif detector_name.lower() == "merlin":
             mask = np.zeros(shape=(512, 512))
