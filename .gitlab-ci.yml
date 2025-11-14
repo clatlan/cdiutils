@@ -1,11 +1,10 @@
-# Simplified GitLab CI for CDIutils
-# Based on your actual needs - no unnecessary complexity!
+# simplified GitLab CI for CDIutils
 
 stages:
   - lint
   - test
 
-# Cache pip packages to speed up builds
+# cache pip packages to speed up builds
 cache:
   paths:
     - .cache/pip
@@ -13,31 +12,36 @@ cache:
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-# Check code quality
+# common setup - upgrade pip before installing
+before_script:
+  - export PATH="$HOME/.local/bin:$PATH"
+
+# check code quality
 lint:
   stage: lint
   script:
-    - export PATH="$HOME/.local/bin:$PATH"
     - pip install --user ruff
     - ruff check src/cdiutils tests
     - ruff format --check --line-length 79 src/cdiutils tests
 
-# Run unit tests
+# run unit tests
 test-unit:
   stage: test
   script:
-    - pip install -e .
-    - pip install pytest
+    - pip install --user --upgrade pip setuptools wheel
+    - pip install --user -e .
+    - pip install --user pytest
     - pytest tests/unit -v
 
-# Run integration tests (no GPU)
-# Manual trigger - run when you have test data ready
+# run integration tests (no GPU)
+# manual trigger - run when you have test data ready
 test-integration:
   stage: test
   when: manual
   script:
-    - pip install -e .
-    - pip install pytest pytest-timeout
+    - pip install --user --upgrade pip setuptools wheel
+    - pip install --user -e .
+    - pip install --user pytest pytest-timeout
     - |
       if [ -d "/scisoft/cdiutils_test_data" ]; then
         ln -s /scisoft/cdiutils_test_data tests/raw_data
@@ -51,8 +55,7 @@ test-integration:
       - tests/results/
     expire_in: 1 week
 
-# Optional: Test on multiple Python versions
-# Uncomment when needed
+# optional: test on multiple python versions
 # test-python-versions:
 #   stage: test
 #   when: manual
