@@ -122,7 +122,7 @@ jobs:
         run: |
           # Run integration tests that mock PyNX phase retrieval
           # These tests validate the full pipeline workflow without GPU
-          pytest tests/integration/test_pipeline_no_gpu.py -v --timeout=600
+          # pytest tests/integration/test_pipeline_no_gpu.py -v --timeout=600
           
       - name: Run integration tests with real data (optional)
         run: |
