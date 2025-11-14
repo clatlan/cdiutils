@@ -19,5 +19,5 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_MIRROR_TOKEN }}
         run: |
-          git remote add gitlab https://oauth2:${GITLAB_TOKEN}@gitlab.esrf.fr/atlan/cdiutils.git
+          git remote add gitlab https://oauth2:${GITLAB_TOKEN}@gitlab.esrf.fr/ada/cdiutils.git
           git push gitlab ${GITHUB_REF#refs/heads/} --force
