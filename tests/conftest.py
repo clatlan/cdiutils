@@ -98,18 +98,24 @@ def temp_output_dir():
 
 
 @pytest.fixture
-def mock_pipeline_params():
+def mock_pipeline_params(tmp_path):
     """
     Provide a minimal set of parameters for BcdiPipeline testing.
 
+    Uses pytest's tmp_path fixture to provide a temporary dump_dir
+    that is automatically cleaned up after the test.
+
+    Args:
+        tmp_path: pytest fixture providing temporary directory
+
     Returns:
-        dict: minimal parameter dictionary
+        dict: minimal parameter dictionary with valid dump_dir
     """
     return {
         "beamline_setup": "sixs2019",
         "scan": 457,
         "sample_name": "test_sample",
-        "dump_dir": None,  # will be set by test
+        "dump_dir": str(tmp_path / "test_output"),
     }
 
 
