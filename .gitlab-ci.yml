@@ -24,16 +24,26 @@ lint:
 # test on Python 3.10
 test-3.10:
   extends: .test-3.10
+  rules:
+    - if: "$CI_MERGE_REQUEST_ID"  # Run on merge requests
+    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"  # Run on main branch
 
 # test on Python 3.11
 test-3.11:
   extends: .test-3.11
+  rules:
+    - if: "$CI_MERGE_REQUEST_ID"
+    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
 
 # test on Python 3.12
 test-3.12:
   extends: .test-3.12
+  rules:
+    - if: "$CI_MERGE_REQUEST_ID"
+    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
 
-# build source distribution
+# build source distribution (.tar.gz)
+# runs on main branch only to avoid wasting resources
 build_sdist:
   extends: .build_sdist
 
@@ -49,19 +59,19 @@ test_sdist-3.11:
 test_sdist-3.12:
   extends: .test_sdist-3.12
 
-# build documentation (if you have docs in docs/ with sphinx)
-build_doc:
-  extends: .build_doc
-
-# deploy documentation to GitLab Pages (main branch only)
-pages:
-  extends: .pages
-
-# create assets for releases
+# create release assets (sdist attached to GitLab releases)
 assets:
   extends: .assets
 
+# NOTE: Documentation is built by Read the Docs, not GitLab CI
+# The following jobs are commented out because we use Read the Docs:
+# build_doc:
+#   extends: .build_doc
+# pages:
+#   extends: .pages
+
 # deploy to PyPI (manual, protected tags only)
+# uncomment when ready to deploy
 # pypi:
 #   extends: .pypi
 
