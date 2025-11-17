@@ -32,7 +32,7 @@ dependencies:
   - ipykernel
   - plotly>=5.0.0
   - anywidget
-  - kaleido>=0.2.0
+  - python-kaleido>=0.2.0
   
   # PyVista dependencies
   - pyvista>=0.43.0
@@ -44,7 +44,7 @@ dependencies:
   - sphinx>=4.0
   - pydata-sphinx-theme
   - pytest
-  - black
+  - pytest-cov
   - ruff
   
   # pip for packages not available on conda-forge (if any)

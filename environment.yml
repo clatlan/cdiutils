@@ -32,7 +32,7 @@ dependencies:
   - ipykernel
   - plotly>=5.0.0
   - anywidget
-  - kaleido>=0.2.0
+  - python-kaleido>=0.2.0
   
   # PyVista dependencies
   - pyvista>=0.43.0
