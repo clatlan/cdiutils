@@ -19,6 +19,8 @@ variables:
 
 build-job:
   stage: build
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -32,8 +34,8 @@ build-job:
     # load mamba module
     - module load mamba
     - which mamba
-    # create environment from environment-dev.yml with Python 3.12
-    - mamba env create --prefix $CDIUTILS_ENV --file $CI_PROJECT_DIR/environment-dev.yml python=3.12
+    # create environment from environment-dev.yml
+    - mamba env create --prefix $CDIUTILS_ENV --file $CI_PROJECT_DIR/environment-dev.yml
     - conda activate $CDIUTILS_ENV
     - python --version
     # install cdiutils in editable mode
@@ -42,6 +44,8 @@ build-job:
 
 lint-job:
   stage: test
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -54,6 +58,8 @@ lint-job:
 
 test-unit:
   stage: test
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -65,6 +71,8 @@ test-unit:
 
 test-integration:
   stage: test
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -78,6 +86,8 @@ test-integration:
 
 test-gpu:
   stage: test
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -94,6 +104,8 @@ test-gpu:
 # always cleanup environment at the end
 cleanup-job:
   stage: cleanup
+  tags:
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
