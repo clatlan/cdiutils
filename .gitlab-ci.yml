@@ -1,69 +1,70 @@
-# simplified GitLab CI for CDIutils
+# GitLab CI for CDIutils using ESRF pyci templates
 
-stages:
-  - lint
-  - test
-
-# cache pip packages to speed up builds
-cache:
-  paths:
-    - .cache/pip
+include:
+  - project: dau/ci/pyci
+    file: .gitlab-ci-template.yml
 
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # disable coverage for faster testing (re-enable with PYTEST_COV: "--cov=./src")
+  PYTEST_COV: ""
+  # run pytest on tests/ directory (default is ".")
+  PYTEST_DIR: "tests"
+  # additional pytest options
+  PYTEST_OPTIONS: "-v -ra --tb=short"
 
-# common setup - upgrade pip before installing
-before_script:
-  - export PATH="$HOME/.local/bin:$PATH"
-
-# check code quality
+# lint job (ruff formatting and linting)
 lint:
-  stage: lint
+  stage: style
+  extends: .style
   script:
-    - pip install --user ruff
+    - pip install ruff
     - ruff check src/cdiutils tests
     - ruff format --check --line-length 79 src/cdiutils tests
 
-# run unit tests
-test-unit:
-  stage: test
-  script:
-    - pip install --user --upgrade pip setuptools wheel
-    - pip install --user -e .
-    - pip install --user pytest
-    - pytest tests/unit -v
+# test on Python 3.10
+test-3.10:
+  extends: .test-3.10
 
-# run integration tests (no GPU)
-# manual trigger - run when you have test data ready
-test-integration:
-  stage: test
-  when: manual
-  script:
-    - pip install --user --upgrade pip setuptools wheel
-    - pip install --user -e .
-    - pip install --user pytest pytest-timeout
-    - |
-      if [ -d "/scisoft/cdiutils_test_data" ]; then
-        ln -s /scisoft/cdiutils_test_data tests/raw_data
-      fi
-    - pytest tests/integration -m "integration and not gpu" -v --timeout=600
-  timeout: 30 minutes
-  allow_failure: true
-  artifacts:
-    when: always
-    paths:
-      - tests/results/
-    expire_in: 1 week
+# test on Python 3.11
+test-3.11:
+  extends: .test-3.11
 
-# optional: test on multiple python versions
-# test-python-versions:
-#   stage: test
-#   when: manual
-#   image: python:${PYTHON_VERSION}
-#   parallel:
-#     matrix:
-#       - PYTHON_VERSION: ['3.10', '3.11', '3.12']
-#   script:
-#     - pip install -e .
-#     - pip install pytest
-#     - pytest tests/unit -v
+# test on Python 3.12
+test-3.12:
+  extends: .test-3.12
+
+# build source distribution
+build_sdist:
+  extends: .build_sdist
+
+# test the sdist on Python 3.10
+test_sdist-3.10:
+  extends: .test_sdist-3.10
+
+# test the sdist on Python 3.11
+test_sdist-3.11:
+  extends: .test_sdist-3.11
+
+# test the sdist on Python 3.12
+test_sdist-3.12:
+  extends: .test_sdist-3.12
+
+# build documentation (if you have docs in docs/ with sphinx)
+build_doc:
+  extends: .build_doc
+
+# deploy documentation to GitLab Pages (main branch only)
+pages:
+  extends: .pages
+
+# create assets for releases
+assets:
+  extends: .assets
+
+# deploy to PyPI (manual, protected tags only)
+# pypi:
+#   extends: .pypi
+
+# deploy to Test PyPI (manual)
+# testpypi:
+#   extends: .testpypi
