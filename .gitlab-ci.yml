@@ -27,6 +27,7 @@ test-3.10:
   rules:
     - if: "$CI_MERGE_REQUEST_ID"  # Run on merge requests
     - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"  # Run on main branch
+    - if: "$CI_COMMIT_REF_NAME == 'dev'"  # Run on dev branch
 
 # test on Python 3.11
 test-3.11:
@@ -34,6 +35,7 @@ test-3.11:
   rules:
     - if: "$CI_MERGE_REQUEST_ID"
     - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_REF_NAME == 'dev'"
 
 # test on Python 3.12
 test-3.12:
@@ -41,6 +43,7 @@ test-3.12:
   rules:
     - if: "$CI_MERGE_REQUEST_ID"
     - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
+    - if: "$CI_COMMIT_REF_NAME == 'dev'"
 
 # build source distribution (.tar.gz)
 # runs on main branch only to avoid wasting resources
@@ -59,16 +62,16 @@ test_sdist-3.11:
 test_sdist-3.12:
   extends: .test_sdist-3.12
 
-# create release assets (sdist attached to GitLab releases)
+# create assets for releases
 assets:
   extends: .assets
 
 # NOTE: Documentation is built by Read the Docs, not GitLab CI
 # The following jobs are commented out because we use Read the Docs:
-# build_doc:
-#   extends: .build_doc
-# pages:
-#   extends: .pages
+build_doc:
+  extends: .build_doc
+pages:
+  extends: .pages
 
 # deploy to PyPI (manual, protected tags only)
 # uncomment when ready to deploy
