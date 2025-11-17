@@ -1,83 +1,104 @@
-# GitLab CI for CDIutils using ESRF pyci templates
+# GitLab CI for CDIutils using shell executor with mamba
+# based on PyNX CI template
 
-include:
-  - project: dau/ci/pyci
-    file: .gitlab-ci-template.yml
+stages:
+  - build
+  - test
+  - cleanup
+
+# run CI for merge requests and pushes to dev/master
+.default_rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "dev"
+    - if: $CI_COMMIT_BRANCH == "master"
 
 variables:
-  # disable coverage for faster testing (re-enable with PYTEST_COV: "--cov=./src")
-  PYTEST_COV: ""
-  # run pytest on tests/ directory (default is ".")
-  PYTEST_DIR: "tests"
-  # additional pytest options
-  PYTEST_OPTIONS: "-v -ra --tb=short"
+  # path to conda environment
+  CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID/cdiutils_env
 
-# lint job (ruff formatting and linting)
-lint:
-  stage: style
-  extends: .style
+build-job:
+  stage: build
+  rules:
+    - !reference [.default_rules, rules]
   script:
-    - pip install ruff
+    - echo "building cdiutils environment..."
+    - echo "pipeline ID:" $CI_PIPELINE_ID
+    - echo "project dir:" $CI_PROJECT_DIR
+    - echo "builds dir:" $CI_BUILDS_DIR
+    # clean up any existing environment
+    - rm -rf $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
+    - mkdir -p $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
+    # load mamba module
+    - module load mamba
+    - which mamba
+    # create environment from environment-dev.yml with Python 3.12
+    - mamba env create --prefix $CDIUTILS_ENV --file $CI_PROJECT_DIR/environment-dev.yml python=3.12
+    - conda activate $CDIUTILS_ENV
+    - python --version
+    # install cdiutils in editable mode
+    - pip install -e $CI_PROJECT_DIR
+    - echo "environment created successfully"
+
+lint-job:
+  stage: test
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running ruff linting..."
+    - module load mamba
+    - conda activate $CDIUTILS_ENV
     - ruff check src/cdiutils tests
     - ruff format --check --line-length 79 src/cdiutils tests
+    - echo "linting passed"
 
-# test on Python 3.10
-test-3.10:
-  extends: .test-3.10
+test-unit:
+  stage: test
   rules:
-    - if: "$CI_MERGE_REQUEST_ID"  # Run on merge requests
-    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"  # Run on main branch
-    - if: "$CI_COMMIT_REF_NAME == 'dev'"  # Run on dev branch
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running unit tests..."
+    - module load mamba
+    - conda activate $CDIUTILS_ENV
+    - pytest tests/unit -v -ra --tb=short
+    - echo "unit tests passed"
 
-# test on Python 3.11
-test-3.11:
-  extends: .test-3.11
+test-integration:
+  stage: test
   rules:
-    - if: "$CI_MERGE_REQUEST_ID"
-    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
-    - if: "$CI_COMMIT_REF_NAME == 'dev'"
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running integration tests (no GPU)..."
+    - module load mamba
+    - conda activate $CDIUTILS_ENV
+    - pytest tests/integration -m "integration and not gpu" -v -ra --tb=short --timeout=600
+    - echo "integration tests passed"
+  timeout: 30 minutes
+  allow_failure: true
 
-# test on Python 3.12
-test-3.12:
-  extends: .test-3.12
+test-gpu:
+  stage: test
   rules:
-    - if: "$CI_MERGE_REQUEST_ID"
-    - if: "$CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH"
-    - if: "$CI_COMMIT_REF_NAME == 'dev'"
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running GPU tests..."
+    - module load mamba cuda
+    - which nvcc
+    - nvcc --version
+    - conda activate $CDIUTILS_ENV
+    - pytest tests/integration -m gpu -v -ra --tb=short --timeout=600
+    - echo "GPU tests passed"
+  timeout: 30 minutes
+  allow_failure: true
 
-# build source distribution (.tar.gz)
-# runs on main branch only to avoid wasting resources
-build_sdist:
-  extends: .build_sdist
-
-# test the sdist on Python 3.10
-test_sdist-3.10:
-  extends: .test_sdist-3.10
-
-# test the sdist on Python 3.11
-test_sdist-3.11:
-  extends: .test_sdist-3.11
-
-# test the sdist on Python 3.12
-test_sdist-3.12:
-  extends: .test_sdist-3.12
-
-# create assets for releases
-assets:
-  extends: .assets
-
-# NOTE: Documentation is built by Read the Docs, not GitLab CI
-# The following jobs are commented out because we use Read the Docs:
-build_doc:
-  extends: .build_doc
-pages:
-  extends: .pages
-
-# deploy to PyPI (manual, protected tags only)
-# uncomment when ready to deploy
-# pypi:
-#   extends: .pypi
-
-# deploy to Test PyPI (manual)
-# testpypi:
-#   extends: .testpypi
+# always cleanup environment at the end
+cleanup-job:
+  stage: cleanup
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "cleaning up environment..."
+    - rm -rf $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
+    - rmdir --ignore-fail-on-non-empty $CI_BUILDS_DIR/cdiutils
+    - echo "cleanup complete"
+  when: always
