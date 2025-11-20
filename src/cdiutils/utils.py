@@ -273,7 +273,10 @@ def make_support(
 ) -> np.ndarray:
     """Create a support using the provided isosurface value."""
     data = normalise(data)
-    return np.where(data >= isosurface, 1, np.nan if nan_values else 0)
+    if nan_values:
+        return np.where(data >= isosurface, 1, np.nan)
+    else:
+        return (data >= isosurface).astype(bool)
 
 
 def unit_vector(vector: tuple | list | np.ndarray) -> np.ndarray:
