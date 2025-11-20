@@ -31,6 +31,7 @@ __submodules__ = {
     "pipeline",
     "plot",
     "interactive",
+    "simulation",
 }
 
 __class_submodules__ = {
