@@ -23,13 +23,13 @@ from cdiutils.analysis.stats import find_isosurface
 # General cdiutils classes, to handle loading/saving, beamline geometry and
 # space conversion.
 from cdiutils.converter import SpaceConverter
+from cdiutils.facetanalysis import FacetAnalysisProcessor
 from cdiutils.geometry import Geometry
 from cdiutils.io import CXIFile, Loader, load_cxi
 from cdiutils.io.vtk import IS_VTK_AVAILABLE, save_as_vti
 from cdiutils.plot.colormap import RED_TO_TEAL
 from cdiutils.plot.slice import plot_volume_slices
 from cdiutils.plot.volume import plot_3d_surface_projections
-from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
 from cdiutils.process.postprocessor import PostProcessor
 
