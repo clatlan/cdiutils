@@ -190,7 +190,9 @@ class FacetAnalysisProcessor:
         self.path_visu = f"{self.path_f}/visualization/"
 
         self.X, self.Y, self.Z = np.shape(self.support)
-        self.surface = self.support - erosion(self.support).astype(int)
+        self.surface = (
+            self.support.astype(bool) & ~erosion(self.support.astype(bool))
+        ).astype(int)
 
     def check_previous_data(self) -> None:
         """

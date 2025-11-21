@@ -127,9 +127,14 @@ Post-processing
    :show-inheritance:
 
 Facet Analysis
-~~~~~~~~~~~~~~
+--------------
 
-.. automodule:: cdiutils.process.facet_analysis
+.. automodule:: cdiutils.facetanalysis
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: cdiutils.facetanalysis.facet_analysis
    :members:
    :undoc-members:
    :show-inheritance:
