@@ -276,7 +276,7 @@ def make_support(
     if nan_values:
         return np.where(data >= isosurface, 1, np.nan)
     else:
-        return (data >= isosurface).astype(bool)
+        return (data >= isosurface).astype(int)
 
 
 def unit_vector(vector: tuple | list | np.ndarray) -> np.ndarray:

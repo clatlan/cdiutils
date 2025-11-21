@@ -10,8 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-cdiutils = pytest.importorskip("cdiutils", reason="cdiutils not installed")
-from cdiutils.pipeline import BcdiPipeline  # noqa: E402
+from cdiutils.pipeline import BcdiPipeline
 
 
 @pytest.mark.integration

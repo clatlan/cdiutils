@@ -262,7 +262,7 @@ def get_histogram(
             stds["bulk"] = np.nanstd(bulk_data)
 
         if region == "surface" or region == "all":
-            surface = support.astype(bool) & ~bulk
+            surface = (support.astype(bool) & ~bulk).astype(int)
             surface_data = data[surface > 0]
             histograms["surface"] = np.histogram(
                 surface_data,

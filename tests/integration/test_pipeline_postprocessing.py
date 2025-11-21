@@ -97,7 +97,7 @@ class TestPostprocessingComponents:
         support = sphere_data["support"]
 
         # find isosurface
-        iso = find_isosurface(data, support, method="otsu")
+        iso, _ = find_isosurface(data)
 
         # verify isosurface is reasonable
         assert 0 < iso < data.max()
@@ -217,7 +217,7 @@ class TestPostprocessingOutputs:
         import tempfile
 
         with tempfile.NamedTemporaryFile(suffix=".vti") as tmp:
-            save_as_vti(tmp.name, data, voxel_size=(10, 10, 10))
+            save_as_vti(tmp.name, voxel_size=(10, 10, 10), data=data)
             assert Path(tmp.name).exists()
 
 

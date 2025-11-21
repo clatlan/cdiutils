@@ -73,7 +73,7 @@ class PostProcessor:
                 support, where=com, output_shape=final_shape
             )
             bulk = binary_erosion(support.astype(bool))
-            surface = support.astype(bool) & ~bulk
+            surface = (support.astype(bool) & ~bulk).astype(int)
             return complex_object, support, surface
 
         support_pre_crop = make_support(
