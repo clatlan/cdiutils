@@ -107,6 +107,8 @@ class Pipeline(ABC):
 
     def make_dump_dir(self) -> None:
         dump_dir = self.params["dump_dir"]
+        if dump_dir is None:
+            raise ValueError("dump_dir parameter must be set.")
         if os.path.isdir(dump_dir):
             print(
                 "\nDump directory already exists, results will be "
