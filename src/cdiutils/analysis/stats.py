@@ -248,7 +248,7 @@ def get_histogram(
     stds["overall"] = np.nanstd(overall_data)
 
     if region != "overall":
-        bulk = binary_erosion(support)
+        bulk = binary_erosion(support.astype(bool))
         bulk_data = data[bulk > 0]
 
         if region == "bulk" or region == "all":
@@ -262,7 +262,7 @@ def get_histogram(
             stds["bulk"] = np.nanstd(bulk_data)
 
         if region == "surface" or region == "all":
-            surface = support - bulk
+            surface = support.astype(bool) & ~bulk
             surface_data = data[surface > 0]
             histograms["surface"] = np.histogram(
                 surface_data,

@@ -72,8 +72,8 @@ class PostProcessor:
             support = CroppingHandler.force_centred_cropping(
                 support, where=com, output_shape=final_shape
             )
-            bulk = binary_erosion(support)
-            surface = support - bulk
+            bulk = binary_erosion(support.astype(bool))
+            surface = support.astype(bool) & ~bulk
             return complex_object, support, surface
 
         support_pre_crop = make_support(

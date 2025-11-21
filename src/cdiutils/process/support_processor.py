@@ -786,7 +786,10 @@ class SupportProcessor:
                     surface = np.load(f"{self.path_order}/surface.npy")
                 except:
                     print("No previous surface found")
-                    surface = support - erosion(support).astype(int)
+                    surface = (
+                        support.astype(bool)
+                        & ~erosion(support.astype(bool))
+                    ).astype(int)
                     np.save(f"{self.path_order}/surface.npy", surface)
 
             elif self.params["support_method"] == "amplitude_variation":
@@ -818,7 +821,10 @@ class SupportProcessor:
                         surface = np.load(f"{self.path_order}/surface.npy")
                     except:
                         print("No previous surface found")
-                        surface = support - erosion(support).astype(int)
+                        surface = (
+                            support.astype(bool)
+                            & ~erosion(support.astype(bool))
+                        ).astype(int)
                         np.save(f"{self.path_order}/surface.npy", surface)
 
                 else:
@@ -843,7 +849,10 @@ class SupportProcessor:
                         )
                     except:
                         print("No previous processed_surface found")
-                        p_surface = p_support - erosion(p_support).astype(int)
+                        p_surface = (
+                            p_support.astype(bool)
+                            & ~erosion(p_support.astype(bool))
+                        ).astype(int)
                         np.save(
                             f"{self.path_order}/processed_surface.npy",
                             p_surface,
@@ -860,7 +869,9 @@ class SupportProcessor:
 
         else:
             support = np.load(self.params["support_path"])
-            surface = support - erosion(support).astype(int)
+            surface = (
+                support.astype(bool) & ~erosion(support.astype(bool))
+            ).astype(int)
             os.makedirs(f"{self.dump_dir}/surface_calculation/", exist_ok=True)
             np.save(
                 f"{self.dump_dir}/surface_calculation/support.npy", support
