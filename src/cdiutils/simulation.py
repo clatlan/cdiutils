@@ -9,9 +9,9 @@ artefacts.
 Functions
 ---------
 Geometry creation:
-    create_parallelepiped : Create a 3D parallelepiped or cube.
-    create_ellipsoid : Create a 3D ellipsoid or sphere.
-    create_cylinder : Create a 3D cylinder.
+    make_box : Create a 3D box (parallelepiped/cube).
+    make_ellipsoid : Create a 3D ellipsoid or sphere.
+    make_cylinder : Create a 3D cylinder.
 
 Phase manipulation:
     add_linear_phase : Add linear phase gradient.
@@ -27,7 +27,7 @@ Diffraction simulation:
 import numpy as np
 
 
-def create_parallelepiped(
+def make_box(
     shape: tuple[int, int, int],
     dimensions: int | tuple[int, int, int],
     center: tuple[int, int, int] | None = None,
@@ -163,7 +163,7 @@ def create_parallelepiped(
     return parallelepiped
 
 
-def create_ellipsoid(
+def make_ellipsoid(
     shape: tuple[int, int, int],
     radii: float | tuple[float, float, float],
     center: tuple[float, float, float] | None = None,
@@ -285,7 +285,7 @@ def create_ellipsoid(
     return array
 
 
-def create_cylinder(
+def make_cylinder(
     shape: tuple[int, int, int],
     radius: float,
     height: float,
