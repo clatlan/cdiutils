@@ -388,7 +388,9 @@ class Loader(ABC):
                     "When called as a static method, detector_name must be "
                     "provided."
                 )
-        roi = cls._check_roi(roi)[1:]
+        roi = cls._check_roi(roi)
+        if len(roi) == 3:
+            roi = roi[1:]
         if channel:
             roi = (slice(None),) + roi[-2:]
 
