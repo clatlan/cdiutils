@@ -60,7 +60,8 @@ DEFAULT_PYNX_PARAMS = {
     "smooth_width_end": 0.5,
     "support": None,
     "obj": None,
-    "amp_range": (0, 100),
+    "amp_range": (0, 1),
+    "scale_obj": "I",
     "phase_range": (-np.pi, np.pi),
     "all_random": False,
     "support_shape": None,
@@ -76,7 +77,7 @@ DEFAULT_PYNX_PARAMS = {
     "fig_num": -1,
     "zero_mask": False,
     # others
-    "psf": "pseudo-voigt,0.5,0.1,10",
+    "psf": "pseudo-voigt,0.5,0.1",
     "compute_free_llk": True,
     "positivity": False,
     "confidence_interval_factor_mask_min": 0.5,
@@ -400,7 +401,7 @@ class PyNXPhaser:
                         )
                         attempt += 1
             elif instruction.lower() == "faa":
-                self.operators["faa"] * cdi
+                cdi = self.operators["faa"] * cdi
             else:
                 raise ValueError(f"Invalid instruction ({instruction}).")
 
