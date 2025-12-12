@@ -405,22 +405,24 @@ class SpaceConverter:
         return tuple(float(transition_matrix[i][ijk]) for i in range(3))
 
     def _centre_shift_q_space_transitions(
-        self, q_space_transitions: np.ndarray, shift_voxel: tuple
+        self, shift_voxel: tuple
     ) -> np.ndarray:
-        # Using the Interpolator3D requires the centring of the q
+        # using the Interpolator3D requires the centring of the q
         # values, here we save the shift in q for later use
         q_lab_shift = np.array(
-            [q_space_transitions[i][shift_voxel] for i in range(3)]
+            [self._q_space_transitions[i][shift_voxel] for i in range(3)]
         )
         # center the q_space_transitions values (not the indexes) so the
         # center of the Bragg peak is (0, 0, 0) A-1
         for i in range(3):
-            q_space_transitions[i] = q_space_transitions[i] - q_lab_shift[i]
+            self._q_space_transitions[i] = (
+                self._q_space_transitions[i] - q_lab_shift[i]
+            )
 
         # reshape the grid so rows correspond to x, y and z coordinates,
         # columns correspond to the bins
-        q_space_transitions = q_space_transitions.reshape(
-            3, q_space_transitions[0].size
+        q_space_transitions = self._q_space_transitions.reshape(
+            3, self._q_space_transitions[0].size
         )
         self.q_lab_shift = q_lab_shift
         return q_space_transitions
@@ -447,22 +449,8 @@ class SpaceConverter:
         if shift_voxel is None:
             shift_voxel = tuple(s // 2 for s in self._shape)
 
-        # In any case (rcp or direct), we need to set up the
-        # transformation matrix.
-        q_space_transitions = self._centre_shift_q_space_transitions(
-            self._q_space_transitions.copy(), shift_voxel
-        )
-
-        # create the 0 centered index grid
-        k_matrix = []
-        for i in np.indices(self._shape):
-            k_matrix.append(i - i[shift_voxel])
-        k_matrix = np.array(k_matrix).reshape(3, np.prod(self._shape))
-
         # get the transformation_matrix
-        transformation_matrix = self.transformation_matrix(
-            q_space_transitions, k_matrix
-        )
+        transformation_matrix = self.get_transformation_matrix(shift_voxel)
 
         if space in (
             "q",
@@ -561,19 +549,32 @@ class SpaceConverter:
 
         return self.direct_lab_interpolator(direct_space_data)
 
-    @staticmethod
-    def transformation_matrix(
-        grid: np.ndarray, index_matrix: np.ndarray
+    def get_transformation_matrix(
+        self,
+        shift_voxel: tuple | None = None,
     ) -> np.ndarray:
         """
         Compute the tranformation matrix that convert (i, j, k) integer
         position into the given grid coordinates.
         """
+        if shift_voxel is None:
+            shift_voxel = tuple(s // 2 for s in self._shape)
+
+        q_space_transitions = self._centre_shift_q_space_transitions(
+            shift_voxel
+        )
+
+        # create the 0 centered index grid
+        ortho_grid = []
+        for i in np.indices(self._shape):
+            ortho_grid.append(i - i[shift_voxel])
+        ortho_grid = np.array(ortho_grid).reshape(3, np.prod(self._shape))
+
         return np.dot(
-            grid,
+            q_space_transitions,
             np.dot(
-                index_matrix.T,
-                np.linalg.inv(np.dot(index_matrix, index_matrix.T)),
+                ortho_grid.T,
+                np.linalg.inv(np.dot(ortho_grid, ortho_grid.T)),
             ),
         )
 
@@ -730,10 +731,6 @@ class SpaceConverter:
         )
 
         shift_voxel = tuple(s // 2 for s in self._shape)
-        q_space_transitions = self._centre_shift_q_space_transitions(
-            self._q_space_transitions, shift_voxel
-        )
-
         # create the 0 centered index grid
         ortho_grid = []
         for i in np.indices(self._shape):
@@ -741,9 +738,7 @@ class SpaceConverter:
         ortho_grid = np.array(ortho_grid).reshape(3, np.prod(self._shape))
 
         # get the transformation_matrix
-        transformation_matrix = self.transformation_matrix(
-            q_space_transitions, ortho_grid
-        )
+        transformation_matrix = self.get_transformation_matrix(shift_voxel)
         direct_lab_transformation_matrix = np.dot(
             np.linalg.inv(transformation_matrix.T),
             np.diag(2 * np.pi / np.array(self._shape)),
