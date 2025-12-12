@@ -1,11 +1,230 @@
 import inspect
+import numbers
 import warnings
 
 import matplotlib
 import numpy as np
 import scipy.constants as cts
-from scipy.fft import fftn, fftshift, ifftshift
+from scipy.fft import fftn, fftshift, ifftn, ifftshift
+from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import center_of_mass, convolve, median_filter
+
+
+def transform_volume(
+    data: np.ndarray,
+    transform_matrix: np.ndarray,
+    output_shape: tuple | None = None,
+    voxel_size: tuple | float | None = None,
+    method: str = "direct",
+    preserve_norm: bool = False,
+) -> np.ndarray:
+    """Apply a linear transform to a 3D volume.
+
+    Args:
+        data: complex 3D array describing the source volume.
+        transform_matrix: 3x3 matrix mapping source indices to target.
+        output_shape: target volume shape; uses ``data.shape`` when
+            None.
+        voxel_size: target voxel spacing; uses unit voxels when None.
+        method: transformation mode; ``"direct"`` or ``"fourier"``.
+        preserve_norm: if True, rescales result by ``|det(A)|**(-1/2)``
+            to approximately preserve the L2 norm for the underlying
+            continuous field. For pure rotations (orthogonal ``A``) this
+            factor is 1; for general shears or scales it compensates the
+            change of volume element.
+
+    Returns:
+        np.ndarray: interpolated volume on the target grid.
+    """
+    if data.ndim != 3:
+        raise ValueError("data must be a 3D array")
+
+    if transform_matrix.shape != (3, 3):
+        raise ValueError("transform_matrix must be 3x3")
+
+    if output_shape is None:
+        output_shape = data.shape
+
+    if len(output_shape) != 3:
+        raise ValueError("output_shape must have length three")
+
+    methods = ("direct", "fourier")
+    if method not in methods:
+        raise ValueError("method must be 'direct' or 'fourier'")
+    if voxel_size is None:
+        voxel_size_array = np.ones(3, dtype=float)
+
+    elif isinstance(voxel_size, numbers.Number):
+        voxel_size_array = np.full(3, float(voxel_size), dtype=float)
+    else:
+        if len(voxel_size) != 3:
+            raise ValueError("voxel_size must have length three")
+        voxel_size_array = np.asarray(voxel_size, dtype=float)
+
+    matrix_inverse = np.linalg.inv(transform_matrix)
+    if method == "direct":
+        result = _transform_direct(
+            data,
+            matrix_inverse,
+            output_shape,
+            voxel_size_array,
+        )
+    else:
+        result = _transform_fourier(
+            data,
+            transform_matrix,
+            matrix_inverse,
+            output_shape,
+        )
+    if preserve_norm:
+        det = float(np.linalg.det(transform_matrix))
+        if det == 0.0:
+            raise ValueError(
+                "Cannot preserve norm for a singular transform matrix",
+            )
+        scale = abs(det) ** (-0.5)
+        result = result * scale
+    return result
+
+
+def _transform_direct(
+    data: np.ndarray,
+    matrix_inverse: np.ndarray,
+    output_shape: tuple,
+    voxel_size_array: np.ndarray,
+) -> np.ndarray:
+    """Resample 3D data by direct interpolation on a target grid.
+
+    Args:
+        data: input 3D volume.
+        matrix_inverse: inverse of the 3x3 transform matrix.
+        output_shape: shape of the output volume.
+        voxel_size_array: spacing of output voxels along each axis.
+
+    Returns:
+        np.ndarray: interpolated volume with the given output shape.
+    """
+    target_axes = [
+        # physical coordinates of target grid, centred at zero
+        (np.arange(size) - size // 2) * spacing
+        for size, spacing in zip(output_shape, voxel_size_array)
+    ]
+    target_mesh = np.meshgrid(*target_axes, indexing="ij")
+    target_coords = np.stack(
+        [axis.ravel() for axis in target_mesh],
+        axis=1,
+    )
+    source_coords = target_coords @ matrix_inverse.T
+    source_axes = [
+        np.arange(-dim // 2, dim // 2, 1, dtype=float) for dim in data.shape
+    ]
+
+    interpolator = RegularGridInterpolator(
+        tuple(source_axes),
+        data,
+        method="linear",
+        bounds_error=False,
+        fill_value=0.0,
+    )
+
+    interpolated = interpolator(source_coords).reshape(output_shape)
+    return interpolated.astype(data.dtype, copy=False)
+
+
+def _transform_fourier(
+    data: np.ndarray,
+    transform_matrix: np.ndarray,
+    matrix_inverse: np.ndarray,
+    output_shape: tuple,
+) -> np.ndarray:
+    """Resample 3D data using Fourier-domain rotation.
+
+    Args:
+        data: input 3D volume.
+        transform_matrix: 3x3 transform matrix in spatial domain.
+        matrix_inverse: inverse of the transform matrix.
+        output_shape: shape of the output volume.
+
+    Returns:
+        np.ndarray: rotated and interpolated volume in spatial domain.
+    """
+    orthogonality = transform_matrix @ transform_matrix.T
+    if not np.allclose(orthogonality, np.eye(3), atol=1e-6):
+        raise ValueError(
+            "fourier method requires an orthogonal transform matrix"
+        )
+
+    complex_data = data.astype(np.complex128, copy=False)
+    frequency_data = fftshift(fftn(complex_data))
+
+    rotated_frequency = _transform_direct(
+        frequency_data,
+        matrix_inverse,
+        output_shape,
+        np.ones(3, dtype=float),
+    )
+
+    rotated_frequency = rotated_frequency.astype(np.complex128, copy=False)
+    spatial_data = ifftn(ifftshift(rotated_frequency))
+
+    if np.iscomplexobj(data):
+        return spatial_data.astype(data.dtype, copy=False)
+    return np.real(spatial_data).astype(data.dtype, copy=False)
+
+
+def get_reciprocal_voxel_size(
+    real_voxel_size: float | tuple | np.ndarray,
+    shape: tuple | list | np.ndarray,
+    convention: str | None = None,
+) -> tuple:
+    """
+    Calculate reciprocal-space voxel size from real-space parameters.
+
+    Uses the generic relation
+        dq = factor / (N * dx)
+    for each axis, where ``N`` is the number of pixels and ``dx`` the
+    corresponding real-space voxel size.
+
+    This implementation is dimension-agnostic and does not assume any
+    particular axis ordering. ``real_voxel_size`` and ``shape`` are only
+    required to have the same length. This makes it compatible with both
+    CXI- and xrayutilities-style conventions as long as the ordering of
+    ``real_voxel_size`` matches that of ``shape``.
+
+    Args:
+        real_voxel_size: Real-space voxel size (scalar or sequence). If
+            scalar, the same value is used for all axes; otherwise it
+            must have the same length as ``shape``.
+        shape: Array shape, e.g. ``(nz, ny, nx)``. Any dimensionality
+            is accepted.
+        convention: Optional convention for calculation. Currently only
+            controls an overall 2pi factor when set to ``"xu"`` or
+            ``"crystallography"`` or None. For other values ``factor=1``.
+            Defaults to None.
+
+    Returns:
+        Tuple of reciprocal voxel sizes (dq0, dq1, ..., dq_{ndim-1}) in
+        inverse units, with the same ordering as ``shape``.
+    """
+    # normalise real_voxel_size to a 1D float array matching ndim
+    ndim = len(shape)
+    if isinstance(real_voxel_size, (int, float)):
+        real_sizes = np.full(ndim, float(real_voxel_size), dtype=float)
+    else:
+        real_sizes = np.asarray(real_voxel_size, dtype=float).ravel()
+        if real_sizes.size != ndim:
+            raise ValueError(
+                "real_voxel_size must be scalar or have the same "
+                "length as shape",
+            )
+
+    # choose overall factor
+    factor = 1.0
+    if convention is None or convention in ("xu", "crystallography"):
+        factor = 2 * np.pi
+
+    dq = factor / (shape * real_sizes)
+    return tuple(float(v) for v in dq)
 
 
 def bin_along_axis(
