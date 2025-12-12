@@ -448,7 +448,6 @@ def update_plot_params(
             "image.interpolation": "none",
             "font.family": "sans-serif",
             "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
-            # "font.sans-serif": "DejaVu Sans",
             "figure.figsize": (4.5, 3.0),
         }
 
@@ -467,7 +466,6 @@ def update_plot_params(
             "image.interpolation": "none",
             "font.family": "sans-serif",
             "font.sans-serif": ["DejaVu Sans", "Liberation Sans"],
-            # "font.sans-serif": "DejaVu Sans",
             "figure.figsize": (4.5, 3.0),
         }
     elif style == "thesis":
@@ -932,24 +930,3 @@ def white_interior_ticks_labels(
     ax.yaxis.set_major_locator(mticker.FixedLocator(yticks_loc))
     ax.set_xticklabels(xlabels)
     ax.set_yticklabels(ylabels)
-
-
-class MathTextSciFormatter(mticker.Formatter):
-    def __init__(self, fmt="%1.2e"):
-        self.fmt = fmt
-
-    def __call__(self, x, pos=None):
-        s = self.fmt % x
-        decimal_point = "."
-        positive_sign = "+"
-        tup = s.split("e")
-        significand = tup[0].rstrip(decimal_point)
-        sign = tup[1][0].replace(positive_sign, "")
-        exponent = tup[1][1:].lstrip("0")
-        if exponent:
-            exponent = f"10^{sign, exponent}"
-        if significand and exponent:
-            s = rf"{significand}\times{exponent}"
-        else:
-            s = rf"{significand, exponent}"
-        return f"${s}$"
