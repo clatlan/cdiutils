@@ -356,6 +356,10 @@ class PipelinePlotter:
                         data_centre=(0, 0),
                     )
                 else:
+                    print(
+                        "Summary plot contouring is only implemented for CXI "
+                        "convention."
+                    )
                     # TODO: XU case, to be implemented.
                     pass
 
