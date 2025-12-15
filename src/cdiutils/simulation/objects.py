@@ -522,7 +522,7 @@ def simulate_diffraction(
     photon_budget: float | None = None,
     max_intensity: float | None = None,
     scale: float = 1.0,
-    poisson_statistics: bool = True,
+    poisson_statistics: bool = False,
     convention: str | None = None,
 ) -> np.ndarray:
     """
@@ -563,7 +563,7 @@ def simulate_diffraction(
         scale: Multiplicative scale factor applied to intensity.
             Defaults to 1.0.
         poisson_statistics: If True, apply Poisson statistics to
-            the final intensity (photon counting). Default is True.
+            the final intensity (photon counting). Default is False.
         convention: Placeholder for future FFT/q-space
             conventions. Currently ignored except for being accepted
             for API compatibility.
