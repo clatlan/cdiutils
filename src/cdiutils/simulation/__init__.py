@@ -33,7 +33,7 @@ Noise models (from noise):
     add_noise : Add Gaussian and/or Poisson noise to data.
 
 BCDI measurement simulation (from detector):
-    BCDIMeasurementSimulator : Complete BCDI measurement simulator.
+    BCDISimulator : Complete BCDI measurement simulator.
 
 Notes
 -----
@@ -41,7 +41,7 @@ The diffraction simulation uses forward FFT convention (optics/signal
 processing). For crystallographic conventions, manage phase signs in
 your object definition rather than changing the FFT direction.
 
-For realistic noise modelling, the :class:`BCDIMeasurementSimulator`
+For realistic noise modelling, the :class:`BCDISimulator`
 class provides end-to-end simulation including diffractometer
 geometry, coordinate transformations, and detector effects.
 
@@ -51,7 +51,7 @@ Example
 ...     make_box,
 ...     add_random_phase,
 ...     simulate_diffraction,
-...     BCDIMeasurementSimulator,
+...     BCDISimulator,
 ... )
 >>>
 >>> # simple diffraction simulation
@@ -60,7 +60,7 @@ Example
 >>> intensity = simulate_diffraction(obj, photon_budget=1e9)
 >>>
 >>> # full BCDI measurement simulation
->>> sim = BCDIMeasurementSimulator(
+>>> sim = BCDISimulator(
 ...     energy=9000,
 ...     lattice_parameter=4.08e-10,
 ... )
@@ -70,7 +70,7 @@ Example
 
 # import from objects module
 # import from detector module
-from .detector import BCDIMeasurementSimulator
+from .detector import BCDISimulator
 
 # import from noise module
 from .noise import add_noise
@@ -100,5 +100,5 @@ __all__ = [
     # noise models
     "add_noise",
     # BCDI measurement simulator
-    "BCDIMeasurementSimulator",
+    "BCDISimulator",
 ]

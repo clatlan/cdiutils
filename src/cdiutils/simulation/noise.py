@@ -107,7 +107,7 @@ def add_noise(
 
         For frame-by-frame noise in rocking curves, use this
         function within a loop or use the
-        :class:`BCDIMeasurementSimulator` class which handles
+        :class:`BCDISimulator` class which handles
         realistic detector simulation automatically.
     """
     # validate inputs

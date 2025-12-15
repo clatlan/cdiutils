@@ -228,7 +228,7 @@ def shift_no_wrap(
     return shifted
 
 
-class BCDIMeasurementSimulator:
+class BCDISimulator:
     """
     Simulator for BCDI measurement with realistic detector geometry.
 
@@ -276,7 +276,7 @@ class BCDIMeasurementSimulator:
 
     Example:
         >>> # create simulator for ID01 beamline
-        >>> sim = BCDIMeasurementSimulator(
+        >>> sim = BCDISimulator(
         ...     energy=9000,  # 9 keV
         ...     structure='cubic',
         ...     hkl=[1, 1, 1],
@@ -438,7 +438,7 @@ class BCDIMeasurementSimulator:
             NotImplementedError: If structure is not 'cubic'.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(
+            >>> sim = BCDISimulator(
             ...     energy=9000,
             ...     structure='cubic',
             ...     hkl=[1, 1, 1],
@@ -482,7 +482,7 @@ class BCDIMeasurementSimulator:
             NotImplementedError: If structure is not 'cubic'.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(
+            >>> sim = BCDISimulator(
             ...     energy=9000,
             ...     structure='cubic',
             ...     hkl=[1, 1, 1],
@@ -523,7 +523,7 @@ class BCDIMeasurementSimulator:
             Angular offsets (delta_offset, nu_offset) in degrees.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(
+            >>> sim = BCDISimulator(
             ...     energy=9000,
             ...     det_calib_params={
             ...         'distance': 1.0,
@@ -589,17 +589,17 @@ class BCDIMeasurementSimulator:
 
         Example:
             >>> # convert single angle
-            >>> rad = BCDIMeasurementSimulator._convert_to_unit(
+            >>> rad = BCDISimulator._convert_to_unit(
             ...     30.0, unit='radians'
             ... )
             >>>
             >>> # convert multiple angles
-            >>> rad_tuple = BCDIMeasurementSimulator._convert_to_unit(
+            >>> rad_tuple = BCDISimulator._convert_to_unit(
             ...     30.0, 45.0, unit='radians'
             ... )
             >>>
             >>> # convert dictionary
-            >>> rad_dict = BCDIMeasurementSimulator._convert_to_unit(
+            >>> rad_dict = BCDISimulator._convert_to_unit(
             ...     unit='radians',
             ...     delta=30.0,
             ...     nu=45.0,
@@ -657,7 +657,7 @@ class BCDIMeasurementSimulator:
                 information is provided.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> # compute detector angles from scattering angle
             >>> sim.compute_angles(scattering_angle=41.0)
             >>> print(sim.all_angles)
@@ -797,7 +797,7 @@ class BCDIMeasurementSimulator:
             'detector_inplane_angle' in degrees.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> angles = sim.get_detector_angles(
             ...     scattering_angle=41.0
             ... )
@@ -862,7 +862,7 @@ class BCDIMeasurementSimulator:
             ValueError: If geometric_shape is not recognised.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> sim.simulate_object(
             ...     shape=(80, 80, 80),
             ...     voxel_size=8e-9,
@@ -975,7 +975,7 @@ class BCDIMeasurementSimulator:
             >>> obj = np.ones((64, 64, 64), dtype=complex)
             >>> obj *= np.exp(1j * np.random.rand(64, 64, 64))
             >>>
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> sim.set_object(obj, voxel_size=10e-9)
         """
         self.obj = obj
@@ -1010,7 +1010,7 @@ class BCDIMeasurementSimulator:
             Array of rocking angles in degrees.
 
         Example:
-            >>> angles = BCDIMeasurementSimulator.get_rocking_angles(
+            >>> angles = BCDISimulator.get_rocking_angles(
             ...     bragg_angle=20.5,
             ...     rocking_range=0.5,
             ...     num_frames=200,
@@ -1071,7 +1071,7 @@ class BCDIMeasurementSimulator:
                 'outofplane'.
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> # ... simulate object ...
             >>> detector_angles = sim.get_detector_angles(
             ...     scattering_angle=41.0
@@ -1109,7 +1109,6 @@ class BCDIMeasurementSimulator:
 
         # compute transformation matrices
         roi = self._get_roi()
-        print(f"ROI for matrix computation: {roi}")
 
         converter = SpaceConverter(
             self.geometry,
@@ -1138,6 +1137,7 @@ class BCDIMeasurementSimulator:
     def to_detector_frame(
         self,
         method: str | None = None,
+        output_shape: tuple[int, int, int] | None = None,
         plot: bool = True,
     ) -> np.ndarray:
         """
@@ -1149,7 +1149,10 @@ class BCDIMeasurementSimulator:
 
         Args:
             method: Transformation method: 'matrix_transform' or
-                'shear_fft'. Default is 'matrix_transform'.
+                'shear_fft'. Default is 'matrix_transform'. For now,
+                only 'matrix_transform' is implemented.
+            output_shape: Desired output shape. Default is same as
+                detector frame shape.
             plot: If True, plot the transformed intensity. Default
                 is True.
 
@@ -1161,7 +1164,7 @@ class BCDIMeasurementSimulator:
                 'shear_fft' is requested (not yet implemented).
 
         Example:
-            >>> sim = BCDIMeasurementSimulator(energy=9000)
+            >>> sim = BCDISimulator(energy=9000)
             >>> # ... simulate object and set measurement params ...
             >>> detector_data = sim.to_detector_frame()
 
@@ -1172,11 +1175,13 @@ class BCDIMeasurementSimulator:
         if method is None:
             method = "matrix_transform"
 
+        output_shape = (self.num_frames,) + self.detector_shape
+
         if method.lower() == "matrix_transform":
             detector_frame_intensity = transform_volume(
                 self.intensity,
                 self.q_to_detector_matrix,
-                output_shape=self.intensity.shape,
+                output_shape=output_shape,
             )
         elif method.lower() == "shear_fft":
             raise ValueError(
@@ -1310,8 +1315,6 @@ class BCDIMeasurementSimulator:
             scale = max_intensity / np.max(intensity)
 
         intensity = intensity * scale
-        plot_volume_slices(intensity, norm="log")
-
         # add noise
         if noise_params is not None:
             if isinstance(noise_params, dict):
