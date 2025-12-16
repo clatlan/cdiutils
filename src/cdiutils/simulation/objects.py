@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.fft import fftn, fftshift
+from scipy.fft import fftn, fftshift, ifftn
 
 
 def make_box(
@@ -361,7 +361,7 @@ def add_random_phase(
     phase = np.random.normal(0, phase_std, shape)
 
     # apply spatial correlation if requested
-    if correlation_length is not None:
+    if correlation_length is not None and phase_std > 0:
         # Gaussian smoothing in Fourier space
         kz = np.fft.fftfreq(shape[0])
         ky = np.fft.fftfreq(shape[1])
@@ -372,8 +372,8 @@ def add_random_phase(
         # Gaussian filter
         filter_func = np.exp(-2 * (np.pi * correlation_length) ** 2 * k_sq)
 
-        phase_fft = np.fft.fftn(phase)
-        phase = np.real(np.fft.ifftn(phase_fft * filter_func))
+        phase_fft = fftn(phase)
+        phase = np.real(ifftn(phase_fft * filter_func))
 
         # renormalise to maintain std
         phase = phase / phase.std() * phase_std
