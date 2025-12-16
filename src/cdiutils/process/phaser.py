@@ -610,7 +610,7 @@ class PyNXPhaser:
             if key == "observed_intensity":
                 plot_params["title"] = "Observed Int. (a.u.)"
             if "intensity" in key:
-                plot_params["norm"] = LogNorm()
+                plot_params["norm"] = LogNorm(1)
                 plot_params.pop("vmin"), plot_params.pop("vmax")
 
             # Set the ax title and remove it from the plotting params
@@ -1155,7 +1155,7 @@ class PhasingResultAnalyser:
                 rcp_im = axes[0, i].matshow(
                     np.sum(reciprocal_space_data, axis=i),
                     cmap="turbo",
-                    norm=LogNorm(),
+                    norm=LogNorm(1),
                 )
                 if plot_phase:
                     direct_space_im = axes[1, i].matshow(
@@ -1194,7 +1194,7 @@ class PhasingResultAnalyser:
             figure, axes = plt.subplots(1, 2, figsize=(4, 2), layout="tight")
 
             rcp_im = axes[0].matshow(
-                reciprocal_space_data, cmap="turbo", norm=LogNorm()
+                reciprocal_space_data, cmap="turbo", norm=LogNorm(1)
             )
             if plot_phase:
                 direct_space_im = axes[1].matshow(

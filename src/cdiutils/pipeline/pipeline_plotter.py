@@ -41,7 +41,7 @@ class PipelinePlotter:
                 return None
             return sub.get(k2)
 
-        norm = LogNorm()
+        norm = LogNorm(1)
 
         plot_params = {
             "norm": norm,
@@ -457,7 +457,7 @@ class PipelinePlotter:
             obj_fft,
             voxel_size=q_spacing,
             data_centre=q_space_shift,
-            norm=LogNorm(),
+            norm=LogNorm(1),
             convention="xu",
             show=False,
         )
@@ -469,7 +469,7 @@ class PipelinePlotter:
             exp_ortho_data,
             voxel_size=q_spacing,
             data_centre=q_centre,
-            norm=LogNorm(),
+            norm=LogNorm(1),
             convention="xu",
             show=False,
         )
@@ -481,7 +481,7 @@ class PipelinePlotter:
                 new_ax.imshow(
                     im.get_array(),
                     cmap=im.get_cmap(),
-                    norm=LogNorm(),
+                    norm=im.norm,
                     extent=im.get_extent(),
                     origin=im.origin,
                 )
