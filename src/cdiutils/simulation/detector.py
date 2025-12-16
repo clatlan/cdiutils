@@ -1320,9 +1320,9 @@ class BCDISimulator:
             if isinstance(noise_params, dict):
                 noise_params = [noise_params]
         else:
-            # default: air scattering + Poisson statistics
+            # default: air scattering + Poisson statistics, mind the order!
             noise_params = [
-                {"gaussian_mean": 0.5, "gaussian_std": 1.0},
+                {"gaussian_mean": 0.0, "gaussian_std": 0.1},
                 {"poisson_statistics": True},
             ]
 
