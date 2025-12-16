@@ -194,14 +194,14 @@ class PipelinePlotter:
         _, raw_axes = plot_volume_slices(
             det_data,
             views=("z-", "y+", "x+"),  # natural views,
-            norm=LogNorm(),
+            norm=LogNorm(1),
             show=False,
         )
         _, ortho_axes = plot_volume_slices(
             ortho_data,
             voxel_size=q_spacing,
             data_centre=q_centre,
-            norm=LogNorm(),
+            norm=LogNorm(1),
             convention="xu",
             show=False,
         )
@@ -213,7 +213,7 @@ class PipelinePlotter:
                 new_ax.imshow(
                     im.get_array(),
                     cmap=im.get_cmap(),
-                    norm=LogNorm(),
+                    norm=im.norm,
                     extent=im.get_extent(),
                     origin=im.origin,
                 )
