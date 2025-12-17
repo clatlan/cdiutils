@@ -146,7 +146,7 @@ class TestPipelineWithSimulatedData:
 
         # run phase retrieval (reduced number of runs for testing)
         pipeline.phase_retrieval(
-            cmd="module load pynx/devel; pynx-cdi-id01 pynx-cdi-inputs.txt",
+            cmd="module load pynx && pynx-cdi-id01 pynx-cdi-inputs.txt",
             nb_run=10,
             nb_run_keep=5,
             clear_former_results=True,
