@@ -37,7 +37,7 @@ build-job:
     - which mamba
     # create environment from environment-dev.yml
     - mamba env create --prefix $CDIUTILS_ENV --file $CI_PROJECT_DIR/environment-dev.yml
-    - conda activate $CDIUTILS_ENV
+    - mamba activate $CDIUTILS_ENV
     - python --version
     # install cdiutils in editable mode
     - pip install -e $CI_PROJECT_DIR
@@ -52,7 +52,7 @@ lint-job:
   script:
     - echo "running ruff linting..."
     - module load mamba
-    - conda activate $CDIUTILS_ENV
+    - mamba activate $CDIUTILS_ENV
     - ruff check src/cdiutils tests
     - ruff format --check --line-length 79 src/cdiutils tests
     - echo "linting passed"
@@ -66,7 +66,7 @@ test-unit:
   script:
     - echo "running unit tests..."
     - module load mamba
-    - conda activate $CDIUTILS_ENV
+    - mamba activate $CDIUTILS_ENV
     - pytest tests/unit -v -ra --tb=short
     - echo "unit tests passed"
 
@@ -79,7 +79,7 @@ test-integration:
   script:
     - echo "running integration tests (no GPU)..."
     - module load mamba
-    - conda activate $CDIUTILS_ENV
+    - mamba activate $CDIUTILS_ENV
     - pytest tests/integration -m "integration and not gpu" -v -ra --tb=short --timeout=600
     - echo "integration tests passed"
   timeout: 30 minutes
@@ -96,9 +96,9 @@ test-gpu:
     - module load mamba cuda pynx
     - which nvcc
     - nvcc --version
-    - echo "Checking PyNX GPU availability... pynx-info"
+    - echo "Checking PyNX GPU availability..."
     - pynx-info
-    - conda activate $CDIUTILS_ENV
+    - mamba activate $CDIUTILS_ENV
     - pytest tests/integration -m gpu -v -ra --tb=short --timeout=600
     - echo "GPU tests passed"
   timeout: 30 minutes
