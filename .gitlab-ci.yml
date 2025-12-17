@@ -93,9 +93,11 @@ test-gpu:
     - !reference [.default_rules, rules]
   script:
     - echo "running GPU tests..."
-    - module load mamba cuda
+    - module load mamba cuda pynx
     - which nvcc
     - nvcc --version
+    - echo "Checking PyNX GPU availability... pynx-info"
+    - pynx-info
     - conda activate $CDIUTILS_ENV
     - pytest tests/integration -m gpu -v -ra --tb=short --timeout=600
     - echo "GPU tests passed"
