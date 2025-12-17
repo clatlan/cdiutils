@@ -98,6 +98,8 @@ test-gpu:
     - nvcc --version
     - echo "Checking PyNX GPU availability..."
     - pynx-info
+    - echo "Unloading CUDA and PyNX modules to avoid conflicts..."
+    - module unload cuda pynx
     - mamba activate $CDIUTILS_ENV
     - pytest tests/integration -m gpu -v -ra --tb=short --timeout=600
     - echo "GPU tests passed"
