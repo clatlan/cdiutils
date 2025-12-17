@@ -515,6 +515,9 @@ class BCDISimulator:
         the Bragg peak at the specified pixel position, accounting
         for the difference from the calibrated detector centre.
 
+        Note that the sign convention here is specific to ID01 geometry,
+        the pixel count increases opposite to delta and nu angles.
+
         Args:
             target_peak_position: Target pixel position (row, col).
                 If None, uses instance attribute.
@@ -642,6 +645,15 @@ class BCDISimulator:
         from calibrated centre. Results are stored in
         ``self.all_angles``.
 
+        Here we consider the effective angles to be the physical
+        angles at the desired self.peak_position. They are the actual
+        angles corresponding to that position. They are defined as:
+        **effective angles = detector angles - angular offsets**
+        The detector calibration gives the direct beam position on the
+        detector, which corresponds to where the diffractometer angles
+        are effective (at this position the effective angles = detector
+        angles). Refer to :func:`get_angular_offsets` for more details.
+
         Args:
             target_peak_position: Target pixel position (row, col).
                 If None, uses instance attribute.
@@ -697,10 +709,10 @@ class BCDISimulator:
             and detector_inplane_angle is None
         ):
             # both detector angles missing: use scattering angle
-            detector_angles = [scattering_angle, 0.0]  # delta, nu
-            effective_angles = [
-                d - o for d, o in zip(detector_angles, angular_offsets)
-            ]
+            effective_angles = [scattering_angle, 0.0]  # delta, nu
+            # effective_angles = [
+            #     d - o for d, o in zip(detector_angles, angular_offsets)
+            # ]
         elif scattering_angle is None:
             # scattering angle missing: compute from detector angles
             if (
@@ -820,11 +832,7 @@ class BCDISimulator:
 
     def simulate_object(
         self,
-        shape: tuple[int, int, int] | list[int] | np.ndarray = (
-            100,
-            100,
-            100,
-        ),
+        shape: tuple | list | np.ndarray = (100, 100, 100),
         voxel_size: float | tuple[float, float, float] = 10e-9,
         geometric_shape: str | None = None,
         geometric_shape_params: dict | None = None,
