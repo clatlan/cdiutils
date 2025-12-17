@@ -138,9 +138,7 @@ class TestPreprocessingOutputs:
 class TestPreprocessingEdgeCases:
     """Test edge cases and error handling in preprocessing."""
 
-    def test_missing_experiment_file(
-        self, mock_pipeline_params, tmp_path
-    ):
+    def test_missing_experiment_file(self, mock_pipeline_params, tmp_path):
         """Test handling of missing experiment file."""
         params = mock_pipeline_params.copy()
         params["experiment_file_path"] = "/nonexistent/file.nxs"
