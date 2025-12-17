@@ -116,7 +116,7 @@ class TestPipelineWithSimulatedData:
                 experimental data and metadata.
         """
         # check if PyNX is available
-        pytest.importorskip("pynx", reason="PyNX not installed")
+        # pytest.importorskip("pynx", reason="PyNX not installed")
 
         # extract simulation metadata
         experiment_file = simulated_id01_data["experiment_file"]
