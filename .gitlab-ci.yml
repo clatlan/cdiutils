@@ -93,20 +93,14 @@ test-gpu:
     - !reference [.default_rules, rules]
   script:
     - echo "running GPU tests..."
-    - echo "Loading mamba and activating cdiutils environment first..."
     - module load mamba
     - mamba activate $CDIUTILS_ENV
-    - echo "Now loading CUDA and PyNX modules (for subprocess calls)..."
-    - module load cuda pynx
-    - echo "Checking CUDA availability..."
-    - which nvcc
-    - nvcc --version
-    - echo "Checking PyNX GPU availability..."
-    - pynx-info
+    # - module load cuda
+    # - echo "Checking CUDA availability..."
+    # - which nvcc
+    # - nvcc --version
     - echo "Running GPU tests..."
-    - echo "Using mamba environment Python to run pytest..."
-    - which python
-    - python -m pytest tests/integration -m gpu -v -ra --tb=short
+    - pytest tests/integration -m gpu -v -ra --tb=short
     - echo "GPU tests passed"
   timeout: 30 minutes
   allow_failure: true
