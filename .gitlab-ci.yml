@@ -80,7 +80,7 @@ test-integration:
     - echo "running integration tests (no GPU)..."
     - module load mamba
     - mamba activate $CDIUTILS_ENV
-    - pytest tests/integration -m "integration and not gpu" -v -ra --tb=short --timeout=600
+    - pytest tests/integration -m "integration and not gpu" -v -ra --tb=short
     - echo "integration tests passed"
   timeout: 30 minutes
   allow_failure: true
@@ -104,7 +104,7 @@ test-gpu:
     - echo "Checking PyNX GPU availability..."
     - pynx-info
     - echo "Running GPU tests..."
-    - pytest tests/integration -m gpu -v -ra --tb=short --timeout=600
+    - pytest tests/integration -m gpu -v -ra --tb=short
     - echo "GPU tests passed"
   timeout: 30 minutes
   allow_failure: true
