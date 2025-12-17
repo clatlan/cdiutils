@@ -104,7 +104,9 @@ test-gpu:
     - echo "Checking PyNX GPU availability..."
     - pynx-info
     - echo "Running GPU tests..."
-    - pytest tests/integration -m gpu -v -ra --tb=short
+    - echo "Using mamba environment Python to run pytest..."
+    - which python
+    - python -m pytest tests/integration -m gpu -v -ra --tb=short
     - echo "GPU tests passed"
   timeout: 30 minutes
   allow_failure: true
