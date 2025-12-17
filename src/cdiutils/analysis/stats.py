@@ -138,6 +138,14 @@ def find_isosurface(
 
     # Ensure isosurface is non-negative
     if isosurface < 0:
+        import warnings
+
+        warnings.warn(
+            f"Isosurface estimate ({isosurface:.3f}) is negative. "
+            "Returning 0. This may indicate poor signal-to-noise ratio "
+            "or unsuitable data for isosurface detection.",
+            UserWarning,
+        )
         isosurface = 0
 
     if plot or show:

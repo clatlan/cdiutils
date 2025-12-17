@@ -16,6 +16,7 @@ stages:
 variables:
   # path to conda environment
   CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID/cdiutils_env
+  CDIUTILS_TEST_DATA: /scisoft/cdiutils_test_data
 
 build-job:
   stage: build
