@@ -316,9 +316,9 @@ class TestPostprocessingWithRealData:
             handle_defects=True,
         )
 
-        # verify outputs were created
-        dump_dir = gpu_pipeline_results["dump_dir"]
-        scan: int = gpu_pipeline_results["scan"]
+        # verify outputs were created (use pipeline's dump_dir)
+        scan: int = pipeline.params["scan"]
+        dump_dir = Path(pipeline.params["dump_dir"])
         final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists(), "Postprocessed file not updated"
 
@@ -346,8 +346,9 @@ class TestPostprocessingWithRealData:
             handle_defects=False,  # disabled
         )
 
-        dump_dir = gpu_pipeline_results["dump_dir"]
-        scan: int = gpu_pipeline_results["scan"]
+        # verify outputs were created (use pipeline's dump_dir)
+        scan: int = pipeline.params["scan"]
+        dump_dir = Path(pipeline.params["dump_dir"])
         final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
 
@@ -376,8 +377,9 @@ class TestPostprocessingWithRealData:
             handle_defects=True,
         )
 
-        dump_dir = gpu_pipeline_results["dump_dir"]
-        scan: int = gpu_pipeline_results["scan"]
+        # verify outputs were created (use pipeline's dump_dir)
+        scan: int = pipeline.params["scan"]
+        dump_dir = Path(pipeline.params["dump_dir"])
         final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
 
@@ -399,7 +401,8 @@ class TestPostprocessingWithRealData:
         # re-run postprocessing with different support threshold
         pipeline.postprocess(isosurface=0.15, flip=True)
 
-        dump_dir = gpu_pipeline_results["dump_dir"]
-        scan: int = gpu_pipeline_results["scan"]
+        # verify outputs were created (use pipeline's dump_dir)
+        scan: int = pipeline.params["scan"]
+        dump_dir = Path(pipeline.params["dump_dir"])
         final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
