@@ -300,7 +300,9 @@ class TestPostprocessingWithRealData:
         Args:
             gpu_pipeline_results: Pre-computed GPU pipeline results.
         """
-        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+        pipeline = BcdiPipeline(
+            param_file_path=gpu_pipeline_results["param_file_path"]
+        )
 
         # re-run postprocessing with higher isosurface
         pipeline.postprocess(
@@ -312,7 +314,7 @@ class TestPostprocessingWithRealData:
         # verify outputs were created
         dump_dir = gpu_pipeline_results["dump_dir"]
         scan: int = gpu_pipeline_results["scan"]
-        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists(), "Postprocessed file not updated"
 
     def test_postprocess_without_defect_handling(
@@ -323,7 +325,9 @@ class TestPostprocessingWithRealData:
         Args:
             gpu_pipeline_results: Pre-computed GPU pipeline results.
         """
-        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+        pipeline = BcdiPipeline(
+            param_file_path=gpu_pipeline_results["param_file_path"]
+        )
 
         # re-run postprocessing without defect handling
         pipeline.postprocess(
@@ -334,7 +338,7 @@ class TestPostprocessingWithRealData:
 
         dump_dir = gpu_pipeline_results["dump_dir"]
         scan: int = gpu_pipeline_results["scan"]
-        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
 
     def test_postprocess_different_voxel_size(
@@ -345,7 +349,9 @@ class TestPostprocessingWithRealData:
         Args:
             gpu_pipeline_results: Pre-computed GPU pipeline results.
         """
-        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+        pipeline = BcdiPipeline(
+            param_file_path=gpu_pipeline_results["param_file_path"]
+        )
 
         # re-run postprocessing with smaller voxels
         pipeline.postprocess(
@@ -357,7 +363,7 @@ class TestPostprocessingWithRealData:
 
         dump_dir = gpu_pipeline_results["dump_dir"]
         scan: int = gpu_pipeline_results["scan"]
-        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
 
     def test_postprocess_flipping(self, gpu_pipeline_results: dict) -> None:
@@ -366,12 +372,14 @@ class TestPostprocessingWithRealData:
         Args:
             gpu_pipeline_results: Pre-computed GPU pipeline results.
         """
-        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+        pipeline = BcdiPipeline(
+            param_file_path=gpu_pipeline_results["param_file_path"]
+        )
 
         # re-run postprocessing with different support threshold
         pipeline.postprocess(isosurface=0.15, flip=True)
 
         dump_dir = gpu_pipeline_results["dump_dir"]
         scan: int = gpu_pipeline_results["scan"]
-        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()

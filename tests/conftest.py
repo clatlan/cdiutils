@@ -497,7 +497,7 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
 
     This fixture loads results from the full GPU pipeline test
     (test_full_pipeline_real_data) without re-running it.
-    It searches for and loads the saved parameters YAML file.
+    It finds the saved parameters YAML file path.
 
     In CI:
     - GPU test runs first and saves to
@@ -516,17 +516,15 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
 
     Returns:
         Dictionary containing:
-            - params: Full pipeline parameters from saved YAML
+            - param_file_path: Path to S*_parameters.yml file
             - dump_dir: Path to dump directory
             - pynx_dir: Path to phasing results
-            - scan: Scan number
+            - scan: Scan number (extracted from filename)
             - results_base: Base directory for results
 
     Raises:
         pytest.skip: If GPU pipeline results are not available.
     """
-    import yaml
-
     # try multiple locations for results
     search_paths: list[Path] = []
 
@@ -562,24 +560,20 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
             f"Searched locations: {[str(p) for p in search_paths]}"
         )
 
-    # load parameters from YAML file
-    with open(param_file, "r") as file:
-        params: dict = yaml.safe_load(file)
+    # extract scan number from filename: S54_parameters.yml -> 54
+    scan_str = param_file.stem.split("_")[0][1:]  # remove 'S' prefix
+    scan: int = int(scan_str)
 
-    # extract metadata from parameters
-    scan: int = params["scan"]
-    dump_dir = Path(params["dump_dir"])
+    # infer paths from parameter file location
+    dump_dir = param_file.parent
     pynx_dir = dump_dir / "pynx_phasing"
 
     # verify key directories exist
-    if not dump_dir.exists():
-        pytest.skip(f"GPU pipeline dump_dir not found: {dump_dir}")
-
     if not pynx_dir.exists():
         pytest.skip(f"GPU pipeline pynx_dir not found: {pynx_dir}")
 
     return {
-        "params": params,
+        "param_file_path": str(param_file),
         "dump_dir": dump_dir,
         "pynx_dir": pynx_dir,
         "scan": scan,
