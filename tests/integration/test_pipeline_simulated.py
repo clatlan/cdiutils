@@ -7,6 +7,8 @@ full pipeline (preprocessing, phasing, and postprocessing) with known
 ground truth.
 """
 
+import os
+
 import numpy as np
 import pytest
 
@@ -145,8 +147,10 @@ class TestPipelineWithSimulatedData:
         )
 
         # run phase retrieval (reduced number of runs for testing)
+        # use PYNX_CDI_ID01 env var if set, otherwise try module load
+        pynx_cmd = os.environ.get("PYNX_CDI_ID01", "pynx-cdi-id01")
         pipeline.phase_retrieval(
-            cmd="module load pynx && pynx-cdi-id01 pynx-cdi-inputs.txt",
+            cmd=f"{pynx_cmd} pynx-cdi-inputs.txt",
             nb_run=10,
             nb_run_keep=5,
             clear_former_results=True,

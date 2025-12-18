@@ -95,10 +95,8 @@ test-gpu:
     - echo "running GPU tests..."
     - module load mamba
     - mamba activate $CDIUTILS_ENV
-    # - module load cuda
-    # - echo "Checking CUDA availability..."
-    # - which nvcc
-    # - nvcc --version
+    - echo "Setting PyNX path..."
+    - export PYNX_CDI_ID01="/cvmfs/hpc.esrf.fr/software/packages/ubuntu24.04/x86_64/pynx/2025.1/bin/pynx-cdi-id01"
     - echo "Running GPU tests..."
     - pytest tests/integration -m gpu -v -ra --tb=short
     - echo "GPU tests passed"
