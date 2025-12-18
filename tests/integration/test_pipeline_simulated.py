@@ -147,10 +147,11 @@ class TestPipelineWithSimulatedData:
         )
 
         # run phase retrieval (reduced number of runs for testing)
-        # use PYNX_CDI_ID01 env var if set, otherwise try module load
-        pynx_cmd = os.environ.get("PYNX_CDI_ID01", "pynx-cdi-id01")
+        # Use PYNX_BIN env var if set to construct full paths
+        pynx_bin = os.environ.get("PYNX_BIN", "")
+        pynx_prefix = f"{pynx_bin}/" if pynx_bin else ""
         pipeline.phase_retrieval(
-            cmd=f"{pynx_cmd} pynx-cdi-inputs.txt",
+            cmd=f"{pynx_prefix}pynx-cdi-id01 pynx-cdi-inputs.txt",
             nb_run=10,
             nb_run_keep=5,
             clear_former_results=True,
@@ -166,7 +167,9 @@ class TestPipelineWithSimulatedData:
         pipeline.select_best_candidates(nb_of_best_sorted_runs=3)
 
         # mode decomposition
-        pipeline.mode_decomposition()
+        pipeline.mode_decomposition(
+            cmd=f"{pynx_prefix}pynx-cdi-analysis candidate_*.cxi --modes 1 --modes_output mode.h5"
+        )
 
         # postprocess
         pipeline.postprocess(
