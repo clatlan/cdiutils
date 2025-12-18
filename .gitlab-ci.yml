@@ -102,9 +102,22 @@ test-gpu:
     - echo "Running GPU pipeline test..."
     - pytest tests/integration/test_pipeline_full.py::TestFullPipelineID01::test_full_pipeline_real_data -v -ra --tb=short
     - echo "GPU pipeline test passed"
+    - echo "Cleaning up large intermediate files to reduce artifact size..."
+    # remove large intermediate phasing run files, keep only candidates and mode
+    - find gpu_test_results -name "*Run*.cxi" -type f -delete || true
+    - find gpu_test_results -name "*.npy" -type f -delete || true
+    - find gpu_test_results -name "*.png" -type f -delete || true
+    - find gpu_test_results/pynx_phasing -name "*.png" -type f -delete 2>/dev/null || true
+    - echo "Artifact cleanup complete"
   artifacts:
     paths:
       - gpu_test_results/
+    exclude:
+      # exclude any remaining large files
+      - gpu_test_results/**/*Run*.cxi
+      - gpu_test_results/**/*.npy
+      - gpu_test_results/**/*.npz
+      - gpu_test_results/**/*.png
     expire_in: 1 day
   timeout: 30 minutes
   allow_failure: true
