@@ -455,12 +455,16 @@ class Pipeline(ABC):
         )
 
     def load_parameters(self, file_path: str = None) -> dict:
-        """Load the parameters from the configuration files."""
+        """Load the parameters from the configuration files.
+
+        Uses yaml.full_load() to support Python-specific types
+        like tuples that are saved by yaml.dump().
+        """
         if file_path is None:
             file_path = self.param_file_path
 
         with open(file_path, "r", encoding="utf8") as file:
-            params = yaml.safe_load(file)
+            params = yaml.full_load(file)
         return params
 
     @staticmethod
