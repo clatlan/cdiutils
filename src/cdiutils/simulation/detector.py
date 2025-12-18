@@ -898,7 +898,7 @@ class BCDISimulator:
             make_function = make_box
         elif geometric_shape.lower() == "cylinder":
             make_function = make_cylinder
-        elif geometric_shape.lower() == "ellipsoid":
+        elif geometric_shape.lower() in ("ellipsoid", "ellipse", "sphere"):
             make_function = make_ellipsoid
         else:
             raise ValueError(
@@ -911,7 +911,7 @@ class BCDISimulator:
 
         # add phase
         if phase_type is None:
-            phase_type = "random"
+            phase_type = "constant"
 
         if phase_type.lower() == "quadratic":
             add_phase_function = add_quadratic_phase
@@ -919,10 +919,14 @@ class BCDISimulator:
             add_phase_function = add_linear_phase
         elif phase_type.lower() == "random":
             add_phase_function = add_random_phase
+        elif phase_type.lower() in ("none", "constant", "zero"):
+
+            def add_phase_function(obj: np.ndarray, **kwargs) -> np.ndarray:
+                return obj.astype(complex)
         else:
             raise ValueError(
                 f"Unknown phase type '{phase_type}', select one "
-                "among: 'linear', 'quadratic', 'random'"
+                "among: 'linear', 'quadratic', 'random', 'constant'"
             )
 
         self.obj = add_phase_function(self.obj, **(phase_params or {}))
