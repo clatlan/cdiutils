@@ -102,51 +102,87 @@ def simple_3d_array():
 @pytest.fixture
 def simple_complex_array():
     """
-    Create a simple 3D complex array for testing.
+    s    Create a 3D complex array using simulation objects.
 
-    Returns:
-        np.ndarray: complex 3D array
+        Uses cdiutils.simulation.objects to create a small cylinder with
+        correlated phase distribution, representative of real reconstructions.
+
+        Returns:
+            np.ndarray: complex 3D array
     """
+    cdiutils = pytest.importorskip(
+        "cdiutils", reason="cdiutils required for simulation"
+    )
+    from cdiutils.simulation.objects import add_random_phase, make_cylinder
+
+    # create small cylinder
     shape = (20, 20, 20)
-    amplitude = np.random.rand(*shape)
-    phase = np.random.uniform(-np.pi, np.pi, shape)
-    return amplitude * np.exp(1j * phase)
+    cylinder_mask = make_cylinder(
+        shape,
+        radius=8,
+        height=15,
+        axis=2,
+        value=1.0,
+    )
+
+    # add random phase with correlation
+    obj_with_phase = add_random_phase(
+        cylinder_mask,
+        phase_std=0.3,
+        correlation_length=5,
+    )
+
+    return obj_with_phase
 
 
 @pytest.fixture
 def sphere_data():
     """
-    Create a 3D array with a spherical object in the centre.
+    Create a 3D complex array with a spherical object using simulation.
 
-    Useful for testing support generation, isosurface detection, etc.
+    Uses cdiutils.simulation.objects functions to create a physically
+    realistic sphere with correlated phase distribution.
 
     Returns:
-        dict: containing 'data' and 'support' arrays
+        dict: containing 'data' (amplitude), 'complex_data', 'support',
+            and metadata
     """
-    shape = (40, 40, 40)
-    data = np.zeros(shape)
-
-    # create a sphere in the centre
-    centre = np.array(shape) // 2
-    radius = 10
-
-    x, y, z = np.ogrid[: shape[0], : shape[1], : shape[2]]
-
-    # distance from centre
-    dist_from_centre = np.sqrt(
-        (x - centre[0]) ** 2 + (y - centre[1]) ** 2 + (z - centre[2]) ** 2
+    cdiutils = pytest.importorskip(
+        "cdiutils", reason="cdiutils required for simulation"
+    )
+    from cdiutils.simulation.objects import (
+        add_random_phase,
+        make_ellipsoid,
     )
 
-    # create sphere with good signal-to-noise ratio
-    support = dist_from_centre <= radius
-    data[support] = 100.0  # Strong signal
+    # create spherical object
+    shape = (40, 40, 40)
+    radius = 10
 
-    # add realistic noise (much smaller than signal)
-    data += np.random.normal(0, 5.0, shape)
-    data = np.maximum(data, 0)
+    # make sphere (ellipsoid with equal radii)
+    sphere_mask = make_ellipsoid(shape, radii=radius, value=1.0)
+
+    # add random phase with correlation to create realistic phase distribution
+    obj_with_phase = add_random_phase(
+        sphere_mask,
+        phase_std=0.1,
+        correlation_length=10,
+    )
+
+    # extract amplitude and support
+    amplitude = np.abs(obj_with_phase)
+    support = amplitude > 0
+    centre = np.array(shape) // 2
+
+    # add some realistic noise to amplitude for KDE compatibility
+    amplitude[support] += np.random.normal(
+        0, amplitude[support].mean() * 0.05, support.sum()
+    )
+    amplitude = np.maximum(amplitude, 0)  # ensure non-negative
 
     return {
-        "data": data,
+        "data": amplitude,  # amplitude with variation
+        "complex_data": obj_with_phase,  # complex data
         "support": support,
         "centre": centre,
         "radius": radius,
@@ -156,35 +192,88 @@ def sphere_data():
 @pytest.fixture
 def mock_detector_data():
     """
-    Create mock detector data for testing preprocessing.
+    Create realistic detector data using BCDISimulator.
+
+    Generates a small sphere and projects it to detector space with
+    realistic noise.
 
     Returns:
         dict: containing detector data and associated metadata
     """
-    shape = (100, 256, 256)  # (frames, height, width)
+    cdiutils = pytest.importorskip(
+        "cdiutils", reason="cdiutils required for simulation"
+    )
 
-    # create a Bragg peak
-    data = np.zeros(shape)
+    # create geometry and simulator
+    geometry = cdiutils.geometry.Geometry.from_setup("id01")
 
-    # position of peak
-    peak_pos = (50, 128, 128)
-    peak_width = 10
+    detector_shape = (256, 256)
+    num_frames = 100
 
-    # gaussian peak
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            for k in range(shape[2]):
-                dist = np.sqrt(
-                    (i - peak_pos[0]) ** 2
-                    + (j - peak_pos[1]) ** 2
-                    + (k - peak_pos[2]) ** 2
-                )
-                data[i, j, k] = 1000 * np.exp(-(dist**2) / (2 * peak_width**2))
+    simulator = cdiutils.simulation.BCDISimulator(
+        geometry,
+        energy=9000.0,
+        det_calib_params={
+            "cch1": 128.0,
+            "cch2": 128.0,
+            "pwidth1": 5.5e-05,
+            "pwidth2": 5.5e-05,
+            "distance": 1.0,
+        },
+        num_frames=num_frames,
+    )
 
-    # add some background noise
-    data += np.random.poisson(5, shape)
+    # create small sphere
+    simulator.simulate_object(
+        (60, 60, 60),
+        voxel_size=10e-9,
+        geometric_shape="ellipsoid",
+        geometric_shape_params={"radii": (10, 10, 10)},
+        phase_type="constant",
+        phase_params={"phase_value": 0.0},
+    )
 
-    return {"data": data, "peak_position": peak_pos, "shape": shape}
+    # set measurement parameters
+    bragg_angle = simulator.lattice_parameter_to_bragg_angle(3.92e-10)
+    detector_angles = simulator.get_detector_angles(
+        scattering_angle=bragg_angle * 2
+    )
+
+    simulator.set_measurement_params(
+        bragg_angle=bragg_angle,
+        rocking_range=1.0,
+        detector_angles=detector_angles,
+    )
+
+    # generate detector data
+    detector_intensity = simulator.to_detector_frame(
+        method="matrix_transform",
+        output_shape=(num_frames, 400, 400),
+    )
+
+    # add realistic noise
+    realistic_data = simulator.get_realistic_detector_data(
+        detector_intensity,
+        photon_budget=1e7,
+        shift=True,
+        noise_params=[
+            dict(gaussian_mean=0.0, gaussian_std=0.1),
+            dict(poisson_statistics=True),
+        ],
+    )
+
+    # find peak position
+    peak_frame = num_frames // 2
+    peak_2d = realistic_data[peak_frame]
+    peak_pos_2d = np.unravel_index(peak_2d.argmax(), peak_2d.shape)
+    peak_pos = (peak_frame, peak_pos_2d[0], peak_pos_2d[1])
+
+    return {
+        "data": realistic_data,
+        "peak_position": peak_pos,
+        "shape": realistic_data.shape,
+        "simulator": simulator,
+    }
 
 
 @pytest.fixture(scope="session")
