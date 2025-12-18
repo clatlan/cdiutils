@@ -103,8 +103,8 @@ test-gpu:
     - pytest tests/integration/test_pipeline_full.py::TestFullPipelineID01::test_full_pipeline_real_data -v -ra --tb=short
     - echo "GPU pipeline test passed"
     - echo "Cleaning up large files, keeping only essential artifacts..."
-    # keep only: marker file, mode CXI, and parameters YAML
-    - find gpu_test_results -type f ! -name "pipeline_complete.txt" ! -name "S*_pynx_reconstruction_mode.cxi" ! -name "S*_parameters.yml" -delete 2>/dev/null || true
+    # keep only: parameters, mode CXI, and preprocessed CXI for postprocessing
+    - find gpu_test_results -type f ! -name "S*_parameters.yml" ! -name "S*_pynx_reconstruction_mode.cxi" ! -name "S*_preprocessed_data.cxi" -delete 2>/dev/null || true
     - find gpu_test_results -type d -empty -delete 2>/dev/null || true
     - echo "Artifact cleanup complete. Remaining files:"
     - find gpu_test_results -type f -ls
