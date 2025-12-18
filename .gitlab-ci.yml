@@ -102,29 +102,17 @@ test-gpu:
     - echo "Running GPU pipeline test..."
     - pytest tests/integration/test_pipeline_full.py::TestFullPipelineID01::test_full_pipeline_real_data -v -ra --tb=short
     - echo "GPU pipeline test passed"
-    - echo "Cleaning up large intermediate files to reduce artifact size..."
-    # remove large intermediate phasing run files, keep only candidates and mode
-    - find gpu_test_results -name "*Run*.cxi" -type f -delete || true
-    - find gpu_test_results -name "*.npy" -type f -delete || true
-    - find gpu_test_results -name "*.png" -type f -delete || true
-    # remove entire dump directory - postprocessing can regenerate
-    - rm -rf gpu_test_results/dump 2>/dev/null || true
-    # keep only mode.h5 and small candidate files
-    - find gpu_test_results/pynx_phasing -type f ! -name "mode.h5" ! -name "*candidate*.cxi" -delete 2>/dev/null || true
-    - echo "Artifact cleanup complete"
-    - echo "Remaining files:"
+    - echo "Cleaning up large files, keeping only essential artifacts..."
+    # keep only: marker file, mode CXI, and parameters YAML
+    - find gpu_test_results -type f ! -name "pipeline_complete.txt" ! -name "S*_pynx_reconstruction_mode.cxi" ! -name "S*_parameters.yml" -delete 2>/dev/null || true
+    - find gpu_test_results -type d -empty -delete 2>/dev/null || true
+    - echo "Artifact cleanup complete. Remaining files:"
     - find gpu_test_results -type f -ls
   artifacts:
     paths:
       - gpu_test_results/
-    exclude:
-      # exclude any remaining large files
-      - gpu_test_results/**/*Run*.cxi
-      - gpu_test_results/**/*.npy
-      - gpu_test_results/**/*.npz
-      - gpu_test_results/**/*.png
-      - gpu_test_results/dump/**/*
     expire_in: 1 day
+    when: always
   timeout: 30 minutes
   allow_failure: true
 
@@ -132,8 +120,9 @@ test-postprocessing:
   stage: test
   tags:
     - gpu
-  dependencies:
-    - test-gpu
+  needs:
+    - job: test-gpu
+      artifacts: true
   rules:
     - !reference [.default_rules, rules]
   script:
