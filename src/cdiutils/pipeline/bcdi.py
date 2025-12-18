@@ -1111,7 +1111,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             stderr_lines = []
 
             with subprocess.Popen(
-                ["bash", "-c", cmd],
+                ["bash", "-l", "-c", cmd],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=cwd,  # change to this directory
