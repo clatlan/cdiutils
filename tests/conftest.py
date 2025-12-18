@@ -102,17 +102,15 @@ def simple_3d_array():
 @pytest.fixture
 def simple_complex_array():
     """
-    s    Create a 3D complex array using simulation objects.
+    Create a 3D complex array using simulation objects.
 
-        Uses cdiutils.simulation.objects to create a small cylinder with
-        correlated phase distribution, representative of real reconstructions.
+    Uses cdiutils.simulation.objects to create a small cylinder with
+    correlated phase distribution, representative of real reconstructions.
 
-        Returns:
-            np.ndarray: complex 3D array
+    Returns:
+        np.ndarray: complex 3D array
     """
-    cdiutils = pytest.importorskip(
-        "cdiutils", reason="cdiutils required for simulation"
-    )
+    pytest.importorskip("cdiutils", reason="cdiutils required for simulation")
     from cdiutils.simulation.objects import add_random_phase, make_cylinder
 
     # create small cylinder
@@ -147,9 +145,7 @@ def sphere_data():
         dict: containing 'data' (amplitude), 'complex_data', 'support',
             and metadata
     """
-    cdiutils = pytest.importorskip(
-        "cdiutils", reason="cdiutils required for simulation"
-    )
+    pytest.importorskip("cdiutils", reason="cdiutils required for simulation")
     from cdiutils.simulation.objects import (
         add_random_phase,
         make_ellipsoid,
@@ -207,12 +203,10 @@ def mock_detector_data():
     # create geometry and simulator
     geometry = cdiutils.geometry.Geometry.from_setup("id01")
 
-    detector_shape = (256, 256)
     num_frames = 100
 
     simulator = cdiutils.simulation.BCDISimulator(
-        geometry,
-        energy=9000.0,
+        geometry=geometry,
         det_calib_params={
             "cch1": 128.0,
             "cch2": 128.0,
@@ -220,6 +214,8 @@ def mock_detector_data():
             "pwidth2": 5.5e-05,
             "distance": 1.0,
         },
+        energuy=8000.0,
+        detector_name="maxipix",
         num_frames=num_frames,
     )
 
