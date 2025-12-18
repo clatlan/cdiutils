@@ -6,6 +6,7 @@ through phase retrieval to postprocessing for ID01 beamline.
 GPU tests are marked separately.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -15,11 +16,98 @@ from cdiutils.pipeline import BcdiPipeline
 
 @pytest.mark.integration
 @pytest.mark.slow
+@pytest.mark.gpu
 @pytest.mark.id01
 class TestFullPipelineID01:
-    """Full pipeline tests for ID01 beamline."""
+    """Full pipeline tests for ID01 beamline with real data."""
 
-    pass
+    def test_full_pipeline_real_data(self, id01_bliss_params):
+        """
+        Run complete BCDI pipeline on real ID01 dislocation data.
+
+        This test runs the full pipeline including GPU phase retrieval,
+        testing:
+        - Preprocessing of real Bliss HDF5 data
+        - PyNX phase retrieval on GPU
+        - Phasing result analysis and candidate selection
+        - Mode decomposition
+        - Postprocessing and orthogonalisation
+
+        Note: This is an expensive test that requires GPU and PyNX.
+        """
+        # initialise pipeline
+        pipeline = BcdiPipeline(params=id01_bliss_params)
+
+        # Preprocessing
+        pipeline.preprocess(
+            process_shape=(150, 150),
+            voxel_reference_methods=["max", "com", "com"],
+            voxel_size=12,
+        )
+
+        # verify preprocessing outputs
+        dump_dir = Path(id01_bliss_params["dump_dir"])
+        scan = id01_bliss_params["scan"]
+        preprocessed_file = dump_dir / f"S{scan}_preprocessed_data.cxi"
+        assert preprocessed_file.exists(), "Preprocessed CXI file not created"
+
+        # phase retrieval - use environment variable for PyNX path
+        pynx_bin = os.environ.get("PYNX_BIN", "")
+        pynx_prefix = f"{pynx_bin}/" if pynx_bin else ""
+
+        pipeline.phase_retrieval(
+            cmd=f"{pynx_prefix}pynx-cdi-id01 pynx-cdi-inputs.txt",
+            nb_run=20,  # more runs for real data
+            nb_run_keep=10,
+            clear_former_results=True,
+        )
+
+        # verify phasing results exist
+        pynx_dir = dump_dir / "pynx_phasing"
+        result_files = list(pynx_dir.glob("*Run*.cxi"))
+        assert len(result_files) > 0, "No phasing result files created"
+        assert len(result_files) <= 10, (
+            f"Too many results kept: {len(result_files)}"
+        )
+
+        # analyse phasing results
+        pipeline.analyse_phasing_results(
+            sorting_criterion="mean_to_max",
+            plot=False,  # don't create plots in CI
+        )
+
+        # select best candidates
+        pipeline.select_best_candidates(nb_of_best_sorted_runs=2)
+
+        # verify candidate selection
+        candidate_files = list(pynx_dir.glob("candidate_*.cxi"))
+        assert len(candidate_files) == 2, (
+            f"Expected 2 candidates, got {len(candidate_files)}"
+        )
+
+        # mode decomposition
+        pipeline.mode_decomposition(
+            cmd=f"{pynx_prefix}pynx-cdi-analysis candidate_*.cxi --modes 1 --modes_output mode.h5"
+        )
+
+        # verify mode file exists
+        mode_file = pynx_dir / "mode.h5"
+        assert mode_file.exists(), "Mode decomposition output not created"
+
+        # postprocessing
+        pipeline.postprocess(
+            isosurface=0.3,
+            voxel_size=(10, 10, 10),  # change voxel size
+            handle_defects=True,  # enable defect handling cause needed
+        )
+
+        # verify final outputs
+        final_file = dump_dir / f"S{scan}_postprocessed_data.cxi"
+        assert final_file.exists(), "Final postprocessed file not created"
+
+        # verify parameter file was saved
+        param_file = dump_dir / f"S{scan}_parameters.yml"
+        assert param_file.exists(), "Parameter file not saved"
 
 
 @pytest.mark.integration
