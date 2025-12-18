@@ -568,12 +568,19 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
     dump_dir = param_file.parent
     pynx_dir = dump_dir / "pynx_phasing"
 
-    # verify key directories exist
+    # find preprocessed CXI file
+    preprocessed_cxi = dump_dir / f"S{scan}_preprocessed_data.cxi"
+
+    # verify key files exist
     if not pynx_dir.exists():
         pytest.skip(f"GPU pipeline pynx_dir not found: {pynx_dir}")
 
+    if not preprocessed_cxi.exists():
+        pytest.skip(f"Preprocessed CXI file not found: {preprocessed_cxi}")
+
     return {
         "param_file_path": str(param_file),
+        "preprocessed_cxi_path": str(preprocessed_cxi),
         "dump_dir": dump_dir,
         "pynx_dir": pynx_dir,
         "scan": scan,

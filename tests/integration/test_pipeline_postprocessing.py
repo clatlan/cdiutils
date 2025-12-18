@@ -304,6 +304,11 @@ class TestPostprocessingWithRealData:
             param_file_path=gpu_pipeline_results["param_file_path"]
         )
 
+        # load preprocessing state from CXI file
+        pipeline.update_from_file(
+            gpu_pipeline_results["preprocessed_cxi_path"]
+        )
+
         # re-run postprocessing with higher isosurface
         pipeline.postprocess(
             isosurface=0.5,  # higher than original 0.3
@@ -327,6 +332,11 @@ class TestPostprocessingWithRealData:
         """
         pipeline = BcdiPipeline(
             param_file_path=gpu_pipeline_results["param_file_path"]
+        )
+
+        # load preprocessing state from CXI file
+        pipeline.update_from_file(
+            gpu_pipeline_results["preprocessed_cxi_path"]
         )
 
         # re-run postprocessing without defect handling
@@ -353,6 +363,11 @@ class TestPostprocessingWithRealData:
             param_file_path=gpu_pipeline_results["param_file_path"]
         )
 
+        # load preprocessing state from CXI file
+        pipeline.update_from_file(
+            gpu_pipeline_results["preprocessed_cxi_path"]
+        )
+
         # re-run postprocessing with smaller voxels
         pipeline.postprocess(
             isosurface=0.3,
@@ -374,6 +389,11 @@ class TestPostprocessingWithRealData:
         """
         pipeline = BcdiPipeline(
             param_file_path=gpu_pipeline_results["param_file_path"]
+        )
+
+        # load preprocessing state from CXI file
+        pipeline.update_from_file(
+            gpu_pipeline_results["preprocessed_cxi_path"]
         )
 
         # re-run postprocessing with different support threshold
