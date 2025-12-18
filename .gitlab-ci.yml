@@ -93,7 +93,9 @@ test-gpu:
     - !reference [.default_rules, rules]
   script:
     - echo "running GPU tests..."
-    - module load mamba
+    - module load mamba cuda
+    - which nvcc
+    - nvcc --version
     - mamba activate $CDIUTILS_ENV
     - echo "Setting PyNX path..."
     - export PYNX_CDI_ID01="/cvmfs/hpc.esrf.fr/software/packages/ubuntu24.04/x86_64/pynx/2025.1/bin/pynx-cdi-id01"
