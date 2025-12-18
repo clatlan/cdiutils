@@ -21,7 +21,7 @@ variables:
 build-job:
   stage: build
   tags:
-    - gpu
+    - shell
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -46,7 +46,7 @@ build-job:
 lint-job:
   stage: test
   tags:
-    - gpu
+    - shell
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -60,7 +60,7 @@ lint-job:
 test-unit:
   stage: test
   tags:
-    - gpu
+    - shell
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -73,7 +73,7 @@ test-unit:
 test-integration:
   stage: test
   tags:
-    - gpu
+    - shell
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -119,7 +119,7 @@ test-gpu:
 test-postprocessing:
   stage: test
   tags:
-    - gpu
+    - shell  # CPU only - no GPU needed for postprocessing
   needs:
     - job: test-gpu
       artifacts: true
@@ -141,7 +141,7 @@ test-postprocessing:
 cleanup-job:
   stage: cleanup
   tags:
-    - gpu
+    - shell
   rules:
     - !reference [.default_rules, rules]
   script:
