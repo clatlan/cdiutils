@@ -360,10 +360,8 @@ class TestPostprocessingWithRealData:
         final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
         assert final_file.exists()
 
-    def test_postprocess_support_threshold(
-        self, gpu_pipeline_results: dict
-    ) -> None:
-        """Test postprocessing with different support threshold.
+    def test_postprocess_flipping(self, gpu_pipeline_results: dict) -> None:
+        """Test postprocessing with flip option.
 
         Args:
             gpu_pipeline_results: Pre-computed GPU pipeline results.
@@ -371,11 +369,7 @@ class TestPostprocessingWithRealData:
         pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
 
         # re-run postprocessing with different support threshold
-        pipeline.postprocess(
-            isosurface=0.3,
-            support_threshold=0.5,  # Different threshold
-            threshold_gradient=True,
-        )
+        pipeline.postprocess(isosurface=0.15, flip=True)
 
         dump_dir = gpu_pipeline_results["dump_dir"]
         scan: int = gpu_pipeline_results["scan"]

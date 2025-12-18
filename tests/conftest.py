@@ -497,6 +497,7 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
 
     This fixture loads results from the full GPU pipeline test
     (test_full_pipeline_real_data) without re-running it.
+    It searches for and loads the saved parameters YAML file.
 
     In CI:
     - GPU test runs first and saves to
@@ -510,21 +511,22 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
     - Skips if not found
 
     Args:
-        id01_bliss_params: Base pipeline parameters for ID01
-            beamline.
+        id01_bliss_params: Base pipeline parameters (not used,
+            kept for compatibility).
 
     Returns:
         Dictionary containing:
-            - params: Pipeline parameters (reconstructed)
+            - params: Full pipeline parameters from saved YAML
             - dump_dir: Path to dump directory
             - pynx_dir: Path to phasing results
             - scan: Scan number
-            - pynx_prefix: PyNX binary prefix
             - results_base: Base directory for results
 
     Raises:
         pytest.skip: If GPU pipeline results are not available.
     """
+    import yaml
+
     # try multiple locations for results
     search_paths: list[Path] = []
 
@@ -540,50 +542,47 @@ def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
     search_paths.append(Path("/tmp") / "gpu_test_results")
 
     results_base: Path | None = None
-    for path in search_paths:
-        marker_file = path / "pipeline_complete.txt"
-        if marker_file.exists():
-            results_base = path
-            break
+    param_file: Path | None = None
 
-    if results_base is None:
+    # search for parameter YAML file
+    for path in search_paths:
+        dump_dir = path / "dump"
+        if dump_dir.exists():
+            # find parameter file: S*_parameters.yml
+            param_files = list(dump_dir.glob("S*_parameters.yml"))
+            if param_files:
+                results_base = path
+                param_file = param_files[0]
+                break
+
+    if results_base is None or param_file is None:
         pytest.skip(
             "GPU pipeline results not found. Run "
             "test_full_pipeline_real_data first.\n"
             f"Searched locations: {[str(p) for p in search_paths]}"
         )
 
-    # read metadata from marker file
-    marker_file = results_base / "pipeline_complete.txt"
-    metadata: dict[str, str] = {}
-    with open(marker_file, "r") as file:
-        for line in file:
-            key, value = line.strip().split("=", 1)
-            metadata[key] = value
+    # load parameters from YAML file
+    with open(param_file, "r") as file:
+        params: dict = yaml.safe_load(file)
 
-    scan: int = int(metadata["scan"])
-    dump_dir = Path(metadata["dump_dir"])
-    pynx_dir = Path(metadata["pynx_dir"])
-    pynx_prefix: str = metadata.get("pynx_prefix", "")
+    # extract metadata from parameters
+    scan: int = params["scan"]
+    dump_dir = Path(params["dump_dir"])
+    pynx_dir = dump_dir / "pynx_phasing"
 
-    # verify key files exist
+    # verify key directories exist
     if not dump_dir.exists():
         pytest.skip(f"GPU pipeline dump_dir not found: {dump_dir}")
 
     if not pynx_dir.exists():
         pytest.skip(f"GPU pipeline pynx_dir not found: {pynx_dir}")
 
-    # reconstruct params
-    params = id01_bliss_params.copy()
-    # parent of S{scan} directory
-    params["dump_dir"] = str(dump_dir.parent)
-
     return {
         "params": params,
-        "dump_dir": dump_dir.parent,
+        "dump_dir": dump_dir,
         "pynx_dir": pynx_dir,
         "scan": scan,
-        "pynx_prefix": pynx_prefix,
         "results_base": results_base,
     }
 

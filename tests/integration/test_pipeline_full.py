@@ -139,19 +139,11 @@ class TestFullPipelineID01:
         param_file = dump_dir / f"S{scan}_parameters.yml"
         assert param_file.exists(), "Parameter file not saved"
 
-        # save marker file with metadata for downstream tests
-        marker_file = results_base / "pipeline_complete.txt"
-        with open(marker_file, "w") as file:
-            file.write(f"scan={scan}\\n")
-            file.write(f"dump_dir={dump_dir}\\n")
-            file.write(f"pynx_dir={pynx_dir}\\n")
-            file.write(f"pynx_prefix={pynx_prefix}\\n")
-
-        print("\\n=== GPU Pipeline Results Saved ===")
+        print("\n=== GPU Pipeline Results Saved ===")
         print(f"Results location: {results_base}")
-        print(f"Marker file: {marker_file}")
+        print(f"Parameters saved to: {param_file}")
         print("These results can be reused by postprocessing tests")
-        print("==================================\\n")
+        print("==================================\n")
 
 
 @pytest.mark.integration
