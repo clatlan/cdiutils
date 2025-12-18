@@ -40,7 +40,7 @@ class TestFullPipelineID01:
 
         # Preprocessing
         pipeline.preprocess(
-            process_shape=(150, 150),
+            preprocess_shape=(150, 150),
             voxel_reference_methods=["max", "com", "com"],
             voxel_size=12,
         )
