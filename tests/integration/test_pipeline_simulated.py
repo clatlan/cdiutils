@@ -117,8 +117,6 @@ class TestPipelineWithSimulatedData:
             simulated_id01_data: fixture providing simulated
                 experimental data and metadata.
         """
-        # check if PyNX is available
-        # pytest.importorskip("pynx", reason="PyNX not installed")
 
         # extract simulation metadata
         experiment_file = simulated_id01_data["experiment_file"]
@@ -147,7 +145,7 @@ class TestPipelineWithSimulatedData:
         )
 
         # run phase retrieval (reduced number of runs for testing)
-        # Use PYNX_BIN env var if set to construct full paths
+        # use PYNX_BIN env var if set to construct full paths
         pynx_bin = os.environ.get("PYNX_BIN", "")
         pynx_prefix = f"{pynx_bin}/" if pynx_bin else ""
         pipeline.phase_retrieval(
