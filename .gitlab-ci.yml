@@ -107,8 +107,13 @@ test-gpu:
     - find gpu_test_results -name "*Run*.cxi" -type f -delete || true
     - find gpu_test_results -name "*.npy" -type f -delete || true
     - find gpu_test_results -name "*.png" -type f -delete || true
-    - find gpu_test_results/pynx_phasing -name "*.png" -type f -delete 2>/dev/null || true
+    # remove entire dump directory - postprocessing can regenerate
+    - rm -rf gpu_test_results/dump 2>/dev/null || true
+    # keep only mode.h5 and small candidate files
+    - find gpu_test_results/pynx_phasing -type f ! -name "mode.h5" ! -name "*candidate*.cxi" -delete 2>/dev/null || true
     - echo "Artifact cleanup complete"
+    - echo "Remaining files:"
+    - find gpu_test_results -type f -ls
   artifacts:
     paths:
       - gpu_test_results/
@@ -118,6 +123,7 @@ test-gpu:
       - gpu_test_results/**/*.npy
       - gpu_test_results/**/*.npz
       - gpu_test_results/**/*.png
+      - gpu_test_results/dump/**/*
     expire_in: 1 day
   timeout: 30 minutes
   allow_failure: true
