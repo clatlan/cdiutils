@@ -99,10 +99,34 @@ test-gpu:
     - mamba activate $CDIUTILS_ENV
     - echo "Setting PyNX bin directory..."
     - export PYNX_BIN="/cvmfs/hpc.esrf.fr/software/packages/ubuntu24.04/x86_64/pynx/2025.1/bin"
-    - echo "Running GPU tests..."
-    - pytest tests/integration -m gpu -v -ra --tb=short
-    - echo "GPU tests passed"
+    - echo "Running GPU pipeline test..."
+    - pytest tests/integration/test_pipeline_full.py::TestFullPipelineID01::test_full_pipeline_real_data -v -ra --tb=short
+    - echo "GPU pipeline test passed"
+  artifacts:
+    paths:
+      - gpu_test_results/
+    expire_in: 1 day
   timeout: 30 minutes
+  allow_failure: true
+
+test-postprocessing:
+  stage: test
+  tags:
+    - gpu
+  dependencies:
+    - test-gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running postprocessing tests with GPU results..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "Checking for GPU test artifacts..."
+    - ls -la gpu_test_results/ || echo "No artifacts found"
+    - echo "Running postprocessing tests..."
+    - pytest tests/integration/test_pipeline_postprocessing.py::TestPostprocessingWithRealData -v -ra --tb=short
+    - echo "Postprocessing tests passed"
+  timeout: 15 minutes
   allow_failure: true
 
 # always cleanup environment at the end

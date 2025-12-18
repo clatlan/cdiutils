@@ -491,6 +491,103 @@ def simulated_id01_data(tmp_path_factory):
     }
 
 
+@pytest.fixture(scope="session")
+def gpu_pipeline_results(id01_bliss_params: dict) -> dict:
+    """Load pre-computed GPU pipeline results for testing.
+
+    This fixture loads results from the full GPU pipeline test
+    (test_full_pipeline_real_data) without re-running it.
+
+    In CI:
+    - GPU test runs first and saves to
+      $CI_PROJECT_DIR/gpu_test_results/
+    - This job uses artifacts from the GPU test job
+    - Fast - just loads existing files
+
+    Locally:
+    - Looks for results in standard locations
+    - Falls back to TEST_DATA_ROOT/gpu_pipeline_results/
+    - Skips if not found
+
+    Args:
+        id01_bliss_params: Base pipeline parameters for ID01
+            beamline.
+
+    Returns:
+        Dictionary containing:
+            - params: Pipeline parameters (reconstructed)
+            - dump_dir: Path to dump directory
+            - pynx_dir: Path to phasing results
+            - scan: Scan number
+            - pynx_prefix: PyNX binary prefix
+            - results_base: Base directory for results
+
+    Raises:
+        pytest.skip: If GPU pipeline results are not available.
+    """
+    # try multiple locations for results
+    search_paths: list[Path] = []
+
+    # 1. CI artifacts location
+    ci_project_dir = os.environ.get("CI_PROJECT_DIR")
+    if ci_project_dir:
+        search_paths.append(Path(ci_project_dir) / "gpu_test_results")
+
+    # 2. golden data location
+    search_paths.append(TEST_DATA_ROOT / "gpu_pipeline_results")
+
+    # 3. local test output (if test was run locally)
+    search_paths.append(Path("/tmp") / "gpu_test_results")
+
+    results_base: Path | None = None
+    for path in search_paths:
+        marker_file = path / "pipeline_complete.txt"
+        if marker_file.exists():
+            results_base = path
+            break
+
+    if results_base is None:
+        pytest.skip(
+            "GPU pipeline results not found. Run "
+            "test_full_pipeline_real_data first.\n"
+            f"Searched locations: {[str(p) for p in search_paths]}"
+        )
+
+    # read metadata from marker file
+    marker_file = results_base / "pipeline_complete.txt"
+    metadata: dict[str, str] = {}
+    with open(marker_file, "r") as file:
+        for line in file:
+            key, value = line.strip().split("=", 1)
+            metadata[key] = value
+
+    scan: int = int(metadata["scan"])
+    dump_dir = Path(metadata["dump_dir"])
+    pynx_dir = Path(metadata["pynx_dir"])
+    pynx_prefix: str = metadata.get("pynx_prefix", "")
+
+    # verify key files exist
+    if not dump_dir.exists():
+        pytest.skip(f"GPU pipeline dump_dir not found: {dump_dir}")
+
+    if not pynx_dir.exists():
+        pytest.skip(f"GPU pipeline pynx_dir not found: {pynx_dir}")
+
+    # reconstruct params
+    params = id01_bliss_params.copy()
+    # parent of S{scan} directory
+    params["dump_dir"] = str(dump_dir.parent)
+
+    return {
+        "params": params,
+        "dump_dir": dump_dir.parent,
+        "pynx_dir": pynx_dir,
+        "scan": scan,
+        "pynx_prefix": pynx_prefix,
+        "results_base": results_base,
+    }
+
+
 def pytest_collection_modifyitems(config, items):
     """
     Pytest hook to modify test collection.

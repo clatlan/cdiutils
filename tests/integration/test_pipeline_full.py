@@ -21,24 +21,51 @@ from cdiutils.pipeline import BcdiPipeline
 class TestFullPipelineID01:
     """Full pipeline tests for ID01 beamline with real data."""
 
-    def test_full_pipeline_real_data(self, id01_bliss_params):
-        """
-        Run complete BCDI pipeline on real ID01 dislocation data.
+    def test_full_pipeline_real_data(
+        self, id01_bliss_params: dict, tmp_path_factory
+    ) -> None:
+        """Run complete BCDI pipeline on real ID01 dislocation data.
 
-        This test runs the full pipeline including GPU phase retrieval,
-        testing:
+        This test runs the full pipeline including GPU phase
+        retrieval, and saves results to a location that can be
+        reused by other tests.
+
+        Workflow:
         - Preprocessing of real Bliss HDF5 data
         - PyNX phase retrieval on GPU
         - Phasing result analysis and candidate selection
         - Mode decomposition
         - Postprocessing and orthogonalisation
 
-        Note: This is an expensive test that requires GPU and PyNX.
-        """
-        # initialise pipeline
-        pipeline = BcdiPipeline(params=id01_bliss_params)
+        Results are saved to $CI_PROJECT_DIR/gpu_test_results/ (CI)
+        or to a temporary directory (local testing).
 
-        # Preprocessing
+        Note: This is an expensive test that requires GPU and PyNX.
+
+        Args:
+            id01_bliss_params: Pipeline parameters for ID01 beamline.
+            tmp_path_factory: Pytest fixture for creating temporary
+                directories.
+        """
+        # use CI_PROJECT_DIR if in CI, otherwise use tmp_path
+        ci_project_dir = os.environ.get("CI_PROJECT_DIR")
+        if ci_project_dir:
+            # in CI: save to persistent location for artifacts
+            results_base = Path(ci_project_dir) / "gpu_test_results"
+            results_base.mkdir(exist_ok=True)
+        else:
+            # local testing: use temporary directory
+            results_base = tmp_path_factory.mktemp("gpu_results")
+
+        # update params to use our controlled output directory
+        params = id01_bliss_params.copy()
+        params["dump_dir"] = str(results_base / "dump")
+        params["save_dir"] = str(results_base / "save")
+
+        # initialise pipeline
+        pipeline = BcdiPipeline(params=params)
+
+        # preprocessing
         pipeline.preprocess(
             preprocess_shape=(150, 150),
             voxel_reference_methods=["max", "com", "com"],
@@ -46,14 +73,14 @@ class TestFullPipelineID01:
         )
 
         # verify preprocessing outputs
-        dump_dir = Path(id01_bliss_params["dump_dir"])
-        scan = id01_bliss_params["scan"]
+        dump_dir = Path(params["dump_dir"])
+        scan: int = params["scan"]
         preprocessed_file = dump_dir / f"S{scan}_preprocessed_data.cxi"
         assert preprocessed_file.exists(), "Preprocessed CXI file not created"
 
         # phase retrieval - use environment variable for PyNX path
         pynx_bin = os.environ.get("PYNX_BIN", "")
-        pynx_prefix = f"{pynx_bin}/" if pynx_bin else ""
+        pynx_prefix: str = f"{pynx_bin}/" if pynx_bin else ""
 
         pipeline.phase_retrieval(
             cmd=f"{pynx_prefix}pynx-cdi-id01 pynx-cdi-inputs.txt",
@@ -87,7 +114,10 @@ class TestFullPipelineID01:
 
         # mode decomposition
         pipeline.mode_decomposition(
-            cmd=f"{pynx_prefix}pynx-cdi-analysis candidate_*.cxi --modes 1 --modes_output mode.h5"
+            cmd=(
+                f"{pynx_prefix}pynx-cdi-analysis candidate_*.cxi "
+                "--modes 1 --modes_output mode.h5"
+            )
         )
 
         # verify mode file exists
@@ -97,8 +127,8 @@ class TestFullPipelineID01:
         # postprocessing
         pipeline.postprocess(
             isosurface=0.3,
-            voxel_size=(10, 10, 10),  # change voxel size
-            handle_defects=True,  # enable defect handling cause needed
+            voxel_size=(10, 10, 10),
+            handle_defects=True,
         )
 
         # verify final outputs
@@ -108,6 +138,20 @@ class TestFullPipelineID01:
         # verify parameter file was saved
         param_file = dump_dir / f"S{scan}_parameters.yml"
         assert param_file.exists(), "Parameter file not saved"
+
+        # save marker file with metadata for downstream tests
+        marker_file = results_base / "pipeline_complete.txt"
+        with open(marker_file, "w") as file:
+            file.write(f"scan={scan}\\n")
+            file.write(f"dump_dir={dump_dir}\\n")
+            file.write(f"pynx_dir={pynx_dir}\\n")
+            file.write(f"pynx_prefix={pynx_prefix}\\n")
+
+        print("\\n=== GPU Pipeline Results Saved ===")
+        print(f"Results location: {results_base}")
+        print(f"Marker file: {marker_file}")
+        print("These results can be reused by postprocessing tests")
+        print("==================================\\n")
 
 
 @pytest.mark.integration

@@ -277,3 +277,107 @@ class TestDefectHandling:
         pipeline.params.update(params_with_defects)
 
         assert pipeline.params["handle_defects"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+@pytest.mark.id01
+class TestPostprocessingWithRealData:
+    """Test postprocessing with real GPU phase retrieval results.
+
+    This class uses the gpu_pipeline_results fixture which loads
+    pre-computed results from test_full_pipeline_real_data.
+
+    No GPU needed - just loads existing phasing results and tests
+    different postprocessing options.
+    """
+
+    def test_postprocess_different_isosurface(
+        self, gpu_pipeline_results: dict
+    ) -> None:
+        """Test postprocessing with different isosurface threshold.
+
+        Args:
+            gpu_pipeline_results: Pre-computed GPU pipeline results.
+        """
+        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+
+        # re-run postprocessing with higher isosurface
+        pipeline.postprocess(
+            isosurface=0.5,  # higher than original 0.3
+            voxel_size=(10, 10, 10),
+            handle_defects=True,
+        )
+
+        # verify outputs were created
+        dump_dir = gpu_pipeline_results["dump_dir"]
+        scan: int = gpu_pipeline_results["scan"]
+        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        assert final_file.exists(), "Postprocessed file not updated"
+
+    def test_postprocess_without_defect_handling(
+        self, gpu_pipeline_results: dict
+    ) -> None:
+        """Test postprocessing without defect handling.
+
+        Args:
+            gpu_pipeline_results: Pre-computed GPU pipeline results.
+        """
+        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+
+        # re-run postprocessing without defect handling
+        pipeline.postprocess(
+            isosurface=0.3,
+            voxel_size=(10, 10, 10),
+            handle_defects=False,  # disabled
+        )
+
+        dump_dir = gpu_pipeline_results["dump_dir"]
+        scan: int = gpu_pipeline_results["scan"]
+        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        assert final_file.exists()
+
+    def test_postprocess_different_voxel_size(
+        self, gpu_pipeline_results: dict
+    ) -> None:
+        """Test postprocessing with different voxel size.
+
+        Args:
+            gpu_pipeline_results: Pre-computed GPU pipeline results.
+        """
+        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+
+        # re-run postprocessing with smaller voxels
+        pipeline.postprocess(
+            isosurface=0.3,
+            # smaller than original (10, 10, 10)
+            voxel_size=(5, 5, 5),
+            handle_defects=True,
+        )
+
+        dump_dir = gpu_pipeline_results["dump_dir"]
+        scan: int = gpu_pipeline_results["scan"]
+        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        assert final_file.exists()
+
+    def test_postprocess_support_threshold(
+        self, gpu_pipeline_results: dict
+    ) -> None:
+        """Test postprocessing with different support threshold.
+
+        Args:
+            gpu_pipeline_results: Pre-computed GPU pipeline results.
+        """
+        pipeline = BcdiPipeline(params=gpu_pipeline_results["params"])
+
+        # re-run postprocessing with different support threshold
+        pipeline.postprocess(
+            isosurface=0.3,
+            support_threshold=0.5,  # Different threshold
+            threshold_gradient=True,
+        )
+
+        dump_dir = gpu_pipeline_results["dump_dir"]
+        scan: int = gpu_pipeline_results["scan"]
+        final_file = dump_dir / f"S{scan}" / f"S{scan}_postprocessed_data.cxi"
+        assert final_file.exists()
