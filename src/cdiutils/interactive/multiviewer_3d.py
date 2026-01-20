@@ -1,13 +1,13 @@
 import ipywidgets as widgets
 import numpy as np
-from IPython.display import display
-
 import plotly.graph_objects as go
+from IPython.display import display
 from scipy.interpolate import RegularGridInterpolator
 from skimage.measure import marching_cubes
 
 try:
     from .volume import _extract_isosurface_with_values, colorcet_to_plotly
+
     HAS_VOLUME_UTILS = True
 except Exception:
     HAS_VOLUME_UTILS = False
@@ -21,12 +21,14 @@ except Exception:
         return [
             [
                 i / (n_colors - 1),
-                f"rgb({int(c[0]*255)},{int(c[1]*255)},{int(c[2]*255)})",
+                f"rgb({int(c[0] * 255)},{int(c[1] * 255)},{int(c[2] * 255)})",
             ]
             for i, c in enumerate(colors)
         ]
-CBAR_X0 = 1.02       # start just outside the scene
-CBAR_DX = 0.2       # horizontal spacing per colorbar
+
+
+CBAR_X0 = 1.02  # start just outside the scene
+CBAR_DX = 0.2  # horizontal spacing per colorbar
 
 
 class MultiVolumeViewer(widgets.Box):
@@ -34,40 +36,48 @@ class MultiVolumeViewer(widgets.Box):
     def get_colorscale(name: str):
         # Solid colors
         if name in {
-            "red", "black", "white", "gray",
-            "blue", "green", "orange", "purple",
-            "yellow", "cyan", "magenta",
+            "red",
+            "black",
+            "white",
+            "gray",
+            "blue",
+            "green",
+            "orange",
+            "purple",
+            "yellow",
+            "cyan",
+            "magenta",
         }:
             return [[0.0, name], [1.0, name]]
 
         # Colormaps
         return colorcet_to_plotly(name)
-    
+
     @staticmethod
     def get_all_supported_cmaps():
         import matplotlib.pyplot as plt
+
         cmaps = list(plt.colormaps())
 
         # Optional: filter out reversed duplicates (_r)
         cmaps = sorted(set(cmaps))
         FIXED_COLORS = (
-                        "red",
-                        "black",
-                        "white",
-                        "gray",
-                        "blue",
-                        "green",
-                        "orange",
-                        "purple",
-                        "yellow",
-                        "cyan",
-                        "magenta",
-                    )
+            "red",
+            "black",
+            "white",
+            "gray",
+            "blue",
+            "green",
+            "orange",
+            "purple",
+            "yellow",
+            "cyan",
+            "magenta",
+        )
 
         return FIXED_COLORS + tuple(cmaps)
 
     cmap_options = get_all_supported_cmaps()
-
 
     def __init__(self, dict_data=None, voxel_size=(1, 1, 1), figsize=(9, 6)):
         super().__init__()
@@ -100,8 +110,12 @@ class MultiVolumeViewer(widgets.Box):
         self._visible_cb = {}  # key -> Checkbox
 
         # Top controls
-        self.theme_toggle = widgets.ToggleButton(value=False, description="Dark Theme")
-        self.rotate_toggle = widgets.ToggleButton(value=False, description="Rotate")
+        self.theme_toggle = widgets.ToggleButton(
+            value=False, description="Dark Theme"
+        )
+        self.rotate_toggle = widgets.ToggleButton(
+            value=False, description="Rotate"
+        )
 
         self.theme_toggle.observe(self._on_theme, names="value")
         self.rotate_toggle.observe(self._on_rotate_toggle, names="value")
@@ -165,7 +179,9 @@ class MultiVolumeViewer(widgets.Box):
             if not isinstance(v, np.ndarray):
                 raise TypeError(f"{k} is not a numpy array.")
             if v.shape != shape0:
-                raise ValueError(f"Shape mismatch: {k} has {v.shape}, expected {shape0}.")
+                raise ValueError(
+                    f"Shape mismatch: {k} has {v.shape}, expected {shape0}."
+                )
 
         self.dict_data = dict_data
 
@@ -283,7 +299,15 @@ class MultiVolumeViewer(widgets.Box):
 
             auto_range.observe(_toggle_range_slider, names="value")
 
-            for wdg in (thr, op, cmap, as_mask, show_colorbar, auto_range, range_slider):
+            for wdg in (
+                thr,
+                op,
+                cmap,
+                as_mask,
+                show_colorbar,
+                auto_range,
+                range_slider,
+            ):
                 wdg.observe(self._on_layer_param_changed, names="value")
 
             self._layer_widgets[k] = dict(
@@ -329,7 +353,11 @@ class MultiVolumeViewer(widgets.Box):
         self._update_all_traces()
 
     def _on_theme(self, change):
-        self.fig.update_layout(template="plotly_dark" if self.theme_toggle.value else "plotly_white")
+        self.fig.update_layout(
+            template="plotly_dark"
+            if self.theme_toggle.value
+            else "plotly_white"
+        )
 
     def _on_rotate_toggle(self, change):
         if self.rotate_toggle.value:
@@ -349,7 +377,9 @@ class MultiVolumeViewer(widgets.Box):
         with self.fig.batch_update():
             self.fig.data = tuple()
             for idx, k in enumerate(selected):
-                self.fig.add_trace(self._make_mesh_trace_for_key(k, cbar_index=idx))
+                self.fig.add_trace(
+                    self._make_mesh_trace_for_key(k, cbar_index=idx)
+                )
 
     def _make_mesh_trace_for_key(self, key: str, cbar_index: int = 0):
         arr = self.dict_data[key]
@@ -364,34 +394,56 @@ class MultiVolumeViewer(widgets.Box):
         # ----------------------------
         if w["as_mask"].value:
             # 1) build mask from a scalar (typically |arr|)
-            vol = np.abs(arr) if np.iscomplexobj(arr) else np.asarray(arr, dtype=float)
+            vol = (
+                np.abs(arr)
+                if np.iscomplexobj(arr)
+                else np.asarray(arr, dtype=float)
+            )
             vol = self._apply_nan_policy(vol)
 
             mask = (vol >= iso).astype(np.float32)
             if not (mask.min() < 0.5 < mask.max()):
-                return go.Mesh3d(name=key, x=[], y=[], z=[], i=[], j=[], k=[],
-                                opacity=opacity, showscale=False)
-
+                return go.Mesh3d(
+                    name=key,
+                    x=[],
+                    y=[],
+                    z=[],
+                    i=[],
+                    j=[],
+                    k=[],
+                    opacity=opacity,
+                    showscale=False,
+                )
 
             # 2) extract geometry from mask
             verts, faces, _, _ = marching_cubes(mask, level=0.5, step_size=1)
             verts_scaled = verts * self.voxel_size
 
             # 3) IMPORTANT: sample original arr at those vertices for coloring (same as normal)
-            vals = self._rgi[key](verts)      # verts are in (z,y,x) index space
+            vals = self._rgi[key](verts)  # verts are in (z,y,x) index space
             vals = self._apply_nan_policy(vals)
             intensity_mode = "scalar"
 
         else:
-            vol_for_mc = np.abs(arr) if np.iscomplexobj(arr) else np.asarray(arr, dtype=float)
+            vol_for_mc = (
+                np.abs(arr)
+                if np.iscomplexobj(arr)
+                else np.asarray(arr, dtype=float)
+            )
             vol_for_mc = self._apply_nan_policy(vol_for_mc)
 
             if HAS_VOLUME_UTILS:
                 verts_scaled, faces, vals = _extract_isosurface_with_values(
-                    vol_for_mc, arr, iso, self.voxel_size, use_interpolator=True
+                    vol_for_mc,
+                    arr,
+                    iso,
+                    self.voxel_size,
+                    use_interpolator=True,
                 )
             else:
-                verts, faces, _, _ = marching_cubes(vol_for_mc, level=iso, step_size=1)
+                verts, faces, _, _ = marching_cubes(
+                    vol_for_mc, level=iso, step_size=1
+                )
                 verts_scaled = verts * self.voxel_size
                 vals = self._rgi[key](verts)
 
@@ -414,7 +466,11 @@ class MultiVolumeViewer(widgets.Box):
                 intensity = self._apply_nan_policy(intensity)
 
                 data_min, data_max = -np.pi, np.pi
-                cmin, cmax = (data_min, data_max) if auto_range else (float(rmin), float(rmax))
+                cmin, cmax = (
+                    (data_min, data_max)
+                    if auto_range
+                    else (float(rmin), float(rmax))
+                )
 
                 colorbar = dict(
                     title=f"{key} phase (rad)",
@@ -422,7 +478,7 @@ class MultiVolumeViewer(widgets.Box):
                     x=CBAR_X0 + cbar_index * CBAR_DX,
                     thickness=18,
                     tickmode="array",
-                    tickvals=[-np.pi, -np.pi/2, 0, np.pi/2, np.pi],
+                    tickvals=[-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi],
                     ticktext=["-π", "-π/2", "0", "π/2", "π"],
                 )
             else:
@@ -438,7 +494,11 @@ class MultiVolumeViewer(widgets.Box):
                 if data_max == data_min:
                     data_max = data_min + 1e-12
 
-                cmin, cmax = (data_min, data_max) if auto_range else (float(rmin), float(rmax))
+                cmin, cmax = (
+                    (data_min, data_max)
+                    if auto_range
+                    else (float(rmin), float(rmax))
+                )
 
                 colorbar = dict(
                     title=f"{key}",
@@ -488,7 +548,7 @@ class MultiVolumeViewer(widgets.Box):
                     rs.value = (new_min, new_max)
             finally:
                 rs.observe(self._on_layer_param_changed, names="value")
-        if (cmax <= cmin):
+        if cmax <= cmin:
             cmax = cmin + 1e-12
         return go.Mesh3d(
             name=key,
@@ -527,7 +587,9 @@ class MultiVolumeViewer(widgets.Box):
                 eye_x = 1.5 * np.cos(np.radians(self._rotation_angle))
                 eye_y = 1.5 * np.sin(np.radians(self._rotation_angle))
                 with self.fig.batch_update():
-                    self.fig.layout.scene.camera.eye = dict(x=eye_x, y=eye_y, z=1.5)
+                    self.fig.layout.scene.camera.eye = dict(
+                        x=eye_x, y=eye_y, z=1.5
+                    )
                 await asyncio.sleep(0.05)
 
         loop = asyncio.get_event_loop()
