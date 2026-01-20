@@ -37,7 +37,7 @@ def plot_volume_slices(
     plot_type: str = "imshow",
     contour_levels: int = 100,
     show: bool = True,
-    figsize: tuple | list =(6, 2),
+    figsize: tuple | list = (6, 2),
     label_size: int = 6,
     **plot_params,
 ) -> tuple[plt.Figure, plt.Axes]:
@@ -169,12 +169,12 @@ def plot_volume_slices(
                 axes[i].contourf(
                     X, Y, alpha, levels=contour_levels, colors=whites
                 )
-            add_colorbar(axes[i], im,label_size=label_size)
+            add_colorbar(axes[i], im, label_size=label_size)
             axes[i].set_aspect("equal")
 
         elif plot_type == "imshow":
             im = axes[i].imshow(to_plot, **_plot_params)
-            add_colorbar(axes[i], im,label_size=label_size)
+            add_colorbar(axes[i], im, label_size=label_size)
 
             if voxel_size is not None:
                 set_x_y_limits_extents(
