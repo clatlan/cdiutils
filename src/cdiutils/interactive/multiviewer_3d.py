@@ -108,7 +108,7 @@ class MultiVolumeViewer(widgets.Box):
             ),
             autosize=True,
             height=figsize[1] * 90,
-            width = figsize[0] * 90,
+            width=figsize[0] * 90,
             dragmode="orbit",
             margin=dict(l=0, r=0, t=0, b=0),
         )
@@ -139,7 +139,7 @@ class MultiVolumeViewer(widgets.Box):
             value=True,
             description="Dark Theme",
         )
-        self._on_theme(None) # apply initial theme state
+        self._on_theme(None)  # apply initial theme state
         self.rotate_toggle = widgets.ToggleButton(
             value=False,
             description="Rotate",
@@ -183,7 +183,6 @@ class MultiVolumeViewer(widgets.Box):
         # Container for per-layer controls
         self.layers_box = widgets.VBox([])
 
-
         # ----------------------------
         # Final layout
         # ----------------------------
@@ -202,12 +201,12 @@ class MultiVolumeViewer(widgets.Box):
         fig_box = widgets.Box(
             [self.fig],
             layout=widgets.Layout(
-                width='100%',
-                flex="1 1 0%",   # take remaining space
-                min_width="0px",   # IMPORTANT: allow shrinking instead of pushing/overflowing
+                width="100%",
+                flex="1 1 0%",  # take remaining space
+                min_width="0px",  # IMPORTANT: allow shrinking instead of pushing/overflowing
                 height="100%",
-                overflow="hidden", # optional, prevents horizontal spill
-                padding="28px 28px 28 28px",# reserve scrollbar gutter
+                overflow="hidden",  # optional, prevents horizontal spill
+                padding="28px 28px 28 28px",  # reserve scrollbar gutter
             ),
         )
         # Important: ipywidgets needs this to actually expand to full available width
@@ -290,13 +289,10 @@ class MultiVolumeViewer(widgets.Box):
         </style>
         """)
 
-
-
         right_panel.add_class("mv-right-panel")
         panel_inner.add_class("mv-right-panel-inner")
 
         right_panel.children = (css, panel_inner)
-
 
         self.children = [fig_box, right_panel]
 
@@ -342,7 +338,9 @@ class MultiVolumeViewer(widgets.Box):
             if not isinstance(v, np.ndarray):
                 raise TypeError(f"Layer '{k}' is not a numpy array.")
             if v.ndim != 3:
-                raise ValueError(f"Layer '{k}' must be a 3D array, got ndim={v.ndim}.")
+                raise ValueError(
+                    f"Layer '{k}' must be a 3D array, got ndim={v.ndim}."
+                )
             if np.iscomplexobj(v):
                 raise TypeError(
                     f"Layer '{k}' is complex-valued. "
@@ -411,8 +409,8 @@ class MultiVolumeViewer(widgets.Box):
         self.visible_keys_box.children = cbs
         # apply per-child layout AFTER assigning children
         for cb in self.visible_keys_box.children:
-            cb.layout.flex = "0 0 140px"   # fixed column width
-            cb.layout.width = "140px"      # helps in some frontends
+            cb.layout.flex = "0 0 140px"  # fixed column width
+            cb.layout.width = "140px"  # helps in some frontends
 
         # ---- edit key dropdown ----
         self.edit_key.unobserve(self._on_edit_key_changed, names="value")
@@ -425,7 +423,6 @@ class MultiVolumeViewer(widgets.Box):
         # ---- render ----
         self._sync_layer_panels_visibility()
         self._update_all_traces()
-
 
     # ----------------------------
     # UI building
@@ -465,7 +462,9 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(width="95%"),
             )
             color_by = widgets.Dropdown(
-                options=[("(self)", k)] + [(kk, kk) for kk in self.dict_data.keys() if kk != k] + [
+                options=[("(self)", k)]
+                + [(kk, kk) for kk in self.dict_data.keys() if kk != k]
+                + [
                     ("(constant)", "__constant__"),
                     ("(x coord)", "__x__"),
                     ("(y coord)", "__y__"),
@@ -477,7 +476,6 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(width="95%"),
             )
             color_by.observe(self._on_layer_param_changed, names="value")
-
 
             as_mask = widgets.Checkbox(
                 value=False,
@@ -513,7 +511,6 @@ class MultiVolumeViewer(widgets.Box):
                 cb.layout.width = "auto"
                 cb.layout.flex = "1 1 0%"
 
-
             vmin0 = float(np.nanmin(amp))
             vmax0 = float(np.nanmax(amp))
             if not np.isfinite(vmin0):
@@ -532,7 +529,8 @@ class MultiVolumeViewer(widgets.Box):
                 continuous_update=False,
                 readout_format=".3g",
                 style=self._common_style,
-                layout=widgets.Layout(width="95%"),indent=False,
+                layout=widgets.Layout(width="95%"),
+                indent=False,
             )
             range_slider.disabled = True
 
@@ -637,20 +635,22 @@ class MultiVolumeViewer(widgets.Box):
         w = self._layer_widgets[k]
 
         self.layers_box.children = [
-            widgets.VBox([
-                w["thr"],
-                w["op"],
-                w["cmap"],
-                w["row"],
-                w["color_by"],
-                w["range_slider"],
-                widgets.HTML("<b>Lighting</b>"),
-                w["light_ambient"],
-                w["light_diffuse"],
-                w["light_specular"],
-                w["light_roughness"],
-                w["light_fresnel"],
-            ])
+            widgets.VBox(
+                [
+                    w["thr"],
+                    w["op"],
+                    w["cmap"],
+                    w["row"],
+                    w["color_by"],
+                    w["range_slider"],
+                    widgets.HTML("<b>Lighting</b>"),
+                    w["light_ambient"],
+                    w["light_diffuse"],
+                    w["light_specular"],
+                    w["light_roughness"],
+                    w["light_fresnel"],
+                ]
+            )
         ]
 
     # ----------------------------
@@ -751,10 +751,14 @@ class MultiVolumeViewer(widgets.Box):
                 verts_scaled = verts * self.voxel_size
                 vals = self._rgi[key](verts)
 
-        verts_idx = verts_scaled / self.voxel_size                 # (z,y,x) index space
-        verts_xyz = np.column_stack([verts_scaled[:, 2],           # x
-                                    verts_scaled[:, 1],           # y
-                                    verts_scaled[:, 0]])          # z
+        verts_idx = verts_scaled / self.voxel_size  # (z,y,x) index space
+        verts_xyz = np.column_stack(
+            [
+                verts_scaled[:, 2],  # x
+                verts_scaled[:, 1],  # y
+                verts_scaled[:, 0],
+            ]
+        )  # z
 
         # ----------------------------
         # Coloring
@@ -765,7 +769,6 @@ class MultiVolumeViewer(widgets.Box):
 
         color_sel = w["color_by"].value  # dropdown value
 
-
         if color_sel == "__constant__":
             intensity = np.zeros(len(verts_xyz), dtype=float)
         elif color_sel in ("__x__", "__y__", "__z__"):
@@ -774,7 +777,9 @@ class MultiVolumeViewer(widgets.Box):
         elif color_sel == key:
             intensity = np.asarray(vals, dtype=float)
         else:
-            intensity = np.asarray(self._rgi[color_sel](verts_idx), dtype=float)
+            intensity = np.asarray(
+                self._rgi[color_sel](verts_idx), dtype=float
+            )
 
         intensity = self._apply_nan_policy(intensity)
 
@@ -788,17 +793,24 @@ class MultiVolumeViewer(widgets.Box):
             data_max = data_min + 1e-12
 
         cmin, cmax = (
-            (data_min, data_max)
-            if auto_range
-            else (float(rmin), float(rmax))
+            (data_min, data_max) if auto_range else (float(rmin), float(rmax))
         )
         if cmax <= cmin:
             cmax = cmin + 1e-12
 
         colorbar = None
         if (color_sel != "__constant__") and show_colorbar:
-            title = color_sel if not color_sel.startswith("__") else color_sel.strip("_")
-            colorbar = dict(title=title, len=0.7, x=CBAR_X0 + cbar_index * CBAR_DX, thickness=18)
+            title = (
+                color_sel
+                if not color_sel.startswith("__")
+                else color_sel.strip("_")
+            )
+            colorbar = dict(
+                title=title,
+                len=0.7,
+                x=CBAR_X0 + cbar_index * CBAR_DX,
+                thickness=18,
+            )
 
         # Sync slider bounds safely: ONLY EXPAND (never shrink)
         rs = w["range_slider"]
@@ -840,9 +852,9 @@ class MultiVolumeViewer(widgets.Box):
             cmax = cmin + 1e-12
         return go.Mesh3d(
             name=key,
-            x=verts_xyz[:, 0], # x
-            y=verts_xyz[:, 1], # y
-            z=verts_xyz[:, 2], # z
+            x=verts_xyz[:, 0],  # x
+            y=verts_xyz[:, 1],  # y
+            z=verts_xyz[:, 2],  # z
             i=faces[:, 0],
             j=faces[:, 1],
             k=faces[:, 2],
@@ -913,5 +925,3 @@ class MultiVolumeViewer(widgets.Box):
             v = 0.0
 
         return np.where(np.isnan(arr), v, arr)
-
-
