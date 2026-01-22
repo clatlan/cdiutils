@@ -68,9 +68,6 @@ Dependencies
 The widget is intended for interactive use inside Jupyter environments.
 """
 
-
-
-
 import ipywidgets as widgets
 import numpy as np
 import plotly.graph_objects as go
