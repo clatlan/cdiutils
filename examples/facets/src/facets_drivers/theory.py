@@ -9,27 +9,27 @@ import facets.get_orientation as get_orientation
 import vtk
 from IPython.display import Image, display
 
-class GetFacets(Task, input_names=["scratch_directory", "vti_filepath"], output_names=["vtp_facets_filepath", "obj_filepath", "scratch_directory"]):
+class GetFacets(Task, input_names=["scratch_directory", "vti_filepath", "scale_factors"], output_names=["vtp_facets_filepath", "obj_filepath", "scratch_directory"]):
     def run(self):
         vti_filepath = self.inputs.vti_filepath
         scratch_directory = self.inputs.scratch_directory
         os.makedirs(scratch_directory, exist_ok=True)
         os.chdir(scratch_directory)
         arguments = [f'{vti_filepath}', 'exp', '--create-obj-0', 'exp.obj']
-        get_facets.main(arguments)
+        get_facets.main(arguments, scale_factors=self.inputs.scale_factors)
         self.outputs.obj_filepath = str(Path(scratch_directory) / f"exp.obj")
         print(self.outputs.obj_filepath)
         self.outputs.vtp_facets_filepath = str(Path(scratch_directory) / f"exp_1.vtp")
         self.outputs.scratch_directory = scratch_directory
 
-class GetOrientation(Task, input_names=["scratch_directory", "vtp_facets_filepath"], output_names=["orientation_filepath", "nsparam_filepath", "scratch_directory", "vtp_facets_filepath"]):
+class GetOrientation(Task, input_names=["scratch_directory", "vtp_facets_filepath", "hkl", "exclude_hkl"], output_names=["orientation_filepath", "nsparam_filepath", "scratch_directory", "vtp_facets_filepath"]):
     def run(self):
         vtp_facets_filepath = self.inputs.vtp_facets_filepath
         scratch_directory = self.inputs.scratch_directory
         os.makedirs(scratch_directory, exist_ok=True)
         os.chdir(scratch_directory)
         arguments = [vtp_facets_filepath, "--axis", "Y",
-                     "--hkl", "111", "--exclude_hkl", "1,1,1;-1,-1,-1",
+                     "--hkl", self.inputs.hkl, "--exclude_hkl", self.inputs.exclude_hkl,
                      "--save-orientation", "orientation.txt",
                      "--create-nsparam", "exp.nsparam"]
         get_orientation.main(arguments)
@@ -39,7 +39,7 @@ class GetOrientation(Task, input_names=["scratch_directory", "vtp_facets_filepat
         self.outputs.vtp_facets_filepath = vtp_facets_filepath
         print(self.outputs.nsparam_filepath)
 
-class GetOrientedFacets(Task, input_names=["scratch_directory", "vtp_facets_filepath", "orientation_filepath"], output_names=["vtp_oriented_files", "scratch_directory"]):
+class GetOrientedFacets(Task, input_names=["scratch_directory", "vtp_facets_filepath", "orientation_filepath", "scale_factors"], output_names=["vtp_oriented_files", "scratch_directory"]):
     def run(self):
         vtp_facets_filepath = self.inputs.vtp_facets_filepath
         orientation_filepath = self.inputs.orientation_filepath
@@ -47,10 +47,11 @@ class GetOrientedFacets(Task, input_names=["scratch_directory", "vtp_facets_file
         os.makedirs(scratch_directory, exist_ok=True)
         os.chdir(scratch_directory)
         arguments = [vtp_facets_filepath, "oriented_exp", "--relabel-from-hull", "--orientation-matrix", orientation_filepath, "--visualize"]
-        get_facets.main(arguments)
+        get_facets.main(arguments, scale_factors=self.inputs.scale_factors)
         self.outputs.vtp_oriented_files = [str(Path(scratch_directory) / f'oriented_exp_{i}.vtp') for i in range(0, 4)]
         self.outputs.scratch_directory = scratch_directory
 
+"""
 ######## Monkey ################
 # Use
 from xvfbwrapper import Xvfb
@@ -61,10 +62,7 @@ vdisplay.start()
 # around call in notebook
 # Monkey patching.
 def non_blocking_visualization(hull_polydata, labels_polydata):
-    """
-    A non-blocking replacement that renders the scene to a PNG file
-    and displays it in the notebook.
-    """
+    # A non-blocking replacement that renders the scene to a PNG file and displays it in the notebook.
     # --- Basic VTK pipeline setup ---
     renderer = vtk.vtkRenderer()
     renderer.SetBackground(0.1, 0.2, 0.4)

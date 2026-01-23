@@ -10,6 +10,7 @@ dependencies = [
   "jupyterlab>=4.0",
   "ipykernel>=6.25",
   "pickleshare",
+  "ipyparams",
   "numpy",
   "matplotlib",
   "pynx @ git+https://gitlab.esrf.fr/favre/PyNX",
@@ -20,6 +21,13 @@ dependencies = [
   "xvfbwrapper",
   "SimpleITK",
   "facets",
+  "ewoks[dask]",
+  "remotemanager",
+  "parsl",
+  "pandas",
+  "polars",
+  "ipywidgets>=8.1.8",
+  "tqdm>=4.67.1",
 ]
 
 [tool.poetry.dependencies]

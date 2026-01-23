@@ -8,7 +8,7 @@ import facets.analyse as analyse
 import vtk
 from IPython.display import Image, display
 
-class FullCircleAnalysis(Task, input_names=["scratch_directory"], optional_input_names=["vti_filepath", "xyz_filepath"]):
+class FullCircleAnalysis(Task, input_names=["scratch_directory", "hkl"], optional_input_names=["vti_filepath", "xyz_filepath"], output_names=["result"]):
     def run(self):
         scratch_directory = self.inputs.scratch_directory
         vti_filepath = self.get_input_value("vti_filepath", None)
@@ -16,7 +16,7 @@ class FullCircleAnalysis(Task, input_names=["scratch_directory"], optional_input
         os.makedirs(scratch_directory, exist_ok=True)
         os.chdir(scratch_directory)
         if vti_filepath is not None:
-            arguments = ["--hkl", "1", "1", "1", "--exp-qnorm", "3.2",
+            arguments = ["--hkl"] + [str(_) for _ in self.inputs.hkl] + ["--exp-qnorm", "3.2",
                          #"--exp-voxel-size", "5", "5", "5",
                          #"--exp-amp-key", "amp",
                          #"--final-shape", "64", "64", "64",
@@ -26,10 +26,11 @@ class FullCircleAnalysis(Task, input_names=["scratch_directory"], optional_input
                          "--exp-data", vti_filepath]
 
         if xyz_filepath is not None:
-            arguments = ["--hkl", "1", "1", "1",
+            arguments = ["--hkl"] + [str(_) for _ in self.inputs.hkl] + [
                          #"--nstep", "800",
                          "--strain-range", "5e-4",          # remove to match Corentin’s
                          "--phase-range", f"{math.pi/12}",  # remove to match Corentin’s
                          "--input-file", xyz_filepath]
 
-        analyse.main(arguments)
+        result = analyse.main(arguments)
+        self.outputs.result = result
