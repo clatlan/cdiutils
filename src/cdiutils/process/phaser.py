@@ -190,9 +190,49 @@ class PyNXPhaser:
         Initialise the SupportUpdate class from pynx, depending on the
         parameters of the instance.
         """
-        # Find which parameters are accepted using class inspection
-        support_params = valid_args_only(self.params, SupportUpdate)
 
+        # load default pynx values for missing parameters
+        support_params = {
+            k: self.params.get(k, default)
+            for k, default in (
+                ("threshold_relative", 0.2),
+                ("smooth_width", 3),
+                ("force_shrink", False),
+                ("method", "rms"),
+                ("post_expand", None),
+                ("verbose", False),
+                ("update_border_n", 0),
+                ("min_fraction", 0),
+                ("max_fraction", 1),
+                ("lazy", False),
+            )
+        }
+
+        # if support_threshold is provided, use it to set the
+        # threshold_relative, unless threshold_relative is already provided
+        if (
+            "support_threshold" in self.params
+            and "threshold_relative" not in self.params
+        ):
+            # take care of different types
+            if isinstance(self.params["support_threshold"], (float, int)):
+                support_params["threshold_relative"] = self.params[
+                    "support_threshold"
+                ]
+            # if given as a string or list/tuple, assume it's a range
+            elif isinstance(self.params["support_threshold"], str):
+                # assuming it's a range in string format "min, max"
+                support_params["threshold_relative"] = np.random.uniform(
+                    *(
+                        float(x)
+                        for x in self.params["support_threshold"].split(",")
+                    )
+                )
+            elif isinstance(self.params["support_threshold"], (list, tuple)):
+                support_params["threshold_relative"] = np.random.uniform(
+                    *self.params["support_threshold"]
+                )
+        print("Using support update parameters:", support_params)
         if self.params["support_update_period"]:
             self.support_update = SupportUpdate(**support_params)
         else:
@@ -308,7 +348,7 @@ class PyNXPhaser:
                 * cdi
             )
         if self.params["psf"] is not None:
-            model, fwhm, eta, _ = self.params["psf"].split(",")
+            model, fwhm, eta = self.params["psf"].split(",")
             cdi = InitPSF(model, float(fwhm), float(eta)) * cdi
 
         if self.params["compute_free_llk"]:
@@ -434,8 +474,35 @@ class PyNXPhaser:
                 raise ValueError(
                     "CDI object are not initialised, init_cdi should be True."
                 )
+
+        # if support_threshold is given as a list/tuple/string, set a different
+        # threshold for each run
+        support_relative_must_be_updated = False
+        if isinstance(self.params["support_threshold"], (list, tuple, str)):
+            support_relative_must_be_updated = True
+
         for i, cdi in enumerate(self.cdi_list):
             print(f"Run #{i + 1}")
+
+            # set support threshold if needed
+            if support_relative_must_be_updated:
+                if isinstance(self.params["support_threshold"], str):
+                    threshold = np.random.uniform(
+                        *(
+                            float(x)
+                            for x in self.params["support_threshold"].split(
+                                ","
+                            )
+                        )
+                    )
+                else:
+                    threshold = np.random.uniform(
+                        *self.params["support_threshold"]
+                    )
+                self.support_update.threshold_relative = threshold
+                print(f"Support threshold set to {threshold}")
+
+            # run the recipe
             self.run(recipe, cdi, init_cdi=False)
 
     def genetic_phasing(
@@ -644,6 +711,19 @@ class PyNXPhaser:
             ax.yaxis.set_ticks_position("left")
         fig.suptitle(title)
         return axes
+
+    def __repr__(self) -> str:
+        text = (
+            "PyNXPhaser object:\n"
+            f"PyNXPhaser with iobs shape: {self.iobs.shape}, "
+            f"mask shape: {self.mask.shape if self.mask is not None else None}"
+        )
+
+        parameters_text = "\nPyNX parameters:"
+        for key in sorted(self.params):
+            parameters_text += f"\n\t{key}: {self.params[key]}"
+        text += parameters_text
+        return text
 
 
 class PhasingResultAnalyser:
