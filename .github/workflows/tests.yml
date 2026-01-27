@@ -26,7 +26,7 @@ jobs:
       - name: Lint and format check with ruff
         run: |
           ruff check src/cdiutils tests
-          ruff format --check --line-length 79 src/cdiutils tests
+          ruff format --check src/cdiutils tests
 
   test-unit:
     name: Unit Tests (Python ${{ matrix.python-version }})
