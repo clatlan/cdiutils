@@ -69,7 +69,7 @@ DEFAULT_PIPELINE_PARAMS = {
         "support_smooth_width_begin": 2,  # initial smoothing
         "support_smooth_width_end": 0.5,  # final smoothing
         "support_post_expand": None,  # post-expand support (x/- N)
-        "support_update_border_n": None,  # border update width
+        "support_update_border_n": 0,  # border update width
         # algorithm configuration
         "algorithm": None,  # phasing algorithm sequence
         "psf": "pseudo-voigt,1,0.05,20",  # point spread function

@@ -50,14 +50,12 @@ from cdiutils.utils import CroppingHandler, get_centred_slices, valid_args_only
 DEFAULT_PYNX_PARAMS = {
     # support-related params
     "support_threshold": (0.15, 0.40),
-    "smooth_width": (2, 0.5, 600),
+    "smooth_width": (2, 0.5, 900),  # (start, end, period)
     "post_expand": None,  # (-1, 1)
     "support_update_period": 50,
     "method": "rms",
     "force_shrink": False,
     "update_border_n": 0,
-    "smooth_width_begin": 2,
-    "smooth_width_end": 0.5,
     "support": None,
     "obj": None,
     "amp_range": (0, 1),
@@ -77,7 +75,7 @@ DEFAULT_PYNX_PARAMS = {
     "fig_num": -1,
     "zero_mask": False,
     # others
-    "psf": "pseudo-voigt,0.5,0.1",
+    "psf": "pseudo-voigt,1,0.05",  # model,fwhm,eta
     "compute_free_llk": True,
     "positivity": False,
     "confidence_interval_factor_mask_min": 0.5,
@@ -232,6 +230,7 @@ class PyNXPhaser:
                 support_params["threshold_relative"] = np.random.uniform(
                     *self.params["support_threshold"]
                 )
+
         print("Using support update parameters:", support_params)
         if self.params["support_update_period"]:
             self.support_update = SupportUpdate(**support_params)
