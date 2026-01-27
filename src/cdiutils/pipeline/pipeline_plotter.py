@@ -15,7 +15,13 @@ from cdiutils.utils import num_to_nan, symmetric_pad
 
 
 class PipelinePlotter:
-    """A class to provide key plotting methods used in (Bcdi)Pipeline."""
+    """
+    Plotting utilities for BCDI pipeline results visualisation.
+
+    Provides class methods for detector data, orthogonalised data,
+    summary plots, FFT visualisation, and strain statistics. All
+    methods return matplotlib figure and axes for customisation.
+    """
 
     @classmethod
     def detector_data(
@@ -27,6 +33,29 @@ class PipelinePlotter:
         title: str = "",
         save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot detector data slices with voxel position markers.
+
+        Displays three orthogonal slices through detector volume. If
+        full_det_data provided, shows both cropped and raw data for
+        comparison. Marks reference, maximum, and centre-of-mass
+        positions when provided in voxels dict.
+
+        Args:
+            det_data: cropped 3D detector data array.
+            voxels: dictionary with 'cropped'/'full' keys containing
+                'ref', 'max', 'com' positions. Optional.
+            full_det_data: uncropped detector data for comparison.
+                Optional.
+            integrate: if True, integrate perpendicular slices.
+                Default False.
+            title: plot title. Default empty string.
+            save: filepath to save figure. Optional.
+
+        Returns:
+            (fig, axes): matplotlib Figure and Axes objects.
+        """
+
         def sub_get(voxels, k1, k2):
             """
             Handle the voxels dictionary. Check whenever a value
@@ -188,6 +217,22 @@ class PipelinePlotter:
         title: str = "",
         save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Compare raw and orthogonalised detector data side by side.
+
+        Displays detector frame (top row) and reciprocal lab frame
+        (bottom row) with three orthogonal slice views each.
+
+        Args:
+            det_data: raw 3D detector data.
+            ortho_data: orthogonalised 3D reciprocal space data.
+            q_grid: tuple of 3 Q-space coordinate arrays.
+            title: plot title. Default empty string.
+            save: filepath to save figure. Optional.
+
+        Returns:
+            (fig, axes): matplotlib Figure and 2x3 Axes grid.
+        """
         q_spacing = [q[1] - q[0] for q in q_grid]
         q_centre = (q_grid[0].mean(), q_grid[1].mean(), q_grid[2].mean())
 
@@ -250,6 +295,30 @@ class PipelinePlotter:
         convention: str = "cxi",
         **to_plot,
     ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Create multi-panel summary plot of reconstruction results.
+
+        Displays three orthogonal slices for each quantity (amplitude,
+        displacement, strain, etc.). Applies support mask to strain
+        fields. Includes optional table with analysis metrics.
+
+        Args:
+            title: figure title. Optional.
+            support: 3D binary support mask. Optional.
+            table_info: dict of scalar metrics for table display.
+                Optional.
+            voxel_size: (z,y,x) voxel sizes in nm. Optional.
+            save: filepath to save figure. Optional.
+            unique_vmin: override colorbar minimum. Optional.
+            unique_vmax: override colorbar maximum. Optional.
+            cmap: colormap name. Optional.
+            figsize: (width, height) in inches. Default (6,4).
+            convention: 'cxi' or 'xu' coordinate system. Default 'cxi'.
+            **to_plot: keyword arguments with array name and 3D data.
+
+        Returns:
+            (fig, axes): matplotlib Figure and 3xN Axes grid.
+        """
         _, _, PLOT_CONFIGS = set_plot_configs()
 
         fig, axes = plt.subplots(3, len(to_plot), figsize=figsize)
@@ -438,6 +507,24 @@ class PipelinePlotter:
         title: str = None,
         save: str = None,
     ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Compare FFT of final object with experimental orthogonalised data.
+
+        Pads object to match experimental data shape before FFT
+        computation. Displays both in reciprocal lab frame.
+
+        Args:
+            obj: final reconstructed object (direct space).
+            voxel_size: (z,y,x) voxel sizes in nm.
+            q_space_shift: Q-space origin shift (3-tuple).
+            exp_ortho_data: experimental orthogonalised detector data.
+            exp_data_q_grid: experimental Q-space coordinate arrays.
+            title: figure title. Optional.
+            save: filepath to save figure. Optional.
+
+        Returns:
+            (fig, axes): matplotlib Figure and 2x3 Axes grid.
+        """
         # Prepare the object fft
         shape = exp_ortho_data.shape
         q_voxel_size = 2 * np.pi / (10 * np.multiply(voxel_size, shape))
