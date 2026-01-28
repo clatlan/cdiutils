@@ -15,6 +15,8 @@ dependencies:
   - jupyter_client
   # for rendering interactive plots
   - plotly>=5.0.0
+  - bokeh>=3.0.0
+  - panel>=1.0.0
   # core dependencies needed for cdiutils imports
   - numpy
   - matplotlib>=3.10
