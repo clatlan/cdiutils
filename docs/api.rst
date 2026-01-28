@@ -1,278 +1,197 @@
 API Reference
 =============
 
-Main Package
-------------
+This page provides complete documentation for all public classes and functions in CDIutils.
 
-.. automodule:: cdiutils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. contents:: Quick Navigation
+   :local:
+   :depth: 2
 
-Core Modules
-------------
-
-.. automodule:: cdiutils.geometry
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.converter
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.wavefront
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Input/Output (IO)
------------------
-
-.. automodule:: cdiutils.io
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :exclude-members: CXIExplorer, CXIFile
-
-Loader Classes
-~~~~~~~~~~~~~~
-
-.. automodule:: cdiutils.io.loader
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.id01
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.p10
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.sixs
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.nanomax
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.id27
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.cristal
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-File Format Support
-~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: cdiutils.io.cxi
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.cxi_explorer
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.io.vtk
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Processing
-----------
-
-.. automodule:: cdiutils.process
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Phase Retrieval
-~~~~~~~~~~~~~~~
-
-.. automodule:: cdiutils.process.phaser
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Post-processing
-~~~~~~~~~~~~~~~
-
-.. automodule:: cdiutils.process.postprocessor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.process.support_processor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Facet Analysis
---------------
-
-.. automodule:: cdiutils.facetanalysis
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: cdiutils.facetanalysis.facet_analysis
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Pipeline
+Overview
 --------
 
-.. automodule:: cdiutils.pipeline
-   :members:
-   :undoc-members:
-   :show-inheritance:
+CDIutils is organized into several key modules:
 
-Analysis
---------
+.. list-table::
+   :widths: 20 80
+   :header-rows: 1
 
-.. automodule:: cdiutils.analysis
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   * - Module
+     - Description
+   * - :doc:`api/geometry`
+     - Beamline geometry and coordinate systems
+   * - :doc:`api/converter`
+     - Coordinate transformations between frames
+   * - :doc:`api/pipeline`
+     - Automated processing workflows
+   * - :doc:`api/process`
+     - Phase retrieval and post-processing
+   * - :doc:`api/io`
+     - Data loading and file I/O
+   * - :doc:`api/plot`
+     - Visualization and plotting tools
+   * - :doc:`api/analysis`
+     - Statistical analysis utilities
+   * - :doc:`api/interactive`
+     - Interactive 3D visualization
+   * - :doc:`api/wavefront`
+     - Wavefront propagation and probe analysis
+   * - :doc:`api/simulation`
+     - Data simulation tools
 
-Plotting and Visualisation
----------------------------
+Core Classes
+------------
 
-.. automodule:: cdiutils.plot
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Essential classes for BCDI workflows:
 
-Slice Plotting
-~~~~~~~~~~~~~~
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
 
-.. automodule:: cdiutils.plot.slice
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   * - Class
+     - Description
+   * - :doc:`api/classes/Geometry`
+     - Beamline geometry, sample orientation, coordinate conventions
+   * - :doc:`api/classes/SpaceConverter`
+     - Detector ↔ reciprocal ↔ direct space transformations
+   * - :doc:`api/classes/BcdiPipeline`
+     - Complete BCDI pipeline (preprocessing → phasing → postprocessing)
+   * - :doc:`api/classes/PyNXPhaser`
+     - PyNX phase retrieval wrapper with result analysis
+   * - :doc:`api/classes/PostProcessor`
+     - Strain, displacement, phase manipulation tools
 
-Volume Visualisation
-~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: cdiutils.plot.volume
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Data I/O Classes
+----------------
 
-Vector Field Plotting
-~~~~~~~~~~~~~~~~~~~~~
+Loading data from different beamlines:
 
-.. automodule:: cdiutils.plot.quiver
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
 
-Formatting and Styling
-~~~~~~~~~~~~~~~~~~~~~~
+   * - Class
+     - Description
+   * - :doc:`api/classes/Loader`
+     - Base loader class with factory method
+   * - :doc:`api/classes/ID01Loader`
+     - ESRF ID01 beamline (BLISS format)
+   * - :doc:`api/classes/P10Loader`
+     - PETRA III P10 beamline
+   * - :doc:`api/classes/SIXSLoader`
+     - SOLEIL SIXS beamline
+   * - :doc:`api/classes/NanoMaxLoader`
+     - MAX IV NanoMAX beamline
+   * - :doc:`api/classes/CXIFile`
+     - CXI file format reader/writer
+   * - :doc:`api/classes/CXIExplorer`
+     - Interactive CXI file explorer widget
 
-.. automodule:: cdiutils.plot.formatting
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Interactive Visualization
+-------------------------
 
-.. automodule:: cdiutils.plot.colormap
-   :members:
-   :undoc-members:
-   :show-inheritance:
+3D interactive tools:
 
-Interactive Widgets
--------------------
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
 
-.. automodule:: cdiutils.interactive
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   * - Class/Function
+     - Description
+   * - :doc:`api/classes/ThreeDViewer`
+     - Advanced 3D isosurface viewer with full controls
+   * - :doc:`api/classes/Plotter`
+     - Interactive 2D slice viewer widget
+   * - :doc:`api/functions/plotting`
+     - Quick 3D visualization function
 
-Interactive Plotting
-~~~~~~~~~~~~~~~~~~~~
+Class Reference
+---------------
 
-.. automodule:: cdiutils.interactive.plotting
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Detailed documentation by class:
 
-.. automodule:: cdiutils.interactive.plotter
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 1
+   :caption: Core Classes
 
-3D Visualisation
-~~~~~~~~~~~~~~~~
+   api/classes/Geometry
+   api/classes/SpaceConverter
+   api/classes/BcdiPipeline
+   api/classes/Pipeline
+   api/classes/PyNXPhaser
+   api/classes/PostProcessor
+   api/classes/PhasingResultAnalyser
 
-.. automodule:: cdiutils.interactive.viewer_3d
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 1
+   :caption: I/O Classes
 
-.. automodule:: cdiutils.interactive.volume
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   api/classes/Loader
+   api/classes/ID01Loader
+   api/classes/P10Loader
+   api/classes/SIXSLoader
+   api/classes/NanoMaxLoader
+   api/classes/CXIFile
+   api/classes/CXIExplorer
 
-Data Browser
-~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
+   :caption: Interactive Classes
 
-.. automodule:: cdiutils.interactive.data_browser
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   api/classes/ThreeDViewer
+   api/classes/Plotter
 
-Phase Retrieval GUI
-~~~~~~~~~~~~~~~~~~~
+Function Reference
+------------------
 
-.. automodule:: cdiutils.interactive.phase_retrieval
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Key functions organized by category:
 
-Advanced Features
------------------
+.. toctree::
+   :maxdepth: 1
+   :caption: By Category
 
-Multi-BCDI Analysis
-~~~~~~~~~~~~~~~~~~~
+   api/functions/plotting
+   api/functions/utilities
+   api/functions/analysis
+   api/functions/io
 
-.. automodule:: cdiutils.multibcdi
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Module Reference
+----------------
 
-Facet Analysis
-~~~~~~~~~~~~~~
+Detailed documentation by module:
 
-.. automodule:: cdiutils.facetanalysis
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 1
+   :caption: By Module
 
-Scripts and Utilities
----------------------
+   api/geometry
+   api/converter
+   api/pipeline
+   api/process
+   api/io
+   api/plot
+   api/analysis
+   api/interactive
+   api/wavefront
+   api/simulation
+   api/utils
 
-.. automodule:: cdiutils.scripts
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Quick Links
+-----------
+
+**Most Common Use Cases:**
+
+* **Loading data**: :doc:`api/classes/Loader`, :doc:`api/classes/ID01Loader`
+* **Coordinate transformations**: :doc:`api/classes/SpaceConverter`
+* **Full pipeline**: :doc:`api/classes/BcdiPipeline`
+* **Phase retrieval**: :doc:`api/classes/PyNXPhaser`
+* **Post-processing**: :doc:`api/classes/PostProcessor`
+* **3D visualization**: :doc:`api/classes/ThreeDViewer`, :doc:`api/functions/plotting`
+* **Plotting slices**: :doc:`api/functions/plotting`
+
+Search
+------
+
+Use the search box in the sidebar to quickly find specific classes, functions, or parameters.
+

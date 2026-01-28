@@ -99,5 +99,3 @@ Getting Started
 2. Install CDIutils following the :doc:`../installation` guide
 3. Run the notebooks in your Jupyter environment
 4. Adapt the examples to your specific datasets
-
-For more detailed guidance, see the :doc:`../tutorials/index` section.

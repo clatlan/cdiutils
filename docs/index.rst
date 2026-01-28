@@ -24,12 +24,13 @@ Key Features
    :caption: Getting Started
 
    installation
+   getting_started/index
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorials
+   :caption: User Guide
 
-   tutorials/index
+   user_guide/index
 
 .. toctree::
    :maxdepth: 2
@@ -53,35 +54,37 @@ Key Features
 Quick Start
 ===========
 
-After :doc:`installation <installation>`, you can start using CDIutils:
+Get started with a minimal working example in a Jupyter notebook:
 
 .. code-block:: python
 
+   import os
    import cdiutils
+   
+   # Setup parameters
+   beamline_setup = "id01"
+   experiment_file_path = "/path/to/file.h5"
+   sample_name = "MySample"
+   scan = 42
+   dump_dir = os.getcwd() + f"/results/{sample_name}/S{scan}/"
+   
+   # Create pipeline
+   params = cdiutils.pipeline.get_params_from_variables(dir(), globals())
+   pipeline = cdiutils.BcdiPipeline(params=params)
+   
+   # Run workflow
+   pipeline.preprocess(preprocess_shape=(200, 200, 200))
+   pipeline.phase_retrieval(nb_run=50)
+   pipeline.analyse_phasing_results()
+   pipeline.mode_decomposition()
+   pipeline.postprocess(voxel_size=5)
+   
+   # Visualize
+   pipeline.show_3d_final_result()
 
-   # create a loader object for a specific experiment
-   loader = cdiutils.Loader.from_setup(
-       "id01",
-       experiment_file_path="path/to/experiment_file_path.h5",
-       sample_name="sample_name"
-   )
+See :doc:`getting_started/quickstart` for detailed explanation.
 
-   # load detector scan data
-   scan = 1  # specify the scan number
-   detector_data = loader.load_detector_data(scan)
-   angles = loader.load_motor_positions(scan)
-   energy = loader.load_energy(scan)
-   det_calib_params = loader.load_det_calib_params(scan)
-
-   # load the geometry information
-   geometry = cdiutils.Geometry.from_setup("id01")
-
-   # initialise the space converter for data transformation
-   converter = cdiutils.SpaceConverter(geometry, det_calib_params, energy=energy)
-   converter.init_q_space(**angles)
-
-   # convert the detector data to lab frame
-   ortho_data = converter.orthogonalise_to_q_lab(detector_data)
+For complete examples with real data, check :doc:`examples/index`.
 
 Getting Help
 ============
