@@ -20,8 +20,20 @@ from cdiutils.utils import energy_to_wavelength
 
 class SpaceConverter:
     """
-    A class to handle the conversions between the different frames and
-    spaces.
+    BCDI-critical class for coordinate system transformations.
+
+    Handles conversions between detector, reciprocal lab (q-space),
+    and direct lab frames using xrayutilities. Essential for BCDI
+    strain calculations, where accurate orthogonalisation preserves
+    physical displacement fields.
+
+    The class manages three coordinate systems:
+    - Detector frame: raw (i,j,k) pixel indices (non-orthogonal)
+    - Reciprocal lab: orthogonal q-space (units: Angstroms-1)
+    - Direct lab: orthogonal real-space (units: nm)
+
+    See Also:
+        user_guide/coordinate_systems.rst for CXI/XU conventions.
     """
 
     def __init__(
@@ -36,6 +48,27 @@ class SpaceConverter:
         direct_lab_matrix: np.ndarray = None,
         direct_lab_voxel_size: tuple = None,
     ):
+        """
+        Initialise the space converter.
+
+        Args:
+            geometry: beamline geometry (goniometer circles,
+                detector orientation).
+            det_calib_params: detector calibration (cch1, cch2,
+                distance, pwidth1, pwidth2) in pixels and mm. Critical
+                for accurate q-space mapping.
+            energy: X-ray energy in eV.
+            roi: region of interest [row_start, row_end, col_start,
+                col_end] applied to detector data.
+            shape: data shape (nz, ny, nx) in detector frame.
+            q_lab_shift: shift applied to centre Bragg peak at origin
+                in reciprocal space (Angstroms-1).
+            q_lab_matrix: transformation matrix for q-space
+                interpolation (internal use).
+            direct_lab_matrix: transformation matrix for direct-space
+                interpolation (internal use).
+            direct_lab_voxel_size: voxel size in direct lab frame (nm).
+        """
         self.geometry = geometry
         self.det_calib_params = det_calib_params
         self.energy = energy
@@ -108,6 +141,7 @@ class SpaceConverter:
             )
 
     def to_dict(self) -> dict:
+        """Serialise converter state to dictionary."""
         d = {
             k: self.__dict__[k]
             for k in (
@@ -134,10 +168,15 @@ class SpaceConverter:
 
     def to_file(self, dump_path: str) -> None:
         """
-        Save all necessary attributes to an hdf5 file using silx.
+        Save converter configuration to HDF5 file.
+
+        Preserves all transformation matrices and calibration
+        parameters, allowing reconstruction of converter state without
+        recomputing q-space transitions (expensive operation).
 
         Args:
-            dump_path (str): the path where to dump the file.
+            dump_path: output HDF5 file path (.h5 extension added if
+                missing).
         """
         dump_path += ".h5" if not dump_path.endswith(".h5") else ""
 
@@ -175,14 +214,17 @@ class SpaceConverter:
     @classmethod
     def from_file(cls, path: str) -> "SpaceConverter":
         """
-        Factory method that loads the dumped attributes from an hdf5
-        file and returns an instance of SpaceConverter.
+        Load converter from HDF5 file.
+
+        Factory method that reconstructs SpaceConverter instance with
+        all transformation matrices and calibration parameters,
+        avoiding expensive recomputation of q-space transitions.
 
         Args:
-            path (str): the path to load the data from.
+            path: input HDF5 file path.
 
         Returns:
-            SpaceConverter: the instance of SpaceConverter.
+            SpaceConverter instance with restored state.
         """
 
         def decode_if_bytes(value):
@@ -247,6 +289,30 @@ class SpaceConverter:
         det_calib_params: dict = None,
         roi: list = None,
     ) -> None:
+        """
+        Initialise q-space mapping using xrayutilities.
+
+        Computes q-space coordinates for each detector pixel given
+        goniometer angles. This is the foundation for all BCDI
+        coordinate transformations. Requires accurate detector
+        calibration (cch1, cch2, distance, pixel sizes) to preserve
+        physical strain calculations.
+
+        Args:
+            sample_outofplane_angle: out-of-plane rotation (e.g. om,
+                theta, eta) in degrees. Can be 1D array (rocking
+                curve scan).
+            sample_inplane_angle: in-plane rotation (e.g. phi, chi,
+                gamma) in degrees.
+            detector_outofplane_angle: detector out-of-plane angle
+                (e.g. delta, tth) in degrees.
+            detector_inplane_angle: detector in-plane angle (e.g. nu,
+                gamma) in degrees.
+            det_calib_params: detector calibration dict with keys
+                'cch1', 'cch2', 'distance', 'pwidth1', 'pwidth2'.
+            roi: region of interest [row_start, row_end, col_start,
+                col_end].
+        """
         # Check that det_calib and roi are provided or set in the
         # instance attributes.
         if det_calib_params is None:
@@ -324,8 +390,13 @@ class SpaceConverter:
 
     def index_det_to_q_lab(self, ijk: tuple) -> tuple:
         """
-        Transition an index from the detector frame to the reciprocal
-        lab space
+        Convert detector index to q-space coordinates.
+
+        Args:
+            ijk: detector pixel index (i, j, k).
+
+        Returns:
+            (qx, qy, qz) coordinates in Å⁻¹.
         """
         if self._q_space_transitions is None:
             raise ValueError(
@@ -335,10 +406,7 @@ class SpaceConverter:
         return self.do_transition(ijk, self._q_space_transitions)
 
     def index_cropped_det_to_q_lab(self, ijk: tuple) -> tuple:
-        """
-        Transition an index from the cropped detector frame to the
-        reciprocal lab space frame
-        """
+        """Convert cropped detector index to q-space coordinates."""
         return self.index_det_to_q_lab(self.index_cropped_det_to_det(ijk))
 
     def index_det_to_index_of_q_lab(
@@ -375,7 +443,15 @@ class SpaceConverter:
     @staticmethod
     def dspacing(q_lab_coordinates: np.ndarray | list | tuple) -> float:
         """
-        Compute the dspacing
+        Compute d-spacing from q-space coordinates.
+
+        d-spacing is the lattice plane separation: d = 2π / |q|.
+
+        Args:
+            q_lab_coordinates: (qx, qy, qz) in Å⁻¹.
+
+        Returns:
+            d-spacing in Ångströms.
         """
         return float(2 * np.pi / np.linalg.norm(q_lab_coordinates))
 
@@ -386,7 +462,16 @@ class SpaceConverter:
         hkl: np.ndarray | list | tuple,
     ) -> float:
         """
-        Compute the lattice parameter
+        Compute lattice parameter from Bragg peak position.
+
+        Uses formula: a = d * sqrt(h² + k² + l²) for cubic crystals.
+
+        Args:
+            q_lab_coordinates: (qx, qy, qz) at Bragg peak in Å⁻¹.
+            hkl: Miller indices of the reflection.
+
+        Returns:
+            Lattice parameter in Ångströms.
         """
         return float(
             cls.dspacing(q_lab_coordinates)
@@ -434,6 +519,25 @@ class SpaceConverter:
         shift_voxel: tuple = None,
         verbose: bool = False,
     ):
+        """
+        Initialise interpolators for orthogonalisation.
+
+        Prepares linear transformation matrices for converting
+        non-orthogonal detector data to orthogonal grids. For BCDI
+        strain analysis, accurate voxel size calibration is essential
+        to preserve displacement field magnitudes.
+
+        Args:
+            direct_lab_voxel_size: target voxel size in direct space
+                (nm). If None, auto-computed from reciprocal extent.
+                Can be scalar (isotropic) or 3-tuple (anisotropic).
+            space: which interpolator(s) to initialise: 'reciprocal'
+                (q-space), 'direct' (real-space), or 'both'.
+            shift_voxel: Bragg peak centre in detector frame (i,j,k).
+                Used to centre reciprocal space at (0,0,0). Default:
+                centre of array.
+            verbose: print auto-computed voxel size.
+        """
         if space not in (
             "q",
             "rcp",
@@ -506,8 +610,23 @@ class SpaceConverter:
         shift_voxel: tuple = None,
     ) -> np.ndarray:
         """
-        orthogonalise detector data of the reciprocal space to the lab
-        (xu) frame.
+        Orthogonalise detector data to reciprocal lab frame (q-space).
+
+        BCDI-critical transformation that converts non-orthogonal
+        detector pixels to regular reciprocal grid. Choice of method
+        affects interpolation quality and speed.
+
+        Args:
+            data: 3D detector data (nz, ny, nx) with rocking curve
+                along first axis.
+            method: 'cdiutils' (fast linear interpolation) or 'xu'
+                (xrayutilities.FuzzyGridder3D, slower but handles
+                irregular grids better).
+            shift_voxel: Bragg peak centre (i,j,k) for centring at
+                origin. Default: centre of array.
+
+        Returns:
+            Orthogonalised 3D array in q lab frame.
         """
         if self.shape != data.shape:
             raise ValueError(
@@ -534,8 +653,22 @@ class SpaceConverter:
         direct_lab_voxel_size: tuple | np.ndarray | list | float = None,
     ) -> np.ndarray:
         """
-        orthogonalise the direct space data (reconstructed object) to
-        orthogonalised direct space.
+        Orthogonalise reconstructed object to direct lab frame.
+
+        Transformation that converts BCDI reconstruction
+        (in non-orthogonal detector frame) to orthogonal real-space.
+        Essential for accurate strain calculations, where voxel size
+        determines displacement field calibration.
+
+        Args:
+            direct_space_data: 3D complex-valued reconstruction
+                (amplitude * exp(i*phase)).
+            direct_lab_voxel_size: target voxel size (nm). If
+                provided, reinitialises interpolator. Can be scalar or
+                3-tuple.
+
+        Returns:
+            Orthogonalised 3D complex array in direct lab frame.
         """
 
         if self.direct_lab_interpolator is None:
@@ -554,8 +687,17 @@ class SpaceConverter:
         shift_voxel: tuple | None = None,
     ) -> np.ndarray:
         """
-        Compute the tranformation matrix that convert (i, j, k) integer
-        position into the given grid coordinates.
+        Compute transformation matrix for detector to q-space mapping.
+
+        Returns linear transformation converting (i,j,k) detector
+        indices to (qx,qy,qz) coordinates.
+
+        Args:
+            shift_voxel: Bragg peak centre (i,j,k). Default: array
+                centre.
+
+        Returns:
+            3x3 transformation matrix.
         """
         if shift_voxel is None:
             shift_voxel = tuple(s // 2 for s in self._shape)
@@ -580,9 +722,14 @@ class SpaceConverter:
 
     def get_q_space_transitions(self, arrangement: str = "list"):
         """
-        Get the q space transitions calculated by xrayutilities and
-        chose the arrangement either a list of three 1d arrays
-        or a cube of q coordinates in the q lab space.
+        Get q-space coordinates from xrayutilities mapping.
+
+        Args:
+            arrangement: 'list' (three 1D arrays) or 'cubinates' (4D
+                array with shape (nz,ny,nx,3)).
+
+        Returns:
+            Q-space coordinate grid.
         """
         if self._q_space_transitions is None:
             raise ValueError(
@@ -602,9 +749,17 @@ class SpaceConverter:
 
     def get_xu_q_lab_regular_grid(self, arrangement: str = "list"):
         """
-        Get the regular grid used for the xu orthogonalization in the q lab
-        space and chose the arrangement either a list of three 1d arrays
-        or a cube of q coordinates in the q lab space.
+        Get regular q lab grid from xrayutilities.FuzzyGridder3D.
+
+        Only available after calling orthogonalise_to_q_lab with
+        method='xu'.
+
+        Args:
+            arrangement: 'list' (three 1D axes) or 'cubinates' (4D
+                meshgrid).
+
+        Returns:
+            Regular q-space grid.
         """
         if self.xu_gridder is None:
             raise ValueError(
@@ -628,9 +783,17 @@ class SpaceConverter:
 
     def get_q_lab_regular_grid(self, arrangement: str = "list"):
         """
-        Get the regular grid used for the orthogonalization in the q lab
-        space and chose the arrangement either a list of three 1d array
-        or a cube of q coordinates in the q lab space.
+        Get regular q lab grid from cdiutils interpolator.
+
+        Only available after init_interpolator with space='reciprocal'
+        or 'both'.
+
+        Args:
+            arrangement: 'list' (three 1D axes) or 'cubinates' (3D
+                meshgrid with shape (nz,ny,nx,3)).
+
+        Returns:
+            Regular q-space grid in Angstrom-1.
         """
         if self.q_lab_interpolator is None:
             raise ValueError(
@@ -652,9 +815,17 @@ class SpaceConverter:
 
     def get_direct_lab_regular_grid(self, arrangement: str = "list"):
         """
-        Get the regular grid used for the orthogonalization in the
-        direct space and chose the arrangement either a list of three
-        1d array or a cube of the coordinates in the direct lab space.
+        Get regular direct lab grid from cdiutils interpolator.
+
+        Only available after init_interpolator with space='direct' or
+        'both'.
+
+        Args:
+            arrangement: 'list' (three 1D axes) or 'cubinates' (3D
+                meshgrid).
+
+        Returns:
+            Regular real-space grid in nm.
         """
         if self.direct_lab_interpolator is None:
             raise ValueError(
@@ -674,12 +845,18 @@ class SpaceConverter:
         self, q_lab_data: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         """
-        This funtion calculates the magnitude of the Q vector for each
-        position in reciprocal space in the lab frame. It returns the Q
-        norms as a 1D array as well as the intensities flattened to a 1D
-        array to coresspond directly with the Q norms. This can be best
-        visualized using a histogram.
-        The q_norms and data are sorted.
+        Compute radial profile data for q-space histogram.
+
+        Calculates |q| magnitude for each voxel and returns sorted
+        (|q|, intensity) pairs for 1D radial averaging.
+
+        Args:
+            q_lab_data: 3D intensity array in orthogonalised q lab
+                frame.
+
+        Returns:
+            Tuple of (sorted_q_norms, sorted_intensities) as 1D
+            arrays.
         """
         try:
             grid = self.get_q_lab_regular_grid(arrangement="c")
@@ -702,17 +879,21 @@ class SpaceConverter:
         convert_to_xu: bool = False,
     ) -> np.ndarray:
         """
-        Calculate the support in the reconstruction frame based on a
-        given support and voxel size in the direct laboratory frame.
+        Transfer support from direct lab to reconstruction frame.
+
+        Interpolates support defined in orthogonal direct lab frame
+        (e.g. from previous analysis) onto non-orthogonal
+        reconstruction frame. Used to initialise BCDI phase retrieval
+        with prior knowledge.
 
         Args:
-            support (np.ndarray): the support in the direct lab frame.
-            voxel_size (tuple): the voxel size associated to the support
-            convert_to_xu (bool): convert the support and voxel_size
-                from cxi to xu convention.
+            support: binary mask in direct lab frame.
+            voxel_size: voxel size of input support in nm.
+            convert_to_xu: convert support from CXI to XU convention
+                before interpolation.
 
         Returns:
-            np.ndarray: the new support in the reconstruction frame.
+            Support array in detector frame.
         """
         if convert_to_xu:
             support = Geometry.swap_convention(support)
@@ -771,6 +952,46 @@ class SpaceConverter:
         show: bool = True,
         verbose: bool = True,
     ) -> dict:
+        """
+        Calibrate detector parameters using xrayutilities (BCDI-critical).
+
+        Determines detector calibration (cch1, cch2, distance, tilt,
+        etc.) from direct beam scans. Critical for accurate q-space
+        mapping in BCDI strain calculations.
+
+        Args:
+            detector_calibration_frames: 3D array of direct beam images
+                (nangles, ny, nx).
+            detector_outofplane_angle: out-of-plane detector angles
+                during scan (degrees).
+            detector_inplane_angle: in-plane detector angles during
+                scan (degrees).
+            energy: X-ray energy in eV.
+            xu_detector_circles: detector circle names in XU convention
+                (e.g. ['z-', 'y-'] for ID01).
+            pixel_size_x: detector pixel size along x in metres
+                (default: 55 µm for Eiger).
+            pixel_size_y: detector pixel size along y in metres
+                (default: 55 µm).
+            sdd_estimate: initial sample-detector distance in metres.
+                If None, auto-estimated from beam motion.
+            show: plot calibration diagnostic plots.
+            verbose: print calibration parameters.
+
+        Returns:
+            Dictionary with keys: cch1, cch2, pwidth1, pwidth2,
+            distance, tiltazimuth, tilt, detrot.
+
+        Example:
+            >>> # ID01 detector calibration
+            >>> params = converter.run_detector_calibration(
+            ...     calibration_scan_data,
+            ...     delta_angles,
+            ...     nu_angles,
+            ...     energy=9000,
+            ...     xu_detector_circles=['z-', 'y-']
+            ... )
+        """
         coms = []
         for i in range(detector_calibration_frames.shape[0]):
             coms.append(center_of_mass(detector_calibration_frames[i]))
@@ -857,10 +1078,16 @@ class SpaceConverter:
 
 class Interpolator3D:
     """
-    A class to handle 3D interpolations using the
-    RegularGridInterpolator of scipy.interpolate. This class deals with the
-    shape of the target space based on the shape in the original space and the
-    given transfer matrix.
+    3D linear interpolation for BCDI orthogonalisation.
+
+    Handles coordinate transformation from non-orthogonal detector
+    frame to orthogonal grids (q-space or direct space). Uses
+    scipy.interpolate.RegularGridInterpolator with automatic extent
+    calculation.
+
+    Note:
+        This is an internal class used by SpaceConverter. Users
+        typically don't instantiate this directly.
     """
 
     def __init__(
@@ -870,6 +1097,19 @@ class Interpolator3D:
         target_voxel_size: tuple | np.ndarray | list | float = None,
         verbose: bool = False,
     ):
+        """
+        Initialise the 3D interpolator.
+
+        Args:
+            original_shape: shape of data in detector frame (nz, ny,
+                nx).
+            original_to_target_matrix: 3x3 linear transformation
+                matrix mapping detector indices to target coordinates.
+            target_voxel_size: desired voxel size in target space. If
+                None, uses norm of transformation matrix columns. Can
+                be scalar or 3-tuple.
+            verbose: print extent information.
+        """
         self.original_shape = original_shape
 
         if target_voxel_size is None:
@@ -1006,8 +1246,13 @@ class Interpolator3D:
 
     def __call__(self, data: np.ndarray) -> np.ndarray:
         """
-        Wrap function to execute the interpolation as if the instance of
-        Interpolator3D was a callable.
+        Interpolate data from detector frame to target frame.
+
+        Args:
+            data: 3D array in detector frame.
+
+        Returns:
+            Interpolated data on regular target grid.
         """
         rgi = RegularGridInterpolator(
             (

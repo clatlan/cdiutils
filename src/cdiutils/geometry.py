@@ -14,8 +14,48 @@ CXI_TO_XU_TRANSITIONS = {
 
 class Geometry:
     """
-    A class to handle the geometry of the experiment setup.
-    The CXI convention is used here.
+    Beamline diffractometer geometry configuration.
+
+    Defines coordinate system conventions, motor circle orientations,
+    and detector pixel directions for BCDI experiments. Critical for
+    accurate coordinate transformations between detector, laboratory,
+    and reciprocal space frames.
+
+    The CXI convention is used by default:
+        - Xcxi: outboard direction (perpendicular to beam)
+        - Ycxi: vertical (pointing up)
+        - Zcxi: along beam (away from source)
+        - data storage follows (Zcxi, Ycxi, Xcxi) ordering.
+
+    The XU (xrayutilities) convention can also be used:
+        - Xxu: along beam (away from source)
+        - Yxu: outboard direction (perpendicular to beam)
+        - Zxu: vertical (pointing up)
+        - data storage follows (Xxu, Yxu, Zxu) ordering.
+
+    Attributes:
+        sample_circles: Sample rotation axes as list of two CXI
+            directions (e.g., ``["x-", "y-"]`` for eta, phi at ID01).
+        detector_circles: Detector rotation axes as list of two CXI
+            directions.
+        detector_axis0_orientation: CXI direction for detector's
+            first pixel axis (rows).
+        detector_axis1_orientation: CXI direction for detector's
+            second pixel axis (columns).
+        beam_direction: Beam propagation direction as 3-element list
+            in CXI frame. Always ``[1, 0, 0]`` (along Zcxi).
+        sample_surface_normal: Normal vector to sample surface.
+            ``[0, 1, 0]`` for horizontal mounting (surface up),
+            ``[0, 0, -1]`` for vertical (ID01 style).
+        name: Beamline identifier (e.g., "ID01", "P10").
+        is_cxi: If True, geometry uses CXI convention. If False,
+            uses xrayutilities (XU) convention.
+
+    See Also:
+        :class:`~cdiutils.converter.SpaceConverter`: Uses Geometry
+        for coordinate transformations.
+        :doc:`/user_guide/coordinate_systems`: Detailed explanation
+        of CXI/XU conventions.
     """
 
     def __init__(
@@ -30,25 +70,24 @@ class Geometry:
         is_cxi: bool = True,
     ) -> None:
         """
-        Initialise the Geometry instance with the given parameters.
+        Initialise geometry configuration.
 
         Args:
-            sample_circles (list, optional): list of sample circle
-                orientations. Defaults to None.
-            detector_circles (list, optional): list of detector circle
-                orientations. Defaults to None.
-            detector_axis0_orientation (str, optional): orientation of
-                the detector axis 0. Defaults to "y-".
-            detector_axis1_orientation (str, optional): orientation of
-                the detector axis 1. Defaults to "x+".
-            beam_direction (list, optional): direction of the beam.
-                Defaults to None.
-            sample_surface_normal (list, optional): normal vector of the
-                sample surface. Defaults to None.
-            name (str, optional): name of the geometry instance.
-                Defaults to None.
-            is_cxi (bool, optional): flag indicating if the geometry is
-                in CXI format. Defaults to True.
+            sample_circles: List of sample rotation axes as CXI
+                directions. Defaults to ``["x-", "y-"]``.
+            detector_circles: List of detector rotation axes as CXI
+                directions. Defaults to ``["y-", "x-"]``.
+            detector_axis0_orientation: CXI direction for detector
+                pixel axis 0. Defaults to ``"y-"``.
+            detector_axis1_orientation: CXI direction for detector
+                pixel axis 1. Defaults to ``"x+"``.
+            beam_direction: Beam propagation vector in CXI frame.
+                Defaults to ``[1, 0, 0]``.
+            sample_surface_normal: Normal vector to sample surface.
+                Defaults to ``[0, 1, 0]`` (horizontal mounting).
+            name: Beamline name. Defaults to None.
+            is_cxi: If True, uses CXI convention. If False, uses XU
+                convention. Defaults to True.
         """
 
         self.sample_circles = sample_circles
@@ -82,13 +121,24 @@ class Geometry:
         self.is_cxi = is_cxi
 
     def to_dict(self) -> dict:
-        """Return the attributes of the Geometry instance as a dictionary."""
+        """
+        Serialise geometry configuration to dictionary.
+
+        Returns:
+            Dictionary containing all geometry attributes.
+        """
         return self.__dict__.copy()
 
     @classmethod
     def from_dict(cls, data: dict) -> "Geometry":
         """
-        Factory method to create a Geometry instance from a dictionary.
+        Create geometry instance from dictionary.
+
+        Args:
+            data: Dictionary with geometry parameters.
+
+        Returns:
+            New Geometry instance.
         """
         return cls(**data)
 
@@ -101,29 +151,52 @@ class Geometry:
         sample_surface_normal: list | None = None,
     ) -> "Geometry":
         """
-        Factory method to create a Geometry instance using a beamline
-        name.
+        Create geometry from beamline name.
+
+        Factory method providing pre-configured geometries for
+        supported beamlines. Automatically sets correct motor
+        orientations and detector pixel directions.
 
         Args:
-            beamline (str): the name of the beamline, supported are:
-                "ID01", "P10", "SIXS", "NanoMAX", "CRISTAL", "ID27"
-            beamline_setup (str | None, optional): DEPRACATED, use
-                'beamline' instead. Will be removed in a future
-                version.
-            sample_orientation (str | None, optional): the orientation
-                of the sample surface, either "horizontal", "h", "vertical" or
-                "v". Defaults to None.
-            sample_surface_normal (list | None, optional): the normal
-                vector of the sample surface. This overrides the
-                sample_orientation as the sample_surface_normal fully
-                controls the sample orientation. Defaults to None.
+            beamline: Beamline identifier (case-insensitive).
+                Supported values:
 
-        Raises:
-            NotImplementedError: if the beamline is not supported.
+                - ``"ID01"``, ``"ID01SPEC"``, ``"ID01BLISS"``: ESRF
+                  ID01
+                - ``"P10"``, ``"P10EH2"``: PETRA III P10
+                - ``"SIXS2019"``, ``"SIXS2022"``: SOLEIL SIXS (specify
+                  year)
+                - ``"NanoMAX"``: MAX IV NanoMAX
+                - ``"CRISTAL"``: SOLEIL CRISTAL
+                - ``"ID27"``: ESRF ID27
+
+            beamline_setup: Deprecated. Use ``beamline`` instead.
+            sample_orientation: Sample mounting style:
+
+                - ``"horizontal"`` or ``"h"``: surface normal
+                  pointing up (default)
+                - ``"vertical"`` or ``"v"``: surface normal along
+                  beam (ID01 style)
+
+            sample_surface_normal: Explicit surface normal vector.
+                Overrides ``sample_orientation`` if provided.
 
         Returns:
-            Geometry: a Geometry instance with the appropriate
-            parameters set according to the beamline.
+            Configured Geometry instance for the beamline.
+
+        Raises:
+            ValueError: If ``beamline`` not provided.
+            NotImplementedError: If beamline not supported.
+
+        Examples:
+            >>> geometry = Geometry.from_setup(beamline="id01")
+            >>> geometry.sample_orientation
+            'horizontal'
+
+            >>> geometry = Geometry.from_setup(
+            ...     beamline="id01",
+            ...     sample_orientation="vertical"
+            ... )
         """
         # handle backward compatibility
         if beamline is None:
@@ -282,8 +355,15 @@ class Geometry:
 
     def cxi_to_xu(self) -> None:
         """
-        Convert the CXI circle axes to the xrayutilities coordinates
-        system. Modifies this Geometry instance in place.
+        Convert CXI convention to XU convention in-place.
+
+        Transforms all coordinate system attributes (sample circles,
+        detector circles, orientations) from CXI to xrayutilities
+        convention. Sets ``is_cxi`` to False after conversion.
+
+        Note:
+            This is automatically called by SpaceConverter during
+            initialisation if needed. Users rarely call this directly.
         """
         self.sample_circles = [
             CXI_TO_XU_TRANSITIONS[v] for v in self.sample_circles
@@ -316,33 +396,39 @@ class Geometry:
         data: np.ndarray | list | tuple,
     ) -> np.ndarray | list | tuple:
         """
-        Swap the CXI and XU conventions for the given data.
-        This method effectively swaps the last two axes of the input
-        data.
+        Swap CXI and XU coordinate conventions.
 
-        This operation is used to convert between CXI and XU conventions:
+        Swaps the last two axes to convert between conventions:
 
-        - In CXI convention, arrays are stored in order (Zcxi, Ycxi, Xcxi)
-        - In XU convention, arrays are stored in order (Xxu, Yxu, Zxu)
+        - CXI ordering: (Zcxi, Ycxi, Xcxi)
+        - XU ordering: (Xxu, Yxu, Zxu)
 
-        And, physically, we have:
+        Physical correspondence:
 
-        - Zcxi = Xxu, pointing along the beam direction, away from
-          the light source.
-        - Ycxi = Zxu, vertical direction, pointing up.
-        - Xcxi = Yxu, outboard direction in the Synchrotron frame,
-          vertical plane, perpendicular to the beam direction.
+        - Zcxi = Xxu: beam direction (away from source)
+        - Ycxi = Zxu: vertical (pointing up)
+        - Xcxi = Yxu: outboard (perpendicular to beam)
 
-        Both conventions are right-handed.
-        What comes out of this description is that no swapping is
-        needed for the beam direction, which is always along the first
-        axis (axis 0) in both conventions.
+        Both are right-handed. The beam direction (axis 0) requires
+        no swapping as [1,0,0] is identical in both conventions.
 
         Args:
-            data (np.ndarray | list | tuple): the input data to swap.
+            data: Array, list, or tuple to swap. Can be a 3-element
+                vector or a 3D array.
 
         Returns:
-            np.ndarray: The data with swapped conventions.
+            Data with swapped convention. Type matches input.
+
+        Raises:
+            TypeError: If data is not a 3D array, list, or tuple.
+
+        Example:
+            >>> # convert amplitude array from CXI to XU
+            >>> amplitude_xu = Geometry.swap_convention(amplitude_cxi)
+            >>> # convert vector [Zcxi, Ycxi, Xcxi] to [Xxu, Yxu, Zxu]
+            >>> vec_xu = Geometry.swap_convention([1.0, 2.0, 3.0])
+            >>> vec_xu
+            [1.0, 3.0, 2.0]
         """
         if isinstance(data, (tuple, list)):
             axis0, axis1, axis2 = data

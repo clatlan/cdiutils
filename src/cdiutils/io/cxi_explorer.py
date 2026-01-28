@@ -24,13 +24,16 @@ from cdiutils.plot.slice import plot_volume_slices
 
 class CXIExplorer:
     """
-    A class for inspecting and exploring the content of a CXI file.
+    Interactive explorer for CXI file inspection and visualisation.
 
-    This explorer provides various ways to inspect CXI file structure,
-    including:
-    - Tree view of the file hierarchy
-    - Detailed information about datasets and attributes
-    - Visualisation of array data
+    Provides tools for navigating CXI file hierarchies, viewing
+    metadata, and visualising array data. Requires Jupyter environment
+    with ipywidgets for interactive features.
+
+    Attributes:
+        cxi: CXIFile instance being explored.
+        paths: List of all dataset/group paths in file.
+        soft_links: Dictionary mapping soft link names to targets.
     """
 
     max_number_of_values_printed = 100

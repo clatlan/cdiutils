@@ -30,11 +30,23 @@ GROUP_ATTRIBUTES = {
 
 
 class CXIFile:
-    """The main class for handling .cxi file. It can create and load
-    cxi file with simple code. The present code takes care of all the
-    conventions described by the following document:
-    see:
-    https://raw.githubusercontent.com/cxidb/CXI/master/cxi_file_format.pdf
+    """
+    CXI-compliant HDF5 file handler for BCDI data storage.
+
+    Implements the CXI (Coherent X-ray Imaging) file format
+    specification for storing BCDI reconstruction data, metadata,
+    and processing history. Provides high-level methods for creating
+    groups, datasets, and soft links following NeXus conventions.
+
+    The CXI format organises data hierarchically:
+        - entry_N: top-level groups for each dataset
+        - image_N: detector images and metadata
+        - process_N: reconstruction algorithms and parameters
+        - result_N: final reconstruction results
+
+    See Also:
+        CXI format specification:
+        https://github.com/cxidb/CXI/blob/master/cxi_file_format.pdf
     """
 
     IMAGE_MEMBERS = (
@@ -55,6 +67,14 @@ class CXIFile:
     )
 
     def __init__(self, file_path: str, mode: str = "r"):
+        """
+        Initialise CXI file handler.
+
+        Args:
+            file_path: path to .cxi file.
+            mode: file access mode ('r', 'w', 'a'). Defaults to 'r'
+                (read-only).
+        """
         self.file_path = file_path
         self.mode = mode
         self.file = None
@@ -72,7 +92,7 @@ class CXIFile:
         return self._current_entry
 
     def open(self, mode: str = None):
-        """Open the CXI file."""
+        """Open the CXI file in specified mode."""
         if mode is None:
             mode = self.mode
         if self.file is None:

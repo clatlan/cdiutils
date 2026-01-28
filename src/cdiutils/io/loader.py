@@ -1,4 +1,10 @@
-"""A generic class for loaders."""
+"""
+Beamline-specific data loaders for BCDI experiments.
+
+This module provides the abstract base Loader class and beamline-specific
+implementations for loading detector data, motor positions, and metadata
+from synchrotron BCDI experiments.
+"""
 
 from abc import ABC, abstractmethod
 from typing import Callable
@@ -12,7 +18,62 @@ from cdiutils.utils import CroppingHandler, bin_along_axis, get_centred_slices
 
 
 class Loader(ABC):
-    """A generic class for loaders."""
+    """
+    Abstract base class for beamline-specific data loaders.
+
+    Loaders handle experiment-specific data I/O operations including:
+    - HDF5/NeXus/SPEC file parsing
+    - Detector data extraction with ROI support
+    - Motor angle retrieval
+    - Energy and detector calibration parameter loading
+    - Flat-field correction and bad pixel masking
+
+    Use the factory method :meth:`from_setup` to instantiate the appropriate
+    subclass for your beamline, or directly instantiate beamline-specific
+    loaders (ID01Loader, P10Loader, etc.) for advanced configuration.
+
+    Supported beamlines:
+        - ID01 (ESRF): :class:`ID01Loader`
+        - P10 (PETRA III): :class:`P10Loader`
+        - SIXS (SOLEIL): :class:`SIXSLoader`
+        - NanoMAX (MAX IV): :class:`NanoMAXLoader`
+        - CRISTAL (SOLEIL): :class:`CristalLoader`
+        - ID27 (ESRF): :class:`ID27Loader`
+
+    Attributes:
+        scan (int): Scan number identifier.
+        sample_name (str): Sample identifier for file organisation.
+        flat_field (np.ndarray): Flat-field correction array for detector
+            non-uniformity.
+        alien_mask (np.ndarray): Mask for defective detector pixels.
+        detector_name (str): Detector type (set by subclass).
+        rocking_angle (str): Name of rocking curve motor (beamline-specific).
+
+    See Also:
+        :class:`~cdiutils.pipeline.BcdiPipeline`: Uses loaders automatically
+        :class:`ID01Loader`: ESRF ID01 beamline implementation
+        :class:`P10Loader`: PETRA III P10 beamline implementation
+
+    Examples:
+        Using factory pattern (recommended):
+
+        >>> loader = Loader.from_setup(
+        ...     beamline_setup="id01",
+        ...     sample_name="PtNP",
+        ...     scan=42,
+        ...     data_dir="/data/id01/sample"
+        ... )
+        >>> data, angles = loader.load_data()
+
+        Direct instantiation:
+
+        >>> from cdiutils.io import ID01Loader
+        >>> loader = ID01Loader(
+        ...     sample_name="PtNP",
+        ...     scan=42,
+        ...     experiment_file_path="/data/sample.h5"
+        ... )
+    """
 
     def __init__(
         self,
@@ -22,16 +83,25 @@ class Loader(ABC):
         alien_mask: np.ndarray | str = None,
     ) -> None:
         """
-        The generic parent class for all loaders.
+        Initialise the base Loader.
+
+        Typically called by subclass constructors. Users should prefer
+        :meth:`from_setup` factory method or direct subclass instantiation.
 
         Args:
-            scan (int, optional): the scan number. Defaults to None.
-            sample_name (str, optional): the name of the sample.
-            flat_field (np.ndarray | str, optional): flat field to
-                account for the non homogeneous counting of the
-                detector. Defaults to None.
-            alien_mask (np.ndarray | str, optional): array to mask the
-                aliens. Defaults to None.
+            scan: Scan number identifier. Required for data loading.
+            sample_name: Sample identifier used in file paths and logging.
+            flat_field: Flat-field correction array or path to `.npy`/`.npz`
+                file. Applied as multiplicative correction to detector data.
+                Shape must match detector dimensions. Defaults to None (no
+                correction).
+            alien_mask: Bad pixel mask array or path to `.npy`/`.npz` file.
+                Pixels with value 1 are masked (invalid), 0 are kept. Shape
+                must match detector. Defaults to None (no masking).
+
+        Raises:
+            ValueError: If flat_field or alien_mask path is invalid or file
+                format is unsupported.
         """
         self.scan = scan
         self.sample_name = sample_name
@@ -54,19 +124,73 @@ class Loader(ABC):
     @classmethod
     def from_setup(cls, beamline_setup: str, **metadata) -> "Loader":
         """
-        Instantiate a child loader class given a the setup name,
-        following the Factory Pattern.
+        Factory method to instantiate beamline-specific loader.
+
+        Automatically selects and returns the appropriate Loader
+        subclass based on beamline name. This is the recommended way
+        to create loaders as it handles beamline-specific
+        initialisation automatically.
 
         Args:
-            beamline_setup (str): the name of the beamline setup.
-            metadata (dict): the parameters defining the experimental
-                setup.
+            beamline_setup: Beamline identifier (case-insensitive).
+                Supported values:
 
-        Raises:
-            ValueError: If the beamline setup is invalid.
+                - ``"id01"`` or ``"id01bliss"``: ESRF ID01 (BLISS
+                  format)
+                - ``"id01spec"``: ESRF ID01 (legacy SPEC format)
+                - ``"sixs2019"`` or ``"sixs2022"``: SOLEIL SIXS
+                  (specify year)
+                - ``"p10"`` or ``"p10eh2"``: PETRA III P10 (specify
+                  hutch)
+                - ``"cristal"``: SOLEIL CRISTAL
+                - ``"nanomax"``: MAX IV NanoMAX
+                - ``"id27"``: ESRF ID27
+
+            **metadata: Beamline-specific keyword arguments passed to loader
+                constructor. Common parameters include:
+
+                - ``scan`` (int): Scan number
+                - ``sample_name`` (str): Sample identifier
+                - ``experiment_file_path`` (str): Path to experiment HDF5/SPEC
+                - ``data_dir`` (str): Root data directory
+                - ``flat_field`` (np.ndarray | str): flat-field
+              correction
+                - ``alien_mask`` (np.ndarray | str): bad pixel mask
 
         Returns:
-            Loader: the subclass loader according to the provided name.
+            Beamline-specific Loader subclass instance.
+
+        Raises:
+            ValueError: If ``beamline_setup`` is not recognised.
+            NotImplementedError: If beamline version (e.g., SIXS
+                year) is not specified or unsupported.
+
+        Examples:
+            Basic usage:
+
+            >>> loader = Loader.from_setup(
+            ...     beamline_setup="id01",
+            ...     scan=42,
+            ...     sample_name="PtNP",
+            ...     experiment_file_path="/data/id01/beamtile_id01.h5"
+            ... )
+
+            With version specification:
+
+            >>> loader = Loader.from_setup(
+            ...     beamline_setup="sixs2022",
+            ...     scan=100,
+            ...     sample_name="SrTiO3"
+            ... )
+
+            With flat-field and mask:
+
+            >>> loader = Loader.from_setup(
+            ...     beamline_setup="p10",
+            ...     scan=15,
+            ...     flat_field="/path/to/flatfield.npy",
+            ...     alien_mask="/path/to/badpixels.npy"
+            ... )
         """
         if "id01" in beamline_setup.lower():
             if beamline_setup.lower() == "id01spec":
@@ -115,17 +239,18 @@ class Loader(ABC):
     @staticmethod
     def _check_load(data_or_path: np.ndarray | str) -> np.ndarray:
         """
-        Private method to load mask or alien np.ndarray.
+        Load flat-field or alien mask from file or validate array.
 
-        Args:
-            data_or_path (np.ndarray | str): the data or the path of the
-                data.
+        Handles both direct array input and file paths (.npy/.npz).
+        For .npz archives, searches for data under common key names.
+        Returns:
+            Loaded or validated numpy array, or None if input was None.
 
         Raises:
-            ValueError: If path or np.ndarray is not provided.
-
-        Returns:
-            np.ndarray: the numpy array.
+            KeyError: If .npz file does not contain expected keys
+                ('arr_0', 'data', 'mask', 'flatfield',
+                'flat_field').
+            ValueError: If input is neither array, path, nor None.
         """
         if isinstance(data_or_path, str):
             if data_or_path.endswith(".npy"):
@@ -154,20 +279,49 @@ class Loader(ABC):
     @staticmethod
     def _check_roi(roi: tuple = None) -> tuple[slice]:
         """
-        Utility function to check if a region of interest (roi) was
-        parsed correctly.
+        Validate and normalise region of interest (ROI) specification.
+
+        Accepts ROI as either slice objects or integer boundaries, and
+        normalises to 3D tuple of slices. Handles both 2D and 3D ROIs.
 
         Args:
-            roi (tuple, optional): the roi, a tuple of slices.
-                len = 2 or len = 3 if tuple of slices. len = 4 or
-                len = 6 if tuple of int. Defaults to None.
+            roi: ROI specification in one of three formats:
 
-        Raises:
-            ValueError: if roi does not correspond to tuple of slices
-                with len 2 or 3 or tuple of int wit len 4 or 6.
+                - **Tuple of slices**: ``(slice1, slice2)`` for 2D or
+                  ``(slice0, slice1, slice2)`` for 3D.
+                - **Tuple of integers**: ``(y_min, y_max, x_min, x_max)``
+                  for 2D or ``(z_min, z_max, y_min, y_max, x_min, x_max)``
+                  for 3D.
+                - **None**: No ROI (entire array).
 
         Returns:
-            tuple[slice]: the prepared roi.
+            Normalised 3D tuple of slices. For 2D input, first dimension
+            is ``slice(None)`` (no cropping in detector's radial direction).
+
+        Raises:
+            ValueError: If ``roi`` format is invalid (wrong length, mixed
+                types, or neither slices nor integers).
+
+        Examples:
+            No ROI (full array):
+
+            >>> roi = Loader._check_roi(None)
+            >>> # Returns (slice(None), slice(None), slice(None))
+
+            2D slice specification:
+
+            >>> roi = Loader._check_roi((slice(10, 50), slice(20, 60)))
+            >>> # Returns (slice(None), slice(10, 50), slice(20, 60))
+
+            Integer boundaries (2D):
+
+            >>> roi = Loader._check_roi((100, 200, 150, 250))
+            >>> # Returns (slice(None), slice(100, 200), slice(150, 250))
+
+            Full 3D specification:
+
+            >>> roi = Loader._check_roi((5, 45, 100, 200, 150, 250))
+            >>> # Returns (slice(5, 45), slice(100, 200), slice(150, 250))
         """
         usage_text = (
             f"Wrong value for roi ({roi = }), roi should be:\n"  # noqa: E251
@@ -191,14 +345,18 @@ class Loader(ABC):
         self, scan: str = None, sample_name: str = None
     ) -> tuple:
         """
-        Utility function to check if a scan and sample name were parsed.
+        Validate scan number and sample name, using instance
+        defaults.
 
-        Args:
-            scan (str, optional): the scan name. Defaults to None.
-            sample_name (str, optional): the sample name. Defaults to None.
+        Utility method that falls back to instance attributes if
+        parameters are not explicitly provided. Used by data
+        loading methods to ensure scan/sample context is always
+        available.
+                ``self.sample_name``.
 
         Returns:
-            tuple: the scan and sample names.
+            Two-element tuple: ``(scan, sample_name)`` with
+            validated values.
         """
         if scan is None:
             scan = self.scan
@@ -216,25 +374,55 @@ class Loader(ABC):
         binning_method: str = "sum",
     ) -> np.ndarray:
         """
-        A generic method that takes care of binning, applying flat_field
-        and alien mask to detector data.
+        Apply preprocessing: binning, flat-field, and masking.
+
+        Combines three common preprocessing steps in correct order:
+
+        1. Bin along rocking curve (if requested)
+        2. Apply flat-field correction (if provided)
+        3. Apply alien mask (if provided)
 
         Args:
-            data (np.ndarray): the data to bin, apply flat_field and
-                mask.
-            roi (list, optional): the region of interest to select.
-                Defaults to None.
-            flat_field (np.ndarray, optional): the flat field to apply.
-                Defaults to None.
-            alien_mask (np.ndarray, optional): the alien mask to apply.
-                Defaults to None.
-            rocking_angle_binning (int, optional): the binning factor
-                along to rocking curve axis. Defaults to None.
-            binning_method (str, optional): the method for the binning.
-                Defaults to "sum".
+            data: 3D detector data with shape (n_frames, n_y, n_x).
+            roi: Region of interest as tuple of slices or integers. If
+                None, uses full array. See :meth:`_check_roi` for
+                format details.
+            flat_field: 2D array with detector efficiency correction.
+                Shape must match ``data.shape[1:]``. If None, no
+                correction applied.
+            alien_mask: Binary mask of bad pixels (1 = bad, 0 = good).
+                Shape must match ``data.shape`` (3D) or
+                ``data.shape[1:]`` (2D). If None, no masking applied.
+            rocking_angle_binning: Binning factor along rocking curve
+                axis (frames). If None or 1, no binning performed.
+            binning_method: Binning operation. Options:
+
+                - ``"sum"``: Sum frames (default, preserves total counts)
+                - ``"mean"``: Average frames (reduces noise)
+                - ``"max"``: Maximum projection (peak intensity)
 
         Returns:
-            np.ndarray: the new data
+            Preprocessed 3D array with same dtype as input. Shape is
+            ``(n_frames//binning, n_y, n_x)`` if binned.
+
+        Examples:
+            ROI + flat-field + mask:
+
+            >>> roi = (slice(None), slice(100, 400), slice(150, 450))
+            >>> processed = Loader.bin_flat_mask(
+            ...     data=raw_data,
+            ...     roi=roi,
+            ...     flat_field=flat,
+            ...     alien_mask=mask
+            ... )
+
+            Binning only:
+
+            >>> binned = Loader.bin_flat_mask(
+            ...     data=raw_data,
+            ...     rocking_angle_binning=2,
+            ...     binning_method="sum"
+            ... )
         """
         if roi is None:
             roi = (slice(None), slice(None), slice(None))
@@ -258,50 +446,131 @@ class Loader(ABC):
         values: list | np.ndarray, binning_factor: int = None
     ) -> np.ndarray:
         """
-        Bins the data along the rocking angle axis using the
-        bin_along_axis function.
+        Bin rocking angle values to match binned detector frames.
+
+        Averages angle values when frames are binned together. Used to
+        maintain synchronisation between data and motor positions.
 
         Args:
-            values (list | np.ndarray): the rocking angle values to be
-                binned.
-            binning_factor (int, optional): the number of data points to
-                bin along the rocking angle axis. Defaults to None.
+            values: Rocking angle values for each frame (e.g., delta,
+                omega motor positions). Length must match original number
+                of frames.
+            binning_factor: Number of consecutive frames to average. If
+                None or 1, returns input unchanged.
 
         Returns:
-            np.ndarray: the binned values.
+            Binned angle values with length
+            ``len(values)//binning_factor``. Uses mean binning to
+            get average angle per binned frame.
         """
         return bin_along_axis(values, binning_factor, binning_method="mean")
 
     @abstractmethod
     def load_energy(self):
+        """
+        Load X-ray beam energy for the scan.
+
+        Must be implemented by beamline-specific subclass.
+
+        Returns:
+            Beam energy in keV.
+        """
         pass
 
     @abstractmethod
     def load_det_calib_params(self):
+        """
+        Load detector calibration parameters from experiment file.
+
+        Must be implemented by beamline-specific subclass. Typically
+        reads values stored during detector alignment procedure.
+
+        Returns:
+            dict: Calibration parameters with keys:
+
+                - ``"direct_beam"``: (y, x) pixel coordinates of direct
+                  beam position
+                - ``"detector_distance"``: sample-to-detector distance
+                  in metres
+                - ``"outofplane_angle"``: detector rotation $\delta$
+                  or $\gamma$ in degrees
+                - ``"inplane_angle"``: detector rotation $\nu$ in
+                  degrees
+
+        See Also:
+            :doc:`/user_guide/detector_calibration` for calibration
+            procedures and parameter definitions.
+        """
         pass
 
     @abstractmethod
     def load_detector_shape(self):
+        """
+        Load detector's native pixel array shape.
+
+        Must be implemented by beamline-specific subclass if detector
+        shape cannot be determined from data files.
+
+        Returns:
+            Detector shape as (n_rows, n_columns) tuple, or None if
+            shape is determined from data.
+        """
         return None
 
     def get_detector_name(self) -> str:
-        """By default, return the first authorised name of the class."""
+        """
+        Get canonical detector identifier for this beamline.
+
+        Returns the first name from :attr:`authorised_detector_names`,
+        which is the standard identifier for detector geometry
+        calculations.
+
+        Returns:
+            Detector name string (e.g., ``"Eiger2M"``,
+            ``"Maxipix"``, ``"Lambda750k"``).
+        """
         return self.authorised_detector_names[0]
 
     @staticmethod
     def get_rocking_angle(angles: dict) -> str | None:
-        outofplane = angles.get("sample_outofplane_angle")
-        inplane = angles.get("sample_inplane_angle")
+        """
+        Identify which motor was scanned during rocking curve.
 
-        if outofplane is not None and inplane is not None:
-            if (
-                isinstance(outofplane, (np.ndarray, list))
-                and len(outofplane) > 1
-            ):
-                return "sample_outofplane_angle"
-            if isinstance(inplane, ((np.ndarray, list))) and len(inplane) > 1:
-                return "sample_inplane_angle"
-        return None
+        Determines whether out-of-plane or in-plane angle was varied
+        based on which array has more than one unique value. Used to
+        automatically detect scan geometry.
+
+        Args:
+            angles: Dictionary with keys:
+
+                - ``"sample_outofplane_angle"``: $\omega$ or $\eta$
+                  values (scalar or array)
+                - ``"sample_inplane_angle"``: $\chi$ or $\phi$ values
+                  (scalar or array)
+
+        Returns:
+            Name of scanned angle key, or None if neither angle was
+            scanned (single-frame measurement).
+
+        Examples:
+            Out-of-plane scan (typical):
+
+            >>> angles = {
+            ...     "sample_outofplane_angle": np.linspace(30.0, 30.5, 51),
+            ...     "sample_inplane_angle": 0.0
+            ... }
+            >>> Loader.get_rocking_angle(angles)
+            'sample_outofplane_angle'
+
+            In-plane scan (grazing incidence):
+
+            >>> angles = {
+            ...     "sample_outofplane_angle": 2.0,
+            ...     "sample_inplane_angle": np.linspace(-10, 10, 41)
+            ... }
+            >>> Loader.get_rocking_angle(angles)
+            'sample_inplane_angle'
+        """
 
     @staticmethod
     def format_scanned_counters(
@@ -310,21 +579,48 @@ class Loader(ABC):
         rocking_angle_binning: int = None,
     ):
         """
-        Format scanned counters (e.g., angles, energy, or other motor
-        positions). Handles ROI selection and binning for scanned data.
+        Preprocess motor positions to match ROI and binning of data.
+
+        Applies same binning and ROI selection to motor counter arrays
+        as applied to detector data, maintaining synchronisation between
+        intensity and position information.
 
         Args:
-            counters (float | np.ndarray | list): one or more counters
-                to format.
-            scan_axis_roi (tuple[slice], optional): the region of
-                interest. Defaults to None.
-            rocking_angle_binning (int, optional): binning factor along
-                the rocking curve axis.
+            *counters: One or more motor position values. Each can be:
+
+                - **Scalar**: Fixed motor position (e.g., 30.0 degrees)
+                - **Array**: Scanned motor positions (one per frame)
+
+            scan_axis_roi: ROI slice along rocking curve axis (first
+                dimension). Applied after binning. Typically
+                ``(slice(start, stop),)``.
+            rocking_angle_binning: Binning factor for scanned arrays.
+                Scalar values are unaffected.
 
         Returns:
-            tuple or single value: if multiple values are provided,
-            returns a tuple of formatted values. If only one value is
-            provided, returns that value directly.
+            Formatted counter(s) with same type as input. If multiple
+            counters provided, returns tuple in same order. If single
+            counter, returns that value directly.
+
+        Examples:
+            Single scanned angle with binning:
+
+            >>> omega = np.linspace(30.0, 30.5, 100)
+            >>> formatted = Loader.format_scanned_counters(
+            ...     omega,
+            ...     rocking_angle_binning=2
+            ... )
+            >>> # Returns array of length 50
+
+            Multiple counters with ROI:
+
+            >>> omega = np.linspace(30.0, 30.5, 100)
+            >>> energy = 8.5  # fixed
+            >>> omega_fmt, energy_fmt = Loader.format_scanned_counters(
+            ...     omega, energy,
+            ...     scan_axis_roi=(slice(10, 90),)
+            ... )
+            >>> # omega_fmt has 80 values, energy_fmt is 8.5
         """
 
         formatted_counters = []
@@ -360,22 +656,73 @@ class Loader(ABC):
         roi: tuple[slice] = None,
     ) -> np.ndarray:
         """
-        Load the mask of the given detector_name.
+        Generate detector-specific bad pixel mask.
+
+        Returns hardcoded masks for common BCDI detectors, marking chip
+        gaps and known bad pixel regions. Masks are detector-specific
+        due to different chip layouts and geometries.
 
         Args:
-            channel (int, optional): the size of the third (axis0)
-                dimension. Defaults to None (2D in that case).
-            detector_name (str, optional): The name of the detector.
-                Defaults to None.
-            roi (tuple, optional): the region of interest associated to
-                the data. Defaults to None.
+            detector_name: Detector identifier (case-insensitive).
+                Supported detectors:
 
-        Raises:
-            ValueError: If detector name is unknown or not implemented
-                yet.
+                - **Maxipix**: ``"maxipix"``, ``"mpxgaas"``, ``"mpx4inr"``
+                - **Eiger2M**: ``"Eiger2M"``, ``"eiger2m"``
+                - **Eiger4M**: ``"Eiger4M"``, ``"eiger4m"``, ``"e4m"``
+                - **Eiger9M**: ``"eiger9m"``, ``"e9m"``
+                - **Eiger500k**: ``"eiger500k"``, ``"e2500"``
+                - **Merlin**: ``"merlin"``
+
+                If None and called as instance method, uses
+                ``self.detector_name``.
+
+            channel: If provided, extends 2D mask to 3D by repeating
+                along first axis (for 3D data). Specifies number of
+                frames.
+            roi: ROI applied after mask generation. See
+                :meth:`_check_roi` for format. Typically
+                ``(slice(y1,y2), slice(x1,x2))`` for 2D.
 
         Returns:
-            np.ndarray: the 2D or 3D mask.
+            Binary mask array (1 = bad pixel, 0 = good pixel). Shape is:
+
+            - 2D: ``detector_shape`` if no ROI
+            - 2D: cropped to ROI if provided
+            - 3D: ``(channel, n_y, n_x)`` if channel specified
+
+        Raises:
+            ValueError: If ``detector_name`` is not recognized or if
+                called as class method without providing ``detector_name``.
+
+        Examples:
+            Instance method (uses loader's detector):
+
+            >>> loader = ID01Loader(scan=42, ...)
+            >>> mask = loader.get_mask(channel=100)
+            >>> # Returns (100, 2164, 1030) Eiger2M mask
+
+            Class method with explicit detector:
+
+            >>> mask = Loader.get_mask(detector_name="Maxipix")
+            >>> # Returns (516, 516) Maxipix mask
+
+            With ROI:
+
+            >>> roi = (slice(100, 400), slice(200, 800))
+            >>> mask = Loader.get_mask(
+            ...     detector_name="Eiger2M",
+            ...     roi=roi
+            ... )
+            >>> # Returns (300, 600) cropped mask
+
+        Notes:
+            Eiger masks include:
+
+            - Chip gaps (horizontal and vertical)
+            - Module boundaries
+            - Known bad pixel clusters
+
+            Maxipix masks include central cross gaps (256±3 pixels).
         """
         if detector_name is None:
             # Handling the case whenever the method is called as
@@ -477,6 +824,65 @@ class Loader(ABC):
         equal_limits: bool = False,
         **plot_params,
     ) -> plt.Figure:
+        """
+        Quick visualisation of 2D or 3D detector data.
+
+        Creates diagnostic plots showing orthogonal slices (for 3D data)
+        or single 2D image. Uses log-scale colouring by default for
+        dynamic range typical of BCDI diffraction patterns.
+
+        Args:
+            data: Detector data array. If 3D, shape is (n_frames, n_y,
+                n_x). If 2D, shape is (n_y, n_x).
+            title: Plot title displayed above figure. If None, no title
+                shown.
+            return_fig: If True, returns Figure object for further
+                customisation. If False (default), displays figure
+                interactively.
+            equal_limits: If True, uses same axis limits for all
+                subplots (helpful for comparing slice scales). If False,
+                each plot uses its own optimal limits.
+            **plot_params: Additional arguments passed to
+                :func:`matplotlib.pyplot.imshow`. Defaults are:
+
+                - ``norm="log"``: Logarithmic colour scale
+                - ``origin="upper"``: [0,0] at top-left
+                - ``cmap="turbo"``: Rainbow-like colourmap
+
+        Returns:
+            If ``return_fig=True``, returns matplotlib Figure object.
+            Otherwise, displays interactively and returns None.
+
+        Examples:
+            Quick 3D data check:
+
+            >>> data = loader.load_data(scan=42)
+            >>> Loader.plot_detector_data(data, title="Scan 42")
+
+            Custom colouring:
+
+            >>> Loader.plot_detector_data(
+            ...     data,
+            ...     cmap="viridis",
+            ...     norm="linear",
+            ...     vmin=0,
+            ...     vmax=1e5
+            ... )
+
+            Save figure for publication:
+
+            >>> fig = Loader.plot_detector_data(data, return_fig=True)
+            >>> fig.savefig("detector_scan42.png", dpi=300)
+
+        Notes:
+            For 3D data, creates 2×3 subplot grid:
+
+            - Top row: Central slices along each axis
+            - Bottom row: Sum projections along each axis
+
+            This quickly reveals Bragg peak position and rocking curve
+            quality.
+        """
         _plot_params = {
             "norm": "log",
             "origin": "upper",
