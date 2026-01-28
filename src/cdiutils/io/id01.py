@@ -433,11 +433,11 @@ class ID01Loader(H5TypeLoader):
             dict: Motor angles with canonical keys (see
             :attr:`angle_names` for ID01-specific mapping):
 
-                - ``"sample_outofplane_angle"``: $\eta$ values (degrees)
-                - ``"sample_inplane_angle"``: $\phi$ values (degrees)
-                - ``"detector_outofplane_angle"``: $\delta$ values
+                - ``"sample_outofplane_angle"``: eta values (degrees)
+                - ``"sample_inplane_angle"``: phi values (degrees)
+                - ``"detector_outofplane_angle"``: delta values
                   (degrees)
-                - ``"detector_inplane_angle"``: $\nu$ values (degrees)
+                - ``"detector_inplane_angle"``: nu values (degrees)
 
             Values are scalars (if motor fixed) or 1D arrays (if
             scanned). Array lengths match binned detector's first

@@ -492,9 +492,9 @@ class Loader(ABC):
                   beam position
                 - ``"detector_distance"``: sample-to-detector distance
                   in metres
-                - ``"outofplane_angle"``: detector rotation $\delta$
-                  or $\gamma$ in degrees
-                - ``"inplane_angle"``: detector rotation $\nu$ in
+                - ``"outofplane_angle"``: detector rotation delta
+                  or gamma in degrees
+                - ``"inplane_angle"``: detector rotation nu in
                   degrees
 
         See Also:
@@ -543,9 +543,9 @@ class Loader(ABC):
         Args:
             angles: Dictionary with keys:
 
-                - ``"sample_outofplane_angle"``: $\omega$ or $\eta$
+                - ``"sample_outofplane_angle"``: omega or eta
                   values (scalar or array)
-                - ``"sample_inplane_angle"``: $\chi$ or $\phi$ values
+                - ``"sample_inplane_angle"``: chi or phi values
                   (scalar or array)
 
         Returns:
