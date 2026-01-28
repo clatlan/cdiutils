@@ -85,6 +85,38 @@ test-integration:
   timeout: 30 minutes
   allow_failure: true
 
+test-beamlines-nanomax:
+  stage: test
+  tags:
+    - shell
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running NanoMAX beamline I/O test..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "test data root:" $CDIUTILS_TEST_DATA
+    - pytest tests/integration/test_beamlines.py::test_nanomax_preprocessing -v -ra --tb=short
+    - echo "NanoMAX test passed"
+  timeout: 10 minutes
+  allow_failure: true
+
+test-beamlines-p10:
+  stage: test
+  tags:
+    - shell
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running P10 beamline I/O test..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "test data root:" $CDIUTILS_TEST_DATA
+    - pytest tests/integration/test_beamlines.py::test_p10_preprocessing -v -ra --tb=short
+    - echo "P10 test passed"
+  timeout: 10 minutes
+  allow_failure: true
+
 test-gpu:
   stage: test
   tags:

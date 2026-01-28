@@ -1,0 +1,124 @@
+# Test Dataset Catalog for CDIutils
+#
+# This file defines METADATA for test datasets (scan numbers, detector configs, etc.)
+# NOT file paths - those are set via CDIUTILS_TEST_DATA environment variable.
+#
+# Structure: TEST_DATA_ROOT/<beamline>/<dataset_name>/<files>
+#
+# Usage in CI:
+#   export CDIUTILS_TEST_DATA=/data/id01/inhouse/cdiutils_test_data
+#   pytest tests/integration/test_beamlines.py::test_id01_bliss
+#
+# Usage locally:
+#   export CDIUTILS_TEST_DATA=/path/to/local/test/data
+#   pytest tests/
+
+datasets:
+  # ID01 - Bliss format (HDF5)
+  id01_bliss_dislocation:
+    beamline_setup: id01
+    experiment_file_path: id01/dislocation/ihhc3936_id01.h5
+    sample_name: PtYSZ_0001
+    scan: 54
+    detector_name: eiger2m
+    det_calib_params: null
+    voxel_size: 12
+    description: "PtYSZ sample with dislocation - Bliss acquisition"
+
+  # ID01 - SPEC format (legacy)
+  id01_spec_core_shell:
+    beamline_setup: id01spec
+    experiment_file_path: id01/spec/core_shell/BCDI_2020_11_06_012505.spec
+    detector_data_path: id01/spec/core_shell/detector
+    sample_name: core_shell_spec_test
+    scan: 163
+    detector_name: mpx4inr
+    edf_template: data_mpx4_%05d.edf.gz
+    energy: 8994
+    det_calib_params:
+      cch1: 347.39340712173976
+      cch2: 71.59340095141222
+      pwidth1: 5.5e-05
+      pwidth2: 5.5e-05
+      distance: 0.8422249700427996
+      tiltazimuth: 229.341164999341
+      tilt: 2.6199557735894548
+      detrot: -0.417948717948718
+      outerangle_offset: 0.0
+
+  # NanoMAX (MAX IV) - based on bcdi_pipeline_example_nanomax.ipynb
+  nanomax_sample:
+    beamline_setup: nanomax
+    experiment_file_path: nanomax/000387.h5
+    sample_name: nanomax_test_sample
+    scan: 387
+    detector_name: eiger500k
+    hot_pixel_filter: true
+    det_calib_params:
+      cch1: 256
+      cch2: 512
+      pwidth1: 7.5e-05
+      pwidth2: 7.5e-05
+      distance: 1
+      tiltazimuth: 0
+      tilt: 0
+      detrot: 0
+    description: "NanoMAX test - Eiger 500K detector"
+
+  # P10 (PETRA III) - based on bcdi_pipeline_example_p10.ipynb
+  p10_sample:
+    beamline_setup: p10
+    experiment_data_dir_path: p10
+    sample_name: Pd_YSZ
+    scan: 37
+    detector_name: e4m
+    preprocess_shape: [200, 200, 200]
+    voxel_reference_methods: [[300, 1326, 1489]]
+    background_level: 2
+    light_loading: true
+    det_calib_params:
+      distance: 1.82169
+      cch1: 1055.74
+      cch2: 1332.94
+      pwidth1: 7.5e-05
+      pwidth2: 7.5e-05
+      tiltazimuth: 0
+      tilt: 0
+      detrot: 0
+    description: "P10 test - Pd/YSZ sample with Eiger 4M"
+
+  # SIXS - NeXus format
+  sixs_2019:
+    beamline_setup: sixs
+    experiment_file_path: sixs/2019/align_ascan_mu_00457.nxs
+    sample_name: sixs_2019_test
+    scan: 457
+    preprocess_shape: [100, 150, 150]
+    voxel_reference_methods: [128, 157, 145]
+    det_calib_params: null
+    description: "SIXS 2019 format test"
+
+  # Cristal - NeXus format
+  cristal_sample:
+    beamline_setup: cristal
+    experiment_file_path: cristal/2022/mgomega-2022-11-20_22-37-18_0825.nxs
+    sample_name: cristal_test
+    scan: 825
+    det_calib_params: null
+    description: "Cristal beamline test"
+
+# Simulation parameters (for generated test data)
+simulation:
+  enabled: true
+  output_path: tests/mock_data  # where to save generated data
+  datasets:
+    sphere_64:
+      shape: [64, 64, 64]
+      object_type: sphere
+      radius: 20
+      noise_level: 0.0
+    cube_128:
+      shape: [128, 128, 128]
+      object_type: cube
+      size: 40
+      noise_level: 0.0

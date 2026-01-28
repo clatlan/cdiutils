@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 # import simulation utilities
 from fixtures.simulate_id01_data import create_id01_experiment_file
 
-# Test data paths
+# test data paths
 TEST_ROOT = Path(__file__).parent
 CDIUTILS_ROOT = TEST_ROOT.parent / "src" / "cdiutils"
 
@@ -31,13 +31,16 @@ TEST_DATA_ROOT = Path(
     os.environ.get("CDIUTILS_TEST_DATA", "/scisoft/cdiutils_test_data")
 )
 
-# load test configuration
+# load test configuration (dataset metadata, NOT paths)
 TEST_CONFIG_FILE = TEST_ROOT / "test_config.yaml"
 
 
 def load_test_config():
     """
     Load test configuration from YAML file.
+
+    This provides dataset metadata (scan numbers, detector names, etc.)
+    but NOT file paths (those come from TEST_DATA_ROOT).
 
     Returns:
         dict: test configuration or empty dict if file doesn't exist
@@ -46,6 +49,107 @@ def load_test_config():
         with open(TEST_CONFIG_FILE, "r") as f:
             return yaml.safe_load(f)
     return {}
+
+
+# load config at module level
+TEST_CONFIG = load_test_config()
+
+
+def get_dataset_params(dataset_name: str, tmp_path_factory) -> dict:
+    """
+    Factory function to create pipeline parameters from test config.
+
+    This reads dataset metadata from test_config.yaml and combines it
+    with the TEST_DATA_ROOT path to build complete pipeline parameters.
+
+    Args:
+        dataset_name: Key from test_config.yaml datasets section
+        tmp_path_factory: pytest fixture for temporary directories
+
+    Returns:
+        dict: Complete BcdiPipeline parameters
+
+    Raises:
+        pytest.skip: If dataset not in config or files not found
+    """
+    if "datasets" not in TEST_CONFIG:
+        pytest.skip(
+            f"No datasets defined in {TEST_CONFIG_FILE}. "
+            "Cannot create test parameters."
+        )
+
+    if dataset_name not in TEST_CONFIG["datasets"]:
+        pytest.skip(
+            f"Dataset '{dataset_name}' not found in test_config.yaml. "
+            f"Available: {list(TEST_CONFIG['datasets'].keys())}"
+        )
+
+    dataset = TEST_CONFIG["datasets"][dataset_name]
+
+    # construct file paths directly from TEST_DATA_ROOT
+    # (no intermediate "directory" layer)
+    if "experiment_data_dir_path" in dataset:
+        # P10 uses directory path, not file path
+        experiment_path = TEST_DATA_ROOT / dataset["experiment_data_dir_path"]
+
+        if not experiment_path.exists():
+            pytest.skip(
+                f"Test data directory not found: {experiment_path}\n"
+                f"Set CDIUTILS_TEST_DATA environment variable or "
+                f"place data at:\n  {TEST_DATA_ROOT}"
+            )
+        experiment_file = None
+    else:
+        # most beamlines use experiment_file_path
+        experiment_file = TEST_DATA_ROOT / dataset["experiment_file_path"]
+        experiment_path = experiment_file
+
+        if not experiment_file.exists():
+            pytest.skip(
+                f"Test data not found: {experiment_file}\n"
+                f"Set CDIUTILS_TEST_DATA environment variable or "
+                f"place data at:\n  {TEST_DATA_ROOT}"
+            )
+
+    # create output directory
+    dump_dir = tmp_path_factory.mktemp(f"{dataset_name}_results")
+
+    # build parameters
+    params = {
+        "beamline_setup": dataset["beamline_setup"],
+        "sample_name": dataset["sample_name"],
+        "scan": dataset["scan"],
+        "dump_dir": str(dump_dir),
+    }
+
+    # add path parameter (P10 uses experiment_data_dir_path)
+    if "experiment_data_dir_path" in dataset:
+        params["experiment_data_dir_path"] = str(experiment_path)
+    else:
+        params["experiment_file_path"] = str(experiment_file)
+
+    # pass all other parameters from config to pipeline
+    # exclude internal metadata keys used only for test organization
+    exclude_keys = {
+        "experiment_file_path",
+        "experiment_data_dir_path",
+        "description",
+        "beamline_setup",
+        "sample_name",
+        "scan",
+        "detector_data_path",  # handled separately for SPEC format
+    }
+
+    for key, value in dataset.items():
+        if key not in exclude_keys and key not in params:
+            # handle special case: detector_data_path for SPEC format
+            if key == "detector_data_path":
+                params["detector_data_path"] = str(TEST_DATA_ROOT / value)
+            else:
+                # pass parameter directly to pipeline
+                params[key] = value
+
+    return params
 
 
 @pytest.fixture(scope="session")
@@ -277,35 +381,59 @@ def id01_bliss_params(tmp_path_factory):
     """
     Parameters for ID01 Bliss format test (primary test dataset).
 
-    Uses the dislocation dataset at the fixed test data location.
-
-    Args:
-        tmp_path_factory: pytest fixture for temporary paths
-
-    Returns:
-        dict: complete parameter dictionary for BcdiPipeline
+    Loads from test_config.yaml::datasets::id01_bliss_dislocation
     """
-    dump_dir = tmp_path_factory.mktemp("id01_bliss_results")
+    return get_dataset_params("id01_bliss_dislocation", tmp_path_factory)
 
-    experiment_file = (
-        TEST_DATA_ROOT / "id01" / "dislocation" / "ihhc3936_id01.h5"
-    )
 
-    if not experiment_file.exists():
-        pytest.skip(
-            f"ID01 Bliss test file not found: {experiment_file}\n"
-            f"Expected location: {TEST_DATA_ROOT}"
-        )
+@pytest.fixture(scope="session")
+def id01_spec_params(tmp_path_factory):
+    """
+    Parameters for ID01 SPEC format test (legacy format).
 
-    return {
-        "beamline_setup": "id01",
-        "sample_name": "PtYSZ_0001",
-        "scan": 54,
-        "dump_dir": str(dump_dir),
-        "experiment_file_path": str(experiment_file),
-        "det_calib_params": None,
-        "voxel_size": 12,
-    }
+    Loads from test_config.yaml::datasets::id01_spec_core_shell
+    """
+    return get_dataset_params("id01_spec_core_shell", tmp_path_factory)
+
+
+@pytest.fixture(scope="session")
+def nanomax_params(tmp_path_factory):
+    """
+    Parameters for NanoMAX beamline test.
+
+    Loads from test_config.yaml::datasets::nanomax_sample
+    """
+    return get_dataset_params("nanomax_sample", tmp_path_factory)
+
+
+@pytest.fixture(scope="session")
+def p10_params(tmp_path_factory):
+    """
+    Parameters for P10 (PETRA III) beamline test.
+
+    Loads from test_config.yaml::datasets::p10_sample
+    """
+    return get_dataset_params("p10_sample", tmp_path_factory)
+
+
+@pytest.fixture(scope="session")
+def sixs_params(tmp_path_factory):
+    """
+    Parameters for SIXS beamline test.
+
+    Loads from test_config.yaml::datasets::sixs_2019
+    """
+    return get_dataset_params("sixs_2019", tmp_path_factory)
+
+
+@pytest.fixture(scope="session")
+def cristal_params(tmp_path_factory):
+    """
+    Parameters for Cristal beamline test.
+
+    Loads from test_config.yaml::datasets::cristal_sample
+    """
+    return get_dataset_params("cristal_sample", tmp_path_factory)
 
 
 def pytest_configure(config):
@@ -317,6 +445,10 @@ def pytest_configure(config):
     # add custom markers programmatically if needed
     config.addinivalue_line(
         "markers", "requires_pynx: tests that require PyNX to be installed"
+    )
+    config.addinivalue_line(
+        "markers",
+        "requires_real_data: tests that require real beamline data",
     )
     config.addinivalue_line(
         "markers",
