@@ -20,7 +20,7 @@ datasets:
     experiment_file_path: id01/dislocation/ihhc3936_id01.h5
     sample_name: PtYSZ_0001
     scan: 54
-    detector_name: eiger2m
+    detector_name: null
     det_calib_params: null
     voxel_size: 12
     description: "PtYSZ sample with dislocation - Bliss acquisition"
