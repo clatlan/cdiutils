@@ -14,8 +14,8 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
 
 variables:
-  # path to conda environment
-  CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID/cdiutils_env
+  # path to conda environment - use shared location accessible by all runners
+  CDIUTILS_ENV: /tmp/cdiutils_ci_env_${CI_PIPELINE_ID}
   CDIUTILS_TEST_DATA: /scisoft/cdiutils_test_data
 
 build-job:
@@ -28,10 +28,9 @@ build-job:
     - echo "building cdiutils environment..."
     - echo "pipeline ID:" $CI_PIPELINE_ID
     - echo "project dir:" $CI_PROJECT_DIR
-    - echo "builds dir:" $CI_BUILDS_DIR
-    # clean up any existing environment
-    - rm -rf $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
-    - mkdir -p $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
+    - echo "environment path:" $CDIUTILS_ENV
+    # clean up any existing environment at this path
+    - rm -rf $CDIUTILS_ENV
     # load mamba module
     - module load mamba
     - which mamba
@@ -178,7 +177,6 @@ cleanup-job:
     - !reference [.default_rules, rules]
   script:
     - echo "cleaning up environment..."
-    - rm -rf $CI_BUILDS_DIR/cdiutils/$CI_PIPELINE_ID
-    - rmdir --ignore-fail-on-non-empty $CI_BUILDS_DIR/cdiutils
+    - rm -rf $CDIUTILS_ENV
     - echo "cleanup complete"
   when: always
