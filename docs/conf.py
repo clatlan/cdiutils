@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)
 project = "CDIutils"
 copyright = "2025, Clément Atlan"
 author = "Clément Atlan"
-release = "0.2.0"
+release = "0.2.1"
 
 # -- General configuration ---------------------------------------------------
 extensions = [

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cdiutils"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Python package for (Bragg) Coherent X-ray Diffraction Imaging processing, analysis and visualisation workflows."
 
 authors = [
