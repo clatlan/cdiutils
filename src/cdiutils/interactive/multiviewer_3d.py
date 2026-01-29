@@ -93,6 +93,7 @@ The widget is intended for interactive use inside Jupyter environments.
 # =========================
 # Imports
 # =========================
+import shutil
 import asyncio
 import concurrent.futures
 import io
@@ -4870,77 +4871,104 @@ class MultiVolumeViewer(widgets.Box):
     # ------------------------------------------------------------------------------------
     @staticmethod
     def _png_bytes_list_to_gif_ffmpeg_palette(
-        png_frames: list[bytes], out_path: str, fps: int
+        png_frames: list[bytes],
+        out_path: str,
+        fps: int,
     ) -> None:
+        """
+        Robust GIF writer using FFmpeg on a PNG FILE SEQUENCE (no stdin piping).
+
+        - Writes frames to a temp dir as frame_000000.png, frame_000001.png, ...
+        - Generates a palette (palettegen), then encodes (paletteuse)
+        - Raises a RuntimeError with FFmpeg stderr on failure
+        """
         if not png_frames:
             raise RuntimeError("No frames to write.")
 
+        # Basic validation: ensure frames look like PNG
+        sig = b"\x89PNG\r\n\x1a\n"
+        for i, b in enumerate(png_frames[:5]):
+            if not isinstance(b, (bytes, bytearray)) or not b.startswith(sig):
+                raise RuntimeError(
+                    f"Frame {i} is not valid PNG bytes (missing PNG signature)."
+                )
+
+        out_dir = os.path.dirname(out_path)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+
+        fps = int(fps)
+        if fps <= 0:
+            raise ValueError("fps must be >= 1")
+
         with tempfile.TemporaryDirectory() as td:
+            # Write PNG frames to disk
+            for i, b in enumerate(png_frames):
+                fn = os.path.join(td, f"frame_{i:06d}.png")
+                with open(fn, "wb") as f:
+                    f.write(b)
+
+            pattern = os.path.join(td, "frame_%06d.png")
             palette = os.path.join(td, "palette.png")
 
-            # Pass 1: palettegen
-            p1 = subprocess.Popen(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-v",
-                    "error",
-                    "-nostats",
-                    "-f",
-                    "image2pipe",
-                    "-vcodec",
-                    "png",
-                    "-r",
-                    str(int(fps)),
-                    "-i",
-                    "pipe:0",
-                    "-vf",
-                    f"fps={int(fps)},palettegen",
-                    palette,
-                ],
-                stdin=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            assert p1.stdin is not None
-            for b in png_frames:
-                p1.stdin.write(b)
-            p1.stdin.close()
-            _, err1 = p1.communicate()  # waits + drains stderr
-            if p1.returncode != 0:
-                raise RuntimeError(err1.decode("utf-8", "ignore"))
+            # 1) palettegen
+            cmd1 = [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-framerate",
+                str(fps),
+                "-i",
+                pattern,
+                "-vf",
+                "palettegen",
+                palette,
+            ]
+            p1 = subprocess.run(cmd1, capture_output=True)
+            if p1.returncode != 0 or not os.path.exists(palette):
+                err = (p1.stderr or b"").decode("utf-8", "ignore").strip()
+                out = (p1.stdout or b"").decode("utf-8", "ignore").strip()
+                raise RuntimeError(
+                    "FFmpeg palettegen failed.\n"
+                    f"cmd: {' '.join(cmd1)}\n"
+                    f"returncode={p1.returncode}\n"
+                    f"stderr:\n{err}\n"
+                    f"stdout:\n{out}"
+                )
 
-            # Pass 2: paletteuse
-            p2 = subprocess.Popen(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-v",
-                    "error",
-                    "-nostats",
-                    "-f",
-                    "image2pipe",
-                    "-vcodec",
-                    "png",
-                    "-r",
-                    str(int(fps)),
-                    "-i",
-                    "pipe:0",
-                    "-i",
-                    palette,
-                    "-filter_complex",
-                    f"fps={int(fps)}[x];[x][1:v]paletteuse",
-                    out_path,
-                ],
-                stdin=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            assert p2.stdin is not None
-            for b in png_frames:
-                p2.stdin.write(b)
-            p2.stdin.close()
-            _, err2 = p2.communicate()  # waits + drains stderr
+            # 2) paletteuse
+            cmd2 = [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-framerate",
+                str(fps),
+                "-i",
+                pattern,
+                "-i",
+                palette,
+                "-lavfi",
+                "paletteuse",
+                out_path,
+            ]
+            p2 = subprocess.run(cmd2, capture_output=True)
             if p2.returncode != 0:
-                raise RuntimeError(err2.decode("utf-8", "ignore"))
+                err = (p2.stderr or b"").decode("utf-8", "ignore").strip()
+                out = (p2.stdout or b"").decode("utf-8", "ignore").strip()
+                raise RuntimeError(
+                    "FFmpeg paletteuse failed.\n"
+                    f"cmd: {' '.join(cmd2)}\n"
+                    f"returncode={p2.returncode}\n"
+                    f"stderr:\n{err}\n"
+                    f"stdout:\n{out}"
+                )
+
+            if not os.path.exists(out_path):
+                raise RuntimeError("FFmpeg reported success but output GIF was not created.")
 
     # ============================================================
     # Animation export — writers
@@ -5136,6 +5164,14 @@ class MultiVolumeViewer(widgets.Box):
     # ============================================================
     # Animation export — Export core
     # ============================================================
+    @staticmethod
+    def _require_ffmpeg():
+        if shutil.which("ffmpeg") is None:
+            raise RuntimeError(
+                "FFmpeg is required for GIF export.\n"
+                "Install with:\n"
+                "  conda install -c conda-forge ffmpeg\n"
+            )
     async def _save_rotation_animation_async(
         self,
         out_path: str,
@@ -5290,6 +5326,7 @@ class MultiVolumeViewer(widgets.Box):
         writer = None
         preview_widget = getattr(self, "anim_preview", None)
 
+        gif_enabled = False
         try:
             if hasattr(self, "anim_status"):
                 self.anim_status.value = "Rendering rotation…"
@@ -5306,6 +5343,8 @@ class MultiVolumeViewer(widgets.Box):
                 )
             elif fmt == "gif":
                 gif_png_frames = []
+                self._require_ffmpeg()
+                gif_enabled = True
                 writer = None
             else:
                 raise ValueError(f"Unsupported format: {fmt}")
@@ -5482,16 +5521,16 @@ class MultiVolumeViewer(widgets.Box):
                 if hasattr(self, "anim_progress"):
                     self.anim_progress.bar_style = "danger"
                 if hasattr(self, "anim_status"):
-                    self.anim_status.value = (
-                        f"Error: {type(e).__name__}: {repr(e)}"
-                    )
+                    msg = str(e).strip()
+                    self.anim_status.value = f"Error: {type(e).__name__}: {msg}"
+
             except Exception:
                 pass
             raise
         finally:
             gif_err = None
             try:
-                if fmt == "gif":
+                if fmt == "gif" and gif_enabled:
                     # IMPORTANT: run ffmpeg work off the UI thread
                     await asyncio.to_thread(
                         self._png_bytes_list_to_gif_ffmpeg_palette,
@@ -5515,7 +5554,9 @@ class MultiVolumeViewer(widgets.Box):
             if gif_err is not None:
                 try:
                     if hasattr(self, "anim_status"):
-                        self.anim_status.value = f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        self.anim_status.value = (
+                            f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        )
                     if hasattr(self, "anim_progress"):
                         self.anim_progress.bar_style = "danger"
                 except Exception:
@@ -6065,6 +6106,7 @@ class MultiVolumeViewer(widgets.Box):
         sem = asyncio.Semaphore(max_in_flight)
 
         writer = None
+        gif_enabled = False
         try:
             if hasattr(self, "anim_status"):
                 self.anim_status.value = "Rendering…"
@@ -6081,6 +6123,8 @@ class MultiVolumeViewer(widgets.Box):
                 )
             elif fmt == "gif":
                 gif_png_frames = []
+                self._require_ffmpeg()
+                if_enabled = True
                 writer = None
             else:
                 raise ValueError(f"Unsupported format: {fmt}")
@@ -6281,7 +6325,7 @@ class MultiVolumeViewer(widgets.Box):
         finally:
             gif_err = None
             try:
-                if fmt == "gif":
+                if fmt == "gif" and gif_enabled:
                     # IMPORTANT: run ffmpeg work off the UI thread
                     await asyncio.to_thread(
                         self._png_bytes_list_to_gif_ffmpeg_palette,
@@ -6305,7 +6349,9 @@ class MultiVolumeViewer(widgets.Box):
             if gif_err is not None:
                 try:
                     if hasattr(self, "anim_status"):
-                        self.anim_status.value = f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        self.anim_status.value = (
+                            f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        )
                     if hasattr(self, "anim_progress"):
                         self.anim_progress.bar_style = "danger"
                 except Exception:
