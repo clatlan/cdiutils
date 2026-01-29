@@ -14,8 +14,8 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
 
 variables:
-  # use shared network location accessible by all runners
-  CDIUTILS_ENV: /scisoft/cdiutils_ci_envs/$CI_PIPELINE_ID
+  # use GitLab builds directory for conda environment
+  CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils_ci/$CI_PIPELINE_ID
   CDIUTILS_TEST_DATA: /scisoft/cdiutils_test_data
 
 build-job:
@@ -50,6 +50,10 @@ lint-job:
     - !reference [.default_rules, rules]
   script:
     - echo "running ruff linting..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
     - module load mamba
     - mamba activate $CDIUTILS_ENV
     - ruff check src/cdiutils tests
@@ -92,6 +96,10 @@ test-beamlines-nanomax:
     - !reference [.default_rules, rules]
   script:
     - echo "running NanoMAX beamline I/O test..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
     - module load mamba
     - mamba activate $CDIUTILS_ENV
     - echo "test data root:" $CDIUTILS_TEST_DATA
@@ -124,6 +132,10 @@ test-gpu:
     - !reference [.default_rules, rules]
   script:
     - echo "running GPU tests..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
     - module load mamba cuda
     - which nvcc
     - nvcc --version
