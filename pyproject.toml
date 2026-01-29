@@ -59,8 +59,6 @@ interactive = [
     "plotly>=5.0.0",
     "anywidget",
     "kaleido>=0.2.0",
-    "imageio>=2.0",
-    "imageio-ffmpeg>=0.4.9",
 ]
 pyvista = [
     "pyvista>=0.43.0",
@@ -86,8 +84,6 @@ all = [
     "plotly>=5.0.0",
     "anywidget",
     "kaleido>=0.2.0",
-    "imageio>=2.0",
-    "imageio-ffmpeg>=0.4.9",
     "pyvista>=0.43.0",
     "trame>=3.0.0",
     "trame-vuetify>=2.0.0",
