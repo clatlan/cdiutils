@@ -77,22 +77,13 @@ class MultiVolumeViewer(widgets.Box):
 
         return FIXED_COLORS + tuple(cmaps)
 
-    cmap_options = get_all_supported_cmaps.__func__()
+    cmap_options = get_all_supported_cmaps()
 
-    def __init__(self, dict_data=None, voxel_size=(1, 1, 1), figsize=(6, 6)):
+    def __init__(self, dict_data=None, voxel_size=(1, 1, 1), figsize=(9, 6)):
         super().__init__()
-
-        # ----------------------------
-        # Layout constants
-        # ----------------------------
-        self._DESC_W = "160px"
-        self._common_style = {"description_width": self._DESC_W}
 
         self.voxel_size = np.array(voxel_size, dtype=float)
 
-        # ----------------------------
-        # Figure
-        # ----------------------------
         self.fig = go.FigureWidget()
         self.fig.update_layout(
             template="plotly_white",
@@ -106,63 +97,28 @@ class MultiVolumeViewer(widgets.Box):
                     projection=dict(type="perspective"),
                 ),
             ),
-            autosize=True,
-            height=figsize[1] * 90,
-            width = figsize[0] * 90,
+            width=figsize[0] * 96,
+            height=figsize[1] * 96,
             dragmode="orbit",
-            margin=dict(l=0, r=0, t=0, b=0),
         )
-        # ----------------------------
-        # Internal data
-        # ----------------------------
+        self.fig.update_layout(margin=dict(r=220))
+
+        # Data / interpolators
         self.dict_data = {}
-        self._rgi = {}
-        self._layer_widgets = {}
-        self._visible_cb = {}
+        self._rgi = {}  # key -> RegularGridInterpolator
+        self._layer_widgets = {}  # key -> widgets bundle
+        self._visible_cb = {}  # key -> Checkbox
 
-        # ----------------------------
-        # Global controls
-        # ----------------------------
-        self.visible_keys_box = widgets.Box(
-            [],
-            layout=widgets.Layout(
-                display="flex",
-                flex_flow="row wrap",
-                justify_content="flex-start",
-                align_items="center",
-                gap="10px",
-                width="95%",
-            ),
-        )
-
+        # Top controls
         self.theme_toggle = widgets.ToggleButton(
-            value=True,
-            description="Dark Theme",
+            value=False, description="Dark Theme"
         )
-        self._on_theme(None) # apply initial theme state
         self.rotate_toggle = widgets.ToggleButton(
-            value=False,
-            description="Rotate",
+            value=False, description="Rotate"
         )
 
         self.theme_toggle.observe(self._on_theme, names="value")
         self.rotate_toggle.observe(self._on_rotate_toggle, names="value")
-
-        toggles_row = widgets.HBox(
-            [self.theme_toggle, self.rotate_toggle],
-            layout=widgets.Layout(
-                width="95%",
-                justify_content="flex-start",
-                align_items="center",
-            ),
-        )
-        self.edit_key = widgets.Dropdown(
-            options=[],
-            description="Edit:",
-            style=self._common_style,
-            layout=widgets.Layout(width="95%"),
-        )
-        self.edit_key.observe(self._on_edit_key_changed, names="value")
 
         self.nan_policy = widgets.Dropdown(
             options=[
@@ -172,143 +128,38 @@ class MultiVolumeViewer(widgets.Box):
                 ("Replace with min", "min"),
                 ("Replace with max", "max"),
             ],
-            value="zero",
+            value="mean",
             description="NaN handling:",
             tooltip="How to replace NaN values before rendering",
-            style=self._common_style,
-            layout=widgets.Layout(width="95%"),
         )
         self.nan_policy.observe(self._on_layer_param_changed, names="value")
 
-        # Container for per-layer controls
+        # Visible keys checkboxes + "edit key" dropdown
+        self.visible_keys_box = widgets.VBox([])
+        self.edit_key = widgets.Dropdown(options=[], description="Edit:")
+        self.edit_key.observe(self._on_edit_key_changed, names="value")
+
+        # Container for per-layer controls (only for edit_key)
         self.layers_box = widgets.VBox([])
 
-
-        # ----------------------------
-        # Final layout
-        # ----------------------------
-        # self.layout = widgets.Layout(align_items="flex-start")
-        VIEW_H = f"{int(figsize[1] * 96)}px"
-        self.layout = widgets.Layout(
-            display="flex",
-            flex_flow="row",
-            align_items="stretch",
-            width="100%",
-            height=VIEW_H,
-        )
-        # ----------------------------
-        # Figure container (flex-grow)
-        # ----------------------------
-        fig_box = widgets.Box(
-            [self.fig],
-            layout=widgets.Layout(
-                width='100%',
-                flex="1 1 0%",   # take remaining space
-                min_width="0px",   # IMPORTANT: allow shrinking instead of pushing/overflowing
-                height="100%",
-                overflow="hidden", # optional, prevents horizontal spill
-                padding="28px 28px 28 28px",# reserve scrollbar gutter
-            ),
-        )
-        # Important: ipywidgets needs this to actually expand to full available width
-        self.add_class("widget-stretch")
-        # ----------------------------
-        # Right control panel
-        # ----------------------------
-        panel_inner = widgets.VBox(
+        left = widgets.VBox(
             [
                 widgets.HTML("<b>Visible layers</b>"),
                 self.visible_keys_box,
-                toggles_row,
                 self.edit_key,
+                self.theme_toggle,
+                self.rotate_toggle,
                 self.nan_policy,
                 widgets.HTML("<b>Layer controls</b>"),
                 self.layers_box,
-            ],
-            layout=widgets.Layout(padding="0"),  # reserve space for scrollbar
+            ]
         )
+        self.children = [self.fig, left]
 
-        right_panel = widgets.VBox(
-            [panel_inner],
-            layout=widgets.Layout(
-                flex="0 0 35%",
-                height="100%",
-                overflow_y="auto",
-                overflow_x="hidden",
-                padding="20px",
-                margin="0px",
-                border="3px solid red",
-                box_sizing="border-box",
-            ),
-        )
-
-        # inner never scrolls
-        panel_inner.layout = widgets.Layout(width="100%", overflow="visible")
-        css = widgets.HTML("""
-        <style>
-        /* Panel background */
-        .mv-right-panel {
-        background: #0b1f3a !important;
-        }
-        .mv-right-panel-inner {
-        background: transparent !important;
-        }
-
-        /* Text color */
-        .mv-right-panel, .mv-right-panel * {
-        color: #e6eefc !important;
-        }
-
-        /* Inputs */
-        .mv-right-panel select,
-        .mv-right-panel input {
-        background: #1b2431 !important;
-        color: #e6eefc !important;
-        border: 1px solid #2f3b4d !important;
-        }
-
-        /* --- FIX: ToggleButtons (they are <button>) --- */
-        .mv-right-panel button {
-        background: #1b2431 !important;
-        color: #e6eefc !important;
-        border: 1px solid #2f3b4d !important;
-        }
-
-        /* Hover */
-        .mv-right-panel button:hover {
-        background: #223046 !important;
-        }
-
-        /* “Pressed” / active toggle (class can differ by frontend, cover both) */
-        .mv-right-panel button:active,
-        .mv-right-panel button.mod-active,
-        .mv-right-panel .jupyter-button.mod-active,
-        .mv-right-panel .jupyter-button:active {
-        background: #2a3a55 !important;
-        border-color: #3a4c6a !important;
-        }
-        </style>
-        """)
-
-
-
-        right_panel.add_class("mv-right-panel")
-        panel_inner.add_class("mv-right-panel-inner")
-
-        right_panel.children = (css, panel_inner)
-
-
-        self.children = [fig_box, right_panel]
-
-        # ----------------------------
-        # Rotation state
-        # ----------------------------
+        # rotation state
         self._rotation_angle = 0
         self._rotation_task = None
 
-        # ----------------------------
-        # Load data if provided
-        # ----------------------------
         if dict_data is not None:
             self.set_data(dict_data)
 
@@ -319,89 +170,43 @@ class MultiVolumeViewer(widgets.Box):
     # Data setup
     # ----------------------------
     def set_data(self, dict_data: dict):
-        """
-        Register/validate layers and build interpolators + UI controls.
-
-        Contract (strict):
-        - dict_data maps layer name -> 3D numpy array
-        - all arrays must be real-valued (float/int/bool), same shape
-        - complex arrays are rejected (users must pass amp/phase explicitly)
-        """
-        if dict_data is None or not isinstance(dict_data, dict):
-            raise TypeError("dict_data must be a dict {name: np.ndarray}.")
-
         keys = list(dict_data.keys())
         if not keys:
             raise ValueError("dict_data is empty.")
 
-        # ---- validate arrays ----
-        shape0 = None
+        shape0 = dict_data[keys[0]].shape
         for k, v in dict_data.items():
-            if not isinstance(k, str):
-                raise TypeError(f"Layer key {k!r} is not a str.")
             if not isinstance(v, np.ndarray):
-                raise TypeError(f"Layer '{k}' is not a numpy array.")
-            if v.ndim != 3:
-                raise ValueError(f"Layer '{k}' must be a 3D array, got ndim={v.ndim}.")
-            if np.iscomplexobj(v):
-                raise TypeError(
-                    f"Layer '{k}' is complex-valued. "
-                    "This viewer expects real-valued scalar fields "
-                    "(e.g., amplitude, phase (radians), density, mask). "
-                    "Convert explicitly before passing."
-                )
-
-            # >>> ADD THIS BLOCK HERE <<<
-            if v.dtype.kind not in ("b", "i", "u", "f"):
-                raise TypeError(
-                    f"Layer '{k}' must be a real numeric array "
-                    f"(bool/int/float). Got dtype={v.dtype}."
-                )
-            # >>> END ADDITION <<<
-
-            if shape0 is None:
-                shape0 = v.shape
-            elif v.shape != shape0:
+                raise TypeError(f"{k} is not a numpy array.")
+            if v.shape != shape0:
                 raise ValueError(
-                    f"Shape mismatch: '{k}' has {v.shape}, expected {shape0}."
+                    f"Shape mismatch: {k} has {v.shape}, expected {shape0}."
                 )
 
-        # Optional: basic sanity check for finite ranges (do not reject NaNs; NaN policy handles them)
-        # You can uncomment to reject all-NaN layers if desired.
-        # for k, v in dict_data.items():
-        #     if not np.isfinite(v).any():
-        #         raise ValueError(f"Layer '{k}' contains no finite values (all NaN/inf).")
-
-        # ---- store ----
         self.dict_data = dict_data
 
-        # ---- build interpolators (always real) ----
+        # Build interpolators
         nz, ny, nx = shape0
-        grid_z = np.arange(nz, dtype=float)
-        grid_y = np.arange(ny, dtype=float)
-        grid_x = np.arange(nx, dtype=float)
+        grid_z = np.arange(nz)
+        grid_y = np.arange(ny)
+        grid_x = np.arange(nx)
 
-        # Use float arrays for interpolator (RegularGridInterpolator expects numeric types)
-        self._rgi = {}
-        for k, arr in dict_data.items():
-            arr_f = np.asarray(arr, dtype=float)  # safe for bool/int/float
-            self._rgi[k] = RegularGridInterpolator(
-                (grid_z, grid_y, grid_x),
-                arr_f,
-                bounds_error=False,
-                fill_value=0.0,
+        self._rgi = {
+            k: RegularGridInterpolator(
+                (grid_z, grid_y, grid_x), arr, bounds_error=False, fill_value=0
             )
+            for k, arr in dict_data.items()
+        }
 
-        # ---- build per-layer controls ----
+        # Build per-layer controls (widgets) + visible checkboxes
         self._layer_widgets = {}
         self._rebuild_layer_widgets()
 
-        # ---- visible keys checkboxes ----
         self._visible_cb = {}
         cbs = []
-        for i, k in enumerate(keys):
+        for k in keys:
             cb = widgets.Checkbox(
-                value=(i == 0),
+                value=(k == keys[0]),
                 description=k,
                 indent=False,
             )
@@ -409,12 +214,8 @@ class MultiVolumeViewer(widgets.Box):
             self._visible_cb[k] = cb
             cbs.append(cb)
         self.visible_keys_box.children = cbs
-        # apply per-child layout AFTER assigning children
-        for cb in self.visible_keys_box.children:
-            cb.layout.flex = "0 0 140px"   # fixed column width
-            cb.layout.width = "140px"      # helps in some frontends
 
-        # ---- edit key dropdown ----
+        # Edit key dropdown
         self.edit_key.unobserve(self._on_edit_key_changed, names="value")
         try:
             self.edit_key.options = keys
@@ -422,20 +223,20 @@ class MultiVolumeViewer(widgets.Box):
         finally:
             self.edit_key.observe(self._on_edit_key_changed, names="value")
 
-        # ---- render ----
+        # Render
         self._sync_layer_panels_visibility()
         self._update_all_traces()
-
 
     # ----------------------------
     # UI building
     # ----------------------------
     def _rebuild_layer_widgets(self):
         for k in self.dict_data.keys():
-            amp = np.asarray(self.dict_data[k], dtype=float)
+            arr = self.dict_data[k]
+            amp = np.abs(arr) if np.iscomplexobj(arr) else np.asarray(arr)
 
             thr = widgets.FloatSlider(
-                value=float(np.nanpercentile(amp, 30)),
+                value=float(np.nanpercentile(amp, 70)),
                 min=float(np.nanmin(amp)),
                 max=float(np.nanmax(amp)),
                 step=float((np.nanmax(amp) - np.nanmin(amp)) / 300)
@@ -444,8 +245,6 @@ class MultiVolumeViewer(widgets.Box):
                 description=f"{k} iso:",
                 continuous_update=False,
                 readout_format=".3g",
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
             )
             op = widgets.FloatSlider(
                 value=1.0,
@@ -454,65 +253,26 @@ class MultiVolumeViewer(widgets.Box):
                 step=0.01,
                 description=f"{k} α:",
                 continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
             )
             cmap = widgets.Dropdown(
                 options=self.cmap_options,
-                value="grey",
+                value="cet_CET_C9s_r",
                 description=f"{k} cmap:",
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
             )
-            color_by = widgets.Dropdown(
-                options=[("(self)", k)] + [(kk, kk) for kk in self.dict_data.keys() if kk != k] + [
-                    ("(constant)", "__constant__"),
-                    ("(x coord)", "__x__"),
-                    ("(y coord)", "__y__"),
-                    ("(z coord)", "__z__"),
-                ],
-                value=k,
-                description=f"{k} color:",
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-            color_by.observe(self._on_layer_param_changed, names="value")
-
-
             as_mask = widgets.Checkbox(
                 value=False,
                 description=f"{k} mask-mode",
                 tooltip="If True: threshold to a binary mask then extract its surface.",
-                indent=False,
             )
-
             show_colorbar = widgets.Checkbox(
-                value=True,
-                description=f"{k} show colorbar",
-                indent=False,
+                value=True, description=f"{k} show colorbar", indent=False
             )
-
             auto_range = widgets.Checkbox(
                 value=True,
                 description=f"{k} auto range",
                 indent=False,
+                tooltip="If on: cmin/cmax follow data. If off: use the slider range.",
             )
-
-            row = widgets.Box(
-                [as_mask, show_colorbar, auto_range],
-                layout=widgets.Layout(
-                    display="flex",
-                    flex_flow="row",
-                    justify_content="space-between",  # or "flex-start"
-                    align_items="center",
-                    gap="12px",
-                    width="95%",
-                ),
-            )
-            for cb in (as_mask, show_colorbar, auto_range):
-                cb.layout.width = "auto"
-                cb.layout.flex = "1 1 0%"
-
 
             vmin0 = float(np.nanmin(amp))
             vmax0 = float(np.nanmax(amp))
@@ -531,8 +291,6 @@ class MultiVolumeViewer(widgets.Box):
                 description=f"{k} cmin/cmax:",
                 continuous_update=False,
                 readout_format=".3g",
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),indent=False,
             )
             range_slider.disabled = True
 
@@ -551,82 +309,15 @@ class MultiVolumeViewer(widgets.Box):
                 range_slider,
             ):
                 wdg.observe(self._on_layer_param_changed, names="value")
-            # ---- Lighting controls (ParaView-style) ----
-            light_ambient = widgets.FloatSlider(
-                value=0.6,
-                min=0.0,
-                max=1.0,
-                step=0.01,
-                description="ambient",
-                continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-            light_diffuse = widgets.FloatSlider(
-                value=0.4,
-                min=0.0,
-                max=1.0,
-                step=0.01,
-                description="diffuse",
-                continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-            light_specular = widgets.FloatSlider(
-                value=0.5,
-                min=0.0,
-                max=1.0,
-                step=0.01,
-                description="specular",
-                continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-            light_roughness = widgets.FloatSlider(
-                value=0.2,
-                min=0.01,
-                max=1.0,
-                step=0.01,
-                description="roughness",
-                continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-            light_fresnel = widgets.FloatSlider(
-                value=0.1,
-                min=0.0,
-                max=1.0,
-                step=0.01,
-                description="fresnel",
-                continuous_update=False,
-                style=self._common_style,
-                layout=widgets.Layout(width="95%"),
-            )
-
-            for wdg in (
-                light_ambient,
-                light_diffuse,
-                light_specular,
-                light_roughness,
-                light_fresnel,
-            ):
-                wdg.observe(self._on_layer_param_changed, names="value")
 
             self._layer_widgets[k] = dict(
                 thr=thr,
                 op=op,
                 cmap=cmap,
-                row=row,
                 as_mask=as_mask,
                 show_colorbar=show_colorbar,
                 auto_range=auto_range,
-                color_by=color_by,
                 range_slider=range_slider,
-                light_ambient=light_ambient,
-                light_diffuse=light_diffuse,
-                light_specular=light_specular,
-                light_roughness=light_roughness,
-                light_fresnel=light_fresnel,
             )
 
     def _sync_layer_panels_visibility(self):
@@ -635,22 +326,18 @@ class MultiVolumeViewer(widgets.Box):
             self.layers_box.children = []
             return
         w = self._layer_widgets[k]
-
         self.layers_box.children = [
-            widgets.VBox([
-                w["thr"],
-                w["op"],
-                w["cmap"],
-                w["row"],
-                w["color_by"],
-                w["range_slider"],
-                widgets.HTML("<b>Lighting</b>"),
-                w["light_ambient"],
-                w["light_diffuse"],
-                w["light_specular"],
-                w["light_roughness"],
-                w["light_fresnel"],
-            ])
+            widgets.VBox(
+                [
+                    w["thr"],
+                    w["op"],
+                    w["cmap"],
+                    w["as_mask"],
+                    w["show_colorbar"],
+                    w["auto_range"],
+                    w["range_slider"],
+                ]
+            )
         ]
 
     # ----------------------------
@@ -707,7 +394,11 @@ class MultiVolumeViewer(widgets.Box):
         # ----------------------------
         if w["as_mask"].value:
             # 1) build mask from a scalar (typically |arr|)
-            vol = np.asarray(arr, dtype=float)
+            vol = (
+                np.abs(arr)
+                if np.iscomplexobj(arr)
+                else np.asarray(arr, dtype=float)
+            )
             vol = self._apply_nan_policy(vol)
 
             mask = (vol >= iso).astype(np.float32)
@@ -731,30 +422,32 @@ class MultiVolumeViewer(widgets.Box):
             # 3) IMPORTANT: sample original arr at those vertices for coloring (same as normal)
             vals = self._rgi[key](verts)  # verts are in (z,y,x) index space
             vals = self._apply_nan_policy(vals)
+            intensity_mode = "scalar"
 
         else:
-            vol = np.asarray(arr, dtype=float)
-            vol = self._apply_nan_policy(vol)
+            vol_for_mc = (
+                np.abs(arr)
+                if np.iscomplexobj(arr)
+                else np.asarray(arr, dtype=float)
+            )
+            vol_for_mc = self._apply_nan_policy(vol_for_mc)
 
             if HAS_VOLUME_UTILS:
                 verts_scaled, faces, vals = _extract_isosurface_with_values(
-                    vol,
-                    vol,
+                    vol_for_mc,
+                    arr,
                     iso,
                     self.voxel_size,
                     use_interpolator=True,
                 )
             else:
                 verts, faces, _, _ = marching_cubes(
-                    vol, level=iso, step_size=1
+                    vol_for_mc, level=iso, step_size=1
                 )
                 verts_scaled = verts * self.voxel_size
                 vals = self._rgi[key](verts)
 
-        verts_idx = verts_scaled / self.voxel_size                 # (z,y,x) index space
-        verts_xyz = np.column_stack([verts_scaled[:, 2],           # x
-                                    verts_scaled[:, 1],           # y
-                                    verts_scaled[:, 0]])          # z
+            intensity_mode = "scalar"
 
         # ----------------------------
         # Coloring
@@ -763,48 +456,67 @@ class MultiVolumeViewer(widgets.Box):
         auto_range = bool(w["auto_range"].value)
         rmin, rmax = w["range_slider"].value
 
-        color_sel = w["color_by"].value  # dropdown value
-
-
-        if color_sel == "__constant__":
-            intensity = np.zeros(len(verts_xyz), dtype=float)
-        elif color_sel in ("__x__", "__y__", "__z__"):
-            axis = {"__x__": 0, "__y__": 1, "__z__": 2}[color_sel]
-            intensity = verts_xyz[:, axis].astype(float)
-        elif color_sel == key:
-            intensity = np.asarray(vals, dtype=float)
+        if intensity_mode == "constant":
+            intensity = np.zeros(len(verts_scaled), dtype=float)
+            cmin, cmax = 0.0, 1.0
+            colorbar = None
         else:
-            intensity = np.asarray(self._rgi[color_sel](verts_idx), dtype=float)
+            if np.iscomplexobj(arr):
+                intensity = np.angle(vals)
+                intensity = self._apply_nan_policy(intensity)
 
-        intensity = self._apply_nan_policy(intensity)
+                data_min, data_max = -np.pi, np.pi
+                cmin, cmax = (
+                    (data_min, data_max)
+                    if auto_range
+                    else (float(rmin), float(rmax))
+                )
 
-        data_min = float(np.nanmin(intensity))
-        data_max = float(np.nanmax(intensity))
-        if not np.isfinite(data_min):
-            data_min = 0.0
-        if not np.isfinite(data_max):
-            data_max = 1.0
-        if data_max == data_min:
-            data_max = data_min + 1e-12
+                colorbar = dict(
+                    title=f"{key} phase (rad)",
+                    len=0.7,
+                    x=CBAR_X0 + cbar_index * CBAR_DX,
+                    thickness=18,
+                    tickmode="array",
+                    tickvals=[-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi],
+                    ticktext=["-π", "-π/2", "0", "π/2", "π"],
+                )
+            else:
+                intensity = np.asarray(vals, dtype=float)
+                intensity = self._apply_nan_policy(intensity)
 
-        cmin, cmax = (
-            (data_min, data_max)
-            if auto_range
-            else (float(rmin), float(rmax))
-        )
-        if cmax <= cmin:
-            cmax = cmin + 1e-12
+                data_min = float(np.nanmin(intensity))
+                data_max = float(np.nanmax(intensity))
+                if not np.isfinite(data_min):
+                    data_min = 0.0
+                if not np.isfinite(data_max):
+                    data_max = 1.0
+                if data_max == data_min:
+                    data_max = data_min + 1e-12
 
-        colorbar = None
-        if (color_sel != "__constant__") and show_colorbar:
-            title = color_sel if not color_sel.startswith("__") else color_sel.strip("_")
-            colorbar = dict(title=title, len=0.7, x=CBAR_X0 + cbar_index * CBAR_DX, thickness=18)
+                cmin, cmax = (
+                    (data_min, data_max)
+                    if auto_range
+                    else (float(rmin), float(rmax))
+                )
+
+                colorbar = dict(
+                    title=f"{key}",
+                    len=0.7,
+                    x=CBAR_X0 + cbar_index * CBAR_DX,
+                    thickness=18,
+                )
+            if not show_colorbar:
+                colorbar = None
 
         # Sync slider bounds safely: ONLY EXPAND (never shrink)
         rs = w["range_slider"]
-        if color_sel != "__constant__":
-            new_min = float(np.nanmin(intensity))
-            new_max = float(np.nanmax(intensity))
+        if intensity_mode != "constant":
+            if np.iscomplexobj(arr):
+                new_min, new_max = -np.pi, np.pi
+            else:
+                new_min = float(np.nanmin(intensity))
+                new_max = float(np.nanmax(intensity))
 
             if not np.isfinite(new_min):
                 new_min = 0.0
@@ -840,9 +552,9 @@ class MultiVolumeViewer(widgets.Box):
             cmax = cmin + 1e-12
         return go.Mesh3d(
             name=key,
-            x=verts_xyz[:, 0], # x
-            y=verts_xyz[:, 1], # y
-            z=verts_xyz[:, 2], # z
+            x=verts_scaled[:, 0],
+            y=verts_scaled[:, 1],
+            z=verts_scaled[:, 2],
             i=faces[:, 0],
             j=faces[:, 1],
             k=faces[:, 2],
@@ -855,11 +567,11 @@ class MultiVolumeViewer(widgets.Box):
             cmax=cmax,
             flatshading=False,
             lighting=dict(
-                ambient=w["light_ambient"].value,
-                diffuse=w["light_diffuse"].value,
-                specular=w["light_specular"].value,
-                roughness=w["light_roughness"].value,
-                fresnel=w["light_fresnel"].value,
+                ambient=0.85,
+                diffuse=0.1,
+                specular=0.5,
+                roughness=0.2,
+                fresnel=0.5,
             ),
         )
 
@@ -892,7 +604,9 @@ class MultiVolumeViewer(widgets.Box):
     # NaN policy
     # ----------------------------
     def _apply_nan_policy(self, arr: np.ndarray) -> np.ndarray:
-        arr = np.asarray(arr, dtype=float)
+        arr = np.asarray(arr)
+        if arr.dtype.kind not in ("f", "c"):
+            return arr
 
         policy = self.nan_policy.value
         if policy == "none" or not np.isnan(arr).any():
@@ -913,5 +627,3 @@ class MultiVolumeViewer(widgets.Box):
             v = 0.0
 
         return np.where(np.isnan(arr), v, arr)
-
-
