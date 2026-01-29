@@ -3,9 +3,117 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rcParams
 
-from cdiutils.io.vtk import save_as_vti
 from cdiutils.plot import plot_volume_slices
 from cdiutils.utils import hybrid_gradient, nan_to_zero, zero_to_nan
+
+# from numbers import Number, Real
+# from typing import Optional, Tuple, Union
+# from cdiutils.utils import fill_up_support
+
+
+def save_to_vti(
+    filename,
+    voxel_size,
+    tuple_array,
+    tuple_fieldnames,
+    origin=(0, 0, 0),
+    amplitude_threshold=0.01,
+    **kwargs,
+):
+    """
+    Save arrays defined by their name in a single vti file.
+
+    Paraview expects data in an orthonormal basis (x,y,z). For BCDI data in the .cxi
+    convention (hence: z, y,x) it is necessary to flip the last axis. The data sent
+    to Paraview will be in the orthonormal frame (z,y,-x), therefore Paraview_x is z
+    (downstream), Paraview_y is y (vertical up), Paraview_z is -x (inboard) of the
+    .cxi convention.
+
+    :param filename: the file name of the vti file
+    :param voxel_size: tuple (voxel_size_axis0, voxel_size_axis1, voxel_size_axis2)
+    :param tuple_array: tuple of arrays of the same dimension
+    :param tuple_fieldnames: tuple of strings for the field names, same number of
+     elements as tuple_array
+    :param origin: tuple of points for vtk SetOrigin()
+    :param amplitude_threshold: lower threshold for saving the reconstruction
+     modulus (save memory space)
+    :param kwargs:
+
+    :return: nothing
+    """
+    import vtk
+    from vtk.util import numpy_support
+
+    if isinstance(tuple_array, np.ndarray):
+        tuple_array = (tuple_array,)
+    nb_arrays = len(tuple_array)
+    nbz, nby, nbx = tuple_array[0].shape
+
+    if isinstance(tuple_fieldnames, str):
+        tuple_fieldnames = (tuple_fieldnames,)
+
+    #############################
+    # initialize the VTK object #
+    #############################
+    image_data = vtk.vtkImageData()
+    image_data.SetOrigin(origin[0], origin[1], origin[2])
+    image_data.SetSpacing(voxel_size[0], voxel_size[1], voxel_size[2])
+    image_data.SetExtent(0, nbz - 1, 0, nby - 1, 0, nbx - 1)
+
+    #######################################
+    # check if one of the fields in 'amp' #
+    #######################################
+    # it will use the thresholded normalized 'amp' as support
+    # when saving other fields, in order to save disk space
+    try:
+        index_first = tuple_fieldnames.index(
+            "amp" if "amp" in tuple_fieldnames else "density"
+        )
+        first_array = tuple_array[index_first]
+        first_array = first_array / first_array.max()
+        first_array[first_array < amplitude_threshold] = (
+            0  # theshold low amplitude values in order to save disk space
+        )
+        is_amp = True
+    except ValueError:
+        print(
+            '"amp"/"density" not in fieldnames, will save arrays without thresholding'
+        )
+        index_first = 0
+        first_array = tuple_array[0]
+        is_amp = False
+
+    first_arr = np.flip(np.transpose(np.flip(first_array, 2)), axis=0).reshape(
+        first_array.size
+    )
+    first_arr = numpy_support.numpy_to_vtk(first_arr)
+    pd = image_data.GetPointData()
+    pd.SetScalars(first_arr)
+    pd.GetArray(0).SetName(tuple_fieldnames[index_first])
+    counter = 1
+    for idx in range(nb_arrays):
+        if idx == index_first:
+            continue
+        temp_array = tuple_array[idx]
+        if is_amp:
+            temp_array[first_array == 0] = (
+                0  # use the thresholded amplitude as a support
+            )
+            # in order to save disk space
+        temp_array = np.flip(
+            np.transpose(np.flip(temp_array, 2)), axis=0
+        ).reshape(temp_array.size)
+        temp_array = numpy_support.numpy_to_vtk(temp_array)
+        pd.AddArray(temp_array)
+        pd.GetArray(counter).SetName(tuple_fieldnames[idx])
+        pd.Update()
+        counter = counter + 1
+
+    # export data to file
+    writer = vtk.vtkXMLImageDataWriter()
+    writer.SetFileName(filename)
+    writer.SetInputData(image_data)
+    writer.Write()
 
 
 def map_min_gradient(
@@ -132,35 +240,36 @@ def map_min_gradient(
         )
 
     if save_filename_vti:
-        dict_to_vti = {
-            "modulus": nan_to_zero(modulus),
-            "phase_0": nan_to_zero(phase_0),
-            "phase_1": zero_to_nan(phase_1),
-            "displacement_gradient_min_x": nan_to_zero(
-                displacement_gradient_min[0]
+        save_to_vti(
+            filename=save_filename_vti,
+            voxel_size=list(voxel_size),
+            tuple_array=(
+                nan_to_zero(modulus),
+                nan_to_zero(phase_0),
+                zero_to_nan(phase_1),
+                nan_to_zero(displacement_gradient_min[0]),
+                nan_to_zero(displacement_gradient_0[0]),
+                nan_to_zero(displacement_gradient_min[1]),
+                nan_to_zero(displacement_gradient_0[1]),
+                nan_to_zero(displacement_gradient_min[2]),
+                nan_to_zero(displacement_gradient_0[2]),
+                strain_mask,
+                strain_amp,
             ),
-            "displacement_gradient_0_x": nan_to_zero(
-                displacement_gradient_0[0]
+            tuple_fieldnames=(
+                "modulus",
+                "phase_0",
+                "phase_1",
+                "displacement_gradient_min_x",
+                "displacement_gradient_0_x",
+                "displacement_gradient_min_y",
+                "displacement_gradient_0_y",
+                "displacement_gradient_min_z",
+                "displacement_gradient_0_z",
+                "strain_mask",
+                "strain_amp",
             ),
-            "displacement_gradient_min_y": nan_to_zero(
-                displacement_gradient_min[1]
-            ),
-            "displacement_gradient_0_y": nan_to_zero(
-                displacement_gradient_0[1]
-            ),
-            "displacement_gradient_min_z": nan_to_zero(
-                displacement_gradient_min[2]
-            ),
-            "displacement_gradient_0_z": nan_to_zero(
-                displacement_gradient_0[2]
-            ),
-            "strain_mask": strain_mask,
-            "strain_amp": strain_amp,
-        }
-        save_as_vti(
-            output_path=save_filename_vti,
-            voxel_size=tuple(voxel_size),
-            **dict_to_vti,
+            amplitude_threshold=0.1,
         )
     if plot_debug:
         rcParams["font.size"] = font_size
@@ -485,19 +594,31 @@ def plot_phase_around_dislo(
         vect_y = displacement_vectors[..., 1]
         vect_z = displacement_vectors[..., 2]
 
-        # Save or visualize the circular mask and polar angles#
-        dict_to_vti = {
-            "density": nan_to_zero(amp),
-            "phase": nan_to_zero(phase),
-            "dislo": selected_dislocation_data,
-            "circular_mask": circular_mask,
-            "polar_angles": polar_angles,
-            "vect_x": vect_x,
-            "vect_y": vect_y,
-            "vect_z": vect_z,
-        }
-        save_as_vti(
-            output_path=save_path, voxel_size=tuple(voxel_sizes), **dict_to_vti
+        # Save or visualize the circular mask and polar angles
+        save_to_vti(
+            filename=save_path + ".vti",
+            voxel_size=tuple(voxel_sizes),
+            tuple_array=(
+                nan_to_zero(amp),
+                nan_to_zero(phase),
+                selected_dislocation_data,
+                circular_mask,
+                polar_angles,
+                vect_x,
+                vect_y,
+                vect_z,
+            ),
+            tuple_fieldnames=(
+                "density",
+                "phase",
+                "dislo",
+                "circular_mask",
+                "polar_angles",
+                "vect_x",
+                "vect_y",
+                "vect_z",
+            ),
+            amplitude_threshold=0.01,
         )
     return (
         masked_region_phase,
