@@ -8,20 +8,21 @@ import importlib
 
 from .base import Pipeline
 from .bcdi import BcdiPipeline
-from .pipeline_plotter import PipelinePlotter
 from .parameters import get_params_from_variables
-
+from .pipeline_plotter import PipelinePlotter
 
 __class_func_submodules__ = {
     "Pipeline": "base",
     "BcdiPipeline": "bcdi",
     "PipelinePlotter": "pipeline_plotter",
-    "get_params_from_variables": "parameters"
+    "get_params_from_variables": "parameters",
 }
 
 __all__ = [
-    "Pipeline", "BcdiPipeline",
-    "PipelinePlotter", "get_params_from_variables"
+    "Pipeline",
+    "BcdiPipeline",
+    "PipelinePlotter",
+    "get_params_from_variables",
 ]
 
 

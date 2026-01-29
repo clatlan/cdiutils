@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
 This is a simple script to handle the creation of the Jupyter
 notebooks required for running the detector calibration using the cdiutils
@@ -27,18 +25,20 @@ def main() -> None:
         ),
     )
     parser.add_argument(
-        "-p", "--path",
+        "-p",
+        "--path",
         type=str,
-        help="The directory path where the notebooks will be created."
+        help="The directory path where the notebooks will be created.",
     )
     parser.add_argument(
-        "-f", "--force",
+        "-f",
+        "--force",
         default=False,
         action="store_true",
         help=(
             "Whether or not to force the creation of the files if they "
             "already exist."
-        )
+        ),
     )
 
     args = parser.parse_args()

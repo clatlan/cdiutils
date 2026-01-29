@@ -1,0 +1,185 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master, dev ]
+  pull_request:
+    branches: [ master, dev ]
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+      
+      - name: Lint and format check with ruff
+        run: |
+          ruff check src/cdiutils tests
+          ruff format --check src/cdiutils tests
+
+  test-unit:
+    name: Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-cov
+      
+      - name: Run unit tests
+        run: |
+          pytest -m "unit and not slow" -v --cov=cdiutils --cov-report=xml
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.10'
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  test-import:
+    name: Import Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install minimal dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+      
+      - name: Test imports without optional dependencies
+        run: |
+          pytest tests/test_pipeline_imports.py -v
+      
+      - name: Test basic imports
+        run: |
+          python -c "import cdiutils; print(cdiutils.__version__)"
+          python -c "from cdiutils.pipeline import BcdiPipeline"
+          python -c "from cdiutils.geometry import Geometry"
+
+  test-integration-light:
+    name: Light Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, test-unit]
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true  # if using Git LFS for test data
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest pytest-timeout
+      
+      - name: Download test data (if not in repo)
+        run: |
+          # Example: download test data from external source
+          # mkdir -p tests/raw_data
+          # wget https://example.com/test_data.tar.gz
+          # tar -xzf test_data.tar.gz -C tests/raw_data/
+          echo "Test data should be in repository or downloaded here"
+      
+      - name: Run integration tests (no GPU required)
+        run: |
+          # Run integration tests that mock PyNX phase retrieval
+          # These tests validate the full pipeline workflow without GPU
+          # pytest tests/integration/test_pipeline_no_gpu.py -v --timeout=600
+          
+      - name: Run integration tests with real data (optional)
+        run: |
+          # Run integration tests that require real beamline data
+          # These will be skipped if test data is not available
+          pytest tests/integration -m "integration and not gpu" -v --timeout=300
+        continue-on-error: true  # allow failures (test data may not be available)
+
+  docs:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+      
+      - name: Install documentation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[docs]"
+      
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+      
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/_build/html/
+
+  check-version:
+    name: Version Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Check version bump
+        run: |
+          # extract version from pyproject.toml
+          VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+          echo "Current version: $VERSION"
+          # add version checking logic here

@@ -5,42 +5,75 @@ from cdiutils.io import Loader
 
 
 class P10Loader(Loader):
-    """A class for loading data from P10 beamline experiments."""
+    """
+    Data loader for PETRA III P10 beamline.
+
+    Handles HDF5 master files and .fio motor position files from P10
+    beamline at PETRA III, supporting Eiger4M and Eiger500k
+    detectors. Data is organised in separate directories per scan.
+
+    Attributes:
+        angle_names: Mapping from canonical names to P10 motor names:
+
+            - ``sample_outofplane_angle`` -> ``"om"`` (EH1) or
+              ``"samth"`` (EH2)
+            - ``sample_inplane_angle`` -> ``"phi"`` (EH1 only)
+            - ``detector_outofplane_angle`` -> ``"del"`` (EH1) or
+              ``"e2_t02"`` (EH2)
+            - ``detector_inplane_angle`` -> ``"gam"`` (EH1 only)
+
+        authorised_detector_names: Tuple of supported detectors:
+            ``("eiger4m", "e2500")``.
+
+    Notes:
+        EH2 (experimental hutch 2) has different motor names and lacks
+        in-plane rotation stages. Specify ``hutch="EH2"`` during
+        initialisation for EH2 experiments.
+
+    See Also:
+        :class:`Loader` for factory method and base class
+        documentation.
+    """
 
     angle_names = {
         "sample_outofplane_angle": "om",
         "sample_inplane_angle": "phi",
         "detector_outofplane_angle": "del",
-        "detector_inplane_angle": "gam"
+        "detector_inplane_angle": "gam",
     }
-    authorised_detector_names = ("eiger4m", )
+    authorised_detector_names = ("eiger4m", "e2500")
 
     def __init__(
-            self,
-            experiment_data_dir_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            hutch: str = "EH1",
-            **kwargs
+        self,
+        experiment_data_dir_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        hutch: str = "EH1",
+        **kwargs,
     ) -> None:
         """
-        Initialise P10Loader with experiment data directory path and
-        detector information.
+        Initialise P10 data loader.
 
         Args:
-            experiment_data_dir_path (str): path to the experiment data
-                directory.
-            detector_name (str): name of the detector.
-            sample_name (str, optional): name of the sample. Defaults to
-                None.
-            flat_field (np.ndarray | str, optional): flat field to
-                account for the non homogeneous counting of the
-                detector. Defaults to None.
-            alien_mask (np.ndarray | str, optional): array to mask the
-                aliens. Defaults to None.
+            experiment_data_dir_path: Root data directory containing
+                scan subdirectories. Expected structure:
+                ``{root}/{sample}_{scan:05d}/{detector}/``.
+            scan: Scan number (5-digit zero-padded in file paths).
+            sample_name: Sample identifier matching directory names.
+            detector_name: Detector identifier (``"eiger4m"`` or
+                ``"e2500"``). If None, defaults to ``"e4m"``.
+            flat_field: Flat-field correction array or path to
+                .npy/.npz file.
+            alien_mask: Bad pixel mask array or path.
+            hutch: Experimental hutch (``"EH1"`` or ``"EH2"``).
+                Affects motor name mappings. Defaults to ``"EH1"``.
+            **kwargs: Additional parameters (reserved for future use).
+
+        Raises:
+            ValueError: If ``hutch`` is not ``"EH1"`` or ``"EH2"``.
         """
         self.experiment_data_dir_path = experiment_data_dir_path
         super().__init__(scan, sample_name, flat_field, alien_mask)
@@ -60,23 +93,22 @@ class P10Loader(Loader):
             )
 
     def _get_file_path(
-            self,
-            scan: int,
-            sample_name: str,
-            data_type: str = "detector_data"
+        self, scan: int, sample_name: str, data_type: str = "detector_data"
     ) -> str:
         """
-        Get the file path based on scan number, sample name, and data
-        type.
+        Construct file path for detector data or motor positions.
 
         Args:
-            scan (int): Scan number.
-            sample_name (str): Name of the sample.
-            data_type (str, optional): Type of data. Defaults to
-                                       "detector_data".
+            scan: Scan number (zero-padded to 5 digits).
+            sample_name: Sample name.
+            data_type: Either ``"detector_data"`` (HDF5 master file)
+                or ``"motor_positions"`` (.fio file).
 
         Returns:
-            str: File path.
+            Absolute path to requested file.
+
+        Raises:
+            ValueError: If ``data_type`` is not recognised.
         """
         if data_type == "detector_data":
             return (
@@ -97,28 +129,33 @@ class P10Loader(Loader):
         )
 
     def load_detector_data(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> None:
         """
-        Load detector data for a given scan and sample.
+        Load raw detector frames from P10 HDF5 file.
+
+        Retrieves 3D detector data array with optional ROI, binning,
+        flat-field correction, and masking. Automatically applies
+        detector chip gap mask for Eiger detectors.
 
         Args:
-            scan (int): Scan number. Defaults to None.
-            sample_name (str, optional): Name of the sample. Defaults to
-                None.
-            roi (tuple, optional): Region of interest. Defaults to None.
-            rocking_angle_binning (int, optional): Binning factor along
-                axis 0. Defaults to None.
-            binning_method (str, optional): Binning method. Defaults to
-                "sum".
+            scan: Scan number. If None, uses ``self.scan``.
+            sample_name: Sample name. If None, uses
+                ``self.sample_name``.
+            roi: Region of interest as tuple of slices or integers.
+            rocking_angle_binning: Binning factor along rocking
+                curve axis.
+            binning_method: Binning operation (``"sum"``,
+                ``"mean"``, or ``"max"``). Default ``"sum"``.
 
         Returns:
-            numpy.ndarray: Loaded detector data.
+            Preprocessed detector data with shape
+            ``(n_frames//binning, n_y, n_x)``.
         """
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
@@ -139,46 +176,50 @@ class P10Loader(Loader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
         # Must apply mask on P10 Eiger data
         mask = self.get_mask(
             channel=data.shape[0],
             detector_name=self.detector_name,
-            roi=(slice(None), roi[1], roi[2])
+            roi=(slice(None), roi[1], roi[2]),
         )
         data = data * np.where(mask, 0, 1)
 
         return data
 
     def load_motor_positions(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> None:
         """
-        Load motor positions for a given scan and sample.
+        Load diffractometer motor angles from .fio file.
+
+        Parses P10's text-based .fio files to extract motor
+        positions, applying same ROI and binning as detector data.
 
         Args:
-            scan (int): Scan number. Defaults to None.
-            sample_name (str, optional): Name of the sample. Defaults
-                to None.
-            roi (tuple, optional): Region of interest. Defaults to None.
-            rocking_angle_binning (int, optional): Binning factor along
-                axis 0. Defaults to None.
+            scan: Scan number. If None, uses ``self.scan``.
+            sample_name: Sample name. If None, uses
+                ``self.sample_name``.
+            roi: ROI tuple. Only first element (rocking curve axis)
+                is used.
+            rocking_angle_binning: Binning factor matching detector
+                binning. Angles are averaged when binned.
 
         Returns:
-            dict: Dictionary containing motor positions.
+            dict: Motor angles with canonical keys (see
+            :attr:`angle_names` for P10-specific mapping). Values
+            are scalars (fixed motor) or 1D arrays (scanned motor).
         """
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         path = self._get_file_path(
-            scan,
-            sample_name,
-            data_type="motor_positions"
+            scan, sample_name, data_type="motor_positions"
         )
         if roi is None or len(roi) == 2:
             roi = slice(None)
@@ -232,16 +273,25 @@ class P10Loader(Loader):
             angles[rocking_angle] = angles[rocking_angle][roi]
 
         return {
-            angle: angles[name]
-            for angle, name in self.angle_names.items()
+            angle: angles[name] for angle, name in self.angle_names.items()
         }
 
     def load_energy(self, scan: int = None, sample_name: str = None) -> float:
+        """
+        Load X-ray beam energy from .fio file.
+
+        Args:
+            scan: Scan number. If None, uses ``self.scan``.
+            sample_name: Sample name. If None, uses
+                ``self.sample_name``.
+
+        Returns:
+            Beam energy in eV from ``fmbenergy`` motor, or None if
+            not found.
+        """
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         path = self._get_file_path(
-            scan,
-            sample_name,
-            data_type="motor_positions"
+            scan, sample_name, data_type="motor_positions"
         )
         with open(path, encoding="utf8") as fio_file:
             lines = fio_file.readlines()
@@ -253,7 +303,20 @@ class P10Loader(Loader):
         return None
 
     def load_det_calib_params(self) -> dict:
+        """
+        Load detector calibration parameters.
+
+        Returns:
+            None. P10 does not store calibration in scan files.
+            Calibration must be determined separately.
+        """
         return None
 
     def load_detector_shape(self, scan: int = None) -> tuple:
+        """
+        Load detector shape.
+
+        Returns:
+            None. Shape is determined from data files directly.
+        """
         return None

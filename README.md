@@ -4,7 +4,7 @@
 [![PyPI version](https://badge.fury.io/py/cdiutils.svg)](https://badge.fury.io/py/cdiutils)
 [![License](https://img.shields.io/github/license/clatlan/cdiutils)](https://github.com/clatlan/cdiutils/blob/main/LICENSE)
 
-CDIutils is a Python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows. I developed the package during my PhD.
+CDIutils is a Python package to help X-ray Bragg Coherent Diffraction Imaging (BCDI) practitioners in their analysis and visualisation workflows.
 
 The package is designed to handle the three primary stages of a BCDI data processing workflow:
 
@@ -89,16 +89,36 @@ You can also install the latest development version directly from GitHub:
 You can install the package directly from GitHub:
 
 ```bash
-pip install git+https://github.com/clatlan/cdiutils.git
+pip install git+https://github.com/clatlan/cdiutils@master # or @dev for the dev branch
 ```
 
 To update your environment with the latest commits:
 
 ```bash
-pip install -I --no-deps git+https://github.com/clatlan/cdiutils.git
+pip install -I --no-deps git+https://github.com/clatlan/cdiutils@master # or @dev for the dev branch
 ```
 
 _Note: Check out the dev branch for the latest features and bug fixes. The dev branch is not guaranteed to be stable._
+
+### PyNX Installation (Required for Phase Retrieval)
+
+CDIutils relies on **PyNX** for GPU-accelerated phase retrieval. PyNX is not included in the default installation and must be installed separately.
+
+**Recommended PyNX version:** `>= 2025.1`
+
+**Installation options:**
+
+1. **Using conda x86 architecture:**
+   ```bash
+   conda env create --file https://gitlab.esrf.fr/favre/PyNX/-/raw/master/conda-environment.yaml
+   ```
+
+2. **For other installation options, follow the instructions [here](https://gitlab.esrf.fr/favre/PyNX/-/blob/master/INSTALL.rst)**
+
+
+**Note:** PyNX requires CUDA-capable GPUs for phase retrieval. Pre-processing and post-processing stages in CDIutils can run without PyNX or GPU support.
+
+For detailed PyNX installation instructions, refer to the [official PyNX documentation](https://pynx.esrf.fr/en/latest/).
 
 
 ## Getting started

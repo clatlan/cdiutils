@@ -7,10 +7,45 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
    :maxdepth: 2
    :caption: Example Notebooks
 
+   ../bcdi_pipeline_example
+   ../interactive_features
+   ../bcdi_reconstruction_analysis
+   ../explore_cxi_file
+   ../pole_figure
+
 Jupyter Notebook Examples
 --------------------------
 
 The following Jupyter notebooks provide hands-on examples of CDIutils usage:
+
+Interactive 3D Visualisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`interactive_features.ipynb <../../examples/interactive_features.ipynb>`
+
+**New in v0.2.0!** Learn to use the modern interactive 3D visualisation tools:
+
+* ``plot_3d_isosurface`` - Quick interactive isosurface plotting with multiple quantities
+* ``ThreeDViewer`` - Widget for exploring complex 3D arrays (amplitude + phase)
+* ``TabPlotData`` - Interactive browser for CDI reconstruction results
+* Colormap selection and colorbar control (auto-scale, symmetric, manual limits)
+* NaN handling for clean visualisations
+* Theme toggle and rotation animations
+
+BCDI Pipeline Example
+~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`bcdi_pipeline_example.ipynb <../../examples/bcdi_pipeline_example.ipynb>`
+
+**Complete end-to-end pipeline** This comprehensive example demonstrates a full BCDI analysis workflow:
+
+* Setting up and running the ``BcdiPipeline`` class
+* Automated data processing and phase retrieval
+* Post-processing and strain analysis
+* **Interactive 3D visualisation** with ``plot_3d_isosurface`` (new in v0.2.0)
+* Advanced plotting and figure generation
+
+This example showcases the complete workflow from raw data to publication-ready visualisations, including the new Plotly-based interactive 3D plots.
 
 BCDI Reconstruction Analysis
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,7 +57,7 @@ This notebook demonstrates comprehensive BCDI reconstruction analysis including:
 * Loading experimental data
 * Phase retrieval with PyNX
 * Post-processing and strain analysis
-* Visualization and interpretation
+* Visualisation and interpretation
 
 CXI File Exploration
 ~~~~~~~~~~~~~~~~~~~~~
@@ -64,5 +99,3 @@ Getting Started
 2. Install CDIutils following the :doc:`../installation` guide
 3. Run the notebooks in your Jupyter environment
 4. Adapt the examples to your specific datasets
-
-For more detailed guidance, see the :doc:`../tutorials/index` section.

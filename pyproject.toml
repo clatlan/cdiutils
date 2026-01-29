@@ -4,21 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cdiutils"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Python package for (Bragg) Coherent X-ray Diffraction Imaging processing, analysis and visualisation workflows."
 
 authors = [
     { name = "Clement Atlan", email = "clement.atlan@esrf.fr" },
-    { name = "Corentin Chatelier" },
     { name = "David Simonne" },
-    { name = "Matthieu Deschamps" },
+    { name = "Corentin Chatelier" },
     { name = "Kyle Olson" },
+    { name = "Matthieu Deschamps" },
 ]
 maintainers = [
     {name = "Clement Atlan", email = "clement.atlan@esrf.fr"}
 ]
 requires-python = ">=3.10"
-readme = "README.md"
 keywords = [
     "reconstruction",
     "coherent X-ray imaging",
@@ -27,33 +26,71 @@ keywords = [
     "synchrotron radiation",
     "quantitative analysis",
 ]
-license = "MIT"
-license-files = ["LICENSE"]
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {file = "LICENSE.md"}
 
 dependencies = [
     "colorcet>=3.0.0",
-    "h5py>=3.6.0",
+    "h5py>=3.6.0", 
     "hdf5plugin>=3.2.0",
-    "ipykernel",
-    "matplotlib>=3.8",
+    "matplotlib>=3.10",
     "numpy",
     "pandas>=1.4.2",
     "scikit-image>=0.19.2",
     "scikit-learn>=1.1.3",
     "scipy>=1.8.0",
-    "seaborn>=0.12.1",
     "silx",
     "tabulate",
     "xrayutilities>=1.7.3",
-    "ipyvolume",
-    "ipython_genutils",
-    "bokeh",
-    "panel",
-    "tornado",
+    "pyyaml",
 ]
 
 [project.optional-dependencies]
 vtk = ["vtk>=9.0.1"]
+interactive = [
+    "ipywidgets",
+    "ipyvolume", 
+    "bokeh",
+    "panel",
+    "tornado",
+    "tables",
+    "h5glance",
+    "ipykernel",
+    "plotly>=5.0.0",
+    "anywidget",
+    "kaleido>=0.2.0",
+]
+pyvista = [
+    "pyvista>=0.43.0",
+    "trame>=3.0.0",
+    "trame-vuetify>=2.0.0",
+    "trame-vtk>=2.0.0",
+]
+docs = [
+    "sphinx>=4.0",
+    "pydata-sphinx-theme",
+    "nbsphinx",
+]
+all = [
+    "vtk>=9.0.1",
+    "ipywidgets",
+    "ipyvolume",
+    "bokeh", 
+    "panel",
+    "tornado",
+    "tables",
+    "h5glance",
+    "ipykernel",
+    "plotly>=5.0.0",
+    "anywidget",
+    "kaleido>=0.2.0",
+    "pyvista>=0.43.0",
+    "trame>=3.0.0",
+    "trame-vuetify>=2.0.0",
+    "trame-vtk>=2.0.0",
+    "sphinx>=4.0",
+    "pydata-sphinx-theme",
+]
 
 [project.urls]
 Homepage = "https://github.com/clatlan/cdiutils"
@@ -70,16 +107,39 @@ where = ["src"]
     "pipeline/pynx-id01-cdi_template.slurm",
     "templates/bcdi_pipeline.ipynb",
     "templates/step_by_step_bcdi_analysis.ipynb",
-    "templates/detector_calibration.ipynb"
+    "templates/detector_calibration.ipynb",
+    "plot/lut_*.npz"
 ]
-
-
-[tool.black]
-line-length = 79
 
 [tool.ruff]
 line-length = 79
 extend-include = ["*.ipynb"]
+# Exclude experimental/obsolete packages from linting
+exclude = [
+    "src/cdiutils/multibcdi/",
+    "src/cdiutils/facetanalysis/",
+    "src/cdiutils/process/facet_analysis.py",
+    "src/cdiutils/process/support_processor.py",
+]
+
+[tool.ruff.format]
+# ruff format respects line-length from [tool.ruff]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+# enable recommended rules
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort (import sorting)
+]
+# Ignore rules that require manual fixes across large codebase
+# These should be addressed gradually in future PRs
+ignore = [
+    "E501",  # line too long (docstrings/comments not auto-formatted)
+]
 
 
 [project.scripts]
@@ -90,3 +150,40 @@ prepare_detector_calibration = "cdiutils.scripts.prepare_detector_calibration:ma
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+# custom markers for test categorisation
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may be slow)",
+    "gpu: Requires GPU and PyNX",
+    "slow: Tests that take > 10 seconds",
+    "beamline: Beamline-specific tests requiring real data",
+    "sixs: SIXS beamline tests",
+    "id01: ID01 beamline tests",
+    "id27: ID27 beamline tests",
+    "cristal: Cristal beamline tests",
+    "p10: P10 beamline tests",
+    "nanomax: NanoMAX beamline tests",
+]
+# configure test output
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+# set minimum Python version for tests
+minversion = "3.10"
+# configure pytest-cov if installed
+[tool.coverage.run]
+source = ["cdiutils"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if not IS_.*_AVAILABLE:",
+]

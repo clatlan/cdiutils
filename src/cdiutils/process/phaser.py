@@ -1,39 +1,41 @@
 import copy
 import glob
 import os
+import re
+import shutil
 from typing import Type
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import silx.io
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import numpy as np
-import shutil
 from scipy.fft import fftn, fftshift, ifftshift
-from scipy.stats import gaussian_kde
 from scipy.ndimage import fourier_shift
+from scipy.stats import gaussian_kde
 from skimage.registration import phase_cross_correlation
-import silx.io
 
 try:
     from pynx.cdi import (
         CDI,
+        ER,
+        HIO,
+        RAAR,
         AutoCorrelationSupport,
+        DetwinHIO,
+        DetwinRAAR,
+        FourierApplyAmplitude,
+        InitPSF,
         InitSupportShape,
         ScaleObj,
-        SupportUpdate,
-        HIO,
-        DetwinHIO,
-        RAAR,
-        DetwinRAAR,
-        ER,
-        FourierApplyAmplitude,
         SupportTooLarge,
         SupportTooSmall,
-        InitPSF
+        SupportUpdate,
     )
     from pynx.cdi.selection import match2
     from pynx.utils.math import ortho_modes
+
     IS_PYNX_AVAILABLE = True
     CDI_Type = Type[CDI]
 
@@ -41,51 +43,44 @@ except ImportError:
     IS_PYNX_AVAILABLE = False
     CDI_Type = None
 
-from cdiutils.plot import get_plot_configs, add_colorbar
-from cdiutils.utils import get_centred_slices, valid_args_only, CroppingHandler
+from cdiutils.plot import add_colorbar, get_plot_configs
 from cdiutils.process.postprocessor import PostProcessor
-
+from cdiutils.utils import CroppingHandler, get_centred_slices, valid_args_only
 
 DEFAULT_PYNX_PARAMS = {
-
     # support-related params
     "support_threshold": (0.15, 0.40),
-    "smooth_width": (2, 0.5, 600),
+    "smooth_width": (2, 0.5, 900),  # (start, end, period)
     "post_expand": None,  # (-1, 1)
     "support_update_period": 50,
     "method": "rms",
     "force_shrink": False,
     "update_border_n": 0,
-    "smooth_width_begin": 2,
-    "smooth_width_end": 0.5,
     "support": None,
     "obj": None,
-    "amp_range": (0, 100),
+    "amp_range": (0, 1),
+    "scale_obj": "I",
     "phase_range": (-np.pi, np.pi),
     "all_random": False,
     "support_shape": None,
     "support_formula": None,
     "support_size": None,
-
     # object initialisation
     # "support": "auto",
     "support_autocorrelation_threshold": (0.09, 0.11),
-
     # operator parameters
     "calc_llk": 50,
     "show_cdi": 0,
     "update_psf": 100,
     "fig_num": -1,
     "zero_mask": False,
-
     # others
-    "psf": "pseudo-voigt,0.5,0.1,10",
+    "psf": "pseudo-voigt,1,0.05",  # model,fwhm,eta
     "compute_free_llk": True,
     "positivity": False,
     "confidence_interval_factor_mask_min": 0.5,
     "confidence_interval_factor_mask_max": 1.2,
-    "detwin": False
-
+    "detwin": False,
 }
 
 
@@ -108,11 +103,11 @@ class PyNXPhaser:
     """
 
     def __init__(
-            self,
-            iobs: np.ndarray,
-            mask: np.ndarray = None,
-            operators: dict = None,
-            **params,
+        self,
+        iobs: np.ndarray,
+        mask: np.ndarray = None,
+        operators: dict = None,
+        **params,
     ) -> None:
         """
         Initialisation method.
@@ -168,9 +163,13 @@ class PyNXPhaser:
         operator_parameters = {
             key: self.params[key]
             for key in [
-                    "calc_llk", "show_cdi", "update_psf", "fig_num",
-                    "zero_mask", "confidence_interval_factor_mask_max",
-                    "confidence_interval_factor_mask_min"
+                "calc_llk",
+                "show_cdi",
+                "update_psf",
+                "fig_num",
+                "zero_mask",
+                "confidence_interval_factor_mask_max",
+                "confidence_interval_factor_mask_min",
             ]
         }
         return {
@@ -181,7 +180,7 @@ class PyNXPhaser:
             "detwinraar": DetwinRAAR(detwin_axis=1),
             "faa": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)
-            )
+            ),
         }
 
     def _init_support_update(self) -> None:
@@ -189,19 +188,57 @@ class PyNXPhaser:
         Initialise the SupportUpdate class from pynx, depending on the
         parameters of the instance.
         """
-        # Find which parameters are accepted using class inspection
-        support_params = valid_args_only(self.params, SupportUpdate)
 
+        # load default pynx values for missing parameters
+        support_params = {
+            k: self.params.get(k, default)
+            for k, default in (
+                ("threshold_relative", 0.2),
+                ("smooth_width", 3),
+                ("force_shrink", False),
+                ("method", "rms"),
+                ("post_expand", None),
+                ("verbose", False),
+                ("update_border_n", 0),
+                ("min_fraction", 0),
+                ("max_fraction", 1),
+                ("lazy", False),
+            )
+        }
+
+        # if support_threshold is provided, use it to set the
+        # threshold_relative, unless threshold_relative is already provided
+        if (
+            "support_threshold" in self.params
+            and "threshold_relative" not in self.params
+        ):
+            # take care of different types
+            if isinstance(self.params["support_threshold"], (float, int)):
+                support_params["threshold_relative"] = self.params[
+                    "support_threshold"
+                ]
+            # if given as a string or list/tuple, assume it's a range
+            elif isinstance(self.params["support_threshold"], str):
+                # assuming it's a range in string format "min, max"
+                support_params["threshold_relative"] = np.random.uniform(
+                    *(
+                        float(x)
+                        for x in self.params["support_threshold"].split(",")
+                    )
+                )
+            elif isinstance(self.params["support_threshold"], (list, tuple)):
+                support_params["threshold_relative"] = np.random.uniform(
+                    *self.params["support_threshold"]
+                )
+
+        print("Using support update parameters:", support_params)
         if self.params["support_update_period"]:
             self.support_update = SupportUpdate(**support_params)
         else:
             self.support_update = 1
 
     def init_cdi(
-            self,
-            verbose: bool = True,
-            init_main_cdi: bool = True,
-            **params
+        self, verbose: bool = True, init_main_cdi: bool = True, **params
     ) -> CDI_Type:
         """
         Initialise the CDI object.
@@ -232,47 +269,53 @@ class PyNXPhaser:
             if isinstance(self.params[key], (int, float)):
                 self.params[key] = (
                     -self.params[key] if key == "phase_range" else 0,
-                    self.params[key]
+                    self.params[key],
                 )
 
         cdi = CDI(
             self.iobs, self.params["support"], self.params["obj"], self.mask
         )
-        if (
-                self.params["support"] is None
-                and self.params["obj"] is None
-        ):
+        if self.params["support"] is None and self.params["obj"] is None:
             if self.params["all_random"]:
                 if verbose:
                     print("Full random initialisation requested.")
                 amp = np.random.uniform(
                     low=self.params["amp_range"][0],
                     high=self.params["amp_range"][1],
-                    size=self.iobs.size
+                    size=self.iobs.size,
                 ).reshape(self.iobs.shape)
                 phase = np.random.uniform(
                     low=self.params["phase_range"][0],
                     high=self.params["phase_range"][1],
-                    size=self.iobs.size
+                    size=self.iobs.size,
                 ).reshape(self.iobs.shape)
                 cdi.set_obj(amp * np.exp(1j * phase))
             elif self.params["support_shape"] is not None:
-                cdi = InitSupportShape(
-                    shape=self.params["support_shape"],
-                    size=self.params.get("support_size"),
-                    formula=self.params.get("support_formula"),
-                ) * cdi
+                cdi = (
+                    InitSupportShape(
+                        shape=self.params["support_shape"],
+                        size=self.params.get("support_size"),
+                        formula=self.params.get("support_formula"),
+                    )
+                    * cdi
+                )
             else:
                 if verbose:
                     print("Support will be initialised using autocorrelation.")
-                cdi = AutoCorrelationSupport(
-                    threshold=self.params["support_autocorrelation_threshold"]
-                ) * cdi
+                cdi = (
+                    AutoCorrelationSupport(
+                        threshold=self.params[
+                            "support_autocorrelation_threshold"
+                        ]
+                    )
+                    * cdi
+                )
         if self.params["obj"] is None and not self.params["all_random"]:
             if verbose:
                 print(
                     "obj is None, will initialise object with support, and:"
-                    "\n\t-amp_range: " + (
+                    "\n\t-amp_range: "
+                    + (
                         "scale to observed I"
                         if self.params["scale_obj"]
                         else f"{self.params['amp_range']}"
@@ -285,12 +328,12 @@ class PyNXPhaser:
             amp = np.random.uniform(
                 low=self.params["amp_range"][0],
                 high=self.params["amp_range"][1],
-                size=np.flatnonzero(current_support).size
+                size=np.flatnonzero(current_support).size,
             )
             phase = np.random.uniform(
                 low=self.params["phase_range"][0],
                 high=self.params["phase_range"][1],
-                size=np.flatnonzero(current_support).size
+                size=np.flatnonzero(current_support).size,
             )
             obj[current_support > 0] *= amp * np.exp(1j * phase)
             cdi.set_obj(obj)
@@ -299,11 +342,12 @@ class PyNXPhaser:
             #     phirange=self.params["phase_range"]
             # ) * cdi
         if self.params["scale_obj"]:
-            cdi = ScaleObj(
-                method=self.params["scale_obj"], verbose=verbose
-            ) * cdi
+            cdi = (
+                ScaleObj(method=self.params["scale_obj"], verbose=verbose)
+                * cdi
+            )
         if self.params["psf"] is not None:
-            model, fwhm, eta, _ = self.params["psf"].split(",")
+            model, fwhm, eta = self.params["psf"].split(",")
             cdi = InitPSF(model, float(fwhm), float(eta)) * cdi
 
         if self.params["compute_free_llk"]:
@@ -323,10 +367,7 @@ class PyNXPhaser:
         return instructions
 
     def run(
-            self,
-            recipe: str,
-            cdi: CDI_Type = None,
-            init_cdi: bool = True
+        self, recipe: str, cdi: CDI_Type = None, init_cdi: bool = True
     ) -> None:
         """
         Run the reconstruction algorithm.
@@ -374,7 +415,8 @@ class PyNXPhaser:
                             else 1
                         )
                         cdi = (
-                            self.support_update * (algo**support_update_period)
+                            self.support_update
+                            * (algo**support_update_period)
                             ** (iteration // support_update_period)
                         ) * cdi
                         attempt = self.wrong_support_failure_tolerance
@@ -398,22 +440,19 @@ class PyNXPhaser:
                         )
                         attempt += 1
             elif instruction.lower() == "faa":
-                self.operators["faa"] * cdi
+                cdi = self.operators["faa"] * cdi
             else:
                 raise ValueError(f"Invalid instruction ({instruction}).")
 
     def run_multiple_instances(
-            self,
-            run_nb: int,
-            recipe: str,
-            init_cdi: bool = True
+        self, run_nb: int, recipe: str, init_cdi: bool = True
     ) -> None:
         """
         Run several reconstructions.
 
         Args:
             run_nb (int): the number of reconstructions
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             init_cdi (bool, optional):  whether to initialise the cdi
@@ -433,19 +472,45 @@ class PyNXPhaser:
             if self.cdi_list is None or not self.cdi_list:
                 raise ValueError(
                     "CDI object are not initialised, init_cdi should be True."
-
                 )
+
+        # if support_threshold is given as a list/tuple/string, set a different
+        # threshold for each run
+        support_relative_must_be_updated = False
+        if isinstance(self.params["support_threshold"], (list, tuple, str)):
+            support_relative_must_be_updated = True
+
         for i, cdi in enumerate(self.cdi_list):
             print(f"Run #{i + 1}")
+
+            # set support threshold if needed
+            if support_relative_must_be_updated:
+                if isinstance(self.params["support_threshold"], str):
+                    threshold = np.random.uniform(
+                        *(
+                            float(x)
+                            for x in self.params["support_threshold"].split(
+                                ","
+                            )
+                        )
+                    )
+                else:
+                    threshold = np.random.uniform(
+                        *self.params["support_threshold"]
+                    )
+                self.support_update.threshold_relative = threshold
+                print(f"Support threshold set to {threshold}")
+
+            # run the recipe
             self.run(recipe, cdi, init_cdi=False)
 
     def genetic_phasing(
-            self,
-            run_nb: int,
-            genetic_pass_nb: int,
-            recipe: str,
-            selection_method: str = "sharpness",
-            init_cdi: bool = True
+        self,
+        run_nb: int,
+        genetic_pass_nb: int,
+        recipe: str,
+        selection_method: str = "sharpness",
+        init_cdi: bool = True,
     ):
         """
         Run 'genetic'-like phasing. It runs a number of reconstruction
@@ -458,7 +523,7 @@ class PyNXPhaser:
             run_nb (int): the number of reconstructions.
             genetic_pass_nb (int): the number of genetic pass, i.e. the
                 number of times the recipe is applied.
-            recipe (str): the instruction to run, i.e. the sequence of 
+            recipe (str): the instruction to run, i.e. the sequence of
                 projection algorithms (ex:
                 "ER**200, HIO**400, RAAR**800")
             selection_method (str, optional): The metric used to select
@@ -499,7 +564,7 @@ class PyNXPhaser:
                         metrics[i] = (
                             PhasingResultAnalyser.amplitude_based_metrics(
                                 np.abs(self.cdi_list[i].get_obj(shift=True)),
-                                self.cdi_list[i].get_support(shift=True)
+                                self.cdi_list[i].get_support(shift=True),
                             )[selection_method]
                         )
                     except ValueError:
@@ -516,19 +581,18 @@ class PyNXPhaser:
                         continue
                     new_obj = self.cdi_list[i].get_obj()
                     new_obj = np.sqrt(
-                        np.abs(new_obj)
-                        * amplitude_reference
+                        np.abs(new_obj) * amplitude_reference
                     ) * np.exp(1j * np.angle(new_obj))
                     self.cdi_list[i].set_obj(new_obj)
             self.run_multiple_instances(run_nb, recipe, init_cdi=False)
 
     @staticmethod
     def plot_cdi(
-            cdi: CDI_Type,
-            spaces: str = "both",
-            axis: int = 0,
-            title: str = None,
-            axes: plt.Axes = None
+        cdi: CDI_Type,
+        spaces: str = "both",
+        axis: int = 0,
+        title: str = None,
+        axes: plt.Axes = None,
     ) -> None:
         """
         A staticmethod to plot cdi object main quantity.
@@ -567,16 +631,16 @@ class PyNXPhaser:
             "amplitude": amplitude,
             "phase": np.ma.masked_array(
                 np.angle(direct_space_obj), mask=(support == 0)
-            )
+            ),
         }
 
         if spaces == "direct":
             quantities["support"] = support
 
         elif spaces == "both":
-            quantities["calculated_intensity"] = np.abs(
-                ifftshift(fftn(cdi.get_obj().copy()))[the_slice]
-            ) ** 2
+            quantities["calculated_intensity"] = (
+                np.abs(ifftshift(fftn(cdi.get_obj().copy()))[the_slice]) ** 2
+            )
 
             iobs = cdi.get_iobs(shift=True).copy()[the_slice]
             tmp = np.logical_and(iobs > -1e19, iobs < 0)
@@ -612,7 +676,7 @@ class PyNXPhaser:
             if key == "observed_intensity":
                 plot_params["title"] = "Observed Int. (a.u.)"
             if "intensity" in key:
-                plot_params["norm"] = LogNorm()
+                plot_params["norm"] = LogNorm(1)
                 plot_params.pop("vmin"), plot_params.pop("vmax")
 
             # Set the ax title and remove it from the plotting params
@@ -647,16 +711,28 @@ class PyNXPhaser:
         fig.suptitle(title)
         return axes
 
+    def __repr__(self) -> str:
+        text = (
+            "PyNXPhaser object:\n"
+            f"PyNXPhaser with iobs shape: {self.iobs.shape}, "
+            f"mask shape: {self.mask.shape if self.mask is not None else None}"
+        )
+
+        parameters_text = "\nPyNX parameters:"
+        for key in sorted(self.params):
+            parameters_text += f"\n\t{key}: {self.params[key]}"
+        text += parameters_text
+        return text
+
 
 class PhasingResultAnalyser:
     """
     This class provided utility function for phase retrieval results
     analysis.
     """
+
     def __init__(
-            self,
-            cdi_results: list = None,
-            result_dir_path: str = None
+        self, cdi_results: list = None, result_dir_path: str = None
     ) -> None:
         """
         Init method.
@@ -686,7 +762,7 @@ class PhasingResultAnalyser:
         self.cdi_results = []
         if cdi_results:
             self.cdi_results = {
-                f"Run{i+1:04d}": cdi for i, cdi in enumerate(cdi_results)
+                f"Run{i + 1:04d}": cdi for i, cdi in enumerate(cdi_results)
             }
         self.result_dir_path = result_dir_path
         self._metrics = None
@@ -721,26 +797,35 @@ class PhasingResultAnalyser:
                 sorted_results[path] = self._sorted_phasing_results[path]
         return sorted_results
 
-    def find_phasing_results(self) -> None:
+    def find_phasing_results(self, search_pattern: str = "*Run*.cxi") -> None:
         """
-        Find the last phasing results (.cxi files) and add them to the
-        given list if provided, otherwise create the list.
+        Find phasing results (.cxi files) that match the given pattern.
+
+        Args:
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
+
+        Raises:
+            ValueError: If no files match the given pattern.
         """
         self.result_paths = []
-        fetched_paths = glob.glob(self.result_dir_path + "/*Run*.cxi")
+        # Handle the path joining properly without duplicate slashes
+        full_path_pattern = os.path.join(self.result_dir_path, search_pattern)
+        fetched_paths = glob.glob(full_path_pattern)
+
         for path in fetched_paths:
             if os.path.isfile(path):
                 self.result_paths.append(path)
+
         if not self.result_paths:
             raise ValueError(
-                "No result found that match the pattern '*Run*.cxi' in the "
-                f"result_dir_path ({self.result_dir_path})"
+                f"No result found that match the pattern '{search_pattern}' "
+                f"in the result_dir_path ({self.result_dir_path})"
             )
 
     @staticmethod
     def amplitude_based_metrics(
-            amplitude: np.ndarray,
-            support: np.ndarray
+        amplitude: np.ndarray, support: np.ndarray
     ) -> dict:
         """
         Compute the criteria based on amplitude analysis, namely:
@@ -758,14 +843,10 @@ class PhasingResultAnalyser:
             dict: the dictionary containing the metrics.
         """
         if amplitude.shape != support.shape:
-            raise ValueError(
-                "Amplitude and support must have the same shape."
-            )
+            raise ValueError("Amplitude and support must have the same shape.")
         if amplitude.size == 0 or support.size == 0:
-            raise ValueError(
-                "Amplitude and support must not be empty arrays."
-            )
-        sharpness = np.mean((amplitude * support)**4)
+            raise ValueError("Amplitude and support must not be empty arrays.")
+        sharpness = np.mean((amplitude * support) ** 4)
         amplitude = amplitude[support > 0]
         std = np.std(amplitude)
         amplitude /= np.max(amplitude)
@@ -778,15 +859,16 @@ class PhasingResultAnalyser:
         return {
             "mean_to_max": 1 - x[max_index],
             "std": std,
-            "sharpness": sharpness
+            "sharpness": sharpness,
         }
 
     def analyse_phasing_results(
-            self,
-            sorting_criterion: str = "mean_to_max",
-            plot: bool = True,
-            plot_phasing_results: bool = True,
-            plot_phase: bool = False,
+        self,
+        sorting_criterion: str = "mean_to_max",
+        search_pattern: str = "*Run*.cxi",
+        plot: bool = True,
+        plot_phasing_results: bool = True,
+        plot_phase: bool = False,
     ) -> None:
         """
         Analyse the phase retrieval results by sorting them according to
@@ -806,6 +888,8 @@ class PhasingResultAnalyser:
         Args:
             sorting_criterion (str, optional): the criterion to sort the
                 results with. Defaults to "mean_to_max".
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
             plot (bool, optional): whether or not to disable all plots.
             plot_phasing_results (bool, optional): whether to plot the
                 phasing results. Defaults to True.
@@ -828,17 +912,16 @@ class PhasingResultAnalyser:
             print("[INFO] Computing metrics...")
 
             self._metrics = {
-                m: {f: None for f in self.result_paths}
-                for m in criteria
+                m: {f: None for f in self.result_paths} for m in criteria
             }
             if self.cdi_results:
                 for run in self.cdi_results:
-                    self._metrics["llk"][run] = (
-                        self.cdi_results[run].llk_poisson
-                    )
-                    self._metrics["llkf"][run] = (
-                        self.cdi_results[run].llk_poisson_free
-                    )
+                    self._metrics["llk"][run] = self.cdi_results[
+                        run
+                    ].llk_poisson
+                    self._metrics["llkf"][run] = self.cdi_results[
+                        run
+                    ].llk_poisson_free
 
                     amplitude = np.abs(self.cdi_results[run].get_obj())
                     support = self.cdi_results[run].get_support()
@@ -851,12 +934,12 @@ class PhasingResultAnalyser:
                         amplitude_based_metrics = {
                             "mean_to_max": np.nan,
                             "std": np.nan,
-                            "sharpness": np.nan
+                            "sharpness": np.nan,
                         }
                     for m in ["mean_to_max", "std", "sharpness"]:
                         self._metrics[m][run] = amplitude_based_metrics[m]
             else:
-                self.find_phasing_results()
+                self.find_phasing_results(search_pattern)
 
                 for p in self.result_paths:
                     with silx.io.h5py_utils.File(p, "r") as file:
@@ -882,8 +965,8 @@ class PhasingResultAnalyser:
                 ptp_value = np.ptp(np.array(list(self._metrics[m].values())))
                 for k in self._metrics[m].keys():
                     self._metrics[m][k] = (
-                        (self._metrics[m][k] - minimum_value) / ptp_value
-                    )
+                        self._metrics[m][k] - minimum_value
+                    ) / ptp_value
 
         # compute the average value over all metrics
         for run in self._metrics["llk"]:
@@ -894,30 +977,37 @@ class PhasingResultAnalyser:
 
         # now sort the files according to the provided criterion
         self._sorted_phasing_results = dict(
-                sorted(
-                    self._metrics[sorting_criterion].items(),
-                    key=lambda item: item[1],
-                    reverse=False
-                )
+            sorted(
+                self._metrics[sorting_criterion].items(),
+                key=lambda item: item[1],
+                reverse=False,
             )
+        )
         if self.cdi_results is not None:
             runs = [
-                run.split("Run")[1][2:4]
+                str(extract_run_info(run)[0]).zfill(2)
                 for run in self._sorted_phasing_results
             ]
         else:
             runs = [
-                file.split("Run")[1][2:4]
+                str(extract_run_info(file)[0]).zfill(2)
                 for file in self._sorted_phasing_results
             ]
 
         if plot:
             figure, ax = plt.subplots(1, 1, layout="tight", figsize=(6, 3))
             colors = {
-                m: c for m, c in zip(
+                m: c
+                for m, c in zip(
                     self._metrics,
-                    ["lightcoral", "mediumslateblue",
-                     "dodgerblue", "plum", "teal", "crimson"]
+                    [
+                        "lightcoral",
+                        "mediumslateblue",
+                        "dodgerblue",
+                        "plum",
+                        "teal",
+                        "crimson",
+                    ],
                 )
             }
             for m in self._metrics:
@@ -929,11 +1019,11 @@ class PhasingResultAnalyser:
                     ],
                     label=m,
                     color=colors[m],
-                    marker='o',
+                    marker="o",
                     markersize=4,
                     markerfacecolor=colors[m],
                     markeredgewidth=0.5,
-                    markeredgecolor='k'
+                    markeredgecolor="k",
                 )
             ax.set_ylabel("Normalised metric")
             ax.set_xlabel("Run number")
@@ -945,9 +1035,7 @@ class PhasingResultAnalyser:
             ax.legend(
                 loc="center left", bbox_to_anchor=(1, 0.5), frameon=False
             )
-            figure.suptitle(
-                "Phasing result analysis (the lower the better)\n"
-            )
+            figure.suptitle("Phasing result analysis (the lower the better)\n")
         print(
             f"[INFO] the sorted list of runs using '{sorting_criterion}' "
             f"sorting_criterion is:\n{runs}."
@@ -963,16 +1051,15 @@ class PhasingResultAnalyser:
                     with silx.io.h5py_utils.File(result, "r") as file:
                         data = file["entry_1/data_1/data"][()]
                         support = file["entry_1/image_1/support"][()]
-                run = int(result.split("Run")[1][:4])
-                title = (
-                    f"Phasing results, run {int(result.split('Run')[1][:4])}"
-                )
+                run = extract_run_info(result)[0]
+                title = f"Phasing results, run {extract_run_info(result)[0]}"
                 self.plot_phasing_result(data, support, title, plot_phase)
 
     def select_best_candidates(
-            self,
-            nb_of_best_sorted_runs: int = None,
-            best_runs: list[int] = None
+        self,
+        nb_of_best_sorted_runs: int = None,
+        best_runs: list[int] = None,
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
         Select the best candidates, two methods are possible. Either
@@ -986,6 +1073,8 @@ class PhasingResultAnalyser:
                 Defaults to None.
             best_runs (list[int], optional): the best runs to select.
                 Defaults to None.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: If nb_of_best_sorted_runs but reconstructions
@@ -1002,22 +1091,20 @@ class PhasingResultAnalyser:
         if best_runs:
             if self.cdi_results:
                 # This is the notebook mode
-                self.best_candidates = [f'Run{r:04d}' for r in best_runs]
+                self.best_candidates = [f"Run{r:04d}" for r in best_runs]
             else:
                 # This is the script/pipeline mode
                 self.best_candidates = []
                 if not self.result_paths:
-                    self.find_phasing_results()
+                    self.find_phasing_results(search_pattern)
                 for path in self.result_paths:
-                    run_nb = int(path.split("Run")[1][:4])
+                    run_nb = extract_run_info(path)[0]
                     if run_nb in best_runs:
                         self.best_candidates.append(path)
 
         elif nb_of_best_sorted_runs:
             if self._sorted_phasing_results is None:
-                raise ValueError(
-                        "Phasing results have not been analysed yet."
-                )
+                raise ValueError("Phasing results have not been analysed yet.")
             self.best_candidates = list(self._sorted_phasing_results.keys())
             self.best_candidates = self.best_candidates[
                 :nb_of_best_sorted_runs
@@ -1028,23 +1115,26 @@ class PhasingResultAnalyser:
             # Remove the previous candidate files
             for f in glob.glob(self.result_dir_path + "/candidate_*.cxi"):
                 os.remove(f)
-            print(
-                "[INFO] Best candidates selected:\n"
-                f"{[f.split('Run')[1][2:4] for f in self.best_candidates]}"
-            )
+            printout_list = [
+                str(extract_run_info(f)[0]).zfill(2)
+                for f in self.best_candidates
+            ]
+            print(f"[INFO] Best candidates selected:\n{printout_list}")
             for i, f in enumerate(self.best_candidates):
                 dir_name, file_name = os.path.split(f)
-                run_nb = file_name.split("Run")[1][2:4]
+                run_nb = str(extract_run_info(file_name)[0]).zfill(2)
                 scan_nb = file_name.split("_")[0]
                 file_name = (
-                    f"/candidate_{i+1}-{len(self.best_candidates)}"
+                    f"/candidate_{i + 1}-{len(self.best_candidates)}"
                     f"_{scan_nb}_run_{run_nb}.cxi"
                 )
                 shutil.copy(f, dir_name + file_name)
 
     # Note: this method only works if PyNX is installed. If not, use
     # the BcdiPipeline method.
-    def mode_decomposition(self, verbose: bool = True) -> np.ndarray:
+    def mode_decomposition(
+        self, verbose: bool = True, search_pattern: str = "*Run*.cxi"
+    ) -> np.ndarray:
         """
         Run a mode decomposition à la PyNX. See pynx_cdi_analysis.py
         script. Note that this method only works if PyNX is installed.
@@ -1053,6 +1143,8 @@ class PhasingResultAnalyser:
         Args:
             verbose (bool, optional): whether to print some logs.
                 Defaults to True.
+            search_pattern (str, optional): Pattern to search for files.
+                Uses glob syntax (not regex). Defaults to "*Run*.cxi".
 
         Raises:
             ValueError: in script/notebook mode, if not results are
@@ -1081,7 +1173,7 @@ class PhasingResultAnalyser:
                         "done against the best result."
                     )
                 if self.result_paths is None:
-                    self.find_phasing_results()
+                    self.find_phasing_results(search_pattern)
                 result_keys = self.result_paths
         results = []
         for r in result_keys:
@@ -1096,7 +1188,7 @@ class PhasingResultAnalyser:
             _, d2c, r = match2(results[0], results[i])
             match2_results.append(d2c)  # don't know if needed, that's PyNX way
             if verbose:
-                print(f"R_match({i}) = {r*100:6.3f} %")
+                print(f"R_match({i}) = {r * 100:6.3f} %")
 
         modes, mode_weights = ortho_modes(
             match2_results, nb_mode=1, return_weights=True
@@ -1107,10 +1199,10 @@ class PhasingResultAnalyser:
 
     @staticmethod
     def plot_phasing_result(
-            data: np.ndarray,
-            support: np.ndarray,
-            title: str = None,
-            plot_phase: bool = False
+        data: np.ndarray,
+        support: np.ndarray,
+        title: str = None,
+        plot_phase: bool = False,
     ) -> None:
         """
         Plot the reconstructed object in reciprocal and direct spaces.
@@ -1124,12 +1216,11 @@ class PhasingResultAnalyser:
                 If False, amplitude will be plotted.
                 Defaults to False.
         """
-        reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data))))**2
+        reciprocal_space_data = np.abs(ifftshift(fftn(fftshift(data)))) ** 2
         direct_space_amplitude = np.abs(data)
         normalised_direct_space_amplitude = (
-            (direct_space_amplitude - np.min(direct_space_amplitude))
-            / np.ptp(direct_space_amplitude)
-        )
+            direct_space_amplitude - np.min(direct_space_amplitude)
+        ) / np.ptp(direct_space_amplitude)
         direct_space_phase = np.angle(data)
 
         if data.ndim == 3:
@@ -1143,7 +1234,7 @@ class PhasingResultAnalyser:
                 rcp_im = axes[0, i].matshow(
                     np.sum(reciprocal_space_data, axis=i),
                     cmap="turbo",
-                    norm=LogNorm()
+                    norm=LogNorm(1),
                 )
                 if plot_phase:
                     direct_space_im = axes[1, i].matshow(
@@ -1151,14 +1242,14 @@ class PhasingResultAnalyser:
                         vmin=-np.pi,
                         vmax=np.pi,
                         alpha=normalised_direct_space_amplitude[slices[i]],
-                        cmap="cet_CET_C9s_r"
+                        cmap="cet_CET_C9s_r",
                     )
                 else:
                     direct_space_im = axes[1, i].matshow(
                         direct_space_amplitude[slices[i]],
                         vmin=0,
                         vmax=direct_space_amplitude.max(),
-                        cmap="turbo"
+                        cmap="turbo",
                     )
 
                 if support[slices[i]].sum() > 0:
@@ -1182,9 +1273,7 @@ class PhasingResultAnalyser:
             figure, axes = plt.subplots(1, 2, figsize=(4, 2), layout="tight")
 
             rcp_im = axes[0].matshow(
-                reciprocal_space_data,
-                cmap="turbo",
-                norm=LogNorm()
+                reciprocal_space_data, cmap="turbo", norm=LogNorm(1)
             )
             if plot_phase:
                 direct_space_im = axes[1].matshow(
@@ -1192,14 +1281,14 @@ class PhasingResultAnalyser:
                     vmin=-np.pi,
                     vmax=np.pi,
                     alpha=normalised_direct_space_amplitude,
-                    cmap="cet_CET_C9s_r"
+                    cmap="cet_CET_C9s_r",
                 )
             else:
                 direct_space_im = axes[1].matshow(
                     direct_space_amplitude,
                     vmin=0,
                     vmax=direct_space_amplitude.max(),
-                    cmap="turbo"
+                    cmap="turbo",
                 )
             if support.sum() > 0:
                 axes[1].set_xlim(
@@ -1212,8 +1301,9 @@ class PhasingResultAnalyser:
                 )
             figure.colorbar(rcp_im, ax=axes[0])
             figure.colorbar(
-                direct_space_im, ax=axes[1],
-                extend="both" if plot_phase else None
+                direct_space_im,
+                ax=axes[1],
+                extend="both" if plot_phase else None,
             )
 
             axes[0].set_title("Intensity sum (a.u.)")
@@ -1226,18 +1316,19 @@ class PhasingResultAnalyser:
             ax.set_yticks([])
 
         figure.suptitle(title)
+
     plt.show()
 
     @staticmethod
     def twin_image_checkup(
-            ref: np.ndarray | str,
-            reconstruction: np.ndarray | str,
-            phase_unwrap: bool = True,
-            **plot_params
+        ref: np.ndarray | str,
+        reconstruction: np.ndarray | str,
+        phase_unwrap: bool = True,
+        **plot_params,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Implementation of the check-up for the twin image problem as
-        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa 
+        described by Manuel Sicairos (see https://www.researchgate.net/publication/233828110_Understanding_the_twin-image_problem_in_phase_retrieval)  # noqa
         The function takes two reconstructions, one is considered a
         reference. After the two reconstuctions being registered, their
         phase in the Fourier space are compared (difference). The same
@@ -1321,7 +1412,8 @@ class PhasingResultAnalyser:
             PostProcessor.unwrap_phase(
                 fourier_phases[k] - fourier_phases["ref"]
             )
-            if phase_unwrap else fourier_phases[k] - fourier_phases["ref"]
+            if phase_unwrap
+            else fourier_phases[k] - fourier_phases["ref"]
             for k in ("reconstruction", "twin")
         ]
 
@@ -1345,7 +1437,7 @@ class PhasingResultAnalyser:
             axes[1, 1].set_title(
                 r"$\varphi_{\text{twin}} - \varphi_{\text{ref}} "
                 r"= -\varphi - \varphi_{\text{ref}}$",
-                y=1.1
+                y=1.1,
             )
         if ref.ndim == 2:
             figure, axes = plt.subplots(1, 2, layout="tight")
@@ -1362,3 +1454,39 @@ class PhasingResultAnalyser:
             add_colorbar(ax, extend="both")
 
         return figure, axes
+
+
+def extract_run_info(filename: str) -> tuple[int, str]:
+    """
+    Extract run number and scan info from a filename.
+
+    Args:
+        filename: Path or filename containing run information
+
+    Returns:
+        Run number and original run string
+    """
+    # Extract just the filename if a full path is given
+    base_filename = os.path.basename(filename)
+
+    # Try multiple patterns to extract run numbers
+    run_patterns = [
+        # Pattern for "Run0001" style
+        (r"Run(\d+)", lambda m: int(m.group(1))),
+        # Pattern for "Run_0001" style
+        (r"Run_(\d+)", lambda m: int(m.group(1))),
+        # Pattern for files with "_run_01" style
+        (r"_run_(\d+)", lambda m: int(m.group(1))),
+        # Pattern for "r0001" style
+        (r"r(\d+)", lambda m: int(m.group(1))),
+    ]
+
+    for pattern, extractor in run_patterns:
+        match = re.search(pattern, base_filename)
+        if match:
+            run_num = extractor(match)
+            run_str = match.group(0)
+            return run_num, run_str
+
+    # If no pattern matches, return a default
+    return 0, "unknown"

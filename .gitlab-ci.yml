@@ -1,0 +1,198 @@
+# GitLab CI for CDIutils using shell executor with mamba
+# based on PyNX CI template
+
+# By default, I ll use GPU tags for all jobs, this forces the jobs to
+# run on the same machine, otherwise different we get failure due to 
+# incorrect paths / environment.
+
+stages:
+  - build
+  - test
+  - cleanup
+
+# run CI for merge requests and pushes to dev/master
+.default_rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "dev"
+    - if: $CI_COMMIT_BRANCH == "master"
+
+variables:
+  # use GitLab builds directory for conda environment
+  CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils_ci/$CI_PIPELINE_ID
+  CDIUTILS_TEST_DATA: /scisoft/cdiutils_test_data
+
+build-job:
+  stage: build
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "building cdiutils environment..."
+    - echo "pipeline ID:" $CI_PIPELINE_ID
+    - echo "project dir:" $CI_PROJECT_DIR
+    - echo "environment path:" $CDIUTILS_ENV
+    # clean up any existing environment at this path
+    - rm -rf $CDIUTILS_ENV
+    # load mamba module
+    - module load mamba
+    - which mamba
+    # create environment from environment-dev.yml
+    - mamba env create --prefix $CDIUTILS_ENV --file $CI_PROJECT_DIR/environment-dev.yml
+    - mamba activate $CDIUTILS_ENV
+    - python --version
+    # install cdiutils in editable mode
+    - pip install -e $CI_PROJECT_DIR
+    - echo "environment created successfully"
+
+lint-job:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running ruff linting..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - ruff check src/cdiutils tests
+    - ruff format --check --line-length 79 src/cdiutils tests
+    - echo "linting passed"
+
+test-unit:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running unit tests..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - pytest tests/unit -v -ra --tb=short
+    - echo "unit tests passed"
+
+test-integration:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running integration tests (no GPU)..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - pytest tests/integration -m "integration and not gpu" -v -ra --tb=short
+    - echo "integration tests passed"
+  timeout: 30 minutes
+  allow_failure: true
+
+test-beamlines-nanomax:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running NanoMAX beamline I/O test..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "test data root:" $CDIUTILS_TEST_DATA
+    - pytest tests/integration/test_beamlines.py::test_nanomax_preprocessing -v -ra --tb=short
+    - echo "NanoMAX test passed"
+  timeout: 10 minutes
+  allow_failure: true
+
+test-beamlines-p10:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running P10 beamline I/O test..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "test data root:" $CDIUTILS_TEST_DATA
+    - pytest tests/integration/test_beamlines.py::test_p10_preprocessing -v -ra --tb=short
+    - echo "P10 test passed"
+  timeout: 10 minutes
+  allow_failure: true
+
+test-gpu:
+  stage: test
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running GPU tests..."
+    - echo "DEBUG - CI_BUILDS_DIR:" $CI_BUILDS_DIR
+    - echo "DEBUG - CDIUTILS_ENV:" $CDIUTILS_ENV
+    - echo "DEBUG - hostname:" $(hostname)
+    - ls -la $CDIUTILS_ENV || echo "Environment not found!"
+    - module load mamba cuda
+    - which nvcc
+    - nvcc --version
+    - mamba activate $CDIUTILS_ENV
+    - echo "Setting PyNX bin directory..."
+    - export PYNX_BIN="/cvmfs/hpc.esrf.fr/software/packages/ubuntu24.04/x86_64/pynx/2025.1/bin"
+    - echo "Running GPU pipeline test..."
+    - pytest tests/integration/test_pipeline_full.py::TestFullPipelineID01::test_full_pipeline_real_data -v -ra --tb=short
+    - echo "GPU pipeline test passed"
+    - echo "Cleaning up large files, keeping only essential artifacts..."
+    # keep only: parameters, mode CXI, and preprocessed CXI for postprocessing
+    - find gpu_test_results -type f ! -name "S*_parameters.yml" ! -name "S*_pynx_reconstruction_mode.cxi" ! -name "S*_preprocessed_data.cxi" -delete 2>/dev/null || true
+    - find gpu_test_results -type d -empty -delete 2>/dev/null || true
+    - echo "Artifact cleanup complete. Remaining files:"
+    - find gpu_test_results -type f -ls
+  artifacts:
+    paths:
+      - gpu_test_results/
+    expire_in: 1 day
+    when: always
+  timeout: 30 minutes
+  allow_failure: true
+
+test-postprocessing:
+  stage: test
+  tags:
+    - gpu  # CPU only - no GPU needed for postprocessing
+  needs:
+    - job: test-gpu
+      artifacts: true
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "running postprocessing tests with GPU results..."
+    - module load mamba
+    - mamba activate $CDIUTILS_ENV
+    - echo "Checking for GPU test artifacts..."
+    - ls -la gpu_test_results/ || echo "No artifacts found"
+    - echo "Running postprocessing tests..."
+    - pytest tests/integration/test_pipeline_postprocessing.py::TestPostprocessingWithRealData -v -ra --tb=short
+    - echo "Postprocessing tests passed"
+  timeout: 15 minutes
+  allow_failure: true
+
+# always cleanup environment at the end
+cleanup-job:
+  stage: cleanup
+  tags:
+    - gpu
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - echo "cleaning up environment..."
+    - rm -rf $CDIUTILS_ENV
+    - echo "cleanup complete"
+  when: always

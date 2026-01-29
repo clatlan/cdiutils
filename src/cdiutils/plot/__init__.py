@@ -1,13 +1,23 @@
 import importlib
 
-from .colormap import PARULA, RED_TO_TEAL, TURBO_FIRST_HALF, TURBO_SECOND_HALF
+from .colormap import (
+    JCH_CONST,
+    JCH_MAX,
+    PARULA,
+    RED_TO_TEAL,
+    TURBO_FIRST_HALF,
+    TURBO_SECOND_HALF,
+    complex_to_rgb,
+)
 from .formatting import (
     add_colorbar,
+    add_colorwheel,
     add_labels,
     get_extent,
     get_figure_size,
     get_plot_configs,
     get_x_y_limits_extents,
+    make_colorwheel,
     save_fig,
     set_plot_configs,
     set_x_y_limits_extents,
@@ -16,10 +26,9 @@ from .formatting import (
     x_y_lim_from_support,
 )
 
-__submodules__ = {"slice", "volume", "interactive", "stats"}
+__submodules__ = {"slice", "volume", "stats"}
 
 __class_func_submodules__ = {
-    "Plotter": "interactive",
     "plot_volume_slices": "slice",
     "plot_multiple_volume_slices": "slice",
     "VolumeViewer": "volume",
@@ -44,6 +53,11 @@ __all__ = [
     "RED_TO_TEAL",
     "TURBO_FIRST_HALF",
     "TURBO_SECOND_HALF",
+    "JCH_CONST",
+    "JCH_MAX",
+    "complex_to_rgb",
+    "make_colorwheel",
+    "add_colorwheel",
 ]
 __all__ += list(__submodules__) + list(__class_func_submodules__)
 

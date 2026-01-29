@@ -1,6 +1,5 @@
 """Loader for the Cristal beamline at SOLEIL."""
 
-
 import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
@@ -25,17 +24,17 @@ class CristalLoader(H5TypeLoader):
         "sample_outofplane_angle": "i06-c-c07-ex-mg_omega",
         "sample_inplane_angle": "i06-c-c07-ex-mg_phi",
         "detector_outofplane_angle": "Diffractometer/i06-c-c07-ex-dif-delta",
-        "detector_inplane_angle": "Diffractometer/i06-c-c07-ex-dif-gamma"
+        "detector_inplane_angle": "Diffractometer/i06-c-c07-ex-dif-gamma",
     }
-    authorised_detector_names = ("maxipix", )
+    authorised_detector_names = ("maxipix",)
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            scan: int = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        scan: int = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise NanoMaxLoader with experiment data file path and
@@ -55,16 +54,16 @@ class CristalLoader(H5TypeLoader):
             experiment_file_path,
             scan=scan,
             flat_field=flat_field,
-            alien_mask=alien_mask
+            alien_mask=alien_mask,
         )
 
     @h5_safe_load
     def load_detector_data(
-            self,
-            scan: int = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         scan, _ = self._check_scan_sample(scan)
 
@@ -95,15 +94,15 @@ class CristalLoader(H5TypeLoader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @h5_safe_load
     def load_motor_positions(
-            self,
-            scan: int = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> dict:
         scan, _ = self._check_scan_sample(scan)
 
@@ -117,9 +116,9 @@ class CristalLoader(H5TypeLoader):
             )
 
         # get the full motor name used for the rocking curve
-        full_rocking_motor_name = self.h5file[
-            key_path + "/scan_config/name"
-        ][()].decode("utf-8")
+        full_rocking_motor_name = self.h5file[key_path + "/scan_config/name"][
+            ()
+        ].decode("utf-8")
 
         # extract the important part (omega or phi)
         if "omega" in full_rocking_motor_name.lower():

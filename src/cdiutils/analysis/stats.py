@@ -1,13 +1,11 @@
 import matplotlib.pyplot as plt
-from matplotlib.typing import ColorType
-
 import numpy as np
+from matplotlib.typing import ColorType
 from scipy.ndimage import binary_erosion
 from scipy.stats import gaussian_kde
-from seaborn import kdeplot
 
-from cdiutils.utils import normalise
 from cdiutils.plot.formatting import save_fig
+from cdiutils.utils import normalise
 
 
 def kde_from_histogram(
@@ -138,6 +136,18 @@ def find_isosurface(
     sigma_estimate = fwhm / (2 * np.sqrt(2 * np.log(2)))
     isosurface = x[max_index] - sigma_criterion * sigma_estimate
 
+    # Ensure isosurface is non-negative
+    if isosurface < 0:
+        import warnings
+
+        warnings.warn(
+            f"Isosurface estimate ({isosurface:.3f}) is negative. "
+            "Returning 0. This may indicate poor signal-to-noise ratio "
+            "or unsuitable data for isosurface detection.",
+            UserWarning,
+        )
+        isosurface = 0
+
     if plot or show:
         figsize = (6, 4)  # (5.812, 3.592)  # golden ratio
         fig, ax = plt.subplots(1, 1, layout="tight", figsize=figsize)
@@ -150,14 +160,16 @@ def find_isosurface(
             edgecolor=(0, 0, 0, 0.25),
             label=r"amplitude distribution",
         )
-        kdeplot(
-            filtered_amplitude,
-            ax=ax,
+
+        kde_x, kde_y = kde_from_histogram(counts, bins)
+        ax.fill_between(
+            kde_x,
+            kde_y,
             alpha=0.3,
-            fill=True,
             color="navy",
             label=r"density estimate",
         )
+
         ax.axvspan(
             x[left_HM_index],
             x[right_HM_index],
@@ -244,7 +256,7 @@ def get_histogram(
     stds["overall"] = np.nanstd(overall_data)
 
     if region != "overall":
-        bulk = binary_erosion(support)
+        bulk = binary_erosion(support.astype(bool))
         bulk_data = data[bulk > 0]
 
         if region == "bulk" or region == "all":
@@ -258,7 +270,7 @@ def get_histogram(
             stds["bulk"] = np.nanstd(bulk_data)
 
         if region == "surface" or region == "all":
-            surface = support - bulk
+            surface = (support.astype(bool) & ~bulk).astype(int)
             surface_data = data[surface > 0]
             histograms["surface"] = np.histogram(
                 surface_data,

@@ -4,26 +4,36 @@ browser functionality.
 """
 
 from pathlib import Path
-import numpy as np
-import matplotlib.pyplot as plt
+
 import h5py
-import ipywidgets
-from IPython.display import display
+import matplotlib.pyplot as plt
+import numpy as np
+
+try:
+    import ipywidgets
+    from IPython.display import display
+
+    HAS_IPYWIDGETS = True
+except ImportError:
+    HAS_IPYWIDGETS = False
 
 from cdiutils.io.cxi import CXIFile
-from cdiutils.plot.slice import plot_volume_slices
 from cdiutils.plot.formatting import add_colorbar
+from cdiutils.plot.slice import plot_volume_slices
 
 
 class CXIExplorer:
     """
-    A class for inspecting and exploring the content of a CXI file.
+    Interactive explorer for CXI file inspection and visualisation.
 
-    This explorer provides various ways to inspect CXI file structure,
-    including:
-    - Tree view of the file hierarchy
-    - Detailed information about datasets and attributes
-    - Visualisation of array data
+    Provides tools for navigating CXI file hierarchies, viewing
+    metadata, and visualising array data. Requires Jupyter environment
+    with ipywidgets for interactive features.
+
+    Attributes:
+        cxi: CXIFile instance being explored.
+        paths: List of all dataset/group paths in file.
+        soft_links: Dictionary mapping soft link names to targets.
     """
 
     max_number_of_values_printed = 100
@@ -38,7 +48,19 @@ class CXIExplorer:
         Args:
             cxi_file (str | CXIFile): Either a string path to a CXI file
             or a CXIFile object
+
+        Raises:
+            ImportError: If ipywidgets is not installed (required for
+                interactive features)
         """
+        if not HAS_IPYWIDGETS:
+            raise ImportError(
+                "CXIExplorer requires ipywidgets for interactive features. "
+                "Install with: pip install ipywidgets\n"
+                "Or install all interactive dependencies: "
+                "pip install cdiutils[interactive]"
+            )
+
         # handle both string paths and CXIFile objects
         if isinstance(cxi_file, str):
             self.file_path = cxi_file
@@ -136,9 +158,7 @@ class CXIExplorer:
             return False, None
 
     def tree(
-            self,
-            max_depth: int = None,
-            show_attributes: bool = False
+        self, max_depth: int = None, show_attributes: bool = False
     ) -> None:
         """
         Print a tree view of the CXI file structure similar to the Linux
@@ -188,7 +208,9 @@ class CXIExplorer:
                 if max_depth is not None and depth == max_depth:
                     # Only count direct children at this level
                     if keys:  # Only show if there are actually children
-                        print(f"{child_prefix}└── {len(keys)} more entrie(s)...")  # noqa: E501
+                        print(
+                            f"{child_prefix}└── {len(keys)} more entrie(s)..."
+                        )  # noqa: E501
                     return
 
                 # Process all children
@@ -216,25 +238,23 @@ class CXIExplorer:
 
                 # Truncate type string if it's too long
                 if len(type_str) > self.tree_max_string_length:
-                    type_str = type_str[:self.tree_max_string_length-3] + "..."
+                    type_str = (
+                        type_str[: self.tree_max_string_length - 3] + "..."
+                    )
 
                 # Add short data preview for small datasets
                 data_preview = ""
                 if node.size <= self.tree_max_array_size:  # small datasets
                     value = self.cxi[name]
                     if (
-                            isinstance(value, np.ndarray)
-                            and value.size <= self.tree_max_array_size
+                        isinstance(value, np.ndarray)
+                        and value.size <= self.tree_max_array_size
                     ):
                         data_preview = f" = {value}"
-                    elif np.isscalar(value) or isinstance(
-                        value, (str, bytes)
-                    ):
+                    elif np.isscalar(value) or isinstance(value, (str, bytes)):
                         if isinstance(value, (bytes, np.bytes_)):
                             try:
-                                data_preview = (
-                                    f" = '{value.decode('utf-8')}'"
-                                )
+                                data_preview = f" = '{value.decode('utf-8')}'"
                             except UnicodeDecodeError:
                                 data_preview = f" = {value}"
                             else:

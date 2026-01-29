@@ -1,4 +1,4 @@
-from .stats import get_histogram, plot_histogram, find_isosurface
+from .stats import find_isosurface, get_histogram, plot_histogram
 from .stereography import pole_figure
 
 __all__ = [

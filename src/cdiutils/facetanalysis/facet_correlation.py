@@ -1,7 +1,7 @@
-import numpy as np
-import mcubes
 import sys
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 sys.path.append("/data/id01/inhouse/clatlan/pythonies/cdiutils")
 from cdiutils.plot.plot import plot_3D_object

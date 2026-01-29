@@ -81,25 +81,56 @@ To get the latest development version directly from GitHub:
 Dependencies
 ------------
 
-CDIutils depends on the following core packages:
+CDIutils has a minimal set of core dependencies for basic functionality. Additional features require optional dependencies.
+
+Core Dependencies
+~~~~~~~~~~~~~~~~~
 
 * numpy
 * scipy >= 1.8.0
-* matplotlib >= 3.8
+* matplotlib >= 3.10
 * h5py >= 3.6.0
 * hdf5plugin >= 3.2.0
 * pandas >= 1.4.2
 * scikit-image >= 0.19.2
 * scikit-learn >= 1.1.3
-* seaborn >= 0.12.1
 * silx
 * xrayutilities >= 1.7.3
 * colorcet >= 3.0.0
-* ipyvolume
-* bokeh
-* panel
+* tabulate
 
-For a complete list of dependencies, see the `pyproject.toml <https://github.com/clatlan/cdiutils/blob/master/pyproject.toml>`_ file.
+Optional Dependencies
+~~~~~~~~~~~~~~~~~~~~~
+
+Install additional features using pip extras:
+
+**Interactive Visualisation** (``pip install cdiutils[interactive]``):
+
+* ipywidgets - Interactive widgets for Jupyter notebooks
+* ipyvolume - Legacy 3D visualisation support
+* bokeh - Interactive 2D plotting
+* panel - Dashboard creation
+* plotly >= 5.0.0 - Modern 3D visualisation (``ThreeDViewer``, ``plot_3d_isosurface``)
+* kaleido >= 0.2.0 - Static image export for Plotly
+* h5glance - Interactive HDF5 file browser
+* tornado, pytables, anywidget, ipykernel - Supporting packages
+
+**PyVista 3D Rendering** (``pip install cdiutils[pyvista]``):
+
+* pyvista >= 0.43.0 - Advanced 3D visualisation
+* trame >= 3.0.0 - Web-based rendering framework
+* trame-vuetify >= 2.0.0 - UI components
+* trame-vtk >= 2.0.0 - VTK integration
+
+**VTK Support** (``pip install cdiutils[vtk]``):
+
+* vtk >= 9.0.1 - Visualisation Toolkit
+
+**All Optional Dependencies** (``pip install cdiutils[all]``):
+
+Installs all optional dependencies for full functionality.
+
+For a complete list of dependencies and versions, see the `pyproject.toml <https://github.com/clatlan/cdiutils/blob/master/pyproject.toml>`_ file.
 
 Verification
 ------------

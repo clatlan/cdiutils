@@ -4,30 +4,30 @@ data.
 """
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
 import numpy as np
+from matplotlib.colors import LogNorm
 from scipy.interpolate import griddata
 
 from cdiutils.plot import (
-    save_fig,
     add_colorbar,
     add_labels,
     plot_volume_slices,
+    save_fig,
 )
 
 
 def pole_figure(
-        intensity: np.ndarray,
-        grid: list,
-        axis: str = "2",
-        radius: float = None,
-        dr: float = None,
-        resolution: int = 250,
-        figsize: tuple = (4, 4),
-        title: str = None,
-        verbose: bool = False,
-        save: str = None,
-        **plot_params,
+    intensity: np.ndarray,
+    grid: list,
+    axis: str = "2",
+    radius: float = None,
+    dr: float = None,
+    resolution: int = 250,
+    figsize: tuple = (4, 4),
+    title: str = None,
+    verbose: bool = False,
+    save: str = None,
+    **plot_params,
 ) -> tuple:
     """
     Generate a crystallographic pole figure using stereographic
@@ -146,13 +146,12 @@ def pole_figure(
     hemisphere_intensity[tuple(slices)] = 0
 
     # make the meshgrid from the grid
-    coordinate_meshgrids = np.meshgrid(*grid, indexing='ij')
+    coordinate_meshgrids = np.meshgrid(*grid, indexing="ij")
 
     # make a spherical shell mask
-    radii = np.sqrt(sum(
-        (coordinate_meshgrids[i] - centres[i]) ** 2
-        for i in range(3)
-    ))
+    radii = np.sqrt(
+        sum((coordinate_meshgrids[i] - centres[i]) ** 2 for i in range(3))
+    )
 
     # set default radius and thickness if not provided
     if radius is None:
@@ -167,8 +166,7 @@ def pole_figure(
         )
 
     shell_mask = np.logical_and(
-        radii > (radius - dr/2),
-        radii < (radius + dr/2)
+        radii > (radius - dr / 2), radii < (radius + dr / 2)
     )
 
     # plot the filtered data if requested
@@ -180,17 +178,17 @@ def pole_figure(
             "convention": "xu",
             "voxel_size": [np.diff(g).mean() for g in grid],
             "data_centre": [g.mean() for g in grid],
-            "show": False
+            "show": False,
         }
         params["cmap"] = plt.get_cmap(params["cmap"]).copy()
         params["cmap"].set_bad(params["cmap"](0))
         params["cmap"].set_under(params["cmap"](0))
 
         for col, to_plot in enumerate(
-                (
-                    hemisphere_intensity,
-                    np.ma.masked_where(~shell_mask, hemisphere_intensity)
-                )
+            (
+                hemisphere_intensity,
+                np.ma.masked_where(~shell_mask, hemisphere_intensity),
+            )
         ):
             _, old_axes = plot_volume_slices(to_plot, **params)
             add_labels(old_axes, convention="xu")
@@ -200,14 +198,18 @@ def pole_figure(
             for new_ax, old_ax in zip(debug_axes[:, col].flat, old_axes.flat):
                 im = old_ax.get_images()[0]
                 new_ax.imshow(
-                    im.get_array(), cmap=im.get_cmap(), norm=LogNorm(),
-                    extent=im.get_extent(), origin=im.origin
+                    im.get_array(),
+                    cmap=im.get_cmap(),
+                    norm=LogNorm(),
+                    extent=im.get_extent(),
+                    origin=im.origin,
                 )
                 new_ax.axis(old_ax.axis())
                 new_ax.set_xlabel(old_ax.get_xlabel())
                 new_ax.set_ylabel(old_ax.get_ylabel())
             debug_axes[0, col].set_title(
-                f"Intensity of the {hemisphere} hemisphere" if col == 0
+                f"Intensity of the {hemisphere} hemisphere"
+                if col == 0
                 else "Shell-masked intensity"
             )
 
@@ -227,8 +229,7 @@ def pole_figure(
 
     # Get the coordinates for points in the mask
     masked_coordinates = [
-        coordinate_meshgrids[i][shell_mask] - centres[i]
-        for i in range(3)
+        coordinate_meshgrids[i][shell_mask] - centres[i] for i in range(3)
     ]
 
     # Stereographic projection formula depends on hemisphere selection.
@@ -249,19 +250,21 @@ def pole_figure(
     # Scaling by 90 maps to stereographic degrees (0° at center, 90° at rim).
     projected_coordinates = [
         -masked_coordinates[equatorial_plane_axes[0]] / safe_denominator * 90,
-        -masked_coordinates[equatorial_plane_axes[1]] / safe_denominator * 90
+        -masked_coordinates[equatorial_plane_axes[1]] / safe_denominator * 90,
     ]
 
     # make the target 2D grid for interpolation
-    grid_x, grid_y = np.mgrid[-90:90:resolution*1j, -90:90:resolution*1j]
+    grid_x, grid_y = np.mgrid[
+        -90 : 90 : resolution * 1j, -90 : 90 : resolution * 1j
+    ]
 
     # interpolate the intensity values onto the regular 2D grid
     projected_intensity = griddata(
         (projected_coordinates[0], projected_coordinates[1]),  # source points
         shell_intensity,  # values at those points
         (grid_x, grid_y),  # target grid points
-        method="cubic",                
-        fill_value=np.nan
+        method="cubic",
+        fill_value=np.nan,
     )
 
     # generate a plot
@@ -270,7 +273,7 @@ def pole_figure(
         "norm": LogNorm(1, 0.8 * np.max(projected_intensity)),
         "interpolation": "nearest",
         "origin": "lower",
-        "extent": (-90, 90, -90, 90)
+        "extent": (-90, 90, -90, 90),
     }
     if plot_params:
         _plot_params.update(plot_params)
@@ -316,7 +319,7 @@ def pole_figure(
             color="white",
             ha="center",
             va="center",
-            fontsize=7
+            fontsize=7,
         )
 
     # add the primitive circle (90°) with a different style and label

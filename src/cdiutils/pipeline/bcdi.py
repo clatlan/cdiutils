@@ -9,56 +9,103 @@ Authors:
 import copy
 import glob
 import os
-from string import Template
 import subprocess
+from string import Template
 
 # Dependencies.
 import h5py
 import numpy as np
-from tabulate import tabulate
 import yaml
+from tabulate import tabulate
+
+from cdiutils.analysis.stats import find_isosurface
 
 # General cdiutils classes, to handle loading/saving, beamline geometry and
 # space conversion.
 from cdiutils.converter import SpaceConverter
+from cdiutils.facetanalysis import FacetAnalysisProcessor
 from cdiutils.geometry import Geometry
-from cdiutils.io import Loader, CXIFile
+from cdiutils.io import CXIFile, Loader, load_cxi
 from cdiutils.io.vtk import IS_VTK_AVAILABLE, save_as_vti
+from cdiutils.plot.colormap import RED_TO_TEAL
+from cdiutils.plot.slice import plot_volume_slices
+from cdiutils.plot.volume import plot_3d_surface_projections
+from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
+from cdiutils.process.postprocessor import PostProcessor
 
 # Utility functions
 from cdiutils.utils import (
     CroppingHandler,
-    oversampling_from_diffraction,
     ensure_pynx_shape,
-    hot_pixel_filter,
+    fill_up_support,
     get_oversampling_ratios,
+    hot_pixel_filter,
     normalise,
-    fill_up_support
+    oversampling_from_diffraction,
 )
-from cdiutils.analysis.stats import find_isosurface
-
-# Plot functions.
-from .pipeline_plotter import PipelinePlotter
-from cdiutils.plot.colormap import RED_TO_TEAL
-from cdiutils.plot.volume import plot_3d_surface_projections
-from cdiutils.plot.slice import plot_volume_slices
-
-from cdiutils.process.phaser import PhasingResultAnalyser, PyNXImportError
-from cdiutils.process.postprocessor import PostProcessor
-from cdiutils.process.facet_analysis import FacetAnalysisProcessor
 
 # Base Pipeline class and pipeline-related functions.
 from .base import Pipeline
 from .parameters import (
-    validate_and_fill_params,
-    convert_np_arrays,
     DEFAULT_PIPELINE_PARAMS,
-    isparameter
+    convert_np_arrays,
+    isparameter,
+    validate_and_fill_params,
 )
+
+# Plot functions.
+from .pipeline_plotter import PipelinePlotter
 
 
 class PyNXScriptError(Exception):
     """Custom exception to handle pynx script failure."""
+
+    def __init__(self, msg: object = None) -> None:
+        """
+        Initialise PyNXScriptError with an informative message.
+
+        The `msg` argument may be a string, an exception, or a file-like
+        object (for example an open stderr pipe). This constructor will
+        coerce non-string inputs into a readable string representation
+        and avoid TypeError when concatenating.
+
+        Args:
+            msg (object, optional): additional error message. Can be a
+                str, Exception, file-like object or None.
+        """
+        base_message = "PyNX script failed due to the following error:"
+
+        if msg is None:
+            super().__init__(base_message)
+            return
+
+        # try to produce a human friendly string from msg without
+        # raising further exceptions
+        extra_message = ""
+        try:
+            # if already a string, use it directly
+            if isinstance(msg, str):
+                extra_message = msg
+            # file-like objects often expose a read() method
+            elif hasattr(msg, "read") and callable(getattr(msg, "read")):
+                try:
+                    # read content (may consume the stream)
+                    extra_message = msg.read()
+                except Exception:
+                    # fallback to representation
+                    extra_message = str(msg)
+            else:
+                # for Exceptions and other objects
+                extra_message = str(msg)
+        except Exception:
+            # last-resort fallback if anything goes wrong
+            extra_message = "<unrepresentable error message>"
+
+        full_message = base_message
+        if extra_message:
+            full_message = base_message + "\n" + extra_message
+
+        super().__init__(full_message)
 
 
 class BcdiPipeline(Pipeline):
@@ -153,8 +200,18 @@ class BcdiPipeline(Pipeline):
 
     def update_from_file(self, path: str) -> None:
         """
-        Update the current instance with parameters loaded from a
-        CXI file.
+        Update pipeline instance with parameters from CXI file.
+
+        Loads parameters and SpaceConverter from a CXI file and updates
+        the current instance. Useful for resuming analysis from saved
+        reconstruction results.
+
+        Args:
+            path (str): path to CXI file.
+
+        Raises:
+            ValueError: if file format is unsupported or q_lab_ref is
+                missing in parameters.
         """
         if path.endswith(".cxi"):
             params, converter = self.load_from_cxi(path)
@@ -170,6 +227,23 @@ class BcdiPipeline(Pipeline):
 
     @classmethod
     def load_from_cxi(cls, path: str) -> tuple[dict, SpaceConverter]:
+        """
+        Load pipeline parameters and SpaceConverter from CXI file.
+
+        Extracts stored parameters and reconstruction metadata from a
+        CXI file, rebuilding the SpaceConverter for coordinate
+        transformations.
+
+        Args:
+            path (str): path to CXI file.
+
+        Returns:
+            tuple[dict, SpaceConverter]: extracted parameters and
+                configured SpaceConverter instance.
+
+        Raises:
+            ValueError: if path does not end with '.cxi'.
+        """
         if not path.endswith(".cxi"):
             raise ValueError("CXI file expected.")
 
@@ -179,7 +253,21 @@ class BcdiPipeline(Pipeline):
         return params, converter
 
     @staticmethod
-    def _build_converter_from_cxi(cxi: CXIFile):
+    def _build_converter_from_cxi(cxi: CXIFile) -> SpaceConverter:
+        """
+        Reconstruct SpaceConverter from CXI file metadata.
+
+        Extracts geometry, detector calibration, Q-space matrices, and
+        voxel sizes from CXI file to rebuild a fully configured
+        SpaceConverter.
+
+        Args:
+            cxi (CXIFile): opened CXI file handle.
+
+        Returns:
+            SpaceConverter: configured converter with initialised
+                Q-space.
+        """
         converter_params = {
             "geometry": Geometry.from_setup(cxi["entry_1/geometry_1/name"]),
             "det_calib_params": cxi["entry_1/detector_1/calibration"],
@@ -204,13 +292,23 @@ class BcdiPipeline(Pipeline):
     @Pipeline.process
     def preprocess(self, **params) -> None:
         """
-        Main method to handle the preprocessing of the BCDI data. It
-        takes care of the data loading, centring, cropping and gets the
-        orthogonalisation parameters.
+        Preprocess BCDI detector data for phase retrieval.
 
-        Arguments:
-            **params (optional): additional parameters provided by the
-                user. They will overwrite those parsed upon instance
+        Handles complete preprocessing workflow: data loading, Bragg
+        peak centring, cropping, filtering (hot pixels, flat-field,
+        background subtraction), and Q-space coordinate system
+        initialisation.
+
+        Args:
+            **params: optional parameters to override instance params.
+                Common overrides include 'preprocess_shape', 'hot_
+                pixel_filter', 'flat_field', 'background_level'.
+
+        Side effects:
+            Updates instance attributes: detector_data, cropped_
+            detector_data, mask, voi (voxels of interest), converter,
+            q_lab_pos, atomic_params.
+
                 initialisation.
 
         Raises:
@@ -301,7 +399,7 @@ class BcdiPipeline(Pipeline):
             sample_orientation=self.params.get("sample_orientation", None),
             sample_surface_normal=self.params.get(
                 "sample_surface_normal", None
-            )
+            ),
         )
         self.converter = SpaceConverter(
             geometry=geometry,
@@ -458,6 +556,11 @@ class BcdiPipeline(Pipeline):
         self._save_parameter_file()
 
     def _from_2d_to_3d_shape(self) -> tuple:
+        """
+        Extend 2D preprocess_shape to 3D using detector data length.
+
+        Prepends detector_data first dimension to 2D shape tuple.
+        """
         if len(self.params["preprocess_shape"]) == 2:
             self.params["preprocess_shape"] = (
                 self.detector_data.shape[0],
@@ -664,6 +767,11 @@ class BcdiPipeline(Pipeline):
         return roi
 
     def _filter(self, data: np.ndarray) -> np.ndarray:
+        """
+        Apply hot pixel filtering and background subtraction.
+
+        Modifies mask in-place when hot pixels detected.
+        """
         if self.params["hot_pixel_filter"]:
             self.logger.info("hot_pixel_filter requested.")
             if isinstance(self.params["hot_pixel_filter"], tuple):
@@ -740,18 +848,22 @@ class BcdiPipeline(Pipeline):
         # that correspond to the requested roi
         for key, value in self.angles.items():
             if isinstance(value, (list, np.ndarray)) and len(value) > 1:
-                self.angles[key] = value[np.s_[roi[0]: roi[1]]]
+                self.angles[key] = value[np.s_[roi[0] : roi[1]]]
 
         # if energy scan, crop the energy values according to the roi
         if isinstance(self.params["energy"], (list, np.ndarray)):
             self.params["energy"] = self.params["energy"][
-                np.s_[roi[0]: roi[1]]
+                np.s_[roi[0] : roi[1]]
             ]
 
         return cropped_detector_data, roi
 
     def _save_parameter_file(self) -> None:
-        """Save the parameters used during the analysis."""
+        """
+        Save analysis parameters to YAML file.
+
+        Writes parameters to dump_dir/S{scan}_parameters.yml.
+        """
         output_file_path = f"{self.dump_dir}/S{self.scan}_parameters.yml"
 
         self.params = convert_np_arrays(**self.params)
@@ -762,7 +874,11 @@ class BcdiPipeline(Pipeline):
         )
 
     def _save_preprocessed_data(self) -> None:
-        """Save the data generated during the preprocessing."""
+        """
+        Save preprocessed detector data, mask, and metadata to CXI.
+
+        Creates NPZ files for PyNX input and comprehensive CXI file.
+        """
         # Prepare dir in which pynx phasing results will be saved.
         os.makedirs(self.pynx_phasing_dir, exist_ok=True)
 
@@ -851,7 +967,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 sample_name=self.sample_name,
                 experiment_file_path=exp_path,
                 experiment_identifier=(
-                    None if exp_path is None
+                    None
+                    if exp_path is None
                     else exp_path.split("/")[-1].split(".")[0]
                 ),
             )
@@ -878,6 +995,11 @@ retrieval is also computed and will be used in the post-processing stage."""
         self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
     def _make_slurm_file(self, template: str = None) -> None:
+        """
+        Generate SLURM batch script for PyNX phase retrieval.
+
+        Uses template substitution to create job submission file.
+        """
         # Make the pynx slurm file
         if template is None:
             template = (
@@ -889,7 +1011,7 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             self.logger.info(
-                f"Pynx slurm file template provided {template = }."  # noqa, E251, E202
+                f"Pynx slurm file template provided {template = }."  # noqa: E251, E202
             )
         with open(template, "r", encoding="utf8") as file:
             source = Template(file.read())
@@ -908,6 +1030,48 @@ retrieval is also computed and will be used in the post-processing stage."""
         ) as file:
             file.write(pynx_slurm_text)
 
+    def phase_retrieval_gui(self) -> None:
+        """Launch the interactive phase retrieval GUI.
+
+        This method lazily imports and launches the PhaseRetrievalGUI from
+        cdiutils.interactive.phase_retrieval. The lazy import avoids requiring the
+        optional GUI-related dependencies (pynx and ipywidgets) unless this method
+        is invoked.
+
+        The GUI is initialized with the pipeline instance and the pipeline's
+        pynx_phasing_dir as the working directory, and it searches for CXI files
+        matching the pattern "*Run*.cxi". After initialization, the GUI's show()
+        method is called to display the interface.
+
+        Raises:
+            ImportError: If the PhaseRetrievalGUI cannot be imported because the
+                required dependencies ('pynx' and 'ipywidgets') are not installed.
+                The raised error suggests installing them via:
+                pip install pynx ipywidgets
+
+        Returns:
+            None
+
+        Example:
+            pipeline.phase_retrieval_gui()
+        """
+        # lazy import to avoid requiring ipywidgets/pynx when not using GUI
+        try:
+            from cdiutils.interactive.phase_retrieval import PhaseRetrievalGUI
+        except ImportError as e:
+            raise ImportError(
+                "PhaseRetrievalGUI requires both 'pynx' and 'ipywidgets' to be installed. "
+                "Please install them with: pip install pynx ipywidgets"
+            ) from e
+
+        self.logger.info("Launching interactive GUI.")
+        gui = PhaseRetrievalGUI(
+            work_dir=self.pynx_phasing_dir,
+            pipeline_instance=self,
+            search_pattern="*Run*.cxi",
+        )
+        gui.show()
+
     @Pipeline.process
     def phase_retrieval(
         self,
@@ -915,17 +1079,35 @@ retrieval is also computed and will be used in the post-processing stage."""
         pynx_slurm_file_template: str = None,
         clear_former_results: bool = False,
         cmd: str = None,
+        search_pattern: str = "*Run*.cxi",
         **pynx_params,
     ) -> None:
         """
-        Run the phase retrieval using pynx either by submitting a job to
-        a slurm cluster or by running pynx script directly on the
-        current machine.
+        Execute phase retrieval using PyNX.
+
+        Runs PyNX either locally (direct subprocess) or on a SLURM
+        cluster. Generates PyNX input file from parameters and manages
+        job submission/monitoring if cluster execution is requested.
 
         Args:
-            jump_to_cluster (bool, optional): whether a job must be
-                submitted to the cluster. Defaults to False.
-            pynx_slurm_file_template (str, optional): the template for
+            jump_to_cluster (bool, optional): submit job to SLURM
+                cluster. Defaults to False (local execution).
+            pynx_slurm_file_template (str, optional): path to SLURM
+                script template. Defaults to None (uses built-in
+                template).
+            clear_former_results (bool, optional): delete previous
+                reconstruction CXI files. Defaults to False.
+            cmd (str, optional): command for local PyNX execution.
+                Defaults to None (uses "pynx-cdi-id01 pynx-cdi-
+                inputs.txt").
+            search_pattern (str, optional): glob pattern for finding
+                result CXI files. Defaults to "*Run*.cxi".
+            **pynx_params: PyNX parameters (e.g., nb_run, nb_raar,
+                support_threshold). Override defaults.
+
+        Raises:
+            PyNXScriptError: if PyNX execution fails.
+            subprocess.CalledProcessError: if subprocess commandlate (str, optional): the template for
                 the pynx slurm file. Defaults to None.
             clear_former_results (bool, optional): whether ti clear the
                 former results. Defaults to False.
@@ -934,8 +1116,8 @@ retrieval is also computed and will be used in the post-processing stage."""
             **pynx_params: additional pynx parameters.
 
         Raises:
-            PyNXScriptError: if the pynx script fails.
-            e: if the subprocess fails.
+            PyNXScriptError: if PyNX execution fails.
+            subprocess.CalledProcessError: if subprocess command fails
         """
         if clear_former_results:
             self.logger.info("Removing former results.\n")
@@ -1004,35 +1186,60 @@ retrieval is also computed and will be used in the post-processing stage."""
         return merged_pynx
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
+        """
+        Run a command in a subprocess and stream output to logger.
+
+        Args:
+            cmd (str): the command to execute.
+            cwd (str): the working directory for the subprocess.
+
+        Raises:
+            PyNXScriptError: if the subprocess returns a non-zero exit
+                code.
+        """
         try:
+            # accumulate stderr lines for error reporting
+            stderr_lines = []
+
             with subprocess.Popen(
                 ["bash", "-l", "-c", cmd],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=cwd,  # Change to this directory
-                text=True,  # Ensures stdout/stderr are str, not bytes
+                cwd=cwd,  # change to this directory
+                text=True,  # ensures stdout/stderr are str, not bytes
                 env=os.environ.copy(),
                 bufsize=1,
             ) as proc:
-                # Stream stdout
+                # stream stdout
                 for line in iter(proc.stdout.readline, ""):
                     self.logger.info(line.strip())
 
-                # Stream stderr
+                # stream stderr and capture for error reporting
                 for line in iter(proc.stderr.readline, ""):
-                    self.logger.error(line.strip())
+                    stripped_line = line.strip()
+                    self.logger.error(stripped_line)
+                    stderr_lines.append(stripped_line)
 
-                # Wait for the process to complete and check the
-                # return code.
+                # wait for the process to complete and check the
+                # return code
                 proc.wait()
                 if proc.returncode != 0:
+                    # compile captured stderr into a single message
+                    stderr_text = (
+                        "\n".join(stderr_lines)
+                        if stderr_lines
+                        else (
+                            f"Process exited with code {proc.returncode} "
+                            "(no stderr output captured)"
+                        )
+                    )
                     self.logger.error(
                         "PyNX phasing process failed with return code "
                         f"{proc.returncode}"
                     )
-                    raise PyNXScriptError
+                    raise PyNXScriptError(stderr_text)
         except subprocess.CalledProcessError as e:
-            # Log the error if the job submission fails
+            # log the error if the job submission fails
             self.logger.error(
                 "Subprocess process failed with return code "
                 f"{e.returncode}: {e.stderr}"
@@ -1042,41 +1249,39 @@ retrieval is also computed and will be used in the post-processing stage."""
     def analyse_phasing_results(
         self,
         sorting_criterion: str = "mean_to_max",
+        search_pattern: str = "*Run*.cxi",
         plot: bool = True,
         plot_phasing_results: bool = True,
         plot_phase: bool = False,
         init_analyser: bool = True,
     ) -> None:
         """
-        Wrapper for analyse_phasing_results method of
-        PhasingResultAnalyser class.
+        Analyse and sort phase retrieval results by quality metrics.
 
-        Analyse the phase retrieval results by sorting them according to
-        the sorting_criterion, which must be selected in among:
-        * mean_to_max the difference between the mean of the
-            Gaussian fitting of the amplitude histogram and the maximum
-            value of the amplitude. We consider the closest to the max
-            the mean is, the most homogeneous is the amplitude of the
-            reconstruction, hence the best.
-        * the sharpness the sum of the amplitude within support to
-            the power of 4. For reconstruction with similar support,
-            lowest values means greater amplitude homogeneity.
-        * std the standard deviation of the amplitude.
-        * llk the log-likelihood of the reconstruction.
-        * llkf the free log-likelihood of the reconstruction.
+        Wrapper for PhasingResultAnalyser that evaluates reconstruction
+        quality using various criteria. Sorts results and generates
+        comparison plots.
 
         Args:
-            sorting_criterion (str, optional): the criterion to sort the
-                results with. Defaults to "mean_to_max".
-            plot (bool, optional): whether or not to disable all plots.
-            plot_phasing_results (bool, optional): whether to plot the
-                phasing results. Defaults to True.
-            plot_phase (bool, optional): whether the phase must be
-                plotted. If True, will the phase is plotted with
-                amplitude as opacity. If False, amplitude is plotted
-                instead. Defaults to False.
-            init_analyser: (bool, optional): whether to force the
-                reinitialisation of the PhasingResultAnalyser instance
+            sorting_criterion (str, optional): quality metric for
+                sorting. Options:
+                - 'mean_to_max': amplitude homogeneity (Gaussian mean
+                  vs. max)
+                - 'sharpness': sum of amplitude^4 within support
+                - 'std': amplitude standard deviation
+                - 'llk': log-likelihood
+                - 'llkf': free log-likelihood
+                Defaults to "mean_to_max".
+            search_pattern (str, optional): glob pattern for CXI files.
+                Defaults to "*Run*.cxi".
+            plot (bool, optional): enable/disable all plots. Defaults
+                to True.
+            plot_phasing_results (bool, optional): plot result
+                comparisons. Defaults to True.
+            plot_phase (bool, optional): plot phase (with amplitude as
+                opacity) instead of amplitude. Defaults to False.
+            init_analyser (bool, optional): force reinitialisation of
+                PhasingResultAnalyser. Defaults to True.
 
         Raises:
             ValueError: if sorting_criterion is unknown.
@@ -1088,6 +1293,7 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.result_analyser.analyse_phasing_results(
             sorting_criterion=sorting_criterion,
+            search_pattern=search_pattern,
             plot=plot,
             plot_phasing_results=plot_phasing_results,
             plot_phase=plot_phase,
@@ -1099,28 +1305,28 @@ retrieval is also computed and will be used in the post-processing stage."""
         output_path: str = None,
         fill: bool = False,
         verbose: bool = True,
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
-        Generate the support from the best run or a specific run. The
-        support is saved in a .cxi file in the pynx_phasing_dir by
-        default, but another output path can be provided. This allows to
-        directly use the support when re-running the phase retrieval by
-        simply specifying:
-        `support = bcdi_pipeline.pynx_phasing_dir + "support.cxi"`.
-        The verbosity is set to True by default and also plots the
-        generated support.
+        Extract and save support from a specific reconstruction run.
+
+        Generates a support mask from a phase retrieval result and
+        saves it as a CXI file. Can be used directly in subsequent
+        phasing by setting: `support = <output_path>` in PyNX params.
 
         Args:
-            run (int | str, optional): the run to generate the support
-                from, either a int or the string `"best"`. Defaults to
-                "best".
-            output_path (str, optional): the output path to save the
-                support to If None, will save to the `pynx_phasing_dir`.
+            run (int | str, optional): run selection. Use "best" for
+                top-ranked result or integer for specific run number.
+                Defaults to "best".
+            output_path (str, optional): save path for support CXI file.
+                If None, saves to `pynx_phasing_dir/support.cxi`.
                 Defaults to None.
-            fill (bool, optional): whether to fill the support if it
-                contains holes.
-            verbose (bool, optional): whether to print info and plot the
-                support. Defaults to True.
+            fill (bool, optional): fill holes in support using
+                morphological operations. Defaults to False.
+            verbose (bool, optional): print info and plot support.
+                Defaults to True.
+            search_pattern (str, optional): glob pattern for CXI files.
+                Defaults to "*Run*.cxi".
         """
         if run == "best":
             selected_path = next(
@@ -1128,14 +1334,14 @@ retrieval is also computed and will be used in the post-processing stage."""
             )
         else:
             if not self.result_analyser.result_paths:
-                self.result_analyser.find_phasing_results()
+                self.result_analyser.find_phasing_results(search_pattern)
             for path in self.result_analyser.result_paths:
                 if run == int(path.split("Run")[1][:4]):
                     selected_path = path
 
         with CXIFile(selected_path) as cxi:
             support = cxi["entry_1/image_1/support"]
-        
+
         if fill:
             filled_support = fill_up_support(support)
 
@@ -1162,23 +1368,30 @@ retrieval is also computed and will be used in the post-processing stage."""
                 )
 
     def select_best_candidates(
-        self, nb_of_best_sorted_runs: int = None, best_runs: list = None
+        self,
+        nb_of_best_sorted_runs: int = None,
+        best_runs: list = None,
+        search_pattern: str = "*Run*.cxi",
     ) -> None:
         """
-        A function wrapper for
-        PhasingResultAnalyser.select_best_candidates.
-        Select the best candidates, two methods are possible. Either
-        select a specific number of runs, provided they were analysed
-        and sorted beforehand. Or simply provide a list of integers
-        corresponding to the digit numbers of the best runs.
+        Select best phase retrieval candidates for mode decomposition.
+
+        Wrapper for PhasingResultAnalyser.select_best_candidates.
+        Choose candidates either by count (top N sorted) or explicit
+        run numbers.
 
         Args:
-            nb_of_best_sorted_runs (int, optional): the number of best
-                runs to select, provided they were analysed beforehand.
-                Defaults to None.
-            best_runs (list[int], optional): the best runs to select.
-                Defaults to None.
+            nb_of_best_sorted_runs (int, optional): number of top-sorted
+                runs to select. Requires prior call to analyse_phasing_
+                results(). Defaults to None.
+            best_runs (list[int], optional): explicit list of run
+                numbers (e.g., [2, 5, 7]). Defaults to None.
+            search_pattern (str, optional): glob pattern for CXI files.
+                Defaults to "*Run*.cxi".
 
+        Raises:
+            ValueError: if result_analyser not initialised (call
+                analyse_phasing_results() first)
         Raises:
             ValueError: If the results have not been analysed yet.
         """
@@ -1188,27 +1401,40 @@ retrieval is also computed and will be used in the post-processing stage."""
                 " BcdiPipeline.analyse_phasing_results() first."
             )
         self.result_analyser.select_best_candidates(
-            nb_of_best_sorted_runs, best_runs
+            nb_of_best_sorted_runs, best_runs, search_pattern
         )
 
     @Pipeline.process
     def mode_decomposition(
-        self,
-        cmd: str = None,
+        self, cmd: str = None, search_pattern: str = "*Run*.cxi"
     ) -> None:
         """
-        Run the mode decomposition using PyNX pynx-cdi-analysis.py
-        script as a subprocess.
+        Perform mode decomposition on selected reconstruction candidates.
+
+        Extracts principal modes from multiple phase retrieval results
+        using PyNX's pynx-cdi-analysis (similar to PCA). Modes
+        represent consistent features across reconstructions.
 
         Args:
-            cmd
+            cmd (str, optional): command for mode decomposition if PyNX
+                unavailable locally. Defaults to None (uses "pynx-cdi-
+                analysis candidate_*.cxi --modes 1 --modes_output
+                mode.h5").
+            search_pattern (str, optional): glob pattern for candidate
+                CXI files. Defaults to "*Run*.cxi".
+
+        Side effects:
+            Saves modes to S{scan}_pynx_reconstruction_mode.cxi in
+            dump_dir.
         """
         if self.result_analyser is None:
             self.result_analyser = PhasingResultAnalyser(
                 result_dir_path=self.pynx_phasing_dir
             )
         try:
-            modes, mode_weights = self.result_analyser.mode_decomposition()
+            modes, mode_weights = self.result_analyser.mode_decomposition(
+                search_pattern=search_pattern
+            )
             self._save_pynx_results(modes=modes, mode_weights=mode_weights)
 
         except PyNXImportError:
@@ -1233,6 +1459,11 @@ retrieval is also computed and will be used in the post-processing stage."""
         modes: list = None,
         mode_weights: list = None,
     ) -> None:
+        """
+        Save PyNX phasing results and analysis metadata to CXI file.
+
+        Includes reconstructions, best candidates, metrics, and modes.
+        """
         if mode_path is not None:
             with h5py.File(mode_path) as file:
                 modes = file["entry_1/image_1/data"][()]
@@ -1320,8 +1551,29 @@ reconstruction (best solution).""",
     @Pipeline.process
     def postprocess(self, **params) -> None:
         """
-        Post-process the reconstruction.
-        The parameters can be updated by providing keyword arguments.
+        Postprocess phase retrieval results to extract physical properties.
+
+        Comprehensive workflow: loads reconstruction, orthogonalises to
+        lab frame, optionally flips/apodizes, estimates support
+        isosurface, and computes structural properties (phase,
+        displacement, strain, d-spacing, lattice parameter).
+
+        Args:
+            **params: optional parameters to override instance params.
+                Common overrides:
+                - 'voxel_size': target voxel size (nm)
+                - 'isosurface': support threshold (0-1)
+                - 'apodize': window function ('blackman', 'hann', etc.)
+                - 'flip': flip reconstruction (complex conjugate)
+                - 'convention': 'xu' or 'cxi'
+                - 'handle_defects': enable defect-aware processing
+
+        Side effects:
+            Updates instance attributes: reconstruction, structural_
+            props, extra_info. Generates amplitude distribution plot.
+
+        Raises:
+            ValueError: if unrecognised parameter provided.
         """
         _path = f"{self.dump_dir}S{self.scan}_preprocessed_data.cxi"
         # Whether to reload the pre-processing .cxi file.
@@ -1412,7 +1664,7 @@ reconstruction (best solution).""",
             self.params["isosurface"] = self.class_isosurface
             self.logger.info(
                 f"isosurface estimate has a wrong value ({isosurface}) and "
-                f"will be set set to {self.class_isosurface = }."  # noqa, E251
+                f"will be set set to {self.class_isosurface = }."  # noqa: E251
             )
         else:
             self.params["isosurface"] = isosurface
@@ -1574,6 +1826,11 @@ reconstruction (best solution).""",
     def _load_reconstruction(
         self, path: str, centre: bool = False, isosurface: float = None
     ) -> np.ndarray:
+        """
+        Load reconstruction from CXI and optionally centre using support.
+
+        Calculates oversampling ratios from loaded data.
+        """
         with CXIFile(path, "r") as cxi:
             reconstruction = cxi["entry_1/data_1/data"][0]
 
@@ -1617,6 +1874,11 @@ reconstruction (best solution).""",
             )
 
     def _check_voxel_size(self) -> None:
+        """
+        Validate and initialise voxel size from converter or params.
+
+        Handles convention conversion between XU and CXI coordinates.
+        """
         self.extra_info["voxel_size_from_extent"] = (
             self.converter.direct_lab_voxel_size
         )
@@ -1654,6 +1916,11 @@ reconstruction (best solution).""",
                 )
 
     def _save_postprocessed_data(self) -> None:
+        """
+        Save post-processing results to CXI file.
+
+        Stores orthogonalised data, strain statistics, and metadata.
+        """
         dump_path = f"{self.dump_dir}/S{self.scan}_postprocessed_data.cxi"
         with CXIFile(dump_path, "w") as cxi:
             cxi.stamp()
@@ -1791,9 +2058,7 @@ reconstruction (best solution).""",
             save_as_vti(
                 f"{self.dump_dir}/S{self.scan}_structural_properties.vti",
                 voxel_size=self.params["voxel_size"],
-                cxi_convention=(
-                    self.params["convention"].lower() == "cxi"
-                ),
+                cxi_convention=(self.params["convention"].lower() == "cxi"),
                 **to_save_as_vti,
             )
         else:
@@ -1810,3 +2075,49 @@ reconstruction (best solution).""",
             self.dump_dir,
         )
         facet_anlysis_processor.facet_analysis()
+
+    def show_3d_final_result(self):
+        """
+        Show plotly interactive figure of the final post-processed
+        reconstruction.
+        """
+        from cdiutils.interactive import plot_3d_isosurface
+
+        path = f"{self.dump_dir}S{self.scan}_postprocessed_data.cxi"
+        # first check whether the file exists
+        if not os.path.exists(path):
+            raise FileNotFoundError(
+                f"The result file ({path}) does not exist yet, have you "
+                "run the post-processing method?"
+            )
+
+        loaded_data = load_cxi(
+            path,
+            "amplitude",
+            "support",
+            "phase",
+            "displacement",
+            "het_strain",
+            "het_strain_from_dspacing",
+            "dspacing",
+            "lattice_parameter",
+        )
+
+        loaded_voxel_size = load_cxi(path, "voxel_size")
+
+        # the default quantity to visualise is the heterogeneous strain
+        # with cmap cet_CET_D13
+        # calculate symmetric limits based on absolute max
+        data_abs_max = np.abs(loaded_data["het_strain_from_dspacing"]).max()
+        vmin = -data_abs_max
+        vmax = data_abs_max
+
+        return plot_3d_isosurface(
+            loaded_data["amplitude"],
+            loaded_data,
+            voxel_size=loaded_voxel_size,
+            initial_quantity="het_strain_from_dspacing",
+            cmap="cet_CET_D13",
+            vmin=vmin,
+            vmax=vmax,
+        )

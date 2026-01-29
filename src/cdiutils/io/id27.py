@@ -1,8 +1,9 @@
+import warnings
+
 import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 from cdiutils.utils import wavelength_to_energy
-import warnings
 
 
 class ID27Loader(H5TypeLoader):
@@ -15,19 +16,19 @@ class ID27Loader(H5TypeLoader):
         "sample_outofplane_angle": None,
         "sample_inplane_angle": "nath",
         "detector_outofplane_angle": None,
-        "detector_inplane_angle": None
+        "detector_inplane_angle": None,
     }
-    authorised_detector_names = ("eiger", )
+    authorised_detector_names = ("eiger",)
 
     def __init__(
-            self,
-            experiment_file_path: str,
-            scan: int = None,
-            sample_name: str = None,
-            detector_name: str = None,
-            flat_field: np.ndarray | str = None,
-            alien_mask: np.ndarray | str = None,
-            **kwargs
+        self,
+        experiment_file_path: str,
+        scan: int = None,
+        sample_name: str = None,
+        detector_name: str = None,
+        flat_field: np.ndarray | str = None,
+        alien_mask: np.ndarray | str = None,
+        **kwargs,
     ) -> None:
         """
         Initialise ID27Loader with experiment data file path and
@@ -52,17 +53,17 @@ class ID27Loader(H5TypeLoader):
             sample_name,
             detector_name,
             flat_field,
-            alien_mask
+            alien_mask,
         )
 
     @h5_safe_load
     def load_detector_data(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
-            binning_method: str = "sum"
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
+        binning_method: str = "sum",
     ) -> np.ndarray:
         """
         Load the detector data.
@@ -108,7 +109,7 @@ class ID27Loader(H5TypeLoader):
             mask = self.get_mask(
                 channel=data.shape[0],
                 detector_name="e9m",
-                roi=(slice(None), roi[1], roi[2])
+                roi=(slice(None), roi[1], roi[2]),
             )
             data = data * np.where(mask, 0, 1)
 
@@ -118,16 +119,16 @@ class ID27Loader(H5TypeLoader):
             self.flat_field,
             self.alien_mask,
             rocking_angle_binning,
-            binning_method
+            binning_method,
         )
 
     @h5_safe_load
     def load_motor_positions(
-            self,
-            scan: int = None,
-            sample_name: str = None,
-            roi: tuple[slice] = None,
-            rocking_angle_binning: int = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
+        roi: tuple[slice] = None,
+        rocking_angle_binning: int = None,
     ) -> dict:
         """
         Load the motor positions, i.e diffractometer angles associated
@@ -152,7 +153,7 @@ class ID27Loader(H5TypeLoader):
         )
 
         formatted_angles = {
-            key: angles[name] if angles.get(name) is not None else 0.
+            key: angles[name] if angles.get(name) is not None else 0.0
             for key, name in ID27Loader.angle_names.items()
         }
 
@@ -173,15 +174,15 @@ class ID27Loader(H5TypeLoader):
                 f"roi should be tuple of slices, or a slice, not {type(roi)}"
             )
 
-        formatted_angles[
+        formatted_angles[self.rocking_angle] = formatted_angles[
             self.rocking_angle
-        ] = formatted_angles[self.rocking_angle][roi]
+        ][roi]
 
         return formatted_angles
 
     @h5_safe_load
     def get_detector_name(self) -> str:
-        key_path = ("_".join((self.sample_name, "1")) + ".1/measurement/")
+        key_path = "_".join((self.sample_name, "1")) + ".1/measurement/"
         detector_names = []
         for key in self.h5file[key_path]:
             if key in self.authorised_detector_names:
@@ -210,26 +211,22 @@ class ID27Loader(H5TypeLoader):
 
     @h5_safe_load
     def load_detector_shape(
-            self,
-            scan: int = None,
-            sample_name: str = None,
+        self,
+        scan: int = None,
+        sample_name: str = None,
     ) -> tuple:
         scan, sample_name = self._check_scan_sample(scan, sample_name)
         if self.detector_name in ("eiger", "eiger9m", "e9m"):
             shape = (3262, 3108)
             key_path = f"{sample_name}_{scan}.1/instrument/eiger/acq_nb_frames"
             try:
-                return (int(self.h5file[key_path][()]), ) + shape
+                return (int(self.h5file[key_path][()]),) + shape
             except KeyError:
                 print("Could not load original detector data shape.")
         return None
 
     @h5_safe_load
-    def load_energy(
-            self,
-            scan: int = None,
-            sample_name: str = None
-    ) -> float:
+    def load_energy(self, scan: int = None, sample_name: str = None) -> float:
         scan, sample_name = self._check_scan_sample(scan, sample_name)
 
         key_path = f"{sample_name}_{scan}.1/instrument/calibration/"

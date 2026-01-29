@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from cdiutils.geometry import Geometry
 
 
@@ -43,14 +44,14 @@ class TestGeometry:
         assert geometry.sample_orientation == "horizontal"
 
         # test setter with 'vertical'
-        geometry.sample_orientation = 'vertical'
+        geometry.sample_orientation = "vertical"
         assert geometry.sample_orientation == "vertical"
         np.testing.assert_array_equal(
             geometry.sample_surface_normal, [0, 0, 1]
         )
 
         # test setter with abbreviation
-        geometry.sample_orientation = 'h'
+        geometry.sample_orientation = "h"
         assert geometry.sample_orientation == "horizontal"
         np.testing.assert_array_equal(
             geometry.sample_surface_normal, [0, 1, 0]
@@ -80,7 +81,7 @@ class TestGeometry:
             sample_circles=["x+", "y-"],
             detector_circles=["y+", "x-"],
             sample_surface_normal=[0, 1, 0],  # y-axis in CXI (horizontal)
-            is_cxi=True
+            is_cxi=True,
         )
 
         # convert to XU
@@ -91,7 +92,8 @@ class TestGeometry:
 
         # check that sample_surface_normal was swapped correctly
         np.testing.assert_array_equal(
-            geometry.sample_surface_normal, [0, 0, 1]  # Zxu
+            geometry.sample_surface_normal,
+            [0, 0, 1],  # Zxu
         )
 
         # check that sample circles were converted correctly

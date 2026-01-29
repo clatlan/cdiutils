@@ -11,20 +11,33 @@ from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 
 class NanoMAXLoader(H5TypeLoader):
     """
-    A class to handle loading/reading .h5 files that were created at the
-    NanoMax beamline.
-    This loader class does not need any of the 'sample_name' or
-    'experiment_file_path' because NanoMAX data layering is rather
-    simple.
+    Data loader for MAX IV NanoMAX beamline.
 
-    Args:
-        experiment_file_path (str): path to the scan file.
-        detector_name (str): name of the detector.
-        flat_field (np.ndarray | str, optional): flat field to
-            account for the non homogeneous counting of the
-            detector. Defaults to None.
-        alien_mask (np.ndarray | str, optional): array to mask the
-            aliens. Defaults to None.
+    Handles HDF5 files from NanoMAX beamline at MAX IV, supporting
+    Eiger500k detector. NanoMAX has simpler file structure than
+    other beamlines - no separate sample_name or scan number
+    parameters needed.
+
+    Attributes:
+        angle_names: Mapping from canonical names to NanoMAX motor
+            names:
+
+            - ``sample_outofplane_angle`` -> ``"gontheta"``
+            - ``sample_inplane_angle`` -> ``"gonphi"``
+            - ``detector_outofplane_angle`` -> ``"delta"``
+            - ``detector_inplane_angle`` -> ``"gamma"``
+
+        authorised_detector_names: Tuple of supported detectors:
+            ``("eiger500k",)``.
+
+    Notes:
+        Unlike other beamlines, NanoMAX stores all data in a single
+        HDF5 file per measurement, eliminating need for sample_name
+        or scan parameters in most methods.
+
+    See Also:
+        :class:`Loader` for factory method and base class
+        documentation.
     """
 
     angle_names = {
@@ -44,17 +57,17 @@ class NanoMAXLoader(H5TypeLoader):
         **kwargs,
     ) -> None:
         """
-        Initialise NanoMaxLoader with experiment data file path and
-        detector information.
+        Initialise NanoMAX data loader.
 
         Args:
-            experiment_file_path (str): path to the scan file.
-            detector_name (str): name of the detector.
-            flat_field (np.ndarray | str, optional): flat field to
-                account for the non homogeneous counting of the
-                detector. Defaults to None.
-            alien_mask (np.ndarray | str, optional): array to mask the
-                aliens. Defaults to None.
+            experiment_file_path: Path to HDF5 scan file. Contains
+                all data and metadata for the measurement.
+            detector_name: Detector identifier. Defaults to
+                ``"eiger500k"``.
+            flat_field: Flat-field correction array or path to
+                .npy/.npz file.
+            alien_mask: Bad pixel mask array or path.
+            **kwargs: Additional parameters (reserved for future use).
         """
         super().__init__(
             experiment_file_path,
@@ -71,18 +84,26 @@ class NanoMAXLoader(H5TypeLoader):
         binning_method: str = "sum",
     ) -> np.ndarray:
         """
-        Main method to load the detector data (collected intensity).
+        Load raw detector frames from NanoMAX HDF5 file.
+
+        Retrieves 3D detector data array with optional ROI, binning,
+        flat-field correction, and masking.
 
         Args:
-            roi (tuple[slice], optional): the region of interest of the
-                detector to load. Defaults to None.
-            rocking_angle_binning (int, optional): whether to bin the data
-                along the rocking curve axis. Defaults to None.
-            binning_method (str, optional): the method employed for the
-                binning. It can be sum or "mean". Defaults to "sum".
+            roi: Region of interest as tuple of slices or integers.
+            rocking_angle_binning: Binning factor along rocking
+                curve axis.
+            binning_method: Binning operation (``"sum"``,
+                ``"mean"``, or ``"max"``). Default ``"sum"``.
 
         Returns:
-            np.ndarray: the detector data.
+            Preprocessed detector data with shape
+            ``(n_frames//binning, n_y, n_x)``.
+
+        Raises:
+            KeyError: If detector data path
+                ``/entry/measurement/{detector}/frames`` not found in
+                HDF5 file.
         """
         # Where to find the data.
         key_path = f"/entry/measurement/{self.detector_name}/frames"
@@ -114,6 +135,25 @@ class NanoMAXLoader(H5TypeLoader):
         roi: tuple[slice] = None,
         rocking_angle_binning: int = None,
     ) -> dict:
+        """
+        Load diffractometer motor angles from HDF5 file.
+
+        Retrieves motor positions from post-scan snapshots and
+        scanned rocking curve values, applying same ROI and binning
+        as detector data.
+
+        Args:
+            roi: ROI tuple. Only first element (rocking curve axis)
+                is used.
+            rocking_angle_binning: Binning factor matching detector
+                binning. Angles are averaged when binned.
+
+        Returns:
+            dict: Motor angles with canonical keys (see
+            :attr:`angle_names` for NanoMAX-specific mapping). Scanned
+            angle (gonphi or gontheta) is 1D array, others are
+            scalars.
+        """
         roi = self._check_roi(roi)
         roi = roi[0]
 
