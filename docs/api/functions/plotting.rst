@@ -3,9 +3,9 @@ Plotting Functions
 
 .. currentmodule:: cdiutils.plot
 
-This page documents all plotting and visualization functions.
+This page documents all plotting and visualisation functions.
 
-3D Visualization
+3D Visualisation
 ----------------
 
 .. autofunction:: plot_3d_isosurface

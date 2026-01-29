@@ -1,23 +1,28 @@
 CDIutils Documentation
 ======================
 
-**CDIutils** is a Python package for Bragg Coherent X-ray Diffraction Imaging (BCDI) data processing, analysis, and visualization workflows.
+**CDIutils** is a Python package for Bragg Coherent X-ray Diffraction Imaging (BCDI) data analysis.
 
-The package is designed to handle the three primary stages of a BCDI data processing workflow:
+Main Capabilities
+-----------------
 
-* **Pre-processing** (data centering and cropping)
-* **Phase retrieval** using PyNX for accurate phasing
-* **Post-processing** (orthogonalization, phase manipulation, strain computation)
+**Complete BCDI pipeline**
+  Handle pre-processing, phasing (PyNX backend), and post-processing to extract quantitative strain information. Jupyter notebooks provide step-by-step workflows:
+  
+  * :download:`bcdi_pipeline_example.ipynb <bcdi_pipeline_example.ipynb>`
+  * :download:`step_by_step_bcdi_analysis.ipynb <../step_by_step_bcdi_analysis.ipynb>`
 
-Key Features
-------------
+**Multiple beamline geometries**
+  Support for ID01, P10, SIXS, NanoMAX, and ID27 beamlines. Coordinate transformations use :doc:`CXI convention <user_guide/coordinate_systems>` and xrayutilities backends.
 
-* **Modern Interactive 3D Visualisation**: Plotly-based tools (``ThreeDViewer``, ``plot_3d_isosurface``) with extensive controls for colormaps, colorbar settings, and NaN handling
-* **Flexibility in Hardware**: GPU support for phase retrieval, CPU support for pre/post-processing
-* **Multiple Beamlines**: Support for various synchrotron beamlines (ID01, P10, SIXS, etc.)
-* **Comprehensive Analysis**: Full toolkit for strain analysis, phase manipulation, and visualization
-* **Publication-Ready Plots**: High-quality figures suitable for scientific publications
-* **Optional Dependencies**: Modular installation - install only what you need (``[interactive]``, ``[pyvista]``, ``[vtk]``)
+**Publication-ready figures**
+  Utility functions for creating publication-quality plots. See :download:`bcdi_reconstruction_analysis.ipynb <bcdi_reconstruction_analysis.ipynb>` for examples.
+
+**Interactive 3D visualisation**
+  Tools for exploring reconstruction results interactively. See :doc:`api/interactive` for available classes.
+
+**CXI file management**
+  :class:`~cdiutils.io.CXIFile` manager simplifies CXI file creation. :class:`~cdiutils.io.CXIExplorer` provides interactive inspection of CXI files
 
 .. toctree::
    :maxdepth: 2
@@ -54,37 +59,28 @@ Key Features
 Quick Start
 ===========
 
-Get started with a minimal working example in a Jupyter notebook:
+Minimal working example:
 
 .. code-block:: python
 
-   import os
    import cdiutils
    
-   # Setup parameters
-   beamline_setup = "id01"
-   experiment_file_path = "/path/to/file.h5"
-   sample_name = "MySample"
-   scan = 42
-   dump_dir = os.getcwd() + f"/results/{sample_name}/S{scan}/"
+   # define parameters
+   params = cdiutils.pipeline.get_params_from_variables(
+       beamline_setup="id01",
+       experiment_file_path="/path/to/data.h5",
+       sample_name="MySample",
+       scan=42
+   )
    
-   # Create pipeline
-   params = cdiutils.pipeline.get_params_from_variables(dir(), globals())
+   # create and run pipeline
    pipeline = cdiutils.BcdiPipeline(params=params)
-   
-   # Run workflow
    pipeline.preprocess(preprocess_shape=(200, 200, 200))
    pipeline.phase_retrieval(nb_run=50)
-   pipeline.analyse_phasing_results()
-   pipeline.mode_decomposition()
    pipeline.postprocess(voxel_size=5)
-   
-   # Visualize
    pipeline.show_3d_final_result()
 
-See :doc:`getting_started/quickstart` for detailed explanation.
-
-For complete examples with real data, check :doc:`examples/index`.
+See :doc:`getting_started/quickstart` for details.
 
 Getting Help
 ============

@@ -11,7 +11,7 @@ Volume Slicing
    :undoc-members:
    :show-inheritance:
 
-3D Visualization
+3D Visualisation
 ----------------
 
 .. automodule:: cdiutils.plot.volume

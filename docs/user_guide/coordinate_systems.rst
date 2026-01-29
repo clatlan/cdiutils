@@ -111,7 +111,7 @@ The geometry can be converted between conventions:
 
 **When to convert:**
 
-* **CXI:** For output, visualization, CXI file writing
+* **CXI:** For output, visualisation, CXI file writing
 * **XU:** For :mod:`xrayutilities` gridding (internal to SpaceConverter)
 
 SpaceConverter Class

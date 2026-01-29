@@ -98,4 +98,4 @@ Future Roadmap
 * Machine learning integration
 * Real-time analysis capabilities
 * Cloud computing integration
-* Advanced visualization features
+* Advanced visualisation features

@@ -14,7 +14,7 @@ VolumeViewer
 Examples
 --------
 
-Interactive 3D visualization::
+Interactive 3D visualisation::
 
     from cdiutils.interactive import VolumeViewer
     import numpy as np

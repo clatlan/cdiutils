@@ -16,7 +16,7 @@ Main Pipeline Classes
    :undoc-members:
    :show-inheritance:
 
-Visualization Support
+Visualisation Support
 ---------------------
 
 .. automodule:: cdiutils.pipeline.pipeline_plotter

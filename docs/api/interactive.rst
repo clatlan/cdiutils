@@ -1,7 +1,7 @@
 Interactive Module
 ==================
 
-The :mod:`cdiutils.interactive` module provides interactive 3D visualization tools.
+The :mod:`cdiutils.interactive` module provides interactive 3D visualisation tools.
 
 .. currentmodule:: cdiutils.interactive
 

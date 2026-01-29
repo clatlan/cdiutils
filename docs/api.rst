@@ -10,7 +10,7 @@ This page provides complete documentation for all public classes and functions i
 Overview
 --------
 
-CDIutils is organized into several key modules:
+CDIutils is organised into several key modules:
 
 .. list-table::
    :widths: 20 80
@@ -29,11 +29,11 @@ CDIutils is organized into several key modules:
    * - :doc:`api/io`
      - Data loading and file I/O
    * - :doc:`api/plot`
-     - Visualization and plotting tools
+     - Visualisation and plotting tools
    * - :doc:`api/analysis`
      - Statistical analysis utilities
    * - :doc:`api/interactive`
-     - Interactive 3D visualization
+     - Interactive 3D visualisation
    * - :doc:`api/wavefront`
      - Wavefront propagation and probe analysis
    * - :doc:`api/simulation`
@@ -88,7 +88,7 @@ Loading data from different beamlines:
    * - :doc:`api/classes/CXIExplorer`
      - Interactive CXI file explorer widget
 
-Interactive Visualization
+Interactive Visualisation
 -------------------------
 
 3D interactive tools:
@@ -104,7 +104,7 @@ Interactive Visualization
    * - :doc:`api/classes/Plotter`
      - Interactive 2D slice viewer widget
    * - :doc:`api/functions/plotting`
-     - Quick 3D visualization function
+     - Quick 3D visualisation function
 
 Class Reference
 ---------------
@@ -145,7 +145,7 @@ Detailed documentation by class:
 Function Reference
 ------------------
 
-Key functions organized by category:
+Key functions organised by category:
 
 .. toctree::
    :maxdepth: 1
@@ -187,7 +187,7 @@ Quick Links
 * **Full pipeline**: :doc:`api/classes/BcdiPipeline`
 * **Phase retrieval**: :doc:`api/classes/PyNXPhaser`
 * **Post-processing**: :doc:`api/classes/PostProcessor`
-* **3D visualization**: :doc:`api/classes/ThreeDViewer`, :doc:`api/functions/plotting`
+* **3D visualisation**: :doc:`api/classes/ThreeDViewer`, :doc:`api/functions/plotting`
 * **Plotting slices**: :doc:`api/functions/plotting`
 
 Search

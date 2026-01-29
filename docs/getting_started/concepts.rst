@@ -34,10 +34,10 @@ The complete BCDI data processing workflow consists of:
    * Calculate strain from displacement gradient
    * Transform to laboratory frame
 
-5. **Analysis & Visualization**
+5. **Analysis & Visualisation**
    
    * Facet analysis for crystallographic orientation
-   * 3D interactive visualization
+   * 3D interactive visualisation
    * Statistical analysis of strain distributions
 
 Coordinate Systems

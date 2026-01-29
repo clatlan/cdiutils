@@ -57,7 +57,7 @@ This notebook demonstrates comprehensive BCDI reconstruction analysis including:
 * Loading experimental data
 * Phase retrieval with PyNX
 * Post-processing and strain analysis
-* Visualization and interpretation
+* Visualisation and interpretation
 
 CXI File Exploration
 ~~~~~~~~~~~~~~~~~~~~~

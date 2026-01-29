@@ -67,7 +67,7 @@ Minimal Working Example
    # calculate strain and displacement
    pipeline.postprocess(voxel_size=5)  # 5 nm voxels
 
-**Step 5: Visualize Results**
+**Step 5: Visualise Results**
 
 .. code-block:: python
 
@@ -81,7 +81,7 @@ That's it! Your results are saved in the ``dump_dir`` including:
 
 * CXI files with reconstruction
 * Strain and displacement maps
-* VTK files for visualization
+* VTK files for visualisation
 * Analysis figures
 
 Understanding the Output
