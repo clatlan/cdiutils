@@ -21,7 +21,7 @@ authors:
     given-names: Matthieu
 
 doi: 10.5281/zenodo.7656853
-version: 0.2.0
+version: 0.2.1
 date-released: 2025-02
 title: "Cdiutils: A python package for Bragg Coherent Diffraction Imaging processing, analysis and visualisation workflows"
 
