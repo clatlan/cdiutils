@@ -93,14 +93,12 @@ The widget is intended for interactive use inside Jupyter environments.
 # =========================
 # Imports
 # =========================
-
-# --- standard library ---
+import shutil
 import asyncio
 import concurrent.futures
 import io
 import math
 import os
-import shutil
 import subprocess
 import tempfile
 import threading
@@ -109,7 +107,6 @@ import traceback
 from pathlib import Path
 from typing import Literal
 
-# --- third-party ---
 import imageio.v2 as iio2
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
@@ -4971,9 +4968,7 @@ class MultiVolumeViewer(widgets.Box):
                 )
 
             if not os.path.exists(out_path):
-                raise RuntimeError(
-                    "FFmpeg reported success but output GIF was not created."
-                )
+                raise RuntimeError("FFmpeg reported success but output GIF was not created.")
 
     # ============================================================
     # Animation export — writers
@@ -5177,7 +5172,6 @@ class MultiVolumeViewer(widgets.Box):
                 "Install with:\n"
                 "  conda install -c conda-forge ffmpeg\n"
             )
-
     async def _save_rotation_animation_async(
         self,
         out_path: str,
@@ -5528,9 +5522,7 @@ class MultiVolumeViewer(widgets.Box):
                     self.anim_progress.bar_style = "danger"
                 if hasattr(self, "anim_status"):
                     msg = str(e).strip()
-                    self.anim_status.value = (
-                        f"Error: {type(e).__name__}: {msg}"
-                    )
+                    self.anim_status.value = f"Error: {type(e).__name__}: {msg}"
 
             except Exception:
                 pass
@@ -5562,7 +5554,9 @@ class MultiVolumeViewer(widgets.Box):
             if gif_err is not None:
                 try:
                     if hasattr(self, "anim_status"):
-                        self.anim_status.value = f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        self.anim_status.value = (
+                            f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        )
                     if hasattr(self, "anim_progress"):
                         self.anim_progress.bar_style = "danger"
                 except Exception:
@@ -6130,7 +6124,7 @@ class MultiVolumeViewer(widgets.Box):
             elif fmt == "gif":
                 gif_png_frames = []
                 self._require_ffmpeg()
-                gif_enabled = True
+                if_enabled = True
                 writer = None
             else:
                 raise ValueError(f"Unsupported format: {fmt}")
@@ -6355,7 +6349,9 @@ class MultiVolumeViewer(widgets.Box):
             if gif_err is not None:
                 try:
                     if hasattr(self, "anim_status"):
-                        self.anim_status.value = f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        self.anim_status.value = (
+                            f"GIF export failed: {type(gif_err).__name__}: {gif_err}"
+                        )
                     if hasattr(self, "anim_progress"):
                         self.anim_progress.bar_style = "danger"
                 except Exception:
