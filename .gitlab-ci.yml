@@ -14,8 +14,8 @@ stages:
     - if: $CI_COMMIT_BRANCH == "master"
 
 variables:
-  # use GitLab builds directory for conda environment (shared across runners)
-  CDIUTILS_ENV: $CI_BUILDS_DIR/cdiutils_ci/$CI_PIPELINE_ID
+  # use shared network location accessible by all runners
+  CDIUTILS_ENV: /scisoft/cdiutils_ci_envs/$CI_PIPELINE_ID
   CDIUTILS_TEST_DATA: /scisoft/cdiutils_test_data
 
 build-job:
