@@ -216,7 +216,7 @@ class MultiVolumeViewer(widgets.Box):
         dict_data=None,
         voxel_size=(1, 1, 1),
         figsize=(6, 6),
-        fontsize=14,
+        font_size=14,
         PLOT_ORDER: Literal["xyz", "zyx"] = "zyx",
         CBAR_LEN=0.7,
         render_workers: int | None = None,
@@ -290,7 +290,7 @@ class MultiVolumeViewer(widgets.Box):
             raise ValueError("PLOT_ORDER must be 'xyz' or 'zyx'")
         self.PLOT_ORDER = PLOT_ORDER
 
-        self.fontsize = int(fontsize)
+        self.font_size = int(font_size)
         self.CBAR_LEN = CBAR_LEN
         self._DARK_OUTLINE = "#e6eefc"
         self._LIGHT_OUTLINE = "#000000"
@@ -463,8 +463,8 @@ class MultiVolumeViewer(widgets.Box):
     # =========================
     def _build_figure(self, figsize):
         axis_common = dict(
-            title=dict(font=self._bold_font(self.fontsize * 1.5)),
-            tickfont=self._bold_font(self.fontsize),
+            title=dict(font=self._bold_font(self.font_size * 1.5)),
+            tickfont=self._bold_font(self.font_size),
             showline=True,
             linewidth=3,
             linecolor=self._axis_line_color(),
@@ -4249,7 +4249,7 @@ class MultiVolumeViewer(widgets.Box):
     # ----------------------------
     def _bold_font(self, size=None):
         if size is None:
-            size = self.fontsize
+            size = self.font_size
         return dict(family="DejaVu Sans Bold", size=int(size))
 
     def _colorbar_outline_color(self) -> str:
@@ -4280,10 +4280,10 @@ class MultiVolumeViewer(widgets.Box):
         return dict(
             title=dict(
                 text=title,
-                font=self._bold_font(self.fontsize * 1.5),
+                font=self._bold_font(self.font_size * 1.5),
                 side="top",
             ),
-            tickfont=self._bold_font(self.fontsize)
+            tickfont=self._bold_font(self.font_size)
             | dict(color=self._colorbar_tick_color()),
             thickness=28,
             # theme-aware outline
