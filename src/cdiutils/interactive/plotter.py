@@ -8,8 +8,11 @@ Note: This module requires ipywidgets. Dependency checking is handled at
 the package level (cdiutils.interactive.__init__).
 """
 
+# Standard library
 import os
+from typing import Literal
 
+# Third-party
 import h5py as h5
 import ipywidgets
 import numpy as np
@@ -21,63 +24,209 @@ from .plotting import plot_3d_slices, plot_data
 
 class Plotter:
     """
-    Class to plot data from files or Numpy arrays.
+    Class to plot data from files, NumPy arrays, or layered 3D datasets.
+
+    This class provides a unified interface for visualizing data commonly
+    produced in BCDI experiments, supporting both static matplotlib-based
+    plots and interactive multi-layer 3D visualization.
 
     Args:
-        data: The data to plot. This can either be the path to a file, or a
-            Numpy array directly.
-        plot: Specifies the type of plot to create. Available options are:
-            '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-            'sum_contour_slices', '3D', "1D", by default 'slices'.
-        log: Whether to display the plot in log scale, by default False.
-        cmap: The colourmap to use for the plot, by default 'turbo'.
-        figsize: The size of the figure in inches, by default (10, 10).
-        fontsize: The font size to use in the plot, by default 15.
-        title: The title of the plot, by default None.
+        data:
+            Data to plot. One of:
+            - str: path to a file (.npy, .npz, .cxi, .h5)
+            - np.ndarray: array to plot
+            - dict[str, np.ndarray]: required when plot='layers'
+
+        plot:
+            Plot type. One of:
+            - '2D'
+            - '1D'
+            - 'slices'
+            - 'phase_slices'
+            - 'contour_slices'
+            - 'sum_slices'
+            - 'sum_contour_slices'
+            - '3D'
+            - 'layers' (interactive multi-layer 3D viewer)
+
+            Default is 'slices'.
+
+        log:
+            Display data in logarithmic scale (static plots only).
+
+        cmap:
+            Colormap name (used for static plots only).
+
+        figsize:
+            Figure size in inches.
+
+        fontsize:
+            Base font size for labels, ticks, and titles.
+
+        title:
+            Optional plot title.
+
+        layers_kwargs:
+            Keyword arguments forwarded to `MultiVolumeViewer`
+            (only used when plot='layers').
+
+            Supported keys:
+                voxel_size: tuple[float, float, float]
+                    Physical voxel size along each axis.
+
+                PLOT_ORDER: Literal['xyz', 'zyx']
+                    Axis ordering convention.
+
+                CBAR_LEN: float
+                    Relative colorbar length.
+
+                render_workers: int | None
+                    Number of parallel render workers (for animation).
+
+                render_in_flight: int | None
+                    Maximum number of in-flight render tasks.
+
+                rendering_mode: Literal['safe', 'fast', 'process']
+                    Rendering backend strategy (for animation).
+
+            Ignored for all other plot modes.
 
     Attributes:
-        data_array: The Numpy array with the data.
-        plot: The type of plot specified.
-        log: Whether to display the plot in log scale.
-        cmap: The colourmap specified.
-        figsize: The size of the figure specified.
-        fontsize: The font size specified.
-        title: The title of the plot.
-        filename: The name of the file if data is given as a path.
+        data_array:
+            NumPy array containing the loaded data (static plot modes).
+
+        data_dict:
+            Dictionary of named 3D arrays (used when plot='layers').
+
+        plot:
+            Selected plot type.
+
+        log:
+            Whether logarithmic scaling is enabled.
+
+        cmap:
+            Selected colormap.
+
+        figsize:
+            Figure size in inches.
+
+        fontsize:
+            Base font size.
+
+        title:
+            Plot title.
+
+        layers_kwargs:
+            Keyword arguments forwarded to the multi-layer viewer.
+
+        filename:
+            Name of the loaded file when data is provided as a path.
     """
 
     def __init__(
         self,
-        data: str | np.ndarray,
-        plot: str = "slices",
+        data: str | np.ndarray | dict[str, np.ndarray],
+        plot: Literal[
+            "2D",
+            "slices",
+            "phase_slices",
+            "contour_slices",
+            "sum_slices",
+            "sum_contour_slices",
+            "3D",
+            "1D",
+            "layers",
+        ] = "slices",
         log: bool = False,
         cmap: str = "turbo",
         figsize: tuple[int, int] = (10, 10),
         fontsize: int = 15,
-        title: str = None,
+        title: str | None = None,
+        layers_kwargs: dict | None = None,
     ):
         """Initialise the Plotter class.
 
         Args:
-            data: The data to plot. This can either be the path to a file,
-                or a Numpy array directly.
-            plot: Specifies the type of plot to create. Available options
-                are: '2D', 'slices', "phase_slices", 'contour_slices', 'sum_slices',
-                'sum_contour_slices', '3D', "1D", by default 'slices'.
-            log: Whether to display the plot in log scale, by default
-                False.
-            cmap: The colourmap to use for the plot, by default 'turbo'.
-            figsize: The size of the figure in inches, by default (10, 10).
-            fontsize: The font size to use in the plot, by default 15.
-            title: The title of the plot, by default None.
+            data:
+                Data to plot. One of:
+                - str: path to a file (.npy, .npz, .cxi, .h5)
+                - np.ndarray: array to plot
+                - dict[str, np.ndarray]: required when plot='layers'
+
+            plot:
+                Plot type. One of:
+                - '2D'
+                - '1D'
+                - 'slices'
+                - 'phase_slices'
+                - 'contour_slices'
+                - 'sum_slices'
+                - 'sum_contour_slices'
+                - '3D'
+                - 'layers' (multi-layer 3D viewer)
+
+            log:
+                Display data in logarithmic scale.
+
+            cmap:
+                Colormap name. (for static plot)
+
+            figsize:
+                Figure size in inches.
+
+            fontsize:
+                Base font size for labels, ticks, and titles.
+
+            title:
+                Optional plot title.
+
+            layers_kwargs:
+                Keyword arguments forwarded to `MultiVolumeViewer`
+                (only used when plot='layers').
+
+                Supported keys:
+                    voxel_size: tuple[float, float, float]
+                        Physical voxel size along each axis.
+
+                    PLOT_ORDER: Literal['xyz', 'zyx']
+                        Axis ordering convention.
+
+                    CBAR_LEN: float
+                        Relative colorbar length.
+
+                    render_workers: int | None
+                        Number of parallel render workers (for animation).
+
+                    render_in_flight: int | None
+                        Maximum number of in-flight render tasks.
+
+                    rendering_mode: Literal['safe', 'fast', 'process']
+                        Rendering backend strategy (for animation).
         """
+        # ---- legacy behaviour ----
         self.data_array = None
+        self.data_dict = None
         self.plot = plot
         self.log = log
         self.cmap = cmap
         self.figsize = figsize
         self.fontsize = fontsize
         self.title = title
+        self.layers_kwargs = layers_kwargs or {}
+
+        # 🔒 STRICT: MultiVolumeViewer only accepts dict
+        if self.plot == "layers":
+            if not isinstance(data, dict):
+                print(
+                    "[Plotter] MultiVolumeViewer requires a dict[str, np.ndarray].\n"
+                    "Example:\n"
+                    "    {'density': density_3d, 'phase': phase_3d}"
+                )
+                return
+
+            self.data_dict = data
+            self.init_plot()
+            return
 
         # Get data array from any of the supported files
         if isinstance(data, str) and os.path.isfile(data):
@@ -198,7 +347,20 @@ class Plotter:
         elif self.plot == "3D" and self.data_array.ndim == 3:
             viewer = ThreeDViewer(self.data_array)
             viewer.show()
+        elif self.plot == "layers":
+            from .multiviewer_3d import MultiVolumeViewer
 
+            self.layers_kwargs.pop("figsize", None)
+            self.layers_kwargs.pop("fontsize", None)
+
+            viewer = MultiVolumeViewer(
+                self.data_dict,
+                fontsize=self.fontsize,
+                figsize=self.figsize,
+                **self.layers_kwargs,
+            )
+            viewer.show()
+            return
         elif self.plot == "1D" and self.data_array.ndim == 1:
             print(self.data_array)
             plot_data(
