@@ -1,6 +1,10 @@
 # GitLab CI for CDIutils using shell executor with mamba
 # based on PyNX CI template
 
+# By default, I ll use GPU tags for all jobs, this forces the jobs to
+# run on the same machine, otherwise different we get failure due to 
+# incorrect paths / environment.
+
 stages:
   - build
   - test
@@ -21,7 +25,7 @@ variables:
 build-job:
   stage: build
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -45,7 +49,7 @@ build-job:
 lint-job:
   stage: test
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -63,7 +67,7 @@ lint-job:
 test-unit:
   stage: test
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -76,7 +80,7 @@ test-unit:
 test-integration:
   stage: test
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -91,7 +95,7 @@ test-integration:
 test-beamlines-nanomax:
   stage: test
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -111,7 +115,7 @@ test-beamlines-nanomax:
 test-beamlines-p10:
   stage: test
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
@@ -162,7 +166,7 @@ test-gpu:
 test-postprocessing:
   stage: test
   tags:
-    - shell  # CPU only - no GPU needed for postprocessing
+    - gpu  # CPU only - no GPU needed for postprocessing
   needs:
     - job: test-gpu
       artifacts: true
@@ -184,7 +188,7 @@ test-postprocessing:
 cleanup-job:
   stage: cleanup
   tags:
-    - shell
+    - gpu
   rules:
     - !reference [.default_rules, rules]
   script:
