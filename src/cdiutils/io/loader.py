@@ -571,6 +571,18 @@ class Loader(ABC):
             >>> Loader.get_rocking_angle(angles)
             'sample_inplane_angle'
         """
+        outofplane = angles.get("sample_outofplane_angle")
+        inplane = angles.get("sample_inplane_angle")
+
+        if outofplane is not None and inplane is not None:
+            if (
+                isinstance(outofplane, (np.ndarray, list))
+                and len(outofplane) > 1
+            ):
+                return "sample_outofplane_angle"
+            if isinstance(inplane, ((np.ndarray, list))) and len(inplane) > 1:
+                return "sample_inplane_angle"
+        return None
 
     @staticmethod
     def format_scanned_counters(
