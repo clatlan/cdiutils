@@ -1,0 +1,37 @@
+[project]
+name = "facets-drivers"
+version = "0.0.1"
+description = "Helper tools to drive the Full-circle Atomistic Comparison of Experiments, Theory, and Simulation code from Jupyter notebooks using Ewoks"
+authors = [
+  {name = "Étienne Polack", email = "87805034+epolack@users.noreply.github.com"}
+]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+  "jupyterlab>=4.0",
+  "ipykernel>=6.25",
+  "pickleshare",
+  "ipyparams",
+  "numpy",
+  "matplotlib",
+  "pynx @ git+https://gitlab.esrf.fr/favre/PyNX",
+  "cdiutils @ git+https://github.com/clatlan/cdiutils@dev",
+  "ewoks",
+  "ewokscore",
+  "vtk",
+  "xvfbwrapper",
+  "SimpleITK",
+  "facets",
+  "ewoks[dask]",
+  "remotemanager",
+  "parsl",
+  "pandas",
+  "polars",
+  "ipywidgets>=8.1.8",
+  "tqdm>=4.67.1",
+]
+
+[tool.poetry.dependencies]
+facets = { path = "ext/facets", develop = true }
+
+[tool.uv.sources]
+facets = { path = "ext/facets", editable = true }
