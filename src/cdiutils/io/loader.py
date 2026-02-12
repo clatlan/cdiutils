@@ -220,6 +220,10 @@ class Loader(ABC):
                 return P10Loader(hutch="EH2", **metadata)
             return P10Loader(**metadata)
 
+        if "i16" in beamline_setup.lower():
+            from . import I16Loader
+            return I16Loader(**metadata)
+
         if beamline_setup.lower() == "cristal":
             from . import CristalLoader
 

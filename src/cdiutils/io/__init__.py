@@ -9,6 +9,7 @@ from .cristal import CristalLoader
 from .cxi import CXIFile, load_cxi, save_as_cxi
 from .id01 import ID01Loader, SpecLoader
 from .id27 import ID27Loader
+from .i16 import I16Loader
 from .loader import Loader, h5_safe_load
 from .nanomax import NanoMAXLoader
 from .p10 import P10Loader
@@ -21,6 +22,7 @@ __all__ = [
     "ID01Loader",
     "ID27Loader",
     "P10Loader",
+    "I16Loader",
     "SpecLoader",
     "SIXSLoader",
     "CristalLoader",
