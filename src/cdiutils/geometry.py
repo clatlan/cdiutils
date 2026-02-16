@@ -169,6 +169,7 @@ class Geometry:
                 - ``"NanoMAX"``: MAX IV NanoMAX
                 - ``"CRISTAL"``: SOLEIL CRISTAL
                 - ``"ID27"``: ESRF ID27
+                - ``"I16"``: DLS I16
 
             beamline_setup: Deprecated. Use ``beamline`` instead.
             sample_orientation: Sample mounting style:
@@ -287,11 +288,23 @@ class Geometry:
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="ID27",
             )
+
+        if beamline.lower() == "i16":
+            geometry = cls(
+                sample_circles=["x-", "y-"],  # In plane rotation only
+                detector_circles=["y-", "x-"],  # no circle, values dummy
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="x-",
+                beam_direction=[1, 0, 0],
+                sample_surface_normal=[0, 1, 0],  # default sample facing up
+                name="I16",
+            )
+
         if geometry is None:
             raise NotImplementedError(
                 f"The beamline name {beamline} is not valid. Available:\n"
                 "'ID01', 'ID01SPEC', 'ID27', 'P10', 'P10EH2', 'SIXS2022' "
-                "and NanoMAX."
+                "'I16' and 'NanoMAX'."
             )
 
         # if the sample orientation is provided, override any default

@@ -39,7 +39,7 @@ class I16Loader(H5TypeLoader):
 
         >>> from cdiutils.io.i16 import I16Loader
         >>> loader = I16Loader(
-        ...     experiment_file_path=="/dls/i16/data/2026/mm12345-1/12345.nxs",
+        ...     experiment_file_path="/dls/i16/data/2026/mm12345-1/12345.nxs",
         ...     sample_name="PtNP",
         ...     detector_name="merlin"
         ... )
