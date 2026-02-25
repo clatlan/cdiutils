@@ -5,7 +5,7 @@ on:
     branches:
       - dev
       - master
-
+  workflow_dispatch:  # manual trigger
 jobs:
   mirror:
     runs-on: ubuntu-latest

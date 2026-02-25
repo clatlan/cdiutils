@@ -5,7 +5,7 @@ on:
     branches: [ master, dev ]
   pull_request:
     branches: [ master, dev ]
-
+  workflow_dispatch:  # manual trigger
 jobs:
   lint:
     name: Code Quality
