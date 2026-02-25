@@ -27,7 +27,6 @@ jobs:
       - name: Mirror to ESRF GitLab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_MIRROR_TOKEN }}
-        run:
         run: |
           git remote add gitlab https://oauth2:${GITLAB_TOKEN}@gitlab.esrf.fr/ada/cdiutils.git
           if [ "${{ inputs.force_push }}" == "true" ]; then
