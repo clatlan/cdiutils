@@ -113,11 +113,11 @@ class I16Loader(H5TypeLoader):
         """
         super().__init__(
             experiment_file_path,
-            None,
-            None,
-            detector_name,
-            flat_field,
-            alien_mask,
+            scan=None,
+            sample_name=None,
+            detector_name=detector_name or "merlin",
+            flat_field=flat_field,
+            alien_mask=alien_mask,
         )
 
     @h5_safe_load
@@ -226,10 +226,8 @@ class I16Loader(H5TypeLoader):
         Examples:
             Load calibration for current scan:
 
-            >>> loader = ID01Loader(
-            ...     experiment_file_path="/data/id01/sample.h5",
-            ...     scan=42,
-            ...     sample_name="sample"
+            >>> loader = I16Loader(
+            ...     experiment_file_path="/dls/i16/data/20XX/mmXXXX-1/12345.nxs",
             ... )
             >>> calib = loader.load_det_calib_params()
             >>> print(f"Direct beam at ({calib['cch1']}, {calib['cch2']})")
@@ -253,10 +251,10 @@ class I16Loader(H5TypeLoader):
         module = detector["module"]
         try:
             return {
-                "cch1": float(instrument['merlin_centre_i'][()]) if 'merlin_centre_i' in instrument else 147,
-                "cch2": float(instrument['merlin_centre_j'][()]) if 'merlin_centre_j' in instrument else 335,
-                "pwidth1": float(module['fast_pixel_direction'][()]),
-                "pwidth2": float(module['slow_pixel_direction'][()]),
+                "cch1": float(instrument['merlin_centre_i'][()]) if 'merlin_centre_i' in instrument else 159,
+                "cch2": float(instrument['merlin_centre_j'][()]) if 'merlin_centre_j' in instrument else 348,
+                "pwidth1": float(module['fast_pixel_direction'][()].squeeze()),
+                "pwidth2": float(module['slow_pixel_direction'][()].squeeze()),
                 "distance": float(detector['transformations/origin_offset'][()]),
                 "tiltazimuth": 0.0,
                 "tilt": 0.0,
@@ -264,7 +262,7 @@ class I16Loader(H5TypeLoader):
             }
         except KeyError as exc:
             raise KeyError(
-                f"key_path is wrong (key_path='{key_path}'). "
+                f"key_path is wrong (key_path='{module.name}'). "
                 "Are sample_name, scan number or detector name correct?"
             ) from exc
 
@@ -367,6 +365,22 @@ class I16Loader(H5TypeLoader):
         )
 
     @h5_safe_load
+    def load_angles(self) -> dict:
+        diffractometer = self.h5file['entry/instrument/diffractometer_sample']
+        measurement = self.h5file['entry/measurement']
+        angles = {}
+        for name in self.angle_names.values():
+            if name is not None:
+                if name in measurement:
+                    # measurement contains scanned array
+                    angles[name] = measurement[name][()]
+                else:
+                    # diffractometer_sample contains metadata (value at start)
+                    angles[name] = diffractometer[name][()]
+
+        return angles
+
+    @h5_safe_load
     def load_motor_positions(
         self,
         roi: tuple[slice] = None,
@@ -421,9 +435,7 @@ class I16Loader(H5TypeLoader):
         See Also:
             :meth:`load_data` for combined data + angles loading.
         """
-        angles = self.load_angles(
-            key_path=f"entry/instrument/diffractometer_sample/"
-        )
+        angles = self.load_angles()
 
         # ensure angles dictionary has correct keys and defaults to 0.0
         # if missing

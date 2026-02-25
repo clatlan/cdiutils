@@ -291,12 +291,12 @@ class Geometry:
 
         if beamline.lower() == "i16":
             geometry = cls(
-                sample_circles=["x-", "y-"],  # In plane rotation only
-                detector_circles=["y-", "x-"],  # no circle, values dummy
-                detector_axis0_orientation="y-",
-                detector_axis1_orientation="x-",
+                sample_circles=["x-", "y+"],  # In plane rotation only
+                detector_circles=["x-", "y+"],  # no circle, values dummy
+                detector_axis0_orientation="x+",
+                detector_axis1_orientation="y+",
                 beam_direction=[1, 0, 0],
-                sample_surface_normal=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 0, 1],  # default sample facing up
                 name="I16",
             )
 
