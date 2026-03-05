@@ -53,9 +53,11 @@ __all__ = [
     "plot_phase_data_comparison_exp_to_theo",
 ]
 
+
 def __getattr__(name: str):
     # Lazy import for plotting (or anything that may import heavy/optional deps)
     if name == "plot_phase_data_comparison_exp_to_theo":
         from ._plotting import plot_phase_data_comparison_exp_to_theo
+
         return plot_phase_data_comparison_exp_to_theo
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

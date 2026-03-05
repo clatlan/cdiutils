@@ -28,6 +28,7 @@ def clusters_dislo_strain_map(
     """
     Cluster the voxels that have a phase jump.
     """
+
     def create_cylinder_stencil(radius):
         """
         Create a cylinder stencil.
@@ -132,9 +133,9 @@ def clusters_dislo_strain_map(
                     or z_max > cylindrical_mask.shape[2]
                 ):
                     continue
-                cylindrical_mask[x_min:x_max, y_min:y_max, z_min:z_max] |= (
-                    stencil
-                )
+                cylindrical_mask[
+                    x_min:x_max, y_min:y_max, z_min:z_max
+                ] |= stencil
 
     print("Cylindrical mask constructed.")
     final_labeled_clusters, num_final_clusters = label(cylindrical_mask > 0)
@@ -188,5 +189,3 @@ def clusters_dislo_strain_map(
         rcParams["font.size"] = 12
 
     return final_labeled_clusters, num_final_clusters
-
-

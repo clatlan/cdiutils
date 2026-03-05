@@ -26,7 +26,7 @@ def plot_phase_data_comparison_exp_to_theo(
     offset_theta=None,
     ncol=3,
 ):
-    '''
+    """
     Plot the experimental phase and the theoretical phase.
     Parameters
     ----------
@@ -66,7 +66,7 @@ def plot_phase_data_comparison_exp_to_theo(
         The offset of the theta.
     ncol : int, optional
         The number of columns in the legend.
-    '''
+    """
     # setup plot
     rcParams["font.size"] = font_size
     rcParams.update(
@@ -78,9 +78,13 @@ def plot_phase_data_comparison_exp_to_theo(
         }
     )
     # Preprocess experimental phase
-    filtred_phase, filter_fit, _, f_linear, coeffs_linear = (
-        decompose_experimental_phase(exp_angle, exp_phase)
-    )
+    (
+        filtred_phase,
+        filter_fit,
+        _,
+        f_linear,
+        coeffs_linear,
+    ) = decompose_experimental_phase(exp_angle, exp_phase)
     slope_exp, intercept_exp = coeffs_linear
     if fix_exp_slope is not None:
         slope_exp = fix_exp_slope
@@ -127,9 +131,13 @@ def plot_phase_data_comparison_exp_to_theo(
     labels_all = [exp_legend]
 
     for i, theo_phase in enumerate(theo_phases):
-        predicted_phase, pred_fit, _, f_linear_theo, coeffs_linear = (
-            decompose_experimental_phase(exp_angle, theo_phase)
-        )
+        (
+            predicted_phase,
+            pred_fit,
+            _,
+            f_linear_theo,
+            coeffs_linear,
+        ) = decompose_experimental_phase(exp_angle, theo_phase)
         y_theo = (
             predicted_phase - f_linear_theo
             if filter_low_freq
@@ -199,5 +207,3 @@ def plot_phase_data_comparison_exp_to_theo(
     rcParams["font.size"] = 12
 
     plt.show()
-
-

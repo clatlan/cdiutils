@@ -101,9 +101,9 @@ def dislo_process_phase_ring(
                 phase_ring[diff_phi_positionmax]
                 - phase_ring[diff_phi_positionmax - 1]
             )
-            phase_ring[diff_phi_positionmax:] -= (
-                phase_shift  # Adjust phase after the jump
-            )
+            phase_ring[
+                diff_phi_positionmax:
+            ] -= phase_shift  # Adjust phase after the jump
 
         # Step 2: Apply Adaptive Median Filter
         phase_ring_smoothed = median_filter(
@@ -223,7 +223,6 @@ def dislo_process_phase_ring(
 
             return y_fixed
 
-
     # Extract indices where phase is nonzero
     nonzero_indices = np.nonzero(phase)
     displacement_vectors_ring = displacement_vectors[nonzero_indices]
@@ -258,15 +257,18 @@ def dislo_process_phase_ring(
         displacement_vectors_final = displacement_vectors_ring_sorted.copy()
     elif filter_by_slope:
         sel___ = np.zeros_like(angle_ring, dtype=bool)
-        angle_ring, phase_ring, filtered_indices, bad_indices = (
-            filter_by_slope_deviation(
-                angle_ring,
-                phase_ring,
-                slope_target=1.0,
-                slope_tol=0.5,
-                min_cluster=5,
-                pad=3,
-            )
+        (
+            angle_ring,
+            phase_ring,
+            filtered_indices,
+            bad_indices,
+        ) = filter_by_slope_deviation(
+            angle_ring,
+            phase_ring,
+            slope_target=1.0,
+            slope_tol=0.5,
+            min_cluster=5,
+            pad=3,
         )
         displacement_vectors_final = displacement_vectors_ring_sorted[
             filtered_indices
@@ -473,6 +475,7 @@ def dislo_process_phase_ring(
         displacement_vectors_final,
     )
 
+
 def remove_large_jumps(x, y, threshold_factor=1.5):
     """
     Removes points with large jumps in the y-data based on a threshold.
@@ -534,4 +537,3 @@ def center_angles(angles):
     centered_angles = shift_tozero - max_angle_new
 
     return centered_angles
-

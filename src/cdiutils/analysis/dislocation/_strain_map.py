@@ -22,6 +22,7 @@ def map_min_gradient(
     """
     Map the minimum gradient of the phase data to the strain mask and strain amplitude.
     """
+
     def calculate_displacement_gradient(phase, voxel_size):
         return hybrid_gradient(phase, *voxel_size)
 
@@ -225,4 +226,3 @@ def map_min_gradient(
         rcParams["font.size"] = 12
 
     return nan_to_zero(strain_mask), nan_to_zero(strain_amp)
-

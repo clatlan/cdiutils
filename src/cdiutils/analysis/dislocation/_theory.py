@@ -110,6 +110,7 @@ def dislo_phase_model(
 
     return u_final
 
+
 ## utils for dislo_phase_model
 def dislo_rotation_matrix_real_to_theo(t, b):
     """
@@ -178,6 +179,7 @@ def dislo_rotation_matrix_real_to_theo(t, b):
     # 5) R has rows = [x̂, ŷ, ẑ]
     R = np.array([x_prime, y_prime, t_hat])
     return R
+
 
 def normalize_vector(v):
     """
@@ -289,7 +291,6 @@ def signed_angle_3d(u, v, normal):
     return angle * sign
 
 
-
 def angle_between_vectors(u, v):
     """
     Compute the angle between two vectors in Euclidean space.
@@ -328,7 +329,6 @@ def angle_between_vectors(u, v):
     >>> angle_between_vectors([1, 0], [1, 0])
     0.0
     """
-
 
     # Calculate dot product
     dot_product = sum(u_i * v_i for u_i, v_i in zip(u, v))
@@ -404,5 +404,3 @@ def closest_to_zero_in_array(vec):
     vec = np.asarray(vec)  # Ensure it's a NumPy array
     idx = np.argmin(np.abs(vec))  # Index of the value closest to zero
     return vec[idx], idx
-
-

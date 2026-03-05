@@ -150,6 +150,8 @@ except Exception:
             ]
             for i, c in enumerate(colors)
         ]
+
+
 try:
     import imageio_ffmpeg  # noqa: F401
 except Exception as e:
@@ -415,10 +417,12 @@ class MultiVolumeViewer(widgets.Box):
         loop.call_later(
             0.025, self._reset_view_and_fit
         )  # second pass for slow frontends
+
     def _axis_label(self, name: str) -> str:
         if self.unit is None:
             return name
         return f"{name} ({self.unit})"
+
     # =========================
     # Validation / registration
     # =========================
@@ -470,10 +474,9 @@ class MultiVolumeViewer(widgets.Box):
         """Create default rigid transform state for a layer if missing."""
         if layer_name not in self._layer_transform:
             self._layer_transform[layer_name] = {
-                "rot_deg": [0.0, 0.0, 0.0],   # Rx, Ry, Rz in degrees
-                "trans":  [0.0, 0.0, 0.0],   # Tx, Ty, Tz in plot units
+                "rot_deg": [0.0, 0.0, 0.0],  # Rx, Ry, Rz in degrees
+                "trans": [0.0, 0.0, 0.0],  # Tx, Ty, Tz in plot units
             }
-
 
     def _build_interpolators(self):
         nz, ny, nx = self._shape0
@@ -599,7 +602,8 @@ class MultiVolumeViewer(widgets.Box):
             ),
         )
 
-        self.css_rightpanel = widgets.HTML("""
+        self.css_rightpanel = widgets.HTML(
+            """
         <style>
         /* Panel background */
         .mv-right-panel {
@@ -693,7 +697,8 @@ class MultiVolumeViewer(widgets.Box):
         width: 100% !important;
         }
         </style>
-        """)
+        """
+        )
 
         self.right_panel = widgets.VBox(
             [self.css_rightpanel, panel_inner],
@@ -1070,6 +1075,7 @@ class MultiVolumeViewer(widgets.Box):
             ),
         )
         return box
+
     def _make_transform_box(self, w):
         # Optional: make sliders a bit wider and align labels/values
         for k in ["rot_x", "rot_y", "rot_z", "trans_x", "trans_y", "trans_z"]:
@@ -1094,11 +1100,13 @@ class MultiVolumeViewer(widgets.Box):
                 align_items="stretch",  # keep sliders stretched
             ),
         )
+
     def _build_bottom_anim_panel(self):
         self._sync_anim_frames = False
         self._sync_anim_fps = False
 
-        self._bottom_css = widgets.HTML("""
+        self._bottom_css = widgets.HTML(
+            """
         <style>
         /* ===============================
         Animation panel – force VS Code
@@ -1175,7 +1183,8 @@ class MultiVolumeViewer(widgets.Box):
         }
 
         </style>
-        """)
+        """
+        )
         self.anim_panel_title = widgets.HTML("<b>Export animation</b>")
 
         # --- animation save controls (under figure) ---
@@ -1796,7 +1805,11 @@ class MultiVolumeViewer(widgets.Box):
 
             pos0 = spec.get("pos", None)
             if pos0 is None:
-                mid = {"x": (nx - 1)//2, "y": (ny - 1)//2, "z": (nz - 1)//2}[ax_phys]
+                mid = {
+                    "x": (nx - 1) // 2,
+                    "y": (ny - 1) // 2,
+                    "z": (nz - 1) // 2,
+                }[ax_phys]
                 pos0 = mid
 
             pos_sl = widgets.IntSlider(
@@ -1843,10 +1856,15 @@ class MultiVolumeViewer(widgets.Box):
 
                 thick_sl.max = int(max(0, axis_len // 4))
                 thick_sl.value = int(min(thick_sl.value, thick_sl.max))
+
             def _center_pos(_=None):
                 nz, ny, nx = self._shape0
                 ax_phys = self._plot_axis_to_phys_axis(ax_dd.value)
-                mid = {"x": (nx - 1)//2, "y": (ny - 1)//2, "z": (nz - 1)//2}[ax_phys]
+                mid = {
+                    "x": (nx - 1) // 2,
+                    "y": (ny - 1) // 2,
+                    "z": (nz - 1) // 2,
+                }[ax_phys]
                 pos_sl.value = int(mid)
 
             center_btn.on_click(lambda _b: (_center_pos(), _commit(None)))
@@ -1862,6 +1880,7 @@ class MultiVolumeViewer(widgets.Box):
                 # map [-L/2, +L/2] -> [0, N-1]
                 idx = int(np.round((pos_phys + 0.5 * L) / d))
                 return int(np.clip(idx, 0, N - 1))
+
             def _commit(_):
                 ax_plot = ax_dd.value
                 ax_phys = self._plot_axis_to_phys_axis(ax_plot)
@@ -1878,10 +1897,18 @@ class MultiVolumeViewer(widgets.Box):
                 spec["thickness"] = int(thick_sl.value)
 
                 data2d_base, Xc, Yc, Zc = self._materialize_slice_rgi(
-                    vol3d, spec["axis_phys"], spec["pos"], spec["thickness"], nan_policy="none"
+                    vol3d,
+                    spec["axis_phys"],
+                    spec["pos"],
+                    spec["thickness"],
+                    nan_policy="none",
                 )
                 data2d_pol, _, _, _ = self._materialize_slice_rgi(
-                    vol3d, spec["axis_phys"], spec["pos"], spec["thickness"], nan_policy=policy
+                    vol3d,
+                    spec["axis_phys"],
+                    spec["pos"],
+                    spec["thickness"],
+                    nan_policy=policy,
                 )
 
                 spec["data2d_base"] = data2d_base
@@ -2294,11 +2321,18 @@ class MultiVolumeViewer(widgets.Box):
             # self._make_transform_box(w),
         ]
         children += [
-            self._make_collapsible_section("Lighting", self._make_lighting_box(w), open_by_default=False),
-            self._make_collapsible_section("Transform", self._make_transform_box(w), open_by_default=False),
+            self._make_collapsible_section(
+                "Lighting", self._make_lighting_box(w), open_by_default=False
+            ),
+            self._make_collapsible_section(
+                "Transform", self._make_transform_box(w), open_by_default=False
+            ),
         ]
         self.layers_box.children = [widgets.VBox(children)]
-    def _make_collapsible_section(self, title: str, body: widgets.Widget, open_by_default: bool = True):
+
+    def _make_collapsible_section(
+        self, title: str, body: widgets.Widget, open_by_default: bool = True
+    ):
         header = widgets.ToggleButton(
             value=open_by_default,
             description=title,
@@ -2328,6 +2362,7 @@ class MultiVolumeViewer(widgets.Box):
         )
         section.add_class("mv-collapsible")
         return section
+
     def _select_edit_layer(self, name: str):
         """Force the edit dropdown + panel to switch to `name` (robust in VS Code)."""
         if not name or name not in self._layers:
@@ -3192,8 +3227,16 @@ class MultiVolumeViewer(widgets.Box):
 
     def _on_layer_transform_changed(self, change, layer_name: str):
         wdg = self._layer_widgets[layer_name]
-        self._layer_transform[layer_name]["rot_deg"] = [wdg["rot_x"].value, wdg["rot_y"].value, wdg["rot_z"].value]
-        self._layer_transform[layer_name]["trans"]   = [wdg["trans_x"].value, wdg["trans_y"].value, wdg["trans_z"].value]
+        self._layer_transform[layer_name]["rot_deg"] = [
+            wdg["rot_x"].value,
+            wdg["rot_y"].value,
+            wdg["rot_z"].value,
+        ]
+        self._layer_transform[layer_name]["trans"] = [
+            wdg["trans_x"].value,
+            wdg["trans_y"].value,
+            wdg["trans_z"].value,
+        ]
 
         # keep your existing refresh path
         self._on_layer_param_changed(change)
@@ -3475,9 +3518,36 @@ class MultiVolumeViewer(widgets.Box):
             wdg.observe(self._on_layer_param_changed, names="value")
 
         # --- Transform widgets ---
-        rot_x = widgets.FloatSlider(description="Rx (°)", min=-180, max=180, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
-        rot_y = widgets.FloatSlider(description="Ry (°)", min=-180, max=180, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
-        rot_z = widgets.FloatSlider(description="Rz (°)", min=-180, max=180, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
+        rot_x = widgets.FloatSlider(
+            description="Rx (°)",
+            min=-180,
+            max=180,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
+        rot_y = widgets.FloatSlider(
+            description="Ry (°)",
+            min=-180,
+            max=180,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
+        rot_z = widgets.FloatSlider(
+            description="Rz (°)",
+            min=-180,
+            max=180,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
 
         nz, ny, nx = self._shape0
         vz, vy, vx = self.voxel_size
@@ -3486,15 +3556,47 @@ class MultiVolumeViewer(widgets.Box):
         dy = ny * vy
         dz = nz * vz
 
-        txmin,txmax = -2 * dx , 2* dx
-        tymin,tymax = -2 * dy , 2* dx
-        tzmin,tzmax = -2 * dz , 2* dx
-        trans_x = widgets.FloatSlider(description="Tx", min=txmin, max=txmax, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
-        trans_y = widgets.FloatSlider(description="Ty", min=tymin, max=tymax, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
-        trans_z = widgets.FloatSlider(description="Tz", min=tzmin, max=tzmax, step=1, value=0.0, continuous_update=False,style=self.create_style,layout=widgets.Layout(width="95%"),)
+        txmin, txmax = -2 * dx, 2 * dx
+        tymin, tymax = -2 * dy, 2 * dx
+        tzmin, tzmax = -2 * dz, 2 * dx
+        trans_x = widgets.FloatSlider(
+            description="Tx",
+            min=txmin,
+            max=txmax,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
+        trans_y = widgets.FloatSlider(
+            description="Ty",
+            min=tymin,
+            max=tymax,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
+        trans_z = widgets.FloatSlider(
+            description="Tz",
+            min=tzmin,
+            max=tzmax,
+            step=1,
+            value=0.0,
+            continuous_update=False,
+            style=self.create_style,
+            layout=widgets.Layout(width="95%"),
+        )
         for wdg in (rot_x, rot_y, rot_z, trans_x, trans_y, trans_z):
-            wdg.observe(lambda ch, kk=k: self._on_layer_transform_changed(ch, kk), names="value")
-        transform_box = widgets.VBox([rot_x, rot_y, rot_z, trans_x, trans_y, trans_z])
+            wdg.observe(
+                lambda ch, kk=k: self._on_layer_transform_changed(ch, kk),
+                names="value",
+            )
+        transform_box = widgets.VBox(
+            [rot_x, rot_y, rot_z, trans_x, trans_y, trans_z]
+        )
         tr = self._layer_transform[k]
         rot_x.value, rot_y.value, rot_z.value = tr["rot_deg"]
         trans_x.value, trans_y.value, trans_z.value = tr["trans"]
@@ -3936,14 +4038,14 @@ class MultiVolumeViewer(widgets.Box):
         pts = np.stack([Xp, Yp, Zp], axis=-1)
         shape = pts.shape
 
-        pts = pts.reshape(-1,3)
+        pts = pts.reshape(-1, 3)
         pts = self._apply_layer_transform(pts, layer_name)
 
         pts = pts.reshape(shape)
 
-        Xp = pts[...,0]
-        Yp = pts[...,1]
-        Zp = pts[...,2]
+        Xp = pts[..., 0]
+        Yp = pts[..., 1]
+        Zp = pts[..., 2]
         trace = go.Surface(
             name=layer_name,
             x=Xp,
@@ -6273,7 +6375,6 @@ class MultiVolumeViewer(widgets.Box):
                 self.anim_status.value = "Rendering…"
 
             if fmt == "mp4":
-
                 writer = iio2.get_writer(
                     out_path, fps=int(fps), codec="libx264"
                 )
@@ -6573,7 +6674,6 @@ class MultiVolumeViewer(widgets.Box):
             except Exception:
                 pass
 
-
     # ----------------------------
     # transformation
     # ----------------------------
@@ -6584,21 +6684,15 @@ class MultiVolumeViewer(widgets.Box):
         cy, sy = np.cos(ry), np.sin(ry)
         cz, sz = np.cos(rz), np.sin(rz)
 
-        Rx = np.array([[1,0,0],
-                    [0,cx,-sx],
-                    [0,sx,cx]])
+        Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
 
-        Ry = np.array([[cy,0,sy],
-                    [0,1,0],
-                    [-sy,0,cy]])
+        Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]])
 
-        Rz = np.array([[cz,-sz,0],
-                    [sz,cz,0],
-                    [0,0,1]])
+        Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]])
 
         return Rz @ Ry @ Rx
-    def _apply_layer_transform(self, pts, layer_name):
 
+    def _apply_layer_transform(self, pts, layer_name):
         tr = self._layer_transform[layer_name]
 
         rx, ry, rz = tr["rot_deg"]
@@ -6608,4 +6702,3 @@ class MultiVolumeViewer(widgets.Box):
         T = np.array([tx, ty, tz])
 
         return pts @ R.T + T
-
