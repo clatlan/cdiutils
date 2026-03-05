@@ -371,7 +371,7 @@ class MultiVolumeViewer(widgets.Box):
         self.grid_toggle = widgets.Checkbox(
             value=True,
             description="Grid",
-            indent=False,
+            style={"description_width": "0px"},
             tooltip="Show/hide 3D grid",
         )
 
@@ -562,10 +562,9 @@ class MultiVolumeViewer(widgets.Box):
                 width="100%",
                 min_width="0px",
                 height="100%",
-                overflow_y="auto",
-                overflow_x="hidden",
+                # overflow_y="auto",
+                # overflow_x="hidden",
                 padding="18px",
-                box_sizing="border-box",
             ),
         )
 
@@ -705,12 +704,11 @@ class MultiVolumeViewer(widgets.Box):
             layout=widgets.Layout(
                 flex="0 0 38%",
                 height="100%",
-                overflow_y="auto",
-                overflow_x="hidden",
+                # overflow_y="auto",
+                # overflow_x="hidden",
                 padding="20px",
                 margin="0px",
                 border="3px solid red",
-                box_sizing="border-box",
             ),
         )
         self.right_panel.add_class("mv-right-panel")
@@ -727,7 +725,7 @@ class MultiVolumeViewer(widgets.Box):
                 flex_flow="row wrap",
                 justify_content="flex-start",
                 align_items="center",
-                gap="10px",
+                grid_gap="10px",
                 width="95%",
             ),
         )
@@ -752,7 +750,7 @@ class MultiVolumeViewer(widgets.Box):
 
         self.rename_layer_btn = widgets.Button(
             description="Rename",
-            style=self.create_style,
+            style=widgets.ButtonStyle(),
             layout=widgets.Layout(width="33%"),
             tooltip="Rename the selected layer",
         )
@@ -769,7 +767,6 @@ class MultiVolumeViewer(widgets.Box):
                 width="33%",
                 border="3px solid #c62828",
                 padding="0px",
-                box_sizing="border-box",
             ),
         )
 
@@ -780,7 +777,7 @@ class MultiVolumeViewer(widgets.Box):
                 flex_flow="row",
                 justify_content="center",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 width="95%",
             ),
         )
@@ -793,7 +790,7 @@ class MultiVolumeViewer(widgets.Box):
                 flex_flow="row",
                 justify_content="center",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 width="95%",
             ),
         )
@@ -988,8 +985,7 @@ class MultiVolumeViewer(widgets.Box):
         self._visible_cb = {}
         cbs = []
         for i, k in enumerate(self._layers.keys()):
-            cb = widgets.Checkbox(value=False, description=k, indent=False)
-            # cb = widgets.Checkbox(value=(i == 0), description=k, indent=False)
+            cb = widgets.Checkbox(value=False, description=k, style={"description_width": "0px"})
             cb.observe(self._on_visible_changed, names="value")
             self._visible_cb[k] = cb
             cbs.append(cb)
@@ -1070,7 +1066,7 @@ class MultiVolumeViewer(widgets.Box):
             ],
             layout=widgets.Layout(
                 width="95%",
-                gap="8px",
+                grid_gap="8px",
                 align_items="stretch",  # keep sliders stretched
             ),
         )
@@ -1096,7 +1092,7 @@ class MultiVolumeViewer(widgets.Box):
             ],
             layout=widgets.Layout(
                 width="95%",
-                gap="8px",
+                grid_gap="8px",
                 align_items="stretch",  # keep sliders stretched
             ),
         )
@@ -1245,7 +1241,7 @@ class MultiVolumeViewer(widgets.Box):
         self.anim_auto_trim = widgets.Checkbox(
             value=False,
             description="Auto-trim empty",
-            indent=False,
+            style={"description_width": "0px"},
             layout=widgets.Layout(width="220px"),
         )
         self.anim_min_valid = widgets.FloatSlider(
@@ -1304,7 +1300,7 @@ class MultiVolumeViewer(widgets.Box):
         )
         self.anim_axis_box = widgets.HBox(
             [self.anim_axis_x, self.anim_axis_y, self.anim_axis_z],
-            layout=widgets.Layout(width="100%", gap="8px"),
+            layout=widgets.Layout(width="100%", grid_gap="8px"),
         )
         self.anim_normal_src = widgets.Dropdown(
             options=[],
@@ -1388,7 +1384,7 @@ class MultiVolumeViewer(widgets.Box):
         self.anim_use_current_camera = widgets.Checkbox(
             value=True,
             description="Use current camera as start",
-            indent=False,
+            style={"description_width": "0px"},
             layout=widgets.Layout(width="320px"),
         )
 
@@ -1423,7 +1419,7 @@ class MultiVolumeViewer(widgets.Box):
                 widgets.HBox(
                     [self.anim_master_mode],
                     layout=widgets.Layout(
-                        width="100%", flex_flow="row wrap", gap="12px"
+                        width="100%", flex_flow="row wrap", grid_gap="12px"
                     ),
                 ),
                 widgets.HBox(
@@ -1434,7 +1430,7 @@ class MultiVolumeViewer(widgets.Box):
                         self.anim_stop_btn,
                     ],
                     layout=widgets.Layout(
-                        width="100%", flex_flow="row wrap", gap="12px"
+                        width="100%", flex_flow="row wrap", grid_gap="12px"
                     ),
                 ),
             ],
@@ -1442,14 +1438,14 @@ class MultiVolumeViewer(widgets.Box):
                 width="100%",
                 flex_flow="row wrap",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 justify_content="flex-start",
             ),
         )
         row_mode = widgets.HBox(
             [self.anim_rot_type, self.anim_normal_src],
             layout=widgets.Layout(
-                width="100%", flex_flow="row wrap", gap="12px"
+                width="100%", flex_flow="row wrap", grid_gap="12px"
             ),
         )
         row2 = widgets.HBox(
@@ -1458,7 +1454,7 @@ class MultiVolumeViewer(widgets.Box):
                 width="100%",
                 flex_flow="row wrap",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 justify_content="flex-start",
             ),
         )
@@ -1468,13 +1464,13 @@ class MultiVolumeViewer(widgets.Box):
                 widgets.HBox(
                     [self.anim_layer_key, self.anim_layer_param],
                     layout=widgets.Layout(
-                        width="100%", flex_flow="row wrap", gap="12px"
+                        width="100%", flex_flow="row wrap", grid_gap="12px"
                     ),
                 ),
                 widgets.HBox(
                     [self.anim_range, self.anim_auto_trim],
                     layout=widgets.Layout(
-                        width="100%", flex_flow="row wrap", gap="12px"
+                        width="100%", flex_flow="row wrap", grid_gap="12px"
                     ),
                 ),
                 widgets.HBox(
@@ -1484,7 +1480,7 @@ class MultiVolumeViewer(widgets.Box):
                         self.anim_fps,
                     ],
                     layout=widgets.Layout(
-                        width="100%", flex_flow="row wrap", gap="12px"
+                        width="100%", flex_flow="row wrap", grid_gap="12px"
                     ),
                 ),
             ],
@@ -1513,9 +1509,7 @@ class MultiVolumeViewer(widgets.Box):
                 width="100%",
                 padding="10px 12px",
                 margin="10px 0 0 0",
-                border="1px solid rgba(180,180,180,0.35)",
-                border_radius="10px",
-                box_sizing="border-box",
+                border="5px solid rgba(255,0,0,0.5)",
                 overflow="visible",
             ),
         )
@@ -1565,7 +1559,7 @@ class MultiVolumeViewer(widgets.Box):
 
             for i, k in enumerate(layer_names):
                 cb = widgets.Checkbox(
-                    value=prev.get(k, i == 0), description=k, indent=False
+                    value=prev.get(k, i == 0), description=k, style={"description_width": "0px"}
                 )
                 cb.observe(self._on_visible_changed, names="value")
                 self._visible_cb[k] = cb
@@ -1619,7 +1613,7 @@ class MultiVolumeViewer(widgets.Box):
         row_add_name = widgets.HBox(
             [self.add_layer_kind, self.add_layer_name],
             layout=widgets.Layout(
-                width="100%", gap="12px", align_items="center"
+                width="100%", grid_gap="12px", align_items="center"
             ),
         )
         # optional: make both share the row nicely
@@ -1650,7 +1644,7 @@ class MultiVolumeViewer(widgets.Box):
                 widgets.HTML("<b>Slice</b>"),
                 widgets.HBox(
                     [self.add_slice_axis, self.add_slice_pos],
-                    layout=widgets.Layout(width="100%", gap="12px"),
+                    layout=widgets.Layout(width="100%", grid_gap="12px"),
                 ),
                 self.add_slice_center_btn,
                 self.add_slice_thickness,
@@ -1687,7 +1681,7 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(
                     display="flex",
                     width="100%",
-                    gap="16px",
+                    grid_gap="16px",
                     align_items="flex-start",
                 ),
             )
@@ -1735,7 +1729,7 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(
                     display="flex",
                     width="100%",
-                    gap="16px",
+                    grid_gap="16px",
                     align_items="flex-start",
                 ),
             )
@@ -2119,7 +2113,7 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(
                     display="flex",
                     width="100%",
-                    gap="16px",
+                    grid_gap="16px",
                     align_items="flex-start",
                 ),
             )
@@ -2290,7 +2284,7 @@ class MultiVolumeViewer(widgets.Box):
                 layout=widgets.Layout(
                     display="flex",
                     width="100%",
-                    gap="16px",
+                    grid_gap="16px",
                     align_items="flex-start",
                 ),
             )
@@ -2346,7 +2340,9 @@ class MultiVolumeViewer(widgets.Box):
 
         container = widgets.VBox(
             [body] if open_by_default else [],
-            layout=widgets.Layout(width="100%", overflow_x="hidden"),
+            layout=widgets.Layout(width="100%", 
+            # overflow_x="hidden"
+            ),
         )
 
         def _on_toggle(change):
@@ -2358,7 +2354,9 @@ class MultiVolumeViewer(widgets.Box):
 
         section = widgets.VBox(
             [header, container],
-            layout=widgets.Layout(width="100%", overflow_x="hidden"),
+            layout=widgets.Layout(width="100%",
+            #  overflow_x="hidden"
+            ),
         )
         section.add_class("mv-collapsible")
         return section
@@ -3305,9 +3303,8 @@ class MultiVolumeViewer(widgets.Box):
             description="iso",
             continuous_update=False,
             readout_format=".3g",
-            # style=self._common_style,
             layout=widgets.Layout(width="100%"),
-            indent=False,
+            style={"description_width": "20px"},
         )
         op = widgets.FloatSlider(
             value=1.0,
@@ -3316,12 +3313,11 @@ class MultiVolumeViewer(widgets.Box):
             step=0.01,
             description="α",
             continuous_update=False,
-            # style=self._common_style,
             layout=widgets.Layout(width="100%"),
-            indent=False,
+            style={"description_width": "8px"},
         )
         for w in (thr, op):
-            w.layout.width = "48%"
+            w.layout.width = "35%"
             w.layout.flex = "1 1 0"
 
         thr_op_row = widgets.HBox(
@@ -3329,11 +3325,10 @@ class MultiVolumeViewer(widgets.Box):
             layout=widgets.Layout(
                 display="flex",
                 align_items="center",
-                gap="2px",
-                width="100%",
+                grid_gap="2px",
+                width="95%",
                 overflow="hidden",
             ),
-            # style=self._common_style,
         )
 
         cmap = widgets.Dropdown(
@@ -3375,14 +3370,14 @@ class MultiVolumeViewer(widgets.Box):
             value=False,
             description="mask-mode",
             tooltip="If True: threshold to a binary mask then extract its surface.",
-            indent=False,
+            style={"description_width": "0px"},
         )
 
         show_colorbar = widgets.Checkbox(
-            value=True, description="show colorbar", indent=False
+            value=True, description="show colorbar", style={"description_width": "0px"}
         )
         auto_range = widgets.Checkbox(
-            value=True, description="auto range", indent=False
+            value=True, description="auto range", style={"description_width": "0px"}
         )
 
         nan_color_mask = widgets.HBox(
@@ -3390,7 +3385,7 @@ class MultiVolumeViewer(widgets.Box):
             layout=widgets.Layout(
                 display="flex",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 width="100%",
                 overflow="hidden",
             ),
@@ -3402,7 +3397,7 @@ class MultiVolumeViewer(widgets.Box):
                 flex_flow="row",
                 justify_content="center",
                 align_items="center",
-                gap="12px",
+                grid_gap="12px",
                 width="95%",
             ),
         )
@@ -3436,7 +3431,6 @@ class MultiVolumeViewer(widgets.Box):
             readout_format=".3g",
             style=self._common_style,
             layout=widgets.Layout(width="95%"),
-            indent=False,
         )
         range_slider.disabled = True
 
