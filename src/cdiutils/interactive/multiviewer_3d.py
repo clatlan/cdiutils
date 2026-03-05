@@ -985,7 +985,9 @@ class MultiVolumeViewer(widgets.Box):
         self._visible_cb = {}
         cbs = []
         for i, k in enumerate(self._layers.keys()):
-            cb = widgets.Checkbox(value=False, description=k, style={"description_width": "0px"})
+            cb = widgets.Checkbox(
+                value=False, description=k, style={"description_width": "0px"}
+            )
             cb.observe(self._on_visible_changed, names="value")
             self._visible_cb[k] = cb
             cbs.append(cb)
@@ -1559,7 +1561,9 @@ class MultiVolumeViewer(widgets.Box):
 
             for i, k in enumerate(layer_names):
                 cb = widgets.Checkbox(
-                    value=prev.get(k, i == 0), description=k, style={"description_width": "0px"}
+                    value=prev.get(k, i == 0),
+                    description=k,
+                    style={"description_width": "0px"},
                 )
                 cb.observe(self._on_visible_changed, names="value")
                 self._visible_cb[k] = cb
@@ -2340,8 +2344,9 @@ class MultiVolumeViewer(widgets.Box):
 
         container = widgets.VBox(
             [body] if open_by_default else [],
-            layout=widgets.Layout(width="100%", 
-            # overflow_x="hidden"
+            layout=widgets.Layout(
+                width="100%",
+                # overflow_x="hidden"
             ),
         )
 
@@ -2354,8 +2359,9 @@ class MultiVolumeViewer(widgets.Box):
 
         section = widgets.VBox(
             [header, container],
-            layout=widgets.Layout(width="100%",
-            #  overflow_x="hidden"
+            layout=widgets.Layout(
+                width="100%",
+                #  overflow_x="hidden"
             ),
         )
         section.add_class("mv-collapsible")
@@ -3374,10 +3380,14 @@ class MultiVolumeViewer(widgets.Box):
         )
 
         show_colorbar = widgets.Checkbox(
-            value=True, description="show colorbar", style={"description_width": "0px"}
+            value=True,
+            description="show colorbar",
+            style={"description_width": "0px"},
         )
         auto_range = widgets.Checkbox(
-            value=True, description="auto range", style={"description_width": "0px"}
+            value=True,
+            description="auto range",
+            style={"description_width": "0px"},
         )
 
         nan_color_mask = widgets.HBox(
