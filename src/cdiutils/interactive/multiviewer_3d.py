@@ -142,7 +142,12 @@ except Exception:
             ]
             for i, c in enumerate(colors)
         ]
-
+try:
+    import imageio_ffmpeg  # noqa: F401
+except Exception as e:
+    raise RuntimeError(
+        "MP4 export requires imageio-ffmpeg. Install with: pip install imageio-ffmpeg"
+    ) from e
 
 # =========================
 # Constants
@@ -339,7 +344,7 @@ class MultiVolumeViewer(widgets.Box):
         # ----------------------------
         # ---- create theme toggle EARLY ----
         self.theme_toggle = widgets.ToggleButton(
-            value=True,
+            value=False,
             description="Dark Theme",
             tooltip="Toggle dark/light theme",
         )
@@ -6118,12 +6123,7 @@ class MultiVolumeViewer(widgets.Box):
                 self.anim_status.value = "Rendering…"
 
             if fmt == "mp4":
-                try:
-                    import imageio_ffmpeg  # noqa: F401
-                except Exception as e:
-                    raise RuntimeError(
-                        "MP4 export requires imageio-ffmpeg. Install with: pip install imageio-ffmpeg"
-                    ) from e
+
                 writer = iio2.get_writer(
                     out_path, fps=int(fps), codec="libx264"
                 )
