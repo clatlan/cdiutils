@@ -72,22 +72,28 @@ class Plotter:
 
             Supported keys:
                 voxel_size: tuple[float, float, float]
-                    Physical voxel size along each axis.
+                    Physical voxel size along each axis. Used to convert voxel
+                    indices to physical coordinates for slices, planes, and clips.
+
+                unit: str | None
+                    Optional unit label for spatial axes. If provided, axis titles
+                    are displayed as "X (unit)", "Y (unit)", "Z (unit)".
+                    If None (default), axes are shown without units.
 
                 PLOT_ORDER: Literal['xyz', 'zyx']
-                    Axis ordering convention.
+                    Axis ordering convention used for visualization.
 
                 CBAR_LEN: float
                     Relative colorbar length.
 
                 render_workers: int | None
-                    Number of parallel render workers (for animation).
+                    Number of parallel render workers (used for animation export).
 
                 render_in_flight: int | None
-                    Maximum number of in-flight render tasks.
+                    Maximum number of frames rendered concurrently.
 
                 rendering_mode: Literal['safe', 'fast', 'process']
-                    Rendering backend strategy (for animation).
+                    Rendering backend strategy used during animation export.
 
             Ignored for all other plot modes.
 
@@ -259,7 +265,7 @@ class Plotter:
         Attributes:
             data_array: An array containing the data to be plotted.
             plot: The type of plot to be generated, which can be one of the following: "2D", "slices", "phase_slices",
-                "contour_slices", "sum_slices", "sum_contour_slices", or "3D".
+                "contour_slices", "sum_slices", "sum_contour_slices", "3D" or "layers".
             figsize: The size of the plot in inches.
             fontsize: The font size of the plot.
             log: If True, plot the data in logarithmic scale.
