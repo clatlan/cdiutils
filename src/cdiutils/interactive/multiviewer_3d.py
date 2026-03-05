@@ -1867,9 +1867,6 @@ class MultiVolumeViewer(widgets.Box):
                 ax_phys = self._plot_axis_to_phys_axis(ax_plot)
                 spec["axis_phys"] = ax_phys
 
-                pos_phys = float(pos_sl.value)
-                pos_idx = _pos_phys_to_index(pos_phys, ax_phys)
-
                 spec["thickness"] = int(thick_sl.value)
 
                 # Re-materialize from the stored source volume (slice layer remains independent
