@@ -35,8 +35,6 @@ Source reference:
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import pytest
 
@@ -379,8 +377,8 @@ def test_theory_vector_utils_and_rotation_matrix():
     b = np.array([1.0, 0.0, 0.0])
     R = dislocation.dislo_rotation_matrix_real_to_theo(t, b)
     assert R.shape == (3, 3)
-    I = R @ R.T
-    assert np.allclose(I, np.eye(3), atol=1e-10)
+    identity = R @ R.T
+    assert np.allclose(identity, np.eye(3), atol=1e-10)
 
     # transform_known_vector_to_crystallographic: identity rotation
     vx, vy, vz = dislocation.transform_known_vector_to_crystallographic(1, 2, 3, np.eye(3))

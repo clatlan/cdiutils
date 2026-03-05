@@ -17,7 +17,9 @@ def _import_multiviewer():
 
     # Replace this import path with the real one in your package
     # e.g. from cdiutils.interactive.multiviewer_3d import MultiVolumeViewer
-    from cdiutils.interactive.multiviewer_3d import MultiVolumeViewer  # noqa: E402
+    from cdiutils.interactive.multiviewer_3d import (
+        MultiVolumeViewer,  # noqa: E402
+    )
 
     return MultiVolumeViewer
 
@@ -117,7 +119,6 @@ def test_make_mesh_trace_for_raw_layer_smoke(dict_data_small):
     import plotly.graph_objects as go
 
     assert hasattr(trace, "to_plotly_json")
-    import plotly.graph_objects as go
     assert isinstance(trace, go.Mesh3d)
     assert isinstance(used_cbar, bool)
 
