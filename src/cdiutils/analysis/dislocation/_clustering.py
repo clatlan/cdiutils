@@ -133,9 +133,9 @@ def clusters_dislo_strain_map(
                     or z_max > cylindrical_mask.shape[2]
                 ):
                     continue
-                cylindrical_mask[
-                    x_min:x_max, y_min:y_max, z_min:z_max
-                ] |= stencil
+                cylindrical_mask[x_min:x_max, y_min:y_max, z_min:z_max] |= (
+                    stencil
+                )
 
     print("Cylindrical mask constructed.")
     final_labeled_clusters, num_final_clusters = label(cylindrical_mask > 0)

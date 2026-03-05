@@ -101,9 +101,9 @@ def dislo_process_phase_ring(
                 phase_ring[diff_phi_positionmax]
                 - phase_ring[diff_phi_positionmax - 1]
             )
-            phase_ring[
-                diff_phi_positionmax:
-            ] -= phase_shift  # Adjust phase after the jump
+            phase_ring[diff_phi_positionmax:] -= (
+                phase_shift  # Adjust phase after the jump
+            )
 
         # Step 2: Apply Adaptive Median Filter
         phase_ring_smoothed = median_filter(

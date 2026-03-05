@@ -137,9 +137,9 @@ def create_circular_mask(
     displacement_vectors_flat = grid_points[
         circular_mask_flat
     ]  # Select only masked points
-    displacement_vectors.reshape(-1, 3)[
-        circular_mask_flat
-    ] = displacement_vectors_flat  # Assign vectors
+    displacement_vectors.reshape(-1, 3)[circular_mask_flat] = (
+        displacement_vectors_flat  # Assign vectors
+    )
 
     return circular_mask, polar_angles_masked, displacement_vectors, direction
 
