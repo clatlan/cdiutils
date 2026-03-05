@@ -28,7 +28,9 @@ def _import_multiviewer():
 def dict_data_small():
     shape = (16, 16, 16)
     amp = np.ones(shape, dtype=float)
-    phase = np.linspace(-np.pi, np.pi, num=np.prod(shape), dtype=float).reshape(shape)
+    phase = np.linspace(
+        -np.pi, np.pi, num=np.prod(shape), dtype=float
+    ).reshape(shape)
     mask = np.zeros(shape, dtype=float)
     mask[4:12, 4:12, 4:12] = 1.0
 
@@ -68,7 +70,9 @@ def test_validate_dict_data_rejects_bad_inputs(dict_data_small):
 
 def test_set_data_registers_raw_layers(dict_data_small):
     MultiVolumeViewer = _import_multiviewer()
-    v = MultiVolumeViewer(dict_data=None, voxel_size=(2.0, 3.0, 4.0), unit="nm")
+    v = MultiVolumeViewer(
+        dict_data=None, voxel_size=(2.0, 3.0, 4.0), unit="nm"
+    )
 
     v.set_data(dict_data_small)
 

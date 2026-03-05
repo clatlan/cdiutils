@@ -62,7 +62,7 @@ def _make_synthetic_cube_with_screw_phase(
     # screw-like phase around z: atan2(y, x) with softened core
     r_xy = np.sqrt(xx**2 + yy**2)
     ang = np.arctan2(yy, xx)
-    core_soft = 1.0 - np.exp(-(r_xy / core_radius_vox) ** 2)
+    core_soft = 1.0 - np.exp(-((r_xy / core_radius_vox) ** 2))
     phase = (phase_scale * ang * core_soft).astype(np.float32)
 
     # wrap
@@ -122,7 +122,12 @@ def test_geometry_generate_filled_cylinder_nonempty():
     direction = np.array([1.0, 0.0, 0.0])
 
     vol = dislocation.generate_filled_cylinder(
-        shape=shape, centroid=centroid, direction=direction, radius=2, height=20, step=2
+        shape=shape,
+        centroid=centroid,
+        direction=direction,
+        radius=2,
+        height=20,
+        step=2,
     )
     assert vol.shape == shape
     assert vol.sum() > 0
@@ -139,14 +144,16 @@ def test_geometry_create_circular_mask_outputs():
     centroid = np.array([16.0, 16.0, 16.0])
     direction = np.array([0.0, 0.0, 1.0])
 
-    circular_mask, polar_angles, disp_vecs, d_out = dislocation.create_circular_mask(
-        data_shape=shape,
-        centroid=centroid,
-        direction=direction,
-        selected_point_index=0,
-        r=6,
-        dr=2,
-        slice_thickness=2,
+    circular_mask, polar_angles, disp_vecs, d_out = (
+        dislocation.create_circular_mask(
+            data_shape=shape,
+            centroid=centroid,
+            direction=direction,
+            selected_point_index=0,
+            r=6,
+            dr=2,
+            slice_thickness=2,
+        )
     )
 
     assert circular_mask.shape == shape
@@ -165,7 +172,9 @@ def test_geometry_plot_phase_around_dislo_masks_phase(tmp_path):
 
     # simple phase (wrapped)
     zz, yy, xx = np.indices(shape, dtype=float)
-    phase = np.angle(np.exp(1j * np.arctan2(yy - 20, xx - 20))).astype(np.float32)
+    phase = np.angle(np.exp(1j * np.arctan2(yy - 20, xx - 20))).astype(
+        np.float32
+    )
 
     selected_dislo = np.zeros(shape, dtype=np.uint8)
     selected_dislo[10:30, 20, 20] = 1  # a line
@@ -173,21 +182,23 @@ def test_geometry_plot_phase_around_dislo_masks_phase(tmp_path):
     centroid = np.array([20.0, 20.0, 20.0])
     direction = np.array([1.0, 0.0, 0.0])
 
-    masked_phase, polar_angles, circular_mask, disp_vecs, d_out = dislocation.plot_phase_around_dislo(
-        amp=amp,
-        phase=phase,
-        selected_dislocation_data=selected_dislo,
-        r=6,
-        dr=2,
-        centroid=centroid,
-        direction=direction,
-        slice_thickness=2,
-        selected_point_index=0,
-        save_vti=True,
-        fig_title="pytest",
-        plot_debug=False,
-        save_path=str(tmp_path / "ring.vti"),
-        voxel_sizes=(1.0, 1.0, 1.0),
+    masked_phase, polar_angles, circular_mask, disp_vecs, d_out = (
+        dislocation.plot_phase_around_dislo(
+            amp=amp,
+            phase=phase,
+            selected_dislocation_data=selected_dislo,
+            r=6,
+            dr=2,
+            centroid=centroid,
+            direction=direction,
+            slice_thickness=2,
+            selected_point_index=0,
+            save_vti=True,
+            fig_title="pytest",
+            plot_debug=False,
+            save_path=str(tmp_path / "ring.vti"),
+            voxel_sizes=(1.0, 1.0, 1.0),
+        )
     )
 
     assert masked_phase.shape == shape
@@ -228,10 +239,17 @@ def test_phase_decomp_recovers_cos2_sin2():
     a, b = 1.7, -0.9
     slope, intercept = 0.3, -0.1
 
-    phi = slope * theta + intercept + a * np.cos(2 * theta) + b * np.sin(2 * theta)
+    phi = (
+        slope * theta
+        + intercept
+        + a * np.cos(2 * theta)
+        + b * np.sin(2 * theta)
+    )
     phi += 0.02 * rng.normal(size=theta.size)
 
-    f_osc, f_fit2, coeffs, f_lin, coeffs_lin = dislocation.decompose_experimental_phase(theta, phi)
+    f_osc, f_fit2, coeffs, f_lin, coeffs_lin = (
+        dislocation.decompose_experimental_phase(theta, phi)
+    )
 
     assert np.isfinite(f_osc).all()
     assert np.isfinite(f_fit2).all()
@@ -249,27 +267,31 @@ def test_dislo_process_phase_ring_runs_without_plotting():
     from cdiutils.analysis import dislocation
 
     shape = (40, 40, 40)
-    amp, phase, mask, obj = _make_synthetic_cube_with_screw_phase(shape=shape, phase_scale=1.0)
+    amp, phase, mask, obj = _make_synthetic_cube_with_screw_phase(
+        shape=shape, phase_scale=1.0
+    )
     selected_dislo = np.zeros(shape, dtype=np.uint8)
     selected_dislo[10:30, 20, 20] = 1
 
     centroid = np.array([20.0, 20.0, 20.0])
     direction = np.array([1.0, 0.0, 0.0])
 
-    phase_ring_3d, angle_ring_3d, circular_mask, disp_vecs, _ = dislocation.plot_phase_around_dislo(
-        amp=amp,
-        phase=phase,
-        selected_dislocation_data=selected_dislo,
-        r=7,
-        dr=2,
-        centroid=centroid,
-        direction=direction,
-        slice_thickness=2,
-        selected_point_index=0,
-        save_vti=False,
-        plot_debug=False,
-        save_path=None,
-        voxel_sizes=(1.0, 1.0, 1.0),
+    phase_ring_3d, angle_ring_3d, circular_mask, disp_vecs, _ = (
+        dislocation.plot_phase_around_dislo(
+            amp=amp,
+            phase=phase,
+            selected_dislocation_data=selected_dislo,
+            r=7,
+            dr=2,
+            centroid=centroid,
+            direction=direction,
+            slice_thickness=2,
+            selected_point_index=0,
+            save_vti=False,
+            plot_debug=False,
+            save_path=None,
+            voxel_sizes=(1.0, 1.0, 1.0),
+        )
     )
 
     out = dislocation.dislo_process_phase_ring(
@@ -280,7 +302,16 @@ def test_dislo_process_phase_ring_runs_without_plotting():
     )
     assert isinstance(out, tuple)
     assert len(out) == 8
-    angle_raw, phase_raw, angle_final, phase_final, phase_smooth, phase_sinu, dv_sorted, dv_final = out
+    (
+        angle_raw,
+        phase_raw,
+        angle_final,
+        phase_final,
+        phase_smooth,
+        phase_sinu,
+        dv_sorted,
+        dv_final,
+    ) = out
     assert len(angle_raw) == len(phase_raw)
     assert len(angle_final) == len(phase_final)
     assert np.isfinite(phase_final).all()
@@ -290,7 +321,9 @@ def test_dislo_process_phase_ring_runs_without_plotting():
 def test_strain_map_map_min_gradient_shapes_and_range(tmp_path):
     from cdiutils.analysis import dislocation
 
-    amp, phase, mask, obj = _make_synthetic_cube_with_screw_phase(shape=(40, 40, 40), phase_scale=1.0)
+    amp, phase, mask, obj = _make_synthetic_cube_with_screw_phase(
+        shape=(40, 40, 40), phase_scale=1.0
+    )
 
     strain_mask, strain_amp = dislocation.map_min_gradient(
         obj=obj,
@@ -381,16 +414,22 @@ def test_theory_vector_utils_and_rotation_matrix():
     assert np.allclose(identity, np.eye(3), atol=1e-10)
 
     # transform_known_vector_to_crystallographic: identity rotation
-    vx, vy, vz = dislocation.transform_known_vector_to_crystallographic(1, 2, 3, np.eye(3))
+    vx, vy, vz = dislocation.transform_known_vector_to_crystallographic(
+        1, 2, 3, np.eye(3)
+    )
     assert (vx, vy, vz) == (1, 2, 3)
 
     # normalize_vectors_3d
     vxn, vyn, vzn = dislocation.normalize_vectors_3d([3, 0], [4, 0], [0, 5])
-    mags = np.sqrt(np.asarray(vxn) ** 2 + np.asarray(vyn) ** 2 + np.asarray(vzn) ** 2)
+    mags = np.sqrt(
+        np.asarray(vxn) ** 2 + np.asarray(vyn) ** 2 + np.asarray(vzn) ** 2
+    )
     assert np.allclose(mags, 1.0, atol=1e-12)
 
     # closest_to_zero_in_array
-    val, idx = dislocation.closest_to_zero_in_array(np.array([5.0, -0.2, 0.1, 9.0]))
+    val, idx = dislocation.closest_to_zero_in_array(
+        np.array([5.0, -0.2, 0.1, 9.0])
+    )
     assert np.isclose(val, 0.1, atol=1e-12)
     assert idx == 2
 
@@ -403,7 +442,9 @@ def test_theory_dislo_phase_model_basic_properties():
     G = np.array([0.0, 0.0, 1.0])
     b = np.array([0.0, 0.0, 1.0])  # pure screw along t
 
-    phi = dislocation.dislo_phase_model(theta=theta, t=t, G=G, b=b, only_theta_dep=True)
+    phi = dislocation.dislo_phase_model(
+        theta=theta, t=t, G=G, b=b, only_theta_dep=True
+    )
     assert phi.shape == theta.shape
     assert np.isfinite(phi).all()
 
