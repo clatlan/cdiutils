@@ -220,7 +220,7 @@ class Plotter:
         self.title = title
         self.layers_kwargs = layers_kwargs or {}
 
-        # 🔒 STRICT: MultiVolumeViewer only accepts dict
+        # MultiVolumeViewer only accepts dict
         if self.plot == "layers":
             if not isinstance(data, dict):
                 print(
