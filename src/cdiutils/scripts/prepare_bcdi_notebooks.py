@@ -37,6 +37,12 @@ def main() -> None:
             "already exist."
         ),
     )
+    parser.add_argument(
+        "--i16",
+        default=False,
+        action="store_true",
+        help="Create I16 version of the notebooks.",
+    )
 
     args = parser.parse_args()
 
@@ -44,7 +50,10 @@ def main() -> None:
     templates_dir = get_templates_path()
 
     # Update paths to notebooks in the examples directory
-    bcdi_notebook = os.path.join(templates_dir, "bcdi_pipeline.ipynb")
+    if args.i16 or os.environ.get('BEAMLINE') == 'i16':  # on DLS I16, create a specific notebook
+        bcdi_notebook = os.path.join(templates_dir, "i16_bcdi_pipeline.ipynb")
+    else:
+        bcdi_notebook = os.path.join(templates_dir, "bcdi_pipeline.ipynb")
     step_by_step_notebook = os.path.join(
         templates_dir, "step_by_step_bcdi_analysis.ipynb"
     )

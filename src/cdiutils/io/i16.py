@@ -1,11 +1,10 @@
-import warnings
 
 import dateutil.parser
-import fabio
 import numpy as np
+import h5py
 import silx.io
 
-from cdiutils.io.loader import H5TypeLoader, Loader, h5_safe_load
+from cdiutils.io.loader import H5TypeLoader, h5_safe_load
 
 
 class I16Loader(H5TypeLoader):
@@ -127,67 +126,16 @@ class I16Loader(H5TypeLoader):
         """
         Auto-detect detector from HDF5 file scan metadata.
 
-        Searches through scan groups to find which authorised detector
-        is present in the measurement data. Used when detector is not
-        explicitly specified during initialisation.
-
-        Args:
-            start_scan: Scan number to begin search. Recursively
-                increments if scan not found or contains no detector.
-            max_attempts: Maximum number of scans to check before
-                giving up.
-
-        Returns:
-            First matching detector name from
-            :attr:`authorised_detector_names` found in file.
-
-        Raises:
-            ValueError: If no detector found after ``max_attempts``
-                scans, or if multiple detectors found in same scan
-                (ambiguous configuration).
-            KeyError: If HDF5 structure does not match expected
-                ``{sample}_{scan}.1/measurement/`` format.
-
-        Notes:
-            Recursion avoids issues with missing or incomplete
-            scans. For files with both Eiger and Maxipix data,
-            explicitly specify ``detector_name`` to avoid ambiguity.
+        Returns the name of the first NXdetector in the instrument group.
         """
 
-        msg = "Please provide a detector_name (str)."
-
-        # Try to find the detector name in the current scan number
-        key_path = f"{self.sample_name}_{start_scan}.1/measurement/"
-
-        # If we've exceeded max attempts, raise an error
-        if start_scan > max_attempts:
-            raise ValueError(
-                f"No detector found after checking {max_attempts} scans.\n"
-                f"{msg}"
-            )
-
-        # Check if the key path exists
-        if key_path not in self.h5file:
-            # Try the next scan number recursively
-            return self.get_detector_name(start_scan + 1, max_attempts)
-
-        # Look for detector names in the current scan
-        detector_names = []
-        for key in self.authorised_detector_names:
-            if key in self.h5file[key_path]:
-                detector_names.append(key)
-
-        if len(detector_names) == 0:
-            # Try the next scan number recursively
-            return self.get_detector_name(start_scan + 1, max_attempts)
-
-        if len(detector_names) > 1:
-            raise ValueError(
-                f"Several detector names found ({detector_names}).\n"
-                f"Not handled yet.\n{msg}"
-            )
-
-        return detector_names[0]
+        # Get detctor name from first NXdetector in instrument
+        instrument = self.h5file['entry/instrument']
+        for name, object in instrument.items():
+            nx_class = object.attrs.get('NX_class')
+            if nx_class and nx_class.astype(str) == 'NXdetector':
+                return name
+        raise KeyError('No NXdetector found in HDF5 file')
 
     @h5_safe_load
     def load_det_calib_params(
@@ -576,6 +524,17 @@ class I16Loader(H5TypeLoader):
         key_path = "entry/start_time"
         return dateutil.parser.isoparse(self.h5file[key_path][()])
 
+    @h5_safe_load
+    def get_hkl(self) -> tuple[int, int, int]:
+        """
+        Return the HKL value from the NeXus file
+        """
+        key_paths = [
+            '/entry/instrument/diffractometer_sample/h',
+            '/entry/instrument/diffractometer_sample/k',
+            '/entry/instrument/diffractometer_sample/l'
+        ]
+        return tuple([round(self.h5file[k][()]) for k in key_paths])
 
 def safe(func):
     def wrap(self, *args, **kwargs):
