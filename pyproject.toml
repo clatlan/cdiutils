@@ -106,6 +106,7 @@ where = ["src"]
 "cdiutils" = [
     "pipeline/pynx-id01-cdi_template.slurm",
     "templates/bcdi_pipeline.ipynb",
+    "templates/i16_bcdi_pipeline.ipynb",
     "templates/step_by_step_bcdi_analysis.ipynb",
     "templates/detector_calibration.ipynb",
     "plot/lut_*.npz"
