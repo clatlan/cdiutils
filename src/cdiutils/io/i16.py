@@ -297,6 +297,9 @@ class I16Loader(H5TypeLoader):
                 data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
                 data = self.h5file[key_path][roi]
+            # Rotate data so horizontal detector axis is vertical
+            # data = np.transpose(data, (0, 2, 1))
+            data = np.flip(np.transpose(data, (0, 2, 1)), (1, ))
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
