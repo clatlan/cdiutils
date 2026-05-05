@@ -14,10 +14,10 @@ class I16Loader(H5TypeLoader):
     Loads data from NeXus files.
 
     Attributes:
-        angle_names: Mapping from canonical names to ID01 motor names:
+        angle_names: Mapping from canonical names to I16 Eulerian pseudo-motor names:
 
             - ``sample_outofplane_angle`` -> ``"eta"``
-            - ``sample_inplane_angle`` -> ``"chi"``
+            - ``sample_inplane_angle`` -> ``"mu"``
             - ``detector_outofplane_angle`` -> ``"delta"``
             - ``detector_inplane_angle`` -> ``"gamma"``
 
@@ -30,7 +30,6 @@ class I16Loader(H5TypeLoader):
         >>> from cdiutils.io import Loader
         >>> loader = Loader.from_setup(
         ...     beamline_setup="i16",
-        ...     sample_name="PtNP",
         ...     experiment_file_path="/dls/i16/data/2026/mm12345-1/12345.nxs"
         ... )
 
@@ -54,6 +53,11 @@ class I16Loader(H5TypeLoader):
         :class:`Loader` for factory method and base class documentation.
     """
 
+    # I16 is a 6-circle kappa diffractometer, motors are in the Kappa convention
+    # but the Eulerian convention is also stored (CXI basis here):
+    # sample rotations: phi (x-), chi (z+), eta (x-), mu (y+),
+    # detector rotations: delta (x-), gamma (y+)
+    # TODO: How to add additional angles below?
     angle_names = {
         "sample_outofplane_angle": "eta",
         "sample_inplane_angle": "mu",
@@ -99,13 +103,13 @@ class I16Loader(H5TypeLoader):
             Minimal setup (auto-detect detector):
 
             >>> loader = I16Loader(
-            ...     experiment_file_path="/data/id01/PtNP.h5"
+            ...     experiment_file_path="/dls/i16/data/2026/mm12345-1/123456.nxs",
             ... )
 
             With flat-field and detector specification:
 
             >>> loader = I16Loader(
-            ...     experiment_file_path="/data/id01/sample.h5",
+            ...     experiment_file_path="/dls/i16/data/2026/mm12345-1/123456.nxs",
             ...     detector_name="merlin",
             ...     flat_field="/path/to/flatfield.npy"
             ... )
@@ -144,15 +148,13 @@ class I16Loader(H5TypeLoader):
         """
         Load detector calibration from scan metadata.
 
-        Retrieves calibration parameters stored in BLISS HDF5 file
+        Retrieves calibration parameters stored in NeXus file
         during detector alignment. Returns parameters compatible with
         xrayutilities conventions.
 
         Args:
-            scan: Scan number to load calibration from. If None, uses
-                ``self.scan``.
-            sample_name: Sample name for HDF5 path construction. If
-                None, uses ``self.sample_name``.
+            scan: Unused.
+            sample_name: Unused.
 
         Returns:
             dict: Calibration parameters with keys:
@@ -168,8 +170,7 @@ class I16Loader(H5TypeLoader):
                 - ``"detrot"``: Detector rotation (0.0, not calibrated)
 
         Raises:
-            KeyError: If scan/sample combination does not exist in HDF5
-                file or if detector name is incorrect.
+            KeyError: If fields are not available in NeXus file.
 
         Examples:
             Load calibration for current scan:
@@ -186,9 +187,8 @@ class I16Loader(H5TypeLoader):
 
         Notes:
             Tilt angles (``tiltazimuth``, ``tilt``, ``detrot``) are set
-            to 0.0 as BLISS does not calibrate these. For accurate tilt
-            values, run detector calibration notebook or use PyNX's
-            ``cdi_findcenter`` utility.
+            to 0.0. For accurate tilt values, run detector calibration
+            notebook or use PyNX's ``cdi_findcenter`` utility.
 
         See Also:
             :doc:`/user_guide/detector_calibration` for calibration
@@ -242,16 +242,13 @@ class I16Loader(H5TypeLoader):
         binning_method: str = "sum",
     ) -> np.ndarray:
         """
-        Load raw detector frames from BLISS HDF5 file.
+        Load raw detector frames from I16 NeXus file.
 
         Retrieves 3D detector data array with optional ROI selection,
         binning, flat-field correction, and masking applied via
         :meth:`Loader.bin_flat_mask`.
 
         Args:
-            scan: Scan number. If None, uses ``self.scan``.
-            sample_name: Sample name for HDF5 path. If None, uses
-                ``self.sample_name``.
             roi: Region of interest as tuple of slices or integers. See
                 :meth:`Loader._check_roi` for format. Applied before
                 binning to reduce memory usage.
@@ -266,20 +263,18 @@ class I16Loader(H5TypeLoader):
             (Maxipix) or uint32 (Eiger).
 
         Raises:
-            KeyError: If scan/sample/detector combination does not exist
-                in HDF5 file.
+            KeyError: If detector does not exist in HDF5 file.
 
         Examples:
             Full detector, no preprocessing:
 
-            >>> data = loader.load_detector_data(scan=42)
+            >>> data = loader.load_detector_data()
             >>> data.shape
             (51, 2164, 1030)
 
             With ROI and binning:
 
             >>> data = loader.load_detector_data(
-            ...     scan=42,
             ...     roi=(100, 400, 150, 450),
             ...     rocking_angle_binning=2,
             ...     binning_method="sum"
@@ -289,7 +284,7 @@ class I16Loader(H5TypeLoader):
         See Also:
             :meth:`load_data` for combined data + motor positions.
         """
-        key_path = f"entry/instrument/{self.detector_name}/data"
+        key_path = f"/entry/instrument/{self.detector_name}/data"
         roi = self._check_roi(roi)
         try:
             if rocking_angle_binning:
@@ -297,9 +292,6 @@ class I16Loader(H5TypeLoader):
                 data = self.h5file[key_path][(slice(None), roi[1], roi[2])]
             else:
                 data = self.h5file[key_path][roi]
-            # Rotate data so horizontal detector axis is vertical
-            # data = np.transpose(data, (0, 2, 1))
-            data = np.flip(np.transpose(data, (0, 2, 1)), (1, ))
         except KeyError as exc:
             raise KeyError(
                 f"key_path is wrong (key_path='{key_path}'). "
@@ -355,10 +347,9 @@ class I16Loader(H5TypeLoader):
             :attr:`angle_names` for ID01-specific mapping):
 
                 - ``"sample_outofplane_angle"``: eta values (degrees)
-                - ``"sample_inplane_angle"``: phi values (degrees)
-                - ``"detector_outofplane_angle"``: delta values
-                  (degrees)
-                - ``"detector_inplane_angle"``: nu values (degrees)
+                - ``"sample_inplane_angle"``: mu values (degrees)
+                - ``"detector_outofplane_angle"``: delta values (degrees)
+                - ``"detector_inplane_angle"``: nu/ gamma values (degrees)
 
             Values are scalars (if motor fixed) or 1D arrays (if
             scanned). Array lengths match binned detector's first
@@ -371,12 +362,10 @@ class I16Loader(H5TypeLoader):
             Load angles matching data:
 
             >>> data = loader.load_detector_data(
-            ...     scan=42,
             ...     roi=(10, 40, 100, 400),
             ...     rocking_angle_binning=2
             ... )
             >>> angles = loader.load_motor_positions(
-            ...     scan=42,
             ...     roi=(slice(10, 40),),
             ...     rocking_angle_binning=2
             ... )
@@ -390,6 +379,7 @@ class I16Loader(H5TypeLoader):
 
         # ensure angles dictionary has correct keys and defaults to 0.0
         # if missing
+        # TODO: only canonical angles are stored here, unclear how to add additional angles
         formatted_angles = {
             key: angles.get(name, 0.0)
             for key, name in I16Loader.angle_names.items()
@@ -421,14 +411,14 @@ class I16Loader(H5TypeLoader):
             was scanned.
 
         Warns:
-            UserWarning: If energy key (``"mononrj"``) not found in HDF5
+            UserWarning: If energy key not found in HDF5
             file, returns None.
 
         Examples:
             >>> energy = loader.load_energy()
             >>> print(f"Energy: {energy/1e3:.2f} keV")
         """
-        energy = self.h5file["entry/sample/beam/incident_energy"][()] * 1e3
+        energy = self.h5file["entry/sample/beam/incident_energy"][()] * 1e3  # keV -> eV
         return float(energy)
 
     @h5_safe_load
