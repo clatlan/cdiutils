@@ -222,6 +222,7 @@ class Loader(ABC):
 
         if "i16" in beamline_setup.lower():
             from . import I16Loader
+
             return I16Loader(**metadata)
 
         if beamline_setup.lower() == "cristal":

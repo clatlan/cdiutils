@@ -50,7 +50,9 @@ def main() -> None:
     templates_dir = get_templates_path()
 
     # Update paths to notebooks in the examples directory
-    if args.i16 or os.environ.get('BEAMLINE') == 'i16':  # on DLS I16, create a specific notebook
+    if (
+        args.i16 or os.environ.get("BEAMLINE") == "i16"
+    ):  # on DLS I16, create a specific notebook
         bcdi_notebook = os.path.join(templates_dir, "i16_bcdi_pipeline.ipynb")
     else:
         bcdi_notebook = os.path.join(templates_dir, "bcdi_pipeline.ipynb")

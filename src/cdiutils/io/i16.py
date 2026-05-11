@@ -1,7 +1,5 @@
-
 import dateutil.parser
 import numpy as np
-import h5py
 import silx.io
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
@@ -64,7 +62,7 @@ class I16Loader(H5TypeLoader):
         "detector_outofplane_angle": "delta",
         "detector_inplane_angle": "gam",
     }
-    authorised_detector_names = ("merlin", )
+    authorised_detector_names = ("merlin",)
 
     def __init__(
         self,
@@ -134,12 +132,12 @@ class I16Loader(H5TypeLoader):
         """
 
         # Get detctor name from first NXdetector in instrument
-        instrument = self.h5file['entry/instrument']
+        instrument = self.h5file["entry/instrument"]
         for name, object in instrument.items():
-            nx_class = object.attrs.get('NX_class')
-            if nx_class and nx_class.astype(str) == 'NXdetector':
+            nx_class = object.attrs.get("NX_class")
+            if nx_class and nx_class.astype(str) == "NXdetector":
                 return name
-        raise KeyError('No NXdetector found in HDF5 file')
+        raise KeyError("No NXdetector found in HDF5 file")
 
     @h5_safe_load
     def load_det_calib_params(
@@ -194,16 +192,22 @@ class I16Loader(H5TypeLoader):
             :doc:`/user_guide/detector_calibration` for calibration
             procedures and angle definitions.
         """
-        instrument = self.h5file['entry/instrument']
+        instrument = self.h5file["entry/instrument"]
         detector = instrument[self.detector_name]
         module = detector["module"]
         try:
             return {
-                "cch1": float(instrument['merlin_centre_i'][()]) if 'merlin_centre_i' in instrument else 159,
-                "cch2": float(instrument['merlin_centre_j'][()]) if 'merlin_centre_j' in instrument else 348,
-                "pwidth1": float(module['fast_pixel_direction'][()].squeeze()),
-                "pwidth2": float(module['slow_pixel_direction'][()].squeeze()),
-                "distance": float(detector['transformations/origin_offset'][()]),
+                "cch1": float(instrument["merlin_centre_i"][()])
+                if "merlin_centre_i" in instrument
+                else 159,
+                "cch2": float(instrument["merlin_centre_j"][()])
+                if "merlin_centre_j" in instrument
+                else 348,
+                "pwidth1": float(module["fast_pixel_direction"][()].squeeze()),
+                "pwidth2": float(module["slow_pixel_direction"][()].squeeze()),
+                "distance": float(
+                    detector["transformations/origin_offset"][()]
+                ),
                 "tiltazimuth": 0.0,
                 "tilt": 0.0,
                 "detrot": 0.0,
@@ -229,10 +233,10 @@ class I16Loader(H5TypeLoader):
             KeyError: If detector not found in HDF5 file.
         """
         # /entry/instrument/merlin/module/data_size
-        instrument = self.h5file['entry/instrument']
+        instrument = self.h5file["entry/instrument"]
         detector = instrument[self.detector_name]
         module = detector["module"]
-        return module['data_size'][()]
+        return module["data_size"][()]
 
     @h5_safe_load
     def load_detector_data(
@@ -309,8 +313,8 @@ class I16Loader(H5TypeLoader):
 
     @h5_safe_load
     def load_angles(self) -> dict:
-        diffractometer = self.h5file['entry/instrument/diffractometer_sample']
-        measurement = self.h5file['entry/measurement']
+        diffractometer = self.h5file["entry/instrument/diffractometer_sample"]
+        measurement = self.h5file["entry/measurement"]
         angles = {}
         for name in self.angle_names.values():
             if name is not None:
@@ -418,7 +422,9 @@ class I16Loader(H5TypeLoader):
             >>> energy = loader.load_energy()
             >>> print(f"Energy: {energy/1e3:.2f} keV")
         """
-        energy = self.h5file["entry/sample/beam/incident_energy"][()] * 1e3  # keV -> eV
+        energy = (
+            self.h5file["entry/sample/beam/incident_energy"][()] * 1e3
+        )  # keV -> eV
         return float(energy)
 
     @h5_safe_load
@@ -431,12 +437,10 @@ class I16Loader(H5TypeLoader):
         Displays top-level group structure for specified scan, useful
         for inspecting file organisation and finding custom metadata.
         """
-        print(self.h5file['entry'].keys())
+        print(self.h5file["entry"].keys())
 
     @h5_safe_load
-    def load_measurement_parameters(
-        self, parameter_name: str
-    ) -> tuple:
+    def load_measurement_parameters(self, parameter_name: str) -> tuple:
         """
         Load custom measurement data from scan.
 
@@ -523,11 +527,12 @@ class I16Loader(H5TypeLoader):
         Return the HKL value from the NeXus file
         """
         key_paths = [
-            '/entry/instrument/diffractometer_sample/h',
-            '/entry/instrument/diffractometer_sample/k',
-            '/entry/instrument/diffractometer_sample/l'
+            "/entry/instrument/diffractometer_sample/h",
+            "/entry/instrument/diffractometer_sample/k",
+            "/entry/instrument/diffractometer_sample/l",
         ]
         return tuple([round(self.h5file[k][()]) for k in key_paths])
+
 
 def safe(func):
     def wrap(self, *args, **kwargs):
@@ -535,4 +540,3 @@ def safe(func):
             return func(self, *args, **kwargs)
 
     return wrap
-
