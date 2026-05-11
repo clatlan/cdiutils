@@ -3,7 +3,7 @@ cdiutils - A Python package for (Bragg) Coherent X-ray Diffraction
 Imaging processing, analysis and visualisation workflows.
 """
 
-__version__ = "0.2.1_i16"
+__version__ = "0.2.1"
 __author__ = "Clément Atlan"
 __email__ = "c.atlan@outlook.com"
 __license__ = "MIT"
