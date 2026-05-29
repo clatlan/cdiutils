@@ -287,6 +287,17 @@ class Geometry:
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
                 name="ID27",
             )
+        if beamline.lower() == "xfel":
+            geometry = cls(
+                sample_circles=["y-", "x+", "z+"],  # theta, chi, phi
+                detector_circles=["y-"],  # twotheta
+                detector_axis0_orientation="y-",
+                detector_axis1_orientation="z-",
+                beam_direction=[1, 0, 0],
+                sample_surface_normal=[0, 0, 1],
+                name="XFEL",
+                is_cxi=False,
+            )
         if geometry is None:
             raise NotImplementedError(
                 f"The beamline name {beamline} is not valid. Available:\n"
