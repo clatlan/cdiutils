@@ -48,6 +48,7 @@ dependencies = [
 [project.optional-dependencies]
 xfel = [
     "damnit",
+    "EXtra-data",
 ]
 vtk = ["vtk>=9.0.1"]
 interactive = [
@@ -94,6 +95,7 @@ all = [
     "sphinx>=4.0",
     "pydata-sphinx-theme",
     "damnit",
+    "EXtra-data",
 ]
 
 [project.urls]

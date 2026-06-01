@@ -11,6 +11,16 @@ import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader
 
+try:
+    import extra_data as ex
+    from extra_data import RunDirectory
+    from extra_data.components import XGM, Scan, Scantool
+except ImportError as exc:
+    raise ImportError(
+        "XFELLoader requires EXtra-data. "
+        "Install/use it in the European XFEL analysis environment."
+    ) from exc
+
 
 def xfel_safe_load(func):
     """Safe loader wrapper for XFEL directory/DAMNIT-based loading."""
@@ -97,13 +107,6 @@ class XFELLoader(H5TypeLoader):
 
     def _get_run(self):
         """Return the EXtra-data run object."""
-        try:
-            from extra.data import RunDirectory
-        except ImportError as exc:
-            raise ImportError(
-                "XFELLoader requires EXtra-data. "
-                "Install/use it in the European XFEL analysis environment."
-            ) from exc
 
         run_dir = self.experiment_file_path / self.run_dir_name
         aliases_file = run_dir / self.aliases_file_name
@@ -289,12 +292,6 @@ class XFELLoader(H5TypeLoader):
 
         Returns energy in eV.
         """
-        try:
-            from extra.components import XGM
-        except ImportError as exc:
-            raise ImportError(
-                "XFELLoader requires EXtra-data components to read XGM energy."
-            ) from exc
 
         run = self._get_run()
         energy = XGM(run).photon_energy()
@@ -325,13 +322,6 @@ class XFELLoader(H5TypeLoader):
 
     def _get_scanned_motor(self, run):
         """Return the scanned motor DataCollection entry."""
-        try:
-            import extra as ex
-            from extra.components import Scantool
-        except ImportError as exc:
-            raise ImportError(
-                "XFELLoader requires EXtra-data to identify scanned motors."
-            ) from exc
 
         sc = Scantool(run)
 
@@ -399,12 +389,6 @@ class XFELLoader(H5TypeLoader):
         twotheta_offset=0.0,
     ):
         """Load theta, chi, phi, and twotheta from EXtra-data aliases."""
-        try:
-            from extra.components import Scan
-        except ImportError as exc:
-            raise ImportError(
-                "XFELLoader requires EXtra-data components to load scan positions."
-            ) from exc
 
         run = self._get_run()
 
