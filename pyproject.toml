@@ -46,6 +46,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+xfel = [
+    "damnit",
+]
 vtk = ["vtk>=9.0.1"]
 interactive = [
     "ipywidgets",
@@ -90,6 +93,7 @@ all = [
     "trame-vtk>=2.0.0",
     "sphinx>=4.0",
     "pydata-sphinx-theme",
+    "damnit",
 ]
 
 [project.urls]
