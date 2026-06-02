@@ -12,9 +12,7 @@ import numpy as np
 from cdiutils.io.loader import H5TypeLoader
 
 try:
-    import extra_data as ex
     from extra_data import RunDirectory
-    from extra_data.components import XGM, Scan, Scantool
 except ImportError as exc:
     raise ImportError(
         "XFELLoader requires EXtra-data. "
@@ -204,6 +202,29 @@ class XFELLoader(H5TypeLoader):
             binning_method,
         )
 
+    def _detect_scan_positions(
+        self,
+        motor_values,
+        n_steps=None,
+    ):
+        """Detect scan-step positions from train-resolved motor values."""
+        values = np.asarray(motor_values, dtype=float)
+        values = values[np.isfinite(values)]
+
+        if values.size == 0:
+            return values
+
+        if n_steps is None:
+            raise ValueError(
+                "n_steps is required for XFEL scan-position detection."
+            )
+
+        chunks = np.array_split(values, n_steps)
+
+        return np.asarray(
+            [np.nanmean(chunk) for chunk in chunks if chunk.size > 0]
+        )
+
     @xfel_safe_load
     def load_motor_positions(
         self,
@@ -288,25 +309,12 @@ class XFELLoader(H5TypeLoader):
 
     @xfel_safe_load
     def load_energy(self, scan: int = None) -> float:
-        """Load photon energy from EXtra-data/XGM.
-
-        Returns energy in eV.
-        """
-
         run = self._get_run()
-        energy = XGM(run).photon_energy()
 
-        try:
-            return float(energy.to("eV").magnitude)
-        except AttributeError:
-            energy = np.asarray(energy)
-            value = float(np.nanmean(energy))
+        energy = run.alias["energy-kev"].ndarray()
+        energy = float(np.nanmean(energy))
 
-            # If value is probably in keV, convert to eV.
-            if value < 100:
-                value *= 1e3
-
-            return value
+        return energy * 1e3  # keV -> eV
 
     @xfel_safe_load
     def load_detector_shape(self, scan: int = None) -> tuple:
@@ -320,62 +328,36 @@ class XFELLoader(H5TypeLoader):
 
         return data.shape[1:]
 
-    def _get_scanned_motor(self, run):
-        """Return the scanned motor DataCollection entry."""
+    def _infer_scanned_motor_name(self, run, angles):
+        """Infer scanned motor from theta/chi/phi/twotheta aliases."""
+        candidates = {}
 
-        sc = Scantool(run)
+        for name in ("theta", "chi", "phi", "twotheta"):
+            if angles[name] is not None:
+                continue
 
-        motors = []
-        missing_motors = list(sc.motor_devices.values())
+            values = np.asarray(run.alias[name].ndarray(), dtype=float)
+            diffs = np.diff(values)
+            movement = np.nanmax(values) - np.nanmin(values)
+            nonzero_steps = np.count_nonzero(np.abs(diffs) > 0)
 
-        for motor_name in missing_motors.copy():
-            if motor_name in run:
-                motors.append(run[motor_name, "actualPosition"])
-                missing_motors.remove(motor_name)
-            else:
-                property_name = (
-                    ex.components.detector_motors.mangle_device_id_camelcase(
-                        motor_name
-                    )
-                )
-                property_name = f"{property_name}.actualPosition"
+            candidates[name] = (movement, nonzero_steps)
+        if not candidates:
+            raise ValueError(
+                "Cannot infer scanned motor because all angles "
+                "were provided explicitly."
+            )
+        scanned_motor_name = max(
+            candidates, key=lambda key: candidates[key][0]
+        )
 
-                for source_name in run.control_sources:
-                    if run[source_name].device_class == "SlowDataSelector":
-                        if property_name in run[source_name]:
-                            motors.append(run[source_name, property_name])
-                            missing_motors.remove(motor_name)
-                            break
-
-        if missing_motors:
+        if candidates[scanned_motor_name][0] == 0:
             raise RuntimeError(
-                f"Could not find these motors: {missing_motors}"
+                "Could not infer scanned motor: theta, chi, phi, and twotheta "
+                "appear constant."
             )
 
-        if not motors:
-            raise RuntimeError("No scanned motor found.")
-
-        return motors[0]
-
-    def _get_scanned_motor_name(self, run, scanned_motor):
-        """Infer scanned motor alias name: theta, chi, phi, or twotheta."""
-        scanned_motor_aliases = []
-
-        for alias_name, source_tuple in run._aliases.items():
-            if source_tuple == (
-                scanned_motor.source,
-                scanned_motor.key.rstrip(".value"),
-            ):
-                scanned_motor_aliases.append(alias_name)
-
-        for name in scanned_motor_aliases:
-            if name in ("theta", "chi", "phi", "twotheta"):
-                return name
-
-        raise RuntimeError(
-            "Could not infer scanned motor name from aliases. "
-            f"Found aliases: {scanned_motor_aliases}"
-        )
+        return scanned_motor_name
 
     def _load_geometry_angles(
         self,
@@ -399,11 +381,21 @@ class XFELLoader(H5TypeLoader):
             "twotheta": twotheta,
         }
 
-        scanned_motor = self._get_scanned_motor(run)
-        scanned_motor_name = self._get_scanned_motor_name(run, scanned_motor)
+        images = self._read_images()
 
-        if angles[scanned_motor_name] is None:
-            angles[scanned_motor_name] = Scan(scanned_motor).positions
+        if "position" in images.coords and angles["theta"] is None:
+            scanned_motor_name = "theta"
+            angles["theta"] = np.asarray(images.coords["position"].values)
+        else:
+            scanned_motor_name = self._infer_scanned_motor_name(run, angles)
+
+            if angles[scanned_motor_name] is None:
+                motor_values = run.alias[scanned_motor_name].ndarray()
+                n_steps = np.asarray(images).shape[0]
+                angles[scanned_motor_name] = self._detect_scan_positions(
+                    motor_values,
+                    n_steps=n_steps,
+                )
 
         for key, value in angles.items():
             if value is None:
