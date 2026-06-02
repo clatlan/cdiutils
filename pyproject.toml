@@ -43,13 +43,11 @@ dependencies = [
     "tabulate",
     "xrayutilities>=1.7.3",
     "pyyaml",
-]
-
-[project.optional-dependencies]
-xfel = [
     "damnit",
     "EXtra-data",
 ]
+
+[project.optional-dependencies]
 vtk = ["vtk>=9.0.1"]
 interactive = [
     "ipywidgets",
@@ -94,8 +92,6 @@ all = [
     "trame-vtk>=2.0.0",
     "sphinx>=4.0",
     "pydata-sphinx-theme",
-    "damnit",
-    "EXtra-data",
 ]
 
 [project.urls]
