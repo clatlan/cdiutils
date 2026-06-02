@@ -18,10 +18,16 @@ except ImportError as exc:
         "XFELLoader requires EXtra-data. "
         "Install/use it in the European XFEL analysis environment."
     ) from exc
+try:
+    from damnit import Damnit
+except ImportError as exc:
+    raise ImportError(
+        "XFELLoader requires DAMNIT to read processed XFEL variables."
+    ) from exc
 
 
 def xfel_safe_load(func):
-    """Safe loader wrapper for XFEL directory/DAMNIT-based loading."""
+    """Safe loader wrapper for XFEL loading."""
 
     def wrap(self, *args, **kwargs):
         if not self.experiment_file_path.exists():
@@ -60,7 +66,6 @@ class XFELLoader(H5TypeLoader):
         flat_field: np.ndarray | str = None,
         alien_mask: np.ndarray | str = None,
         run_dir_name: str = "test_run",
-        damnit_dir_name: str = "test_damnit",
         aliases_file_name: str = "extra-data-aliases.yml",
         data_key: str = "peak_images",
         pulse_dimension: str = "pulseIndex",
@@ -78,7 +83,6 @@ class XFELLoader(H5TypeLoader):
             flat_field: Optional flat-field correction.
             alien_mask: Optional detector mask.
             run_dir_name: Relative run directory name.
-            damnit_dir_name: Relative DAMNIT database directory name.
             aliases_file_name: Alias file name inside the run directory.
             data_key: DAMNIT variable containing detector images.
             pulse_dimension: Xarray pulse dimension name.
@@ -86,7 +90,6 @@ class XFELLoader(H5TypeLoader):
                 "mean", "sum", or None.
         """
         self.run_dir_name = run_dir_name
-        self.damnit_dir_name = damnit_dir_name
         self.aliases_file_name = aliases_file_name
         self.data_key = data_key
         self.pulse_dimension = pulse_dimension
@@ -117,16 +120,9 @@ class XFELLoader(H5TypeLoader):
 
     def _get_run_vars(self, scan: int = None):
         """Return DAMNIT variables for one XFEL run/scan."""
-        try:
-            from damnit import Damnit
-        except ImportError as exc:
-            raise ImportError(
-                "XFELLoader requires DAMNIT to read processed XFEL variables."
-            ) from exc
-
         scan, _ = self._check_scan_sample(scan, None)
 
-        damnit_path = self.experiment_file_path / self.damnit_dir_name
+        damnit_path = self.experiment_file_path
         db = Damnit(damnit_path)
 
         return db[scan]
@@ -134,7 +130,6 @@ class XFELLoader(H5TypeLoader):
     def _read_images(self, scan: int = None):
         """Read the detector image variable from DAMNIT."""
         run_vars = self._get_run_vars(scan)
-
         try:
             return run_vars[self.data_key].read()
         except KeyError as exc:
