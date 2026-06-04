@@ -65,7 +65,6 @@ class XFELLoader(H5TypeLoader):
         detector_name: str = None,
         flat_field: np.ndarray | str = None,
         alien_mask: np.ndarray | str = None,
-        run_dir_name: str = "test_run",
         aliases_file_name: str = "extra-data-aliases.yml",
         data_key: str = "peak_images",
         pulse_dimension: str = "pulseIndex",
@@ -82,14 +81,12 @@ class XFELLoader(H5TypeLoader):
             detector_name: Detector name, e.g. "agipd".
             flat_field: Optional flat-field correction.
             alien_mask: Optional detector mask.
-            run_dir_name: Relative run directory name.
             aliases_file_name: Alias file name inside the run directory.
             data_key: DAMNIT variable containing detector images.
             pulse_dimension: Xarray pulse dimension name.
             pulse_reduction: Reduction over pulse dimension:
                 "mean", "sum", or None.
         """
-        self.run_dir_name = run_dir_name
         self.aliases_file_name = aliases_file_name
         self.data_key = data_key
         self.pulse_dimension = pulse_dimension
@@ -108,15 +105,14 @@ class XFELLoader(H5TypeLoader):
 
     def _get_run(self):
         """Return the EXtra-data run object."""
-
         run_dir_name = self.sample_name or self.run_dir_name
         run_dir = self.experiment_file_path.parent / run_dir_name
         aliases_file = run_dir / self.aliases_file_name
-
+    
         run = RunDirectory(run_dir)
         if aliases_file.exists():
             run = run.with_aliases(aliases_file)
-
+    
         return run
 
     def _get_run_vars(self, scan: int = None):
