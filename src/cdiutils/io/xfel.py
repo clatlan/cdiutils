@@ -108,11 +108,11 @@ class XFELLoader(H5TypeLoader):
         run_dir_name = self.sample_name or self.run_dir_name
         run_dir = self.experiment_file_path.parent / run_dir_name
         aliases_file = run_dir / self.aliases_file_name
-    
+
         run = RunDirectory(run_dir)
         if aliases_file.exists():
             run = run.with_aliases(aliases_file)
-    
+
         return run
 
     def _get_run_vars(self, scan: int = None):
