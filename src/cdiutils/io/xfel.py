@@ -127,34 +127,80 @@ class XFELLoader(H5TypeLoader):
     def _read_images(self, scan: int = None):
         """Read the detector image variable from DAMNIT."""
         run_vars = self._get_run_vars(scan)
+        available_keys = list(run_vars.keys())
+    
         try:
             return run_vars[self.data_key].read()
+    
         except KeyError as exc:
+    
+            # Preferred fallback: xarray dataset containing detector images
+            if "peak_dataset" in available_keys:
+                ds = run_vars["peak_dataset"].read()
+    
+                if "images" in ds:
+                    print(
+                        f"\nDAMNIT variable {self.data_key!r} was not found."
+                        "\nUsing fallback dataset: 'peak_dataset/images'"
+                    )
+                    return ds["images"]
+    
+            candidates = []
+    
+            for key in available_keys:
+                try:
+                    data = run_vars[key].read()
+                    shape = np.shape(data)
+    
+                    if len(shape) in (3, 4):
+                        candidates.append((key, shape))
+    
+                except Exception:
+                    continue
+    
+            if candidates:
+                print(
+                    f"\nDAMNIT variable {self.data_key!r} was not found.\n"
+                    "Available 3D/4D datasets:"
+                )
+    
+                for key, shape in candidates:
+                    print(f"  {key:30s} shape={shape}")
+    
             raise KeyError(
                 f"DAMNIT variable {self.data_key!r} was not found "
                 f"for scan/run {scan}."
             ) from exc
-
     def _reduce_pulses(self, images, pulse_reduction: str = None):
-        """Reduce the XFEL pulse dimension of an xarray object."""
+        """Reduce the XFEL pulse dimension if present."""
         reduction = (
             self.pulse_reduction
             if pulse_reduction is None
             else pulse_reduction
         )
-
+    
         if reduction is None:
             return images
-
-        if self.pulse_dimension not in images.dims:
+    
+        if not hasattr(images, "dims"):
             return images
-
+    
+        pulse_dim = self.pulse_dimension
+    
+        if pulse_dim not in images.dims:
+            if "pulseId" in images.dims:
+                pulse_dim = "pulseId"
+            elif "pulseIndex" in images.dims:
+                pulse_dim = "pulseIndex"
+            else:
+                return images
+    
         if reduction == "mean":
-            return images.mean(self.pulse_dimension)
-
+            return images.mean(pulse_dim)
+    
         if reduction == "sum":
-            return images.sum(self.pulse_dimension)
-
+            return images.sum(pulse_dim)
+    
         raise ValueError("pulse_reduction should be 'mean', 'sum', or None.")
 
     @xfel_safe_load
@@ -301,12 +347,38 @@ class XFELLoader(H5TypeLoader):
 
     @xfel_safe_load
     def load_energy(self, scan: int = None) -> float:
+        """Load photon energy in eV."""
         run = self._get_run()
-
-        energy = run.alias["energy-kev"].ndarray()
-        energy = float(np.nanmean(energy))
-
-        return energy * 1e3  # keV -> eV
+    
+        # Direct energy aliases
+        for alias in ("energy-kev", "undulator-energy"):
+            if alias in run._aliases:
+                energy = run.alias[alias].ndarray()
+                energy = float(np.nanmean(energy))
+    
+                # If value looks like keV, convert to eV
+                if energy < 100:
+                    energy *= 1e3
+    
+                return energy
+    
+        # Wavelength fallback
+        if "xgm-wavelength" in run._aliases:
+            wavelength = run.alias["xgm-wavelength"].ndarray()
+            wavelength = float(np.nanmean(wavelength))
+    
+            # Usually XFEL wavelength may be in m; convert m -> Å
+            if wavelength < 1e-6:
+                wavelength *= 1e10
+    
+            # E[eV] = hc / lambda[Å]
+            return 12398.419843320026 / wavelength
+    
+        raise RuntimeError(
+            "Could not load photon energy. Tried aliases: "
+            "'energy-kev', 'undulator-energy', 'xgm-wavelength'.\n"
+            f"Available aliases are:\n{sorted(run._aliases.keys())}"
+        )
 
     @xfel_safe_load
     def load_detector_shape(self, scan: int = None) -> tuple:
