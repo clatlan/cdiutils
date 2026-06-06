@@ -43,6 +43,8 @@ dependencies = [
     "tabulate",
     "xrayutilities>=1.7.3",
     "pyyaml",
+    "damnit",
+    "EXtra-data",
 ]
 
 [project.optional-dependencies]

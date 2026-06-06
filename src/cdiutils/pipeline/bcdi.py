@@ -623,6 +623,14 @@ class BcdiPipeline(Pipeline):
             detector_name=self.params["detector_name"],
             roi=(slice(None), roi[1], roi[2]) if roi else None,
         )
+
+        if self.mask.shape != self.detector_data.shape:
+            self.logger.warning(
+                "Loaded detector mask shape does not match detector data shape. "
+                f"mask={self.mask.shape}, data={self.detector_data.shape}. "
+                "Using an empty mask instead."
+            )
+            self.mask = np.zeros_like(self.detector_data, dtype=np.uint8)
         if loader.get_alien_mask() is not None:
             self.logger.info("Alien mask provided. Will update detector mask.")
             alien_mask = loader.get_alien_mask(roi)
