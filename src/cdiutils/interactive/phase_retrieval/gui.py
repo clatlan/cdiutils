@@ -525,7 +525,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.nb_run = widgets.BoundedIntText(
-                value=30,
+                value=10,
                 min=0,
                 max=100,
                 continuous_update=False,
