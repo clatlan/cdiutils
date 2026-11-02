@@ -1473,7 +1473,7 @@ class FacetAnalysisProcessor:
                     lbl = c_label_index[i][0]
                     if lbl <= self.params["nb_facets"]:
                         index = c_label_index[i][1]
-                        if index in self.params["index_to_display"]:
+                        if index in (self.params["index_to_display"] or []):
                             index_x, index_y, index_z = index
                             c_x = np.mean(np.where(c_label == lbl)[0])
                             c_y = np.mean(np.where(c_label == lbl)[1])
