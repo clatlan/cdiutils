@@ -212,7 +212,10 @@ class Loader(ABC):
                 "Only 2019 and 2022 versions are available for now. Specify "
                 "the version in the beamline_setup."
             )
+        if beamline_setup.lower() == "xfel":
+            from . import XFELLoader
 
+            return XFELLoader(**metadata)
         if "p10" in beamline_setup.lower():
             from . import P10Loader
 
@@ -814,6 +817,8 @@ class Loader(ABC):
             mask = np.zeros(shape=(512, 1028))
         elif detector_name.lower() == "merlin":
             mask = np.zeros(shape=(512, 512))
+        elif detector_name.lower() == "agipd":
+            mask = np.zeros(shape=(1325, 1196))
         else:
             raise ValueError(f"Invalid detector name: {detector_name}")
         if channel:
