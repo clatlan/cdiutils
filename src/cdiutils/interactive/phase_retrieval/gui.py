@@ -1239,13 +1239,20 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             """
             Get parameters values from widgets and run phase retrieval
 
-            Possible to run phase retrieval via the CLI (with ot without MPI)
-            Or directly in python using the operators.
+            Phase retrieval is run in python with the PyNX operators. Each
+            run applies, in this order: HIO (nb_hio), RAAR (nb_raar, the PSF
+            being introduced after half of the RAAR cycles if psf is True)
+            and ER (nb_er). If support_update_period > 0, the support is
+            updated every support_update_period cycles during all three
+            steps. Alternatively, the PyNX tools (analysis, selection, modes
+            decomposition) can be run on existing reconstructions.
 
             Args:
                 parent_folder: folder in which the raw data files are, and
-                    where the output will be saved
-                iobs: 2D/3D observed diffraction data (intensity). Assumed to
+                    where the output will be saved. It is prepended to iobs,
+                    mask, support and obj, so it must end with a "/".
+                iobs: file name (relative to parent_folder) of the 2D/3D
+                    observed diffraction data (intensity). Assumed to
                     be corrected and following Poisson statistics, will be
                     converted to float32. Dimensions should be divisible by 4
                     and have a prime factor decomposition up to 7. Internally,
@@ -1259,16 +1266,25 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     * -1e19 < values <= 1 are observed but used as free pixels
                     If the mask is not supplied, then it is assumed that the
                     above special values are used.
-                support: initial support in real space (1 = inside support,
-                    0 = outside)
-                obj: initial object. If None, it should be initialised later.
-                mask: mask for the diffraction data (0: valid pixel, >0: masked)
-                support_threshold: must be between 0 and 1. Only points with
-                    object amplitude above a value equal to relative_threshold *
-                    reference_value are kept in the support. reference_value
-                    can use the fact that when converged, the square norm of
-                    the object is equal to the number of recorded photons
-                    (normalized Fourier Transform). Then:
+                support: file name (relative to parent_folder) of the initial
+                    support in real space (1 = inside support, 0 = outside).
+                    If "", the support is estimated from the intensity
+                    auto-correlation at the start of each run.
+                obj: file name (relative to parent_folder) of the initial
+                    object. If "", each run starts from a random object
+                    inside the support. In both cases, the object is then
+                    scaled to the observed intensity (ScaleObj).
+                mask: file name (relative to parent_folder) of the mask for
+                    the diffraction data (0: valid pixel, >0: masked), or "".
+                support_threshold: string evaluated as a float or a
+                    (min, max) tuple, between 0 and 1. If a tuple is given, the
+                    threshold of each run is drawn uniformly in that range.
+                    Only points with object amplitude above a value equal to
+                    relative_threshold * reference_value are kept in the
+                    support. reference_value can use the fact that when
+                    converged, the square norm of the object is equal to the
+                    number of recorded photons (normalized Fourier Transform).
+                    Then:
                     reference_value = sqrt((abs(obj)**2).sum()/nb_points_support)
                 support_smooth_width: smooth the object amplitude using a
                     gaussian of this width before calculating new support.
@@ -1311,20 +1327,18 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 fwhm: the full-width at half maximum, in pixels
                 eta: the eta parameter for the pseudo-voigt
                 update_psf: how often the psf is updated
-                nb_raar: number of relaxed averaged alternating reflections
-                    cycles, which the algorithm will use first. During RAAR and
-                    HIO, the support is updated regularly
                 nb_hio: number of hybrid input/output cycles, which the
-                    algorithm will use after RAAR. During RAAR and HIO, the
-                    support is updated regularly
-                nb_er: number of error reduction cycles, performed after HIO,
-                    without support update
-                nb_ml: number of maximum-likelihood conjugate gradient to
-                    perform after ER
+                    algorithm will use first
+                nb_raar: number of relaxed averaged alternating reflections
+                    cycles, performed after HIO
+                nb_er: number of error reduction cycles, performed after RAAR
+                nb_ml: number of maximum-likelihood conjugate gradient
+                    cycles. Currently not used by the operators.
                 nb_run: number of times to run the optimisation
                 filter_criteria: e.g. "FLLK" criteria onto which the best
                     solutions will be chosen
-                live_plot: a live plot will be displayed every N cycle
+                live_plot: a live plot will be displayed every N cycle, 0 to
+                    deactivate. Always deactivated after the fourth run.
                 plot_axis: for 3D data, the axis along which the cut plane will
                     be selected
                 beta: the beta value for the HIO operator
@@ -1338,16 +1352,39 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     The first number N indicates that the pixels used for
                     interpolation range from i-N to i+N for pixel i around all
                     dimensions. The second number n that the weight is equal to
-                    1/d**n for pixels with at a distance n. The interpolated
+                    1/d**n for pixels at a distance d. The interpolated
                     values iobs_m are stored in memory as -1e19*(iobs_m+1) so
                     that the algorithm knows these are not true observations, and
                     are applied with a large confidence interval.
-                detwin: if set (command-line) or if detwin=True (parameters
-                    file), 10 cycles will be performed at 25% of the total
+                detwin: in PyNX, 10 cycles are performed at 25% of the total
                     number of RAAR or HIO cycles, with a support cut in half to
-                    bias towards one twin image
+                    bias towards one twin image. Currently not used by the
+                    operators.
                 calc_llk: interval at which the different Log Likelihood are
                     computed
+                support_update_period: number of cycles between two support
+                    updates, 0 to keep the support fixed
+                verbose: verbosity level of the output
+                binning: string evaluated as a tuple, binning applied to the
+                    data when initialising the CDI operator
+                tv_er: total variation regularisation weight during ER
+                tv_hio: total variation regularisation weight during HIO
+                tv_raar: total variation regularisation weight during RAAR
+                run_phase_retrieval: False, or "operators" to run nb_run
+                    phase retrievals
+                run_pynx_tools: False, or the PyNX tool to run on existing
+                    reconstructions: "analyse_results", "select" or
+                    "mode_decomposition"
+                plot_metrics_checkbox: if True, plot the metrics used to sort
+                    the reconstructions ("analyse_results")
+                plot_reconstruction_checkbox: if True, plot the sorted
+                    reconstructions ("analyse_results")
+                plot_reconstruction_phase_checkbox: if True, also plot their
+                    phase ("analyse_results")
+                best_runs_widget: file names of the reconstructions selected
+                    by hand ("select")
+                number_of_best_ordered_runs_widget: number of best sorted
+                    reconstructions to keep ("select")
             """
             # Assign attributes
             params = {

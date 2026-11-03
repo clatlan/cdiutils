@@ -102,7 +102,7 @@ def plot_3d_isosurface(
             scale. If None, auto-scales to data maximum. Defaults to
             None.
         convention (str | None, optional): Coordinate convention
-            ("cxi" or "xu"). Defaults to "cxi".
+            ("cxi" or "xu"). Currently not used. Defaults to "cxi".
         figsize (tuple[int, int], optional): Figure size in inches
             (width, height). Defaults to (9, 6).
         title (str | None, optional): Plot title. Defaults to
@@ -755,15 +755,16 @@ class VolumeViewer:
             data_path (str | None, optional): Path to a .vti file
                 containing the data. Defaults to None.
             initial_active_scalar (str, optional): Initial scalar field
-                to display. Defaults to "het_strain".
+                to display. Only used with data_path; with **data, the
+                first array is displayed. Defaults to "het_strain".
             **data (np.ndarray): Dictionary of numpy arrays to visualize.
 
         Raises:
             PyVistaImportError: if Trame or PyVista are not installed.
             ValueError: If the path is not a .vti file.
             ValueError: If initial_active_scalar is not available.
-            NotImplementedError: When parsing np.ndarray directly
-                (reserved for future use).
+            NotImplementedError: If neither data_path nor **data is
+                provided.
 
         Returns:
             The widget viewer for display in Jupyter notebooks.

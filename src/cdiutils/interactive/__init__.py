@@ -36,9 +36,6 @@ try:
 except ImportError:
     _DEPS["plotting"] = False
 
-# 3D visualisation dependencies (for viewer_3d.py - now Plotly based)
-# note: plotly is checked separately below
-_DEPS["3d"] = _DEPS.get("plotly", False)
 
 # data browser dependencies (for data_browser.py)
 try:
@@ -55,6 +52,9 @@ try:
     _DEPS["plotly"] = True
 except ImportError:
     _DEPS["plotly"] = False
+
+# 3D visualisation dependencies (for viewer_3d.py - Plotly based)
+_DEPS["3d"] = _DEPS["plotly"]
 
 # PyVista/Trame dependencies (for volume.py - VolumeViewer only)
 try:
