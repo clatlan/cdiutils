@@ -105,8 +105,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 Alternating Reflections (RAAR) iterations.
             nb_er: Input field to specify the number of Error Reduction (ER)
                 iterations.
-            nb_ml: Input field to specify the number of Maximum Likelihood
-                (ML) iterations.
             nb_run: Input field to specify the number of phase retrieval runs.
             live_plot: Input field to specify the frequency of live plotting
                 during phase retrieval.
@@ -117,7 +115,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             positivity: Checkbox to enable or disable positivity constraints.
             beta: Input field to specify the beta parameter for HIO and RAAR
                 algorithms.
-            detwin: Checkbox to enable or disable detwinning.
             calc_llk: Input field to specify the interval for log-likelihood
                 calculations.
             tv_er: Smoothing/TV regularisation parameter during ER cycles.
@@ -190,8 +187,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     Alternating Reflections (RAAR) iterations.
                 nb_er: Input field to specify the number of Error Reduction (ER)
                     iterations.
-                nb_ml: Input field to specify the number of Maximum Likelihood
-                    (ML) iterations.
                 nb_run: Input field to specify the number of phase retrieval
                     runs.
                 live_plot: Input field to specify the frequency of live plotting
@@ -204,7 +199,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 positivity: Checkbox to enable or disable positivity constraints.
                 beta: Input field to specify the beta parameter for HIO and RAAR
                     algorithms.
-                detwin: Checkbox to enable or disable detwinning.
                 calc_llk: Input field to specify the interval for log-likelihood
                     calculations.
                 tv_er: Smoothing/TV regularisation parameter during ER cycles.
@@ -514,18 +508,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 style={"description_width": "initial"},
             )
 
-            self.nb_ml = widgets.BoundedIntText(
-                value=0,
-                min=0,
-                max=9999,
-                step=10,
-                continuous_update=False,
-                description="Nb of ML:",
-                layout=widgets.Layout(height="35px", width="20%"),
-                readout=True,
-                style={"description_width": "initial"},
-            )
-
             self.nb_run = widgets.BoundedIntText(
                 value=10,
                 min=0,
@@ -604,16 +586,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 layout=widgets.Layout(width="35%", height="50px"),
                 readout=True,
                 style={"description_width": "initial"},
-            )
-
-            self.detwin = widgets.Checkbox(
-                value=False,
-                description="Detwinning",
-                continuous_update=False,
-                indent=False,
-                style={"description_width": "initial"},
-                layout=widgets.Layout(height="50px", width="15%"),
-                icon="check",
             )
 
             self.calc_llk = widgets.BoundedIntText(
@@ -878,7 +850,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.nb_hio,
                         self.nb_raar,
                         self.nb_er,
-                        self.nb_ml,
                     ]
                 ),
                 self.nb_run,
@@ -899,7 +870,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 widgets.HBox(
                     [
                         self.beta,
-                        self.detwin,
                         self.calc_llk,
                     ]
                 ),
@@ -1155,7 +1125,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 nb_hio=self.nb_hio,
                 nb_raar=self.nb_raar,
                 nb_er=self.nb_er,
-                nb_ml=self.nb_ml,
                 nb_run=self.nb_run,
                 live_plot=self.live_plot,
                 plot_axis=self.plot_axis,
@@ -1163,7 +1132,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 binning=self.binning,
                 positivity=self.positivity,
                 beta=self.beta,
-                detwin=self.detwin,
                 calc_llk=self.calc_llk,
                 tv_er=self.tv_er,
                 tv_hio=self.tv_hio,
@@ -1212,7 +1180,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             nb_hio,
             nb_raar,
             nb_er,
-            nb_ml,
             nb_run,
             live_plot,
             plot_axis,
@@ -1220,7 +1187,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             binning,
             positivity,
             beta,
-            detwin,
             calc_llk,
             tv_er,
             tv_hio,
@@ -1332,8 +1298,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 nb_raar: number of relaxed averaged alternating reflections
                     cycles, performed after HIO
                 nb_er: number of error reduction cycles, performed after RAAR
-                nb_ml: number of maximum-likelihood conjugate gradient
-                    cycles. Currently not used by the operators.
                 nb_run: number of times to run the optimisation
                 filter_criteria: e.g. "FLLK" criteria onto which the best
                     solutions will be chosen
@@ -1356,10 +1320,6 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     values iobs_m are stored in memory as -1e19*(iobs_m+1) so
                     that the algorithm knows these are not true observations, and
                     are applied with a large confidence interval.
-                detwin: in PyNX, 10 cycles are performed at 25% of the total
-                    number of RAAR or HIO cycles, with a support cut in half to
-                    bias towards one twin image. Currently not used by the
-                    operators.
                 calc_llk: interval at which the different Log Likelihood are
                     computed
                 support_update_period: number of cycles between two support
@@ -1405,12 +1365,10 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 "nb_raar": nb_raar,
                 "nb_hio": nb_hio,
                 "nb_er": nb_er,
-                "nb_ml": nb_ml,
                 "nb_run": nb_run,
                 "verbose": verbose,
                 "positivity": positivity,
                 "beta": beta,
-                "detwin": detwin,
                 "calc_llk": calc_llk,
                 "tv_er": tv_er,
                 "tv_hio": tv_hio,
@@ -1462,25 +1420,37 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         # Make a copy to gain time
                         cdi = raw_cdi.copy()
 
-                        # Save input data as cxi
-                        if i == 0:
-                            cxi_filename = (
-                                "{}/pynx_input_operator_{}.cxi".format(
-                                    parent_folder,
-                                    iobs.split("/")[-1].split(".")[0],
-                                )
-                            )
-
+                        # Save input data as cxi, once
+                        if i == 1:
                             cxi_filename = (
                                 f"{parent_folder}/pynx_input_operator_"
                                 f"{iobs.split('/')[-1].split('.')[0]}.cxi"
                             )
 
-                            save_cdi_operator_as_cxi(
-                                cdi_operator=cdi,
-                                path_to_cxi=cxi_filename,
-                                params=params,
+                            # PyNX tools widgets are not phasing parameters
+                            # (and tuples of str cannot be saved by h5py)
+                            pynx_tools_keys = (
+                                "plot_metrics_checkbox",
+                                "plot_reconstruction_checkbox",
+                                "plot_reconstruction_phase_checkbox",
+                                "best_runs_widget",
+                                "number_of_best_ordered_runs_widget",
                             )
+                            try:
+                                save_cdi_operator_as_cxi(
+                                    cdi_operator=cdi,
+                                    path_to_cxi=cxi_filename,
+                                    params={
+                                        k: v
+                                        for k, v in params.items()
+                                        if k not in pynx_tools_keys
+                                    },
+                                )
+                            except Exception as e:
+                                print(
+                                    f"Could not save {cxi_filename}: {e}\n"
+                                    "Continuing with the phase retrieval."
+                                )
 
                         if i > 4:
                             print("Stopping liveplot to go faster\n")
