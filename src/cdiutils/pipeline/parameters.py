@@ -93,6 +93,10 @@ DEFAULT_PIPELINE_PARAMS = {
         "live_plot": False,  # enable live plotting
         "save_plot": True,  # save final plots
         "mpi": "run",  # MPI mode for parallel processing
+        # TV regularisation
+        "tv_er": 0.15,
+        "tv_hio": 0.15,
+        "tv_raar": 0.15,
     },
     # === support generation parameters ===
     "support": {

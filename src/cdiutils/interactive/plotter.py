@@ -194,6 +194,9 @@ class Plotter:
                     voxel_size: tuple[float, float, float]
                         Physical voxel size along each axis.
 
+                    unit: str | None
+                        Optional unit label for spatial axes.
+
                     PLOT_ORDER: Literal['xyz', 'zyx']
                         Axis ordering convention.
 
@@ -394,25 +397,25 @@ class Plotter:
         the specified file.
 
         The file must have a .npy, .cxi, .h5, or .npz extension. If the
-        file is a .npy or .h5 file, the data array is directly loaded.
-        If the file is a .cxi file, the data array is loaded from
+        file is a .npy file, the data array is directly loaded.
+        If the file is a .cxi or .h5 file, the data array is loaded from
         `f.root.entry_1.data_1.data[:]` or
-        `f.root.entry_1.image_1.data[:]`, following cxi conventions.
+        `f.root.entry_1.image_1.data[:]`, following cxi conventions. For
+        .h5 files, only the first frame of 4D data is kept and the first
+        and last axes are swapped.
         If the file is a .npz file, the user is prompted to select the
         data array from a dropdown list of arrays stored in the .npz
         file.
 
-        If the file extension is supported and the data array is
-        successfully loaded, the `init_plot` function is called.
-
-        Return:
-            A Numpy array representing the data stored
-            in the class, or None if the file could not be loaded.
+        The array is stored in the `data_array` attribute and, if the
+        file extension is supported, the `init_plot` function is called.
+        Nothing is returned.
 
         Raises:
-            KeyError: If the file is a .cxi or .h5 file, and the data
-            could not be found in either `f.root.entry_1.data_1.data[:]`
-            or `f.root.entry_1.image_1.data[:]`.
+            KeyError: If the file is a .h5 file, and the data could not
+            be found in either `f.root.entry_1.data_1.data[:]` or
+            `f.root.entry_1.image_1.data[:]`. For .cxi files, a message
+            is printed instead.
         """
         # No need to select data array interactively
         if self.filename.endswith((".npy", ".h5", ".cxi")):

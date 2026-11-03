@@ -81,6 +81,10 @@ DEFAULT_PYNX_PARAMS = {
     "confidence_interval_factor_mask_min": 0.5,
     "confidence_interval_factor_mask_max": 1.2,
     "detwin": False,
+    # TV regularisation
+    "tv_er": 0.15,
+    "tv_hio": 0.15,
+    "tv_raar": 0.15,
 }
 
 
@@ -163,6 +167,7 @@ class PyNXPhaser:
         operator_parameters = {
             key: self.params[key]
             for key in [
+                "beta",
                 "calc_llk",
                 "show_cdi",
                 "update_psf",
@@ -173,10 +178,10 @@ class PyNXPhaser:
             ]
         }
         return {
-            "er": ER(**operator_parameters),
-            "hio": HIO(**operator_parameters),
+            "er": ER(**operator_parameters, tv=self.params["tv_er"]),
+            "hio": HIO(**operator_parameters, tv=self.params["tv_hio"]),
             "detwinhio": DetwinHIO(detwin_axis=1),
-            "raar": RAAR(**operator_parameters),
+            "raar": RAAR(**operator_parameters, tv=self.params["tv_raar"]),
             "detwinraar": DetwinRAAR(detwin_axis=1),
             "faa": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)

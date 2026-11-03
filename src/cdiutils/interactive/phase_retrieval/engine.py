@@ -9,6 +9,7 @@ import glob
 import os
 from datetime import datetime
 
+import h5py
 import numpy as np
 from scipy.fft import fftshift
 
@@ -19,6 +20,49 @@ try:
     IS_PYNX_AVAILABLE = True
 except ImportError:
     IS_PYNX_AVAILABLE = False
+
+
+def load_object(path: str) -> np.ndarray:
+    """
+    Load a complex object from a cxi, npz or npy file.
+
+    The array must be centred, as stored in the PyNX cxi files. For a
+    cxi file, the object is read from /entry_1/image_1/data. For a npz
+    file, the keys "object", "obj" and "data" are tried, in this order.
+
+    Args:
+        path: path to the file that stores the object data.
+
+    Raises:
+        ValueError: if the file format is not supported or the object
+            is not found in the file.
+
+    Returns:
+        the object array.
+    """
+    if path.endswith(".npy"):
+        return np.load(path)
+
+    if path.endswith(".npz"):
+        with np.load(path) as data:
+            for key in ("object", "obj", "data"):
+                if key in data:
+                    return data[key]
+        raise ValueError(
+            f"None of the keys 'object', 'obj' or 'data' found in {path}."
+        )
+
+    if path.endswith(".cxi"):
+        with h5py.File(path, "r") as file:
+            if "entry_1/image_1/data" not in file:
+                raise ValueError(
+                    f"No object at /entry_1/image_1/data in {path}."
+                )
+            return file["entry_1/image_1/data"][()]
+
+    raise ValueError(
+        f"Unsupported object file {path}, expected cxi, npz or npy."
+    )
 
 
 def initialise_cdi_operator(
@@ -41,7 +85,7 @@ def initialise_cdi_operator(
             data
         mask: path to npz or npy that stores the mask data
         support: path to npz or npy that stores the support data
-        obj: path to npz or npy that stores the object data
+        obj: path to cxi, npz or npy that stores the object data
         binning: tuple, applied to all the arrays, e.g. (1, 1, 1)
 
     Return:
@@ -130,19 +174,18 @@ def initialise_cdi_operator(
         support = None
 
     if os.path.isfile(str(obj)):
-        if obj.endswith(".npy"):
-            obj = np.load(obj)
-            print("\tCXI input: loading object")
-        elif obj.endswith(".npz"):
-            try:
-                obj = np.load(obj)["data"]
-                print("\tCXI input: loading object")
-            except KeyError:
-                print('\t"data" key does not exist.')
+        obj = load_object(obj)
+        print("\tCXI input: loading object")
 
         if binning != (1, 1, 1):
             obj = rebin(obj, binning)
             print("\tBinned obj.")
+
+        if obj.shape != iobs.shape:
+            raise ValueError(
+                f"Object shape {obj.shape} does not match the data shape "
+                f"{iobs.shape}."
+            )
 
         obj = fftshift(obj)
 

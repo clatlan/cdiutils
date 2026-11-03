@@ -6,6 +6,7 @@ Authors:
 """
 
 # Built-in dependencies.
+import collections
 import copy
 import glob
 import os
@@ -356,6 +357,12 @@ class BcdiPipeline(Pipeline):
         else:
             self._load()
             self._from_2d_to_3d_shape()
+            # The rocking-curve length is only known now: make sure it
+            # also complies with PyNX, otherwise PyNX silently
+            # re-centres/reshapes the data (e.g. 321 -> 320 frames).
+            self.params["preprocess_shape"] = ensure_pynx_shape(
+                self.params["preprocess_shape"], verbose=True
+            )
             self.logger.info(
                 "The preprocessing output shape is: and "
                 f"{self.params['preprocess_shape']} will be used for the "
@@ -1198,40 +1205,33 @@ retrieval is also computed and will be used in the post-processing stage."""
                 code.
         """
         try:
-            # accumulate stderr lines for error reporting
-            stderr_lines = []
+            # keep the last lines of output for error reporting
+            last_lines = collections.deque(maxlen=50)
 
+            # stderr is merged into stdout: reading the two pipes one
+            # after the other can deadlock once the unread one fills
+            # its OS buffer (~64 kB), e.g. PyNX printing many warnings.
             with subprocess.Popen(
                 ["bash", "-l", "-c", cmd],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 cwd=cwd,  # change to this directory
                 text=True,  # ensures stdout/stderr are str, not bytes
                 env=os.environ.copy(),
                 bufsize=1,
             ) as proc:
-                # stream stdout
                 for line in iter(proc.stdout.readline, ""):
-                    self.logger.info(line.strip())
-
-                # stream stderr and capture for error reporting
-                for line in iter(proc.stderr.readline, ""):
                     stripped_line = line.strip()
-                    self.logger.error(stripped_line)
-                    stderr_lines.append(stripped_line)
+                    self.logger.info(stripped_line)
+                    last_lines.append(stripped_line)
 
                 # wait for the process to complete and check the
                 # return code
                 proc.wait()
                 if proc.returncode != 0:
-                    # compile captured stderr into a single message
                     stderr_text = (
-                        "\n".join(stderr_lines)
-                        if stderr_lines
-                        else (
-                            f"Process exited with code {proc.returncode} "
-                            "(no stderr output captured)"
-                        )
+                        f"Process exited with code {proc.returncode}. "
+                        "Last output lines:\n" + "\n".join(last_lines)
                     )
                     self.logger.error(
                         "PyNX phasing process failed with return code "
