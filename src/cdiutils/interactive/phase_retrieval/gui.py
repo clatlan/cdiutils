@@ -279,8 +279,9 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 + [
                     os.path.basename(f)
                     for f in sorted(
-                        glob.glob(work_dir + "*.npz") + glob.glob(os.path.join(work_dir, "*.cxi")),
-                        key=os.path.getmtime
+                        glob.glob(work_dir + "*.npz")
+                        + glob.glob(os.path.join(work_dir, "*.cxi")),
+                        key=os.path.getmtime,
                     )
                 ],
                 description="Dataset",
@@ -900,10 +901,10 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.beta,
                         self.detwin,
                         self.calc_llk,
-		    ]
-		),
-		widgets.HBox(
-		    [
+                    ]
+                ),
+                widgets.HBox(
+                    [
                         self.tv_er,
                         self.tv_hio,
                         self.tv_raar,
