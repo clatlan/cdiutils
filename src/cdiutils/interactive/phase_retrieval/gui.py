@@ -279,7 +279,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 + [
                     os.path.basename(f)
                     for f in sorted(
-                        glob.glob(work_dir + "*.npz"), key=os.path.getmtime
+                        glob.glob(work_dir + "*.npz") + glob.glob(os.path.join(work_dir, "*.cxi")),
+                        key=os.path.getmtime
                     )
                 ],
                 description="Dataset",
@@ -626,7 +627,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_er = widgets.FloatText(
-                value=0.15,
+                value=0.05,
                 step=0.01,
                 max=0,
                 min=0.2,
@@ -638,7 +639,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_hio = widgets.FloatText(
-                value=0.15,
+                value=0.05,
                 step=0.01,
                 max=0,
                 min=0.2,
@@ -650,7 +651,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_raar = widgets.FloatText(
-                value=0.15,
+                value=0.05,
                 step=0.01,
                 max=0,
                 min=0.2,
@@ -899,6 +900,10 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.beta,
                         self.detwin,
                         self.calc_llk,
+		    ]
+		),
+		widgets.HBox(
+		    [
                         self.tv_er,
                         self.tv_hio,
                         self.tv_raar,
