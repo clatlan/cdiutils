@@ -1522,13 +1522,11 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                                 * cdi
                             )
 
-                        if not support or not obj:
-                            cdi = ScaleObj() * cdi
-                            if params["live_plot"]:
-                                cdi = (
-                                    ShowCDI(plot_axis=params["plot_axis"])
-                                    * cdi
-                                )
+                        # Always scale the object to the observed intensity,
+                        # whatever the origin of the support and object
+                        cdi = ScaleObj() * cdi
+                        if params["live_plot"]:
+                            cdi = ShowCDI(plot_axis=params["plot_axis"]) * cdi
 
                         # Begin phase retrieval
                         try:
