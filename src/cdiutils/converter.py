@@ -706,9 +706,12 @@ class SpaceConverter:
             shift_voxel
         )
 
-        # create the 0 centered index grid
+        # create the 0 centered index grid. Use float64 explicitly: the
+        # default integer dtype of np.indices is platform-dependent
+        # (int32 on Windows with NumPy < 2), and the Gram matrix below
+        # would silently overflow for typical data shapes.
         ortho_grid = []
-        for i in np.indices(self._shape):
+        for i in np.indices(self._shape, dtype=np.float64):
             ortho_grid.append(i - i[shift_voxel])
         ortho_grid = np.array(ortho_grid).reshape(3, np.prod(self._shape))
 
