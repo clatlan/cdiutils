@@ -17,6 +17,7 @@ from ._ring import (
     remove_large_jumps,
 )
 from ._strain_map import map_min_gradient
+from ._vortices import find_phase_vortices
 from ._theory import (
     angle_between_vectors,
     closest_to_zero_in_array,
@@ -31,6 +32,7 @@ from ._theory import (
 
 __all__ = [
     "map_min_gradient",
+    "find_phase_vortices",
     "clusters_dislo_strain_map",
     "extract_structure",
     "fit_line_3d",
