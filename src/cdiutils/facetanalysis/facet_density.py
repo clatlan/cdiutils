@@ -34,7 +34,6 @@ import pandas as pd
 from matplotlib.colors import LogNorm, PowerNorm
 from scipy import ndimage
 
-from cdiutils.geometry import Geometry
 
 # (highest Miller index, accepted misfit in degrees). With 2-4 degree
 # precision on the normals, a random direction falls within 4 deg of a
@@ -772,7 +771,9 @@ class FacetDensityAnalyser:
         Returns:
             tuple: (x, y) arrays.
         """
-        u = Geometry.swap_convention(np.atleast_2d(vectors_cxi).T).T
+        # CXI (z, y, x) -> xrayutilities (x, y, z): swap the last two
+        # components, as Geometry.swap_convention does for one vector
+        u = np.atleast_2d(vectors_cxi)[:, [0, 2, 1]].astype(float)
         u = u / np.linalg.norm(u, axis=1)[:, None]
         u = np.where(u[:, 2:3] < 0, -u, u)
         return -u[:, 0] / (1 + u[:, 2]) * 90, -u[:, 1] / (1 + u[:, 2]) * 90

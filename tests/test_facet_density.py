@@ -86,3 +86,12 @@ def test_gap_faces_are_internal(tilted):
     side_orbits = (FacetDensityAnalyser.orbit_label((1, 1, -1)),
                    FacetDensityAnalyser.orbit_label((-1, -1, 1)))
     assert label in side_orbits
+
+
+def test_stereographic_projection():
+    # the vertical (CXI y) projects to the centre, a horizontal vector to
+    # the rim (90 deg)
+    x, y = FacetDensityAnalyser.stereographic(np.array([[0, 1, 0],
+                                                        [1, 0, 0]]))
+    np.testing.assert_allclose([x[0], y[0]], [0, 0], atol=1e-9)
+    assert np.isclose(np.hypot(x[1], y[1]), 90)
