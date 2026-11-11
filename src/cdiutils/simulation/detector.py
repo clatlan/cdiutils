@@ -31,6 +31,8 @@ from .objects import (
     make_box,
     make_cylinder,
     make_ellipsoid,
+    make_polyhedron,
+    make_winterbottom,
 )
 
 
@@ -337,9 +339,13 @@ class BCDISimulator:
                 wavelength.
             wavelength: X-ray wavelength in metres. Mutually
                 exclusive with energy.
-            structure: Crystal structure type. Default is 'cubic'.
-            hkl: Miller indices [h, k, l]. Default is [1, 1, 1].
-            lattice_parameter: Lattice parameter in metres.
+            structure: Crystal structure type, 'cubic' (default) or
+                'hexagonal' (alias 'hcp').
+            hkl: Miller indices [h, k, l]. Default is [1, 1, 1]. For
+                'hexagonal', 3-index [h, k, l] or 4-index
+                [h, k, i, l].
+            lattice_parameter: Lattice parameter in metres. For
+                'hexagonal', a tuple (a, c) in metres.
             det_calib_params: Dictionary with detector calibration
                 parameters: 'distance' (m), 'pwidth1', 'pwidth2'
                 (m), 'cch1', 'cch2' (pixels).
@@ -435,7 +441,8 @@ class BCDISimulator:
             Bragg angle in degrees.
 
         Raises:
-            NotImplementedError: If structure is not 'cubic'.
+            NotImplementedError: If structure is not 'cubic' or
+                'hexagonal'.
 
         Example:
             >>> sim = BCDISimulator(
@@ -446,6 +453,13 @@ class BCDISimulator:
             ... )
             >>> bragg = sim.lattice_parameter_to_bragg_angle()
             >>> print(f"{bragg:.2f}°")
+            >>> # hcp Ru (0002), lattice_parameter = (a, c)
+            >>> sim = BCDISimulator(
+            ...     energy=9000,
+            ...     structure='hexagonal',
+            ...     hkl=[0, 0, 0, 2],
+            ...     lattice_parameter=(2.705e-10, 4.281e-10),
+            ... )
         """
         if lattice_parameter is None:
             lattice_parameter = self.lattice_parameter
@@ -454,13 +468,51 @@ class BCDISimulator:
             d_spacing = lattice_parameter / np.sqrt(
                 np.sum(np.array(self.hkl) ** 2)
             )
+        elif self.structure in ("hexagonal", "hcp"):
+            d_spacing = self.hexagonal_d_spacing(self.hkl, *lattice_parameter)
         else:
-            raise NotImplementedError("Only cubic structure is implemented.")
+            raise NotImplementedError(
+                "Only cubic and hexagonal structures are implemented."
+            )
 
         # Bragg's law: 2d sin(θ) = λ
         theta = np.arcsin(self.wavelength / (2 * d_spacing))
 
         return np.degrees(theta)
+
+    @staticmethod
+    def hexagonal_d_spacing(
+        hkl: list[int],
+        a: float,
+        c: float,
+    ) -> float:
+        """
+        Interplanar spacing of an hexagonal reflection.
+
+        Uses 1/d^2 = 4/3 (h^2 + hk + k^2) / a^2 + l^2 / c^2.
+
+        Args:
+            hkl: 3-index [h, k, l] or 4-index [h, k, i, l] Miller
+                indices.
+            a: Lattice parameter a (any length unit).
+            c: Lattice parameter c (same unit).
+
+        Returns:
+            d-spacing in the unit of a and c.
+
+        Raises:
+            ValueError: If hkl does not have 3 or 4 indices.
+        """
+        if len(hkl) == 4:
+            h, k, _, l_index = hkl
+        elif len(hkl) == 3:
+            h, k, l_index = hkl
+        else:
+            raise ValueError("hkl must have 3 or 4 indices")
+        inverse_d_squared = (
+            4.0 / 3.0 * (h**2 + h * k + k**2) / a**2 + l_index**2 / c**2
+        )
+        return 1.0 / np.sqrt(inverse_d_squared)
 
     def bragg_angle_to_lattice_parameter(
         self,
@@ -853,8 +905,9 @@ class BCDISimulator:
             shape: Shape of 3D array (nz, ny, nx).
             voxel_size: Real-space voxel size in metres. Can be a
                 single value (isotropic) or tuple (z, y, x).
-            geometric_shape: Shape type: 'box', 'cylinder', or
-                'ellipsoid'. Default is 'box'.
+            geometric_shape: Shape type: 'box', 'cylinder',
+                'ellipsoid', 'polyhedron' or 'winterbottom'. Default
+                is 'box'.
             geometric_shape_params: Parameters for shape function
                 (e.g., {'dimensions': 30, 'rotation': (0, 0, 45)}).
             phase_type: Phase type: 'linear', 'quadratic', or
@@ -900,10 +953,15 @@ class BCDISimulator:
             make_function = make_cylinder
         elif geometric_shape.lower() in ("ellipsoid", "ellipse", "sphere"):
             make_function = make_ellipsoid
+        elif geometric_shape.lower() == "polyhedron":
+            make_function = make_polyhedron
+        elif geometric_shape.lower() == "winterbottom":
+            make_function = make_winterbottom
         else:
             raise ValueError(
                 f"Unknown geometric shape '{geometric_shape}', select "
-                "one among: 'box', 'cylinder', 'ellipsoid'"
+                "one among: 'box', 'cylinder', 'ellipsoid', "
+                "'polyhedron', 'winterbottom'"
             )
 
         self.obj = make_function(shape=shape, **(geometric_shape_params or {}))
