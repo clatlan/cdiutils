@@ -270,7 +270,10 @@ class BcdiPipeline(Pipeline):
                 Q-space.
         """
         converter_params = {
-            "geometry": Geometry.from_setup(cxi["entry_1/geometry_1/name"]),
+            "geometry": Geometry.from_setup(
+                beamline=cxi["entry_1/geometry_1/name"],
+                detector=cxi["entry_1/detector_1/description"],
+            ),
             "det_calib_params": cxi["entry_1/detector_1/calibration"],
             "roi": cxi["entry_1/result_1/roi"],
             "energy": cxi["entry_1/source_1/energy"],
@@ -400,13 +403,14 @@ class BcdiPipeline(Pipeline):
                 self.cropped_detector_data, pos
             )
 
-        # Initialise SpaceConverter, later used for orthogonalisation
+        # Initialise SpaceConverter with detector-specific geometry
         geometry = Geometry.from_setup(
             self.params["beamline_setup"],
             sample_orientation=self.params.get("sample_orientation", None),
             sample_surface_normal=self.params.get(
                 "sample_surface_normal", None
             ),
+            detector=self.params.get("detector_name", None),
         )
         self.converter = SpaceConverter(
             geometry=geometry,
