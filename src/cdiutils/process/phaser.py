@@ -69,6 +69,7 @@ DEFAULT_PYNX_PARAMS = {
     # "support": "auto",
     "support_autocorrelation_threshold": (0.09, 0.11),
     # operator parameters
+    "beta": 0.9,  # HIO/RAAR feedback, as in pipeline/parameters.py
     "calc_llk": 50,
     "show_cdi": 0,
     "update_psf": 100,
@@ -85,6 +86,12 @@ DEFAULT_PYNX_PARAMS = {
     "tv_er": 0.15,
     "tv_hio": 0.15,
     "tv_raar": 0.15,
+    # extensions (devel-claude): per-run phase perturbation of a given
+    # starting object, upper bound of the support, amplitude
+    # homogenisation during HIO/RAAR (fraction pulled to the mean)
+    "obj_noise": 0,
+    "support_ceiling": None,
+    "homogenise": 0,
 }
 
 
@@ -178,10 +185,20 @@ class PyNXPhaser:
             ]
         }
         return {
-            "er": ER(**operator_parameters, tv=self.params["tv_er"]),
-            "hio": HIO(**operator_parameters, tv=self.params["tv_hio"]),
+            # only the arguments each operator accepts (ER has no beta)
+            "er": ER(
+                **valid_args_only(operator_parameters, ER),
+                tv=self.params["tv_er"],
+            ),
+            "hio": HIO(
+                **valid_args_only(operator_parameters, HIO),
+                tv=self.params["tv_hio"],
+            ),
             "detwinhio": DetwinHIO(detwin_axis=1),
-            "raar": RAAR(**operator_parameters, tv=self.params["tv_raar"]),
+            "raar": RAAR(
+                **valid_args_only(operator_parameters, RAAR),
+                tv=self.params["tv_raar"],
+            ),
             "detwinraar": DetwinRAAR(detwin_axis=1),
             "faa": FourierApplyAmplitude(
                 **valid_args_only(operator_parameters, FourierApplyAmplitude)
@@ -346,12 +363,22 @@ class PyNXPhaser:
             #     amax=self.params["amp_range"],
             #     phirange=self.params["phase_range"]
             # ) * cdi
+        if self.params["obj"] is not None and self.params["obj_noise"]:
+            # each run starts from the given object with its own random
+            # phase perturbation (obj_noise, rad rms), so that seeded runs
+            # differ and can be compared
+            obj = cdi.get_obj()
+            noise = np.random.standard_normal(obj.shape) * self.params["obj_noise"]
+            cdi.set_obj((obj * np.exp(1j * noise)).astype(np.complex64))
         if self.params["scale_obj"]:
             cdi = (
                 ScaleObj(method=self.params["scale_obj"], verbose=verbose)
                 * cdi
             )
-        if self.params["psf"] is not None:
+        if isinstance(self.params["psf"], np.ndarray):
+            # a PSF array given by the user (centred), e.g. bandwidth_psf()
+            cdi = InitPSF(psf=self.params["psf"].copy()) * cdi
+        elif self.params["psf"] is not None:
             model, fwhm, eta = self.params["psf"].split(",")
             cdi = InitPSF(model, float(fwhm), float(eta)) * cdi
 
@@ -419,11 +446,26 @@ class PyNXPhaser:
                             if self.params["support_update_period"]
                             else 1
                         )
-                        cdi = (
-                            self.support_update
-                            * (algo**support_update_period)
-                            ** (iteration // support_update_period)
-                        ) * cdi
+                        if (
+                            self.params["support_ceiling"] is None
+                            and not self.params["homogenise"]
+                        ):
+                            cdi = (
+                                self.support_update
+                                * (algo**support_update_period)
+                                ** (iteration // support_update_period)
+                            ) * cdi
+                        else:
+                            for _ in range(
+                                iteration // support_update_period
+                            ):
+                                cdi = (
+                                    self.support_update
+                                    * algo**support_update_period
+                                ) * cdi
+                                cdi = self._apply_constraints(
+                                    cdi, algo_name.lower()
+                                )
                         attempt = self.wrong_support_failure_tolerance
 
                     except SupportTooLarge:
@@ -509,6 +551,201 @@ class PyNXPhaser:
             # run the recipe
             self.run(recipe, cdi, init_cdi=False)
 
+    def _apply_constraints(self, cdi: CDI_Type, algo_name: str) -> CDI_Type:
+        """
+        Constraints applied after every support update period.
+
+        - support_ceiling (natural orientation, same shape as the data):
+          the support may only shrink inside it (shrink-wrap bounded by
+          a model hull).
+        - homogenise (0-1, HIO and RAAR only): the modulus inside the
+          support is pulled towards its mean by this fraction, the phase
+          is kept (modulus homogenisation, Newton et al. 2010; useful
+          when the modulus collapses into part of a known support).
+
+        Args:
+            cdi (CDI_Type): the cdi object.
+            algo_name (str): the current algorithm.
+
+        Returns:
+            CDI_Type: the constrained cdi object.
+        """
+        ceiling = self.params["support_ceiling"]
+        if ceiling is not None:
+            support = cdi.get_support(shift=True) > 0
+            cdi.set_support((support & (ceiling > 0)).astype(np.int8), shift=True)
+        fraction = self.params["homogenise"]
+        if fraction and algo_name in ("hio", "raar"):
+            obj = cdi.get_obj(shift=True)
+            support = cdi.get_support(shift=True) > 0
+            amp = np.abs(obj)
+            if support.any():
+                target = amp[support].mean()
+                new_amp = np.where(support, amp + fraction * (target - amp), amp)
+                cdi.set_obj(
+                    (obj * new_amp / np.maximum(amp, 1e-20)).astype(np.complex64),
+                    shift=True,
+                )
+        return cdi
+
+    @staticmethod
+    def crop_diffraction_data(data: np.ndarray, crop_factor: float) -> np.ndarray:
+        """
+        Central 1/crop_factor of a (reciprocal-space) array along every
+        axis. Same operation as crop_diffraction_data in E. Bellec's crop
+        algorithm (cdi_dislo.ewen_utilities.Reconstruction_crop_algo).
+
+        Args:
+            data (np.ndarray): the array (natural orientation).
+            crop_factor (float): > 1.
+
+        Returns:
+            np.ndarray: the cropped array.
+        """
+        crop = ((np.array(data.shape) * (1.0 - 1.0 / crop_factor)) / 2).astype(int)
+        return data[tuple(slice(c, n - c) for c, n in zip(crop, data.shape))]
+
+    @staticmethod
+    def interpolate_object(obj: np.ndarray, shape: tuple) -> np.ndarray:
+        """
+        Resample a real or complex object onto another array size with
+        the same field of view (linear interpolation on [-1, 1] grids,
+        as interpolate_object of E. Bellec's crop algorithm).
+
+        Args:
+            obj (np.ndarray): the object (natural orientation).
+            shape (tuple): the target shape.
+
+        Returns:
+            np.ndarray: the resampled object.
+        """
+        from scipy.interpolate import RegularGridInterpolator
+
+        grids = tuple(np.linspace(-1, 1, n) for n in obj.shape)
+        points = np.moveaxis(
+            np.array(
+                np.meshgrid(*[np.linspace(-1, 1, n) for n in shape], indexing="ij")
+            ),
+            0,
+            -1,
+        )
+        if np.iscomplexobj(obj):
+            real = RegularGridInterpolator(grids, obj.real)(points)
+            imag = RegularGridInterpolator(grids, obj.imag)(points)
+            return (real + 1j * imag).astype(np.complex64)
+        return RegularGridInterpolator(grids, obj.astype(float))(points)
+
+    @staticmethod
+    def bandwidth_psf(
+        q_lab_matrix: np.ndarray,
+        q_bragg: np.ndarray,
+        bandwidth: float = 1e-4,
+        size: int = 15,
+    ) -> np.ndarray:
+        """
+        Detector-frame PSF of the monochromator bandwidth (longitudinal
+        coherence). At fixed angles a wavelength lambda' measures
+        q lambda / lambda', so near the Bragg peak Q the pattern is
+        blurred along Q by |Q| dlambda/lambda (Gaussian spectrum of that
+        FWHM). Partial-coherence formalism: Clark et al., Nat. Commun.
+        3, 993 (2012), eq. 3-4.
+
+        Args:
+            q_lab_matrix (np.ndarray): (3, 3) matrix q = B @ index of
+                the scan (e.g. "transformation_matrices/q_lab" of the
+                cdiutils preprocessed cxi).
+            q_bragg (np.ndarray): the Bragg peak position in the same
+                frame (e.g. "q_lab_shift").
+            bandwidth (float, optional): relative bandwidth (FWHM).
+                Defaults to 1e-4 (Si(111) double-crystal monochromator).
+            size (int, optional): side of the PSF array. Defaults to 15.
+
+        Returns:
+            np.ndarray: the centred PSF, normalised to 1.
+        """
+        from scipy.ndimage import gaussian_filter
+
+        line = np.linalg.solve(np.asarray(q_lab_matrix, float),
+                               np.asarray(q_bragg, float)) * bandwidth
+        psf = np.zeros((size,) * 3)
+        centre = np.full(3, size // 2, dtype=float)
+        sigma = 1 / 2.3548
+        for t in np.linspace(-3 * sigma, 3 * sigma, 241):
+            pos = centre + t * line
+            base = np.floor(pos).astype(int)
+            frac = pos - base
+            weight = np.exp(-(t**2) / (2 * sigma**2))
+            for corner in np.ndindex(2, 2, 2):
+                w = weight * np.prod(
+                    [f if c else 1 - f for f, c in zip(frac, corner)]
+                )
+                psf[tuple(base + np.array(corner))] += w
+        psf = gaussian_filter(psf, 0.3)
+        return psf / psf.sum()
+
+    def coarse_to_fine_phasing(
+        self,
+        run_nb: int,
+        recipe: str,
+        crop_factors: list,
+        support: np.ndarray = None,
+        obj: np.ndarray = None,
+        final_recipe: str = None,
+    ) -> None:
+        """
+        Coarse-to-fine phasing (E. Bellec's crop algorithm, cdi_dislo):
+        each run is first phased on the central 1/f of reciprocal space
+        (larger voxels, same field of view) for each f in crop_factors,
+        the object is interpolated to the next size, and the run ends
+        on the full data. The results are stored in self.cdi_list.
+
+        Args:
+            run_nb (int): the number of runs.
+            recipe (str): the recipe at the cropped sizes.
+            crop_factors (list): e.g. [3, 2].
+            support (np.ndarray, optional): starting support (natural
+                orientation, full size), resampled at each size.
+            obj (np.ndarray, optional): starting object (idem).
+            final_recipe (str, optional): the recipe on the full data.
+                Defaults to recipe.
+        """
+        iobs = ifftshift(self.iobs)
+        mask = None if self.mask is None else ifftshift(self.mask)
+        params = {
+            k: v for k, v in self.params.items()
+            if k not in ("support", "obj", "support_ceiling")
+        }
+        self.cdi_list = []
+        for i in range(run_nb):
+            print(f"Run #{i + 1}")
+            current = obj
+            for f in crop_factors:
+                data_f = self.crop_diffraction_data(iobs, f)
+                sub = PyNXPhaser(
+                    data_f,
+                    None if mask is None else self.crop_diffraction_data(mask, f),
+                    **params,
+                )
+                sub.init_cdi(
+                    verbose=False,
+                    support=None if support is None else (
+                        self.interpolate_object(support, data_f.shape) > 0.5
+                    ).astype(np.int8),
+                    obj=None if current is None else self.interpolate_object(
+                        current, data_f.shape
+                    ),
+                )
+                sub.run(recipe, sub.cdi, init_cdi=False)
+                current = sub.cdi.get_obj(shift=True)
+            cdi = self.init_cdi(
+                verbose=False,
+                init_main_cdi=False,
+                support=None if support is None else support.copy(),
+                obj=self.interpolate_object(current, iobs.shape),
+            )
+            self.run(final_recipe or recipe, cdi, init_cdi=False)
+            self.cdi_list.append(cdi)
+
     def genetic_phasing(
         self,
         run_nb: int,
@@ -516,6 +753,8 @@ class PyNXPhaser:
         recipe: str,
         selection_method: str = "sharpness",
         init_cdi: bool = True,
+        mode: str = "amplitude",
+        twin_align: bool = False,
     ):
         """
         Run 'genetic'-like phasing. It runs a number of reconstruction
@@ -535,6 +774,13 @@ class PyNXPhaser:
                 the best reconstruction. Defaults to "sharpness".
             init_cdi (bool, optional): whether to initialise the cdi
                 object or not. Defaults to True.
+            mode (str, optional): "amplitude": each run keeps its phase
+                and takes sqrt(|obj| |best|) as modulus (default);
+                "complex": each run becomes sqrt(obj x best) as in
+                E. Bellec's genetic scheme (cdi_dislo.genetic).
+            twin_align (bool, optional): bring every run to the twin
+                image and centre of the best one before combining.
+                Defaults to False.
 
         Raises:
             ValueError: if init_cdi is False but no initialisation was
@@ -580,16 +826,48 @@ class PyNXPhaser:
                     "Updating cdi objects with the best reconstruction "
                     f"(run # {indice + 1}).\n"
                 )
-                amplitude_reference = np.abs(self.cdi_list[indice].get_obj())
+                best = self.cdi_list[indice].get_obj(shift=True)
                 for i in range(run_nb):
                     if i == indice:
                         continue
-                    new_obj = self.cdi_list[i].get_obj()
-                    new_obj = np.sqrt(
-                        np.abs(new_obj) * amplitude_reference
-                    ) * np.exp(1j * np.angle(new_obj))
-                    self.cdi_list[i].set_obj(new_obj)
+                    new_obj = self.cdi_list[i].get_obj(shift=True)
+                    if twin_align:
+                        new_obj = self._align_to(new_obj, best)
+                    if mode == "complex":
+                        new_obj = np.sqrt(new_obj * best)
+                    else:
+                        new_obj = np.sqrt(np.abs(new_obj) * np.abs(best)) * np.exp(
+                            1j * np.angle(new_obj)
+                        )
+                    self.cdi_list[i].set_obj(new_obj.astype(np.complex64), shift=True)
             self.run_multiple_instances(run_nb, recipe, init_cdi=False)
+
+    @staticmethod
+    def _align_to(obj: np.ndarray, reference: np.ndarray) -> np.ndarray:
+        """
+        Bring obj to the twin image (conj(obj(-r))) and the centre of
+        mass of reference, choosing the twin by modulus correlation.
+
+        Args:
+            obj (np.ndarray): object (natural orientation).
+            reference (np.ndarray): reference object.
+
+        Returns:
+            np.ndarray: aligned object.
+        """
+        from scipy.ndimage import center_of_mass
+
+        twin = np.conj(obj[::-1, ::-1, ::-1])
+        ref = np.abs(reference).ravel()
+        if np.corrcoef(np.abs(twin).ravel(), ref)[0, 1] > np.corrcoef(
+            np.abs(obj).ravel(), ref
+        )[0, 1]:
+            obj = twin
+        shift = np.round(
+            np.array(center_of_mass(np.abs(reference) ** 2))
+            - np.array(center_of_mass(np.abs(obj) ** 2))
+        ).astype(int)
+        return np.roll(obj, tuple(shift), axis=(0, 1, 2))
 
     @staticmethod
     def plot_cdi(
