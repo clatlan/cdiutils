@@ -1,4 +1,5 @@
 import warnings
+from datetime import date, datetime
 
 import numpy as np
 
@@ -149,6 +150,8 @@ class Geometry:
         beamline_setup: str | None = None,
         sample_orientation: str | None = None,
         sample_surface_normal: list | None = None,
+        detector: str | None = None,
+        experiment_date: date | datetime | None = None,
     ) -> "Geometry":
         """
         Create geometry from beamline name.
@@ -180,7 +183,10 @@ class Geometry:
 
             sample_surface_normal: Explicit surface normal vector.
                 Overrides ``sample_orientation`` if provided.
-
+            detector: Detector name. For ID01, CITIUS uses a date-dependent
+                detector axis orientation.
+            experiment_date: Acquisition date used to select the historical
+                CITIUS geometry. Can be a date or datetime object.
         Returns:
             Configured Geometry instance for the beamline.
 
@@ -214,11 +220,22 @@ class Geometry:
 
         # Note that we use CXI convention here
         if beamline.lower() in ("id01", "id01spec", "id01bliss"):
-            # by default, sample orientation is horizontal, pointing up
+            detector_name = (detector or "").strip().lower()
+            cutoff_date = date(2026, 11, 10)
+
+            if isinstance(experiment_date, datetime):
+                experiment_date = experiment_date.date()
+
+            is_old_citius = (
+                detector_name == "citius"
+                and experiment_date is not None
+                and experiment_date < cutoff_date
+            )
+
             geometry = cls(
                 sample_circles=["x-", "y-"],  # eta, phi
                 detector_circles=["y-", "x-"],  # nu, delta
-                detector_axis0_orientation="y-",
+                detector_axis0_orientation="y+" if is_old_citius else "y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up
