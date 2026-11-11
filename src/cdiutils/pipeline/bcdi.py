@@ -10,7 +10,9 @@ import collections
 import copy
 import glob
 import os
+import platform
 import subprocess
+import sys
 from string import Template
 
 # Dependencies.
@@ -1001,12 +1003,42 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
-    def _make_slurm_file(self, template: str = None) -> None:
+    def _make_slurm_file(
+        self,
+        template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
+    ) -> None:
         """
         Generate SLURM batch script for PyNX phase retrieval.
 
-        Uses template substitution to create job submission file.
+        Uses template substitution to create job submission file. The
+        job starts from a clean login environment on its node (the
+        partitions mix x86_64 and ppc64le nodes) and runs the
+        pynx-cdi-id01 of the environment given for the architecture of
+        that node, else the one of the ESRF pynx module.
+
+        Args:
+            template (str, optional): path to the SLURM script template.
+                Defaults to None (built-in template).
+            pynx_envs (dict[str, str], optional): environment prefix
+                holding bin/pynx-cdi-id01, per architecture ("x86_64",
+                "ppc64le"). If the running Python environment has
+                pynx-cdi-id01, it is used for its own architecture
+                unless given here. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s).
+                Defaults to "gpu,p9gpu".
         """
+        pynx_envs = dict(pynx_envs or {})
+
+        # Use the current environment for its architecture, if it has PyNX
+        if os.path.isfile(os.path.join(sys.prefix, "bin", "pynx-cdi-id01")):
+            pynx_envs.setdefault(platform.machine(), sys.prefix)
+        self.logger.info(
+            f"PyNX environments per architecture: {pynx_envs or 'none'} "
+            "(otherwise the pynx module of the node)."
+        )
+
         # Make the pynx slurm file
         if template is None:
             template = (
@@ -1026,6 +1058,9 @@ retrieval is also computed and will be used in the post-processing stage."""
                 {
                     "number_of_nodes": 2,
                     "data_path": self.pynx_phasing_dir,
+                    "partition": slurm_partition,
+                    "pynx_env_x86_64": pynx_envs.get("x86_64", ""),
+                    "pynx_env_ppc64le": pynx_envs.get("ppc64le", ""),
                     "SLURM_JOBID": "$SLURM_JOBID",
                     "SLURM_NTASKS": "$SLURM_NTASKS",
                 }
@@ -1084,6 +1119,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         self,
         jump_to_cluster: bool = False,
         pynx_slurm_file_template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
         clear_former_results: bool = False,
         cmd: str = None,
         search_pattern: str = "*Run*.cxi",
@@ -1102,6 +1139,14 @@ retrieval is also computed and will be used in the post-processing stage."""
             pynx_slurm_file_template (str, optional): path to SLURM
                 script template. Defaults to None (uses built-in
                 template).
+            pynx_envs (dict[str, str], optional): for cluster jobs,
+                environment prefix holding bin/pynx-cdi-id01, per node
+                architecture, e.g. {"ppc64le": "/path/to/p9_env"}. The
+                current environment is used for its own architecture if
+                it has PyNX. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s) for
+                cluster jobs. Defaults to "gpu,p9gpu" (x86_64 and
+                ppc64le GPU nodes).
             clear_former_results (bool, optional): delete previous
                 reconstruction CXI files. Defaults to False.
             cmd (str, optional): command for local PyNX execution.
@@ -1153,7 +1198,11 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         if jump_to_cluster:
             self.logger.info("Jumping to cluster requested.")
-            self._make_slurm_file(pynx_slurm_file_template)
+            self._make_slurm_file(
+                pynx_slurm_file_template,
+                pynx_envs=pynx_envs,
+                slurm_partition=slurm_partition,
+            )
             job_id, output_file = self.submit_job(
                 job_file="pynx-id01-cdi.slurm",
                 working_dir=self.pynx_phasing_dir,
