@@ -149,7 +149,6 @@ class Geometry:
         beamline_setup: str | None = None,
         sample_orientation: str | None = None,
         sample_surface_normal: list | None = None,
-        detector: str | None = None,
     ) -> "Geometry":
         """
         Create geometry from beamline name.
@@ -181,10 +180,6 @@ class Geometry:
 
             sample_surface_normal: Explicit surface normal vector.
                 Overrides ``sample_orientation`` if provided.
-
-            detector: Detector name. For ID01, "citius" uses the
-            reversed vertical detector axis. Other detectors retain the
-            default orientation.
 
         Returns:
             Configured Geometry instance for the beamline.
@@ -220,14 +215,10 @@ class Geometry:
         # Note that we use CXI convention here
         if beamline.lower() in ("id01", "id01spec", "id01bliss"):
             # by default, sample orientation is horizontal, pointing up
-            detector_name = (detector or "").strip().lower()
-
             geometry = cls(
                 sample_circles=["x-", "y-"],  # eta, phi
                 detector_circles=["y-", "x-"],  # nu, delta
-                detector_axis0_orientation="y+"
-                if detector_name == "citius"
-                else "y-",
+                detector_axis0_orientation="y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
                 sample_surface_normal=[0, 1, 0],  # default sample facing up

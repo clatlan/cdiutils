@@ -272,7 +272,6 @@ class BcdiPipeline(Pipeline):
         converter_params = {
             "geometry": Geometry.from_setup(
                 beamline=cxi["entry_1/geometry_1/name"],
-                detector=cxi["entry_1/detector_1/description"],
             ),
             "det_calib_params": cxi["entry_1/detector_1/calibration"],
             "roi": cxi["entry_1/result_1/roi"],
@@ -410,7 +409,6 @@ class BcdiPipeline(Pipeline):
             sample_surface_normal=self.params.get(
                 "sample_surface_normal", None
             ),
-            detector=self.params.get("detector_name", None),
         )
         self.converter = SpaceConverter(
             geometry=geometry,
