@@ -93,8 +93,18 @@ class Plotter:
                     Maximum number of frames rendered concurrently.
 
                 rendering_mode: Literal['safe', 'fast', 'process']
-                    Rendering backend strategy used during animation export.
+                    Rendering concurrency strategy used during image and
+                    animation export.
 
+                rendering_backend: Literal['auto', 'kaleido', 'vtk']
+                    Static-image rendering backend. ``auto`` tests Kaleido
+                    first and falls back to VTK when needed.
+
+                export_width: int
+                    Fixed export width in pixels for PNG, GIF, and MP4 output.
+
+                export_height: int
+                    Fixed export height in pixels for PNG, GIF, and MP4 output.
             Ignored for all other plot modes.
 
     Attributes:
@@ -194,9 +204,6 @@ class Plotter:
                     voxel_size: tuple[float, float, float]
                         Physical voxel size along each axis.
 
-                    unit: str | None
-                        Optional unit label for spatial axes.
-
                     PLOT_ORDER: Literal['xyz', 'zyx']
                         Axis ordering convention.
 
@@ -210,9 +217,22 @@ class Plotter:
                         Maximum number of in-flight render tasks.
 
                     rendering_mode: Literal['safe', 'fast', 'process']
-                        Rendering backend strategy (for animation).
+                        Rendering concurrency strategy used during image and
+                        animation export.
+
+                    rendering_backend: Literal['auto', 'kaleido', 'vtk']
+                        Static-image rendering backend. ``auto`` tests Kaleido
+                        first and falls back to VTK when needed.
+
+                    export_width: int
+                        Fixed export width in pixels for PNG, GIF, and MP4
+                        output.
+
+                    export_height: int
+                        Fixed export height in pixels for PNG, GIF, and MP4
+                        output.
         """
-        # ---- legacy behaviour ----
+        # Store plotting configuration and loaded data.
         self.data_array = None
         self.data_dict = None
         self.plot = plot
@@ -221,9 +241,10 @@ class Plotter:
         self.figsize = figsize
         self.fontsize = fontsize
         self.title = title
-        self.layers_kwargs = layers_kwargs or {}
+        self.layers_kwargs = dict(layers_kwargs or {})
+        self.viewer = None
 
-        # MultiVolumeViewer only accepts dict
+        # MultiVolumeViewer requires a mapping of named 3D arrays.
         if self.plot == "layers":
             if not isinstance(data, dict):
                 print(
@@ -359,16 +380,19 @@ class Plotter:
         elif self.plot == "layers":
             from .multiviewer_3d import MultiVolumeViewer
 
-            self.layers_kwargs.pop("figsize", None)
-            self.layers_kwargs.pop("fontsize", None)
+            # Plotter owns ``figsize`` and ``fontsize``. Remove duplicate
+            # values from a local copy so the caller's dictionary is preserved.
+            viewer_kwargs = dict(self.layers_kwargs)
+            viewer_kwargs.pop("figsize", None)
+            viewer_kwargs.pop("fontsize", None)
 
-            viewer = MultiVolumeViewer(
+            self.viewer = MultiVolumeViewer(
                 self.data_dict,
                 fontsize=self.fontsize,
                 figsize=self.figsize,
-                **self.layers_kwargs,
+                **viewer_kwargs,
             )
-            viewer.show()
+            self.viewer.show()
             return
         elif self.plot == "1D" and self.data_array.ndim == 1:
             print(self.data_array)
@@ -397,25 +421,25 @@ class Plotter:
         the specified file.
 
         The file must have a .npy, .cxi, .h5, or .npz extension. If the
-        file is a .npy file, the data array is directly loaded.
-        If the file is a .cxi or .h5 file, the data array is loaded from
+        file is a .npy or .h5 file, the data array is directly loaded.
+        If the file is a .cxi file, the data array is loaded from
         `f.root.entry_1.data_1.data[:]` or
-        `f.root.entry_1.image_1.data[:]`, following cxi conventions. For
-        .h5 files, only the first frame of 4D data is kept and the first
-        and last axes are swapped.
+        `f.root.entry_1.image_1.data[:]`, following cxi conventions.
         If the file is a .npz file, the user is prompted to select the
         data array from a dropdown list of arrays stored in the .npz
         file.
 
-        The array is stored in the `data_array` attribute and, if the
-        file extension is supported, the `init_plot` function is called.
-        Nothing is returned.
+        If the file extension is supported and the data array is
+        successfully loaded, the `init_plot` function is called.
+
+        Return:
+            A Numpy array representing the data stored
+            in the class, or None if the file could not be loaded.
 
         Raises:
-            KeyError: If the file is a .h5 file, and the data could not
-            be found in either `f.root.entry_1.data_1.data[:]` or
-            `f.root.entry_1.image_1.data[:]`. For .cxi files, a message
-            is printed instead.
+            KeyError: If the file is a .cxi or .h5 file, and the data
+            could not be found in either `f.root.entry_1.data_1.data[:]`
+            or `f.root.entry_1.image_1.data[:]`.
         """
         # No need to select data array interactively
         if self.filename.endswith((".npy", ".h5", ".cxi")):
