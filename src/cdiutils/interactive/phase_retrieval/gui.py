@@ -548,7 +548,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.nb_raar = widgets.BoundedIntText(
-                value=500,
+                value=600,
                 min=0,
                 max=9999,
                 step=10,
@@ -572,7 +572,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.nb_er = widgets.BoundedIntText(
-                value=200,
+                value=400,
                 min=0,
                 max=9999,
                 step=10,
@@ -696,7 +696,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_er = widgets.BoundedFloatText(
-                value=0.05,
+                value=0.10,
                 step=0.01,
                 min=0,
                 max=1,
@@ -708,7 +708,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_hio = widgets.BoundedFloatText(
-                value=0.05,
+                value=0.10,
                 step=0.01,
                 min=0,
                 max=1,
@@ -720,7 +720,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.tv_raar = widgets.BoundedFloatText(
-                value=0.05,
+                value=0.10,
                 step=0.01,
                 min=0,
                 max=1,
