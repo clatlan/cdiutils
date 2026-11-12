@@ -110,10 +110,16 @@ class CristalLoader(H5TypeLoader):
         key_path_template = key_path + "/CRISTAL/{}/position"
 
         angles = {}
+
         for angle, name in CristalLoader.angle_names.items():
-            angles[angle] = float(
-                self.h5file[key_path_template.format(name)][()]
-            )
+            dataset = key_path_template.format(name)
+
+            value = self.h5file[dataset][()]
+
+            if np.ndim(value) > 0:
+                value = value[0]
+
+            angles[angle] = float(value)
 
         # get the full motor name used for the rocking curve
         full_rocking_motor_name = self.h5file[key_path + "/scan_config/name"][
