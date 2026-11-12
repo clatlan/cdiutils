@@ -1,9 +1,5 @@
-import itertools
-
 import numpy as np
 from scipy.fft import fftn, fftshift, ifftn
-from scipy.optimize import linprog
-from scipy.spatial import ConvexHull, HalfspaceIntersection
 from scipy.spatial.distance import pdist
 
 
@@ -389,304 +385,6 @@ def add_random_phase(
     return obj * np.exp(1j * phase)
 
 
-def hexagonal_family_normals(
-    hkl: tuple[int, ...],
-    c_over_a: float,
-) -> np.ndarray:
-    """
-    Unit normals of all planes of an hexagonal {hkil} family.
-
-    The family is expanded with the 24 operations of the 6/mmm Laue
-    group: the 6 permutations of (h, k, i), the inversion of
-    (h, k, i) and l -> -l. The Cartesian frame has x along a1 and z
-    along c. Normals are returned in the (z, y, x) order used by the
-    shape functions of this module, so that (0001) points along +z
-    (array axis 0).
-
-    Args:
-        hkl: Miller indices, either 3-index (h, k, l) or 4-index
-            Miller-Bravais (h, k, i, l) with i = -(h + k).
-        c_over_a: Ratio c/a of the hexagonal lattice.
-
-    Returns:
-        (n, 3) array of unique unit normals in (z, y, x) order.
-
-    Raises:
-        ValueError: If hkl does not have 3 or 4 indices, or if
-            i != -(h + k) for a 4-index input.
-
-    Example:
-        >>> normals = hexagonal_family_normals((1, 0, -1, 1), 1.583)
-        >>> normals.shape
-        (12, 3)
-    """
-    indices = [int(index) for index in hkl]
-    if len(indices) == 4:
-        h, k, i, l_index = indices
-        if i != -(h + k):
-            raise ValueError("4-index hkl must satisfy i = -(h + k)")
-    elif len(indices) == 3:
-        h, k, l_index = indices
-        i = -(h + k)
-    else:
-        raise ValueError("hkl must have 3 or 4 indices")
-
-    # real-space basis with a = 1 (rows are a1, a2, c), x along a1
-    real_basis = np.array(
-        [
-            [1.0, 0.0, 0.0],
-            [-0.5, np.sqrt(3) / 2, 0.0],
-            [0.0, 0.0, c_over_a],
-        ]
-    )
-    # rows of the reciprocal basis are a1*, a2*, c* (no 2 pi factor)
-    reciprocal_basis = np.linalg.inv(real_basis).T
-
-    normals = []
-    for permutation in itertools.permutations((h, k, i)):
-        for sign_hki in (1, -1):
-            for sign_l in (1, -1):
-                g_vector = (
-                    sign_hki * permutation[0] * reciprocal_basis[0]
-                    + sign_hki * permutation[1] * reciprocal_basis[1]
-                    + sign_l * l_index * reciprocal_basis[2]
-                )
-                normals.append(g_vector / np.linalg.norm(g_vector))
-
-    # adding 0.0 turns -0.0 into 0.0 so that np.unique sees duplicates
-    unique_normals = np.unique(np.round(normals, 10) + 0.0, axis=0)
-    return unique_normals[:, ::-1]
-
-
-def polyhedron_from_planes(
-    normals: np.ndarray,
-    distances: np.ndarray,
-    tolerance: float = 1e-7,
-) -> dict:
-    """
-    Convex polyhedron bounded by the half-spaces n_i . r <= d_i.
-
-    The interior point needed by the half-space intersection is the
-    Chebyshev centre (centre of the largest inscribed sphere), so the
-    origin does not have to lie inside the polyhedron (e.g. a
-    Winterbottom shape with a negative interface distance).
-
-    Args:
-        normals: (n, 3) outward plane normals, any length.
-        distances: (n,) plane distances, in the same units as the
-            returned vertices.
-        tolerance: Relative tolerance for deciding that a vertex lies
-            on a plane.
-
-    Returns:
-        Dictionary with:
-            - "vertices": (m, 3) vertex coordinates.
-            - "faces": list of (plane index, ordered vertex indices)
-              for the planes that form a face.
-            - "areas": (n,) face area of each input plane (0 for
-              planes that do not form a face).
-            - "volume": polyhedron volume.
-            - "interior_point": Chebyshev centre used.
-
-    Raises:
-        ValueError: If the half-spaces do not bound a polyhedron with
-            a non-empty interior.
-    """
-    normals = np.asarray(normals, dtype=float)
-    distances = np.asarray(distances, dtype=float)
-    lengths = np.linalg.norm(normals, axis=1)
-    unit_normals = normals / lengths[:, None]
-    unit_distances = distances / lengths
-
-    # Chebyshev centre: maximise r subject to n_i . x + r <= d_i
-    cost = np.array([0.0, 0.0, 0.0, -1.0])
-    constraints = np.hstack([unit_normals, np.ones((len(lengths), 1))])
-    solution = linprog(
-        cost,
-        A_ub=constraints,
-        b_ub=unit_distances,
-        bounds=[(None, None)] * 3 + [(0, None)],
-    )
-    if not solution.success or solution.x[3] <= 0:
-        raise ValueError(
-            "The planes do not bound a polyhedron with a non-empty "
-            "interior (unbounded or empty)."
-        )
-    interior_point = solution.x[:3]
-
-    # scipy convention for half-spaces: A x + b <= 0
-    halfspaces = np.hstack([unit_normals, -unit_distances[:, None]])
-    intersection = HalfspaceIntersection(halfspaces, interior_point)
-    scale = np.max(np.abs(intersection.intersections))
-    vertices = np.unique(
-        np.round(intersection.intersections / scale, 9), axis=0
-    ) * scale
-
-    faces = []
-    areas = np.zeros(len(lengths))
-    for plane_index, normal in enumerate(unit_normals):
-        offsets = vertices @ normal - unit_distances[plane_index]
-        on_plane = np.where(np.abs(offsets) < tolerance * scale)[0]
-        if on_plane.size < 3:
-            continue
-
-        # order the face vertices by angle around their centroid
-        face_points = vertices[on_plane]
-        centroid = face_points.mean(axis=0)
-        axis_u = face_points[0] - centroid
-        axis_u /= np.linalg.norm(axis_u)
-        axis_v = np.cross(normal, axis_u)
-        relative = face_points - centroid
-        angles = np.arctan2(relative @ axis_v, relative @ axis_u)
-        ordered = on_plane[np.argsort(angles)]
-
-        # polygon area from the sum of cross products
-        polygon = vertices[ordered]
-        cross_sum = np.sum(
-            np.cross(polygon, np.roll(polygon, -1, axis=0)), axis=0
-        )
-        area = 0.5 * abs(cross_sum @ normal)
-        if area > (tolerance * scale) ** 2:
-            faces.append((plane_index, ordered))
-            areas[plane_index] = area
-
-    return {
-        "vertices": vertices,
-        "faces": faces,
-        "areas": areas,
-        "volume": ConvexHull(vertices).volume,
-        "interior_point": interior_point,
-    }
-
-
-def winterbottom_planes(
-    normals: np.ndarray,
-    surface_energies: np.ndarray,
-    adhesion_energy: float,
-    substrate_normal: tuple[float, float, float] = (-1.0, 0.0, 0.0),
-    interface_facet_energy: float | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Planes of the Winterbottom construction of a supported crystal.
-
-    Each facet sits at a distance proportional to its surface energy
-    (Wulff). The facet parallel to the substrate is replaced by the
-    interface plane, whose distance is proportional to
-    gamma_interface - gamma_substrate = gamma_parallel - W_adh
-    (Dupre relation), with gamma_parallel the surface energy of the
-    metal facet parallel to the interface. W_adh = 0 gives the free
-    Wulff shape, W_adh = gamma_parallel a half-crystal truncated at
-    the Wulff point, and larger values flatter shapes.
-
-    Args:
-        normals: (n, 3) outward facet normals in (z, y, x) order.
-        surface_energies: (n,) surface energies (any unit).
-        adhesion_energy: Work of adhesion W_adh, same unit.
-        substrate_normal: Outward normal of the interface plane
-            (pointing into the substrate), (z, y, x). Default is -z.
-        interface_facet_energy: Surface energy of the metal facet
-            parallel to the interface. If None, it is taken from the
-            facet in `normals` parallel to `substrate_normal`.
-
-    Returns:
-        Tuple (plane_normals, plane_distances) in units of the
-        surface energies (i.e. for a Wulff scale factor of 1).
-
-    Raises:
-        ValueError: If interface_facet_energy is None and no facet is
-            parallel to the substrate normal.
-    """
-    normals = np.asarray(normals, dtype=float)
-    normals = normals / np.linalg.norm(normals, axis=1)[:, None]
-    energies = np.asarray(surface_energies, dtype=float)
-    substrate = np.asarray(substrate_normal, dtype=float)
-    substrate = substrate / np.linalg.norm(substrate)
-
-    # facets parallel to the interface are replaced by the interface
-    parallel = np.isclose(normals @ substrate, 1.0, atol=1e-9)
-    if interface_facet_energy is None:
-        if not np.any(parallel):
-            raise ValueError(
-                "No facet is parallel to the substrate normal; give "
-                "interface_facet_energy explicitly."
-            )
-        interface_facet_energy = energies[parallel][0]
-
-    interface_distance = interface_facet_energy - adhesion_energy
-    plane_normals = np.vstack([normals[~parallel], substrate])
-    plane_distances = np.append(energies[~parallel], interface_distance)
-    return plane_normals, plane_distances
-
-
-def winterbottom_geometry(
-    normals: np.ndarray,
-    surface_energies: np.ndarray,
-    adhesion_energy: float,
-    diameter: float | None = None,
-    substrate_normal: tuple[float, float, float] = (-1.0, 0.0, 0.0),
-    interface_facet_energy: float | None = None,
-) -> dict:
-    """
-    Geometry of a Winterbottom crystal, optionally scaled to a size.
-
-    Args:
-        normals: (n, 3) outward facet normals in (z, y, x) order.
-        surface_energies: (n,) surface energies.
-        adhesion_energy: Work of adhesion W_adh (same unit).
-        diameter: Largest in-plane extent (parallel to the
-            interface) wanted for the crystal. If None, the Wulff
-            scale factor is 1 (lengths in surface-energy units).
-        substrate_normal: Outward normal of the interface plane,
-            (z, y, x). Default is -z.
-        interface_facet_energy: See :func:`winterbottom_planes`.
-
-    Returns:
-        Dictionary of :func:`polyhedron_from_planes` with the vertices
-        shifted so that the interface is at height 0 and the in-plane
-        centre at the origin, plus "plane_normals",
-        "plane_distances" (same frame), "height" (extent along the
-        interface normal), "diameter" (largest in-plane extent) and
-        "aspect_ratio" (height / diameter).
-    """
-    plane_normals, plane_distances = winterbottom_planes(
-        normals,
-        surface_energies,
-        adhesion_energy,
-        substrate_normal=substrate_normal,
-        interface_facet_energy=interface_facet_energy,
-    )
-    geometry = polyhedron_from_planes(plane_normals, plane_distances)
-    substrate = plane_normals[-1]
-    vertices = geometry["vertices"]
-
-    # in-plane extent: largest distance between projected vertices
-    heights = -(vertices @ substrate)
-    projected = vertices + heights[:, None] * substrate
-    width = np.max(pdist(projected))
-    scale = 1.0 if diameter is None else diameter / width
-
-    # shift: interface at height 0, in-plane centre at the origin
-    projected_centre = 0.5 * (projected.min(axis=0) + projected.max(axis=0))
-    shift = projected_centre + heights.min() * (-substrate)
-    shifted_vertices = (vertices - shift) * scale
-    shifted_distances = (plane_distances - plane_normals @ shift) * scale
-
-    geometry.update(
-        {
-            "vertices": shifted_vertices,
-            "areas": geometry["areas"] * scale**2,
-            "volume": geometry["volume"] * scale**3,
-            "interior_point": (geometry["interior_point"] - shift) * scale,
-            "plane_normals": plane_normals,
-            "plane_distances": shifted_distances,
-            "height": (heights.max() - heights.min()) * scale,
-            "diameter": width * scale,
-        }
-    )
-    geometry["aspect_ratio"] = geometry["height"] / geometry["diameter"]
-    return geometry
-
-
 def make_polyhedron(
     shape: tuple[int, int, int],
     normals: np.ndarray,
@@ -739,62 +437,148 @@ def make_polyhedron(
     return array
 
 
-def make_winterbottom(
+def _safe_rotation_matrix(theta: float, axis: np.ndarray) -> np.ndarray:
+    """
+    Axis-angle rotation matrix that accepts a zero axis.
+
+    wulffpack 1.5 builds the axis aligning the interface with -z as
+    a cross product, which is zero when the interface normal is
+    already along z (e.g. a c-plane hcp interface); its own rotation
+    function then returns NaNs. A zero axis means theta = 0 or pi.
+
+    Args:
+        theta: Rotation angle in radians.
+        axis: Rotation axis (any length, may be zero).
+
+    Returns:
+        3x3 rotation matrix.
+    """
+    from wulffpack.core.geometry import get_rotation_matrix
+
+    axis = np.asarray(axis, dtype=float)
+    if np.linalg.norm(axis) < 1e-12:
+        if np.cos(theta) > 0:
+            return np.eye(3)
+        return np.diag([1.0, -1.0, -1.0])
+    return get_rotation_matrix(theta, axis)
+
+
+def get_winterbottom(
+    surface_energies: dict,
+    interface_direction: tuple[int, int, int],
+    interface_energy: float,
+    primitive_structure=None,
+    **kwargs,
+):
+    """
+    Build a wulffpack Winterbottom particle, working around a bug.
+
+    Thin wrapper of :class:`wulffpack.Winterbottom`. The only change
+    is the rotation that wulffpack applies at the end of the
+    construction, which fails for an interface normal along z (see
+    :func:`_safe_rotation_matrix`). The interface energy is, as in
+    wulffpack, gamma_interface - gamma_substrate, i.e.
+    gamma_parallel - W_adh with the Dupre relation.
+
+    Args:
+        surface_energies: Miller indices -> surface energy, as for
+            wulffpack (4-index keys are accepted for hcp).
+        interface_direction: 3-index Miller indices of the interface
+            facet, e.g. (0, 0, -1) for a c-plane hcp crystal.
+        interface_energy: gamma_interface - gamma_substrate. Must not
+            be exactly 0 (wulffpack needs the Wulff point inside).
+        primitive_structure: ASE Atoms defining the point group.
+        **kwargs: Passed to :class:`wulffpack.Winterbottom`.
+
+    Returns:
+        The wulffpack Winterbottom object, rotated so that the
+        interface normal points along -z (the particle sits above
+        the interface; the origin stays at the Wulff point).
+
+    Raises:
+        ImportError: If wulffpack is not installed.
+    """
+    try:
+        import wulffpack.winterbottom as winterbottom_module
+    except ImportError as error:
+        raise ImportError(
+            "get_winterbottom needs wulffpack: pip install wulffpack"
+        ) from error
+
+    original = winterbottom_module.get_rotation_matrix
+    winterbottom_module.get_rotation_matrix = _safe_rotation_matrix
+    try:
+        particle = winterbottom_module.Winterbottom(
+            surface_energies,
+            interface_direction=interface_direction,
+            interface_energy=interface_energy,
+            primitive_structure=primitive_structure,
+            **kwargs,
+        )
+    finally:
+        winterbottom_module.get_rotation_matrix = original
+    return particle
+
+
+def wulffpack_planes(particle) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Facet planes of a wulffpack particle in (z, y, x) order.
+
+    Args:
+        particle: A wulffpack particle (SingleCrystal, Winterbottom,
+            ...), e.g. from :func:`get_winterbottom`.
+
+    Returns:
+        Tuple (normals, distances): (n, 3) unit outward normals in
+        (z, y, x) order and (n,) plane distances from the origin, in
+        the length unit of the particle vertices (Angstrom).
+    """
+    normals = []
+    distances = []
+    for form in particle.forms:
+        for facet in form.facets:
+            normal = np.asarray(facet.normal, dtype=float)
+            vertices = np.asarray(facet.vertices, dtype=float)
+            normals.append(normal[::-1])
+            distances.append(np.mean(vertices @ normal))
+    return np.array(normals), np.array(distances)
+
+
+def make_from_wulffpack(
     shape: tuple[int, int, int],
-    normals: np.ndarray,
-    surface_energies: np.ndarray,
-    adhesion_energy: float,
+    particle,
     diameter: float,
-    substrate_normal: tuple[float, float, float] = (-1.0, 0.0, 0.0),
-    interface_facet_energy: float | None = None,
     centre: tuple[float, float, float] | None = None,
     value: float = 1.0,
 ) -> np.ndarray:
     """
-    Create a 3D supported crystal with its Winterbottom shape.
+    Voxelise a wulffpack particle (e.g. a Winterbottom shape).
 
-    The crystal is scaled to the requested in-plane diameter and
-    placed so that the middle of its height and its in-plane centre
-    are at `centre`.
+    The particle is scaled so that its largest extent in the (x, y)
+    plane equals `diameter` (in pixels) and placed with the centre of
+    its bounding box at `centre`. For a Winterbottom particle from
+    :func:`get_winterbottom` the interface lies at the bottom
+    (towards low indices along axis 0).
 
     Args:
         shape: 3D array shape (nz, ny, nx).
-        normals: (n, 3) outward facet normals in (z, y, x) order,
-            e.g. from :func:`hexagonal_family_normals`.
-        surface_energies: (n,) surface energies.
-        adhesion_energy: Work of adhesion W_adh (same unit).
-        diameter: Largest in-plane extent in pixels.
-        substrate_normal: Outward normal of the interface plane,
-            (z, y, x). Default is -z (substrate below).
-        interface_facet_energy: See :func:`winterbottom_planes`.
-        centre: Array position (z, y, x) of the crystal centre. If
-            None, uses array centre.
-        value: Value to fill inside the crystal.
+        particle: A wulffpack particle.
+        diameter: Largest in-plane extent, in pixels.
+        centre: Array position (z, y, x) of the bounding-box centre.
+            If None, uses array centre.
+        value: Value to fill inside the particle.
 
     Returns:
-        3D array with `value` inside the crystal and 0 outside.
+        3D array with `value` inside the particle and 0 outside.
     """
-    geometry = winterbottom_geometry(
-        normals,
-        surface_energies,
-        adhesion_energy,
-        diameter=diameter,
-        substrate_normal=substrate_normal,
-        interface_facet_energy=interface_facet_energy,
-    )
-    # move the origin from the interface to half the crystal height
-    substrate = geometry["plane_normals"][-1]
-    half_height = -0.5 * geometry["height"] * substrate
-    distances = (
-        geometry["plane_distances"] - geometry["plane_normals"] @ half_height
-    )
-    return make_polyhedron(
-        shape,
-        geometry["plane_normals"],
-        distances,
-        centre=centre,
-        value=value,
-    )
+    normals, distances = wulffpack_planes(particle)
+    vertices = np.vstack(
+        [facet.vertices for form in particle.forms for facet in form.facets]
+    )[:, ::-1]  # to (z, y, x)
+    scale = diameter / np.max(pdist(vertices[:, 1:]))
+    box_centre = 0.5 * (vertices.min(axis=0) + vertices.max(axis=0))
+    shifted = (distances - normals @ box_centre) * scale
+    return make_polyhedron(shape, normals, shifted, centre=centre, value=value)
 
 
 def _parse_rotation_matrix(

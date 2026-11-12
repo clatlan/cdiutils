@@ -31,8 +31,8 @@ from .objects import (
     make_box,
     make_cylinder,
     make_ellipsoid,
+    make_from_wulffpack,
     make_polyhedron,
-    make_winterbottom,
 )
 
 
@@ -906,8 +906,10 @@ class BCDISimulator:
             voxel_size: Real-space voxel size in metres. Can be a
                 single value (isotropic) or tuple (z, y, x).
             geometric_shape: Shape type: 'box', 'cylinder',
-                'ellipsoid', 'polyhedron' or 'winterbottom'. Default
-                is 'box'.
+                'ellipsoid', 'polyhedron' or 'wulffpack' (alias
+                'winterbottom'; pass the wulffpack particle as
+                geometric_shape_params={'particle': ..., 'diameter':
+                ...}). Default is 'box'.
             geometric_shape_params: Parameters for shape function
                 (e.g., {'dimensions': 30, 'rotation': (0, 0, 45)}).
             phase_type: Phase type: 'linear', 'quadratic', or
@@ -955,13 +957,13 @@ class BCDISimulator:
             make_function = make_ellipsoid
         elif geometric_shape.lower() == "polyhedron":
             make_function = make_polyhedron
-        elif geometric_shape.lower() == "winterbottom":
-            make_function = make_winterbottom
+        elif geometric_shape.lower() in ("wulffpack", "winterbottom"):
+            make_function = make_from_wulffpack
         else:
             raise ValueError(
                 f"Unknown geometric shape '{geometric_shape}', select "
                 "one among: 'box', 'cylinder', 'ellipsoid', "
-                "'polyhedron', 'winterbottom'"
+                "'polyhedron', 'wulffpack'"
             )
 
         self.obj = make_function(shape=shape, **(geometric_shape_params or {}))

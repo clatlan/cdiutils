@@ -20,15 +20,10 @@ Object creation (from objects):
     make_ellipsoid : Create a 3D ellipsoid or sphere.
     make_cylinder : Create a 3D cylinder.
     make_polyhedron : Create a 3D convex polyhedron from planes.
-    make_winterbottom : Create a supported crystal (Winterbottom
-        construction).
-    hexagonal_family_normals : Normals of an hexagonal {hkil}
-        family.
-    polyhedron_from_planes : Vertices, faces and areas of a
-        polyhedron.
-    winterbottom_planes : Planes of a Winterbottom construction.
-    winterbottom_geometry : Scaled Winterbottom geometry (height,
-        diameter, facet areas).
+    get_winterbottom : wulffpack Winterbottom particle (with a fix
+        for interfaces along z, e.g. c-plane hcp).
+    wulffpack_planes : Facet planes of a wulffpack particle.
+    make_from_wulffpack : Voxelise a wulffpack particle.
 
 Phase manipulation (from objects):
     add_linear_phase : Add linear phase gradient.
@@ -89,16 +84,14 @@ from .objects import (
     add_linear_phase,
     add_quadratic_phase,
     add_random_phase,
-    hexagonal_family_normals,
+    get_winterbottom,
     make_box,
     make_cylinder,
     make_ellipsoid,
+    make_from_wulffpack,
     make_polyhedron,
-    make_winterbottom,
-    polyhedron_from_planes,
     simulate_diffraction,
-    winterbottom_geometry,
-    winterbottom_planes,
+    wulffpack_planes,
 )
 
 __all__ = [
@@ -107,11 +100,9 @@ __all__ = [
     "make_ellipsoid",
     "make_cylinder",
     "make_polyhedron",
-    "make_winterbottom",
-    "hexagonal_family_normals",
-    "polyhedron_from_planes",
-    "winterbottom_planes",
-    "winterbottom_geometry",
+    "get_winterbottom",
+    "wulffpack_planes",
+    "make_from_wulffpack",
     # phase manipulation
     "add_linear_phase",
     "add_quadratic_phase",

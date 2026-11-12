@@ -1,20 +1,27 @@
-"""Tests of the polyhedron, Winterbottom and hexagonal helpers."""
+"""Tests of the polyhedron, wulffpack and hexagonal helpers."""
 
 import numpy as np
 import pytest
 
 from cdiutils.simulation import (
     BCDISimulator,
-    hexagonal_family_normals,
+    get_winterbottom,
+    make_from_wulffpack,
     make_polyhedron,
-    make_winterbottom,
-    polyhedron_from_planes,
-    winterbottom_geometry,
+    wulffpack_planes,
 )
 
 # Ru cell (Anzellini et al., Sci. Rep. 9, 14459 (2019), ambient P, T)
 RU_A = 2.705
 RU_C = 4.281
+# Ru hcp surface energies, meV/A^2 (Lin et al., JPCC 124, 11005
+# (2020), Table 3), four low-energy families
+RU_ENERGIES = {
+    (0, 0, 0, 1): 163,
+    (1, 0, -1, 0): 181,
+    (1, 0, -1, 1): 180,
+    (1, 0, -1, 2): 189,
+}
 
 CUBE_NORMALS = np.array(
     [
@@ -29,106 +36,78 @@ CUBE_NORMALS = np.array(
 )
 
 
-@pytest.mark.parametrize(
-    "hkl, expected",
-    [
-        ((0, 0, 0, 1), 2),
-        ((1, 0, -1, 0), 6),
-        ((1, 1, -2, 0), 6),
-        ((1, 0, -1, 1), 12),
-        ((1, 1, -2, 2), 12),
-        ((2, 1, -3, 1), 24),
-    ],
-)
-def test_hexagonal_family_multiplicity(hkl, expected):
-    """The 6/mmm family sizes are the textbook multiplicities."""
-    normals = hexagonal_family_normals(hkl, RU_C / RU_A)
-    assert normals.shape == (expected, 3)
-    assert np.allclose(np.linalg.norm(normals, axis=1), 1.0)
-
-
-def test_hexagonal_basal_normal_along_z():
-    """(0001) points along +z, i.e. array axis 0 in (z, y, x)."""
-    normals = hexagonal_family_normals((0, 0, 1), RU_C / RU_A)
-    assert np.allclose(sorted(normals[:, 0]), [-1.0, 1.0])
-
-
-def test_hexagonal_pyramidal_angle():
-    """Angle between (10-11) and (0001) matches the hcp formula."""
-    c_over_a = RU_C / RU_A
-    normals = hexagonal_family_normals((1, 0, 1), c_over_a)
-    angle = np.degrees(np.arccos(np.max(normals[:, 0])))
-    # tan(phi) = Q_inplane / Q_z = (2 / (sqrt(3) a)) / (1 / c)
-    expected = np.degrees(np.arctan(2 * c_over_a / np.sqrt(3)))
-    assert np.isclose(angle, expected)
-
-
-def test_polyhedron_from_planes_cube():
-    """A cube of side 2 has volume 8 and six faces of area 4."""
-    geometry = polyhedron_from_planes(CUBE_NORMALS, np.ones(6))
-    assert np.isclose(geometry["volume"], 8.0)
-    assert len(geometry["faces"]) == 6
-    assert np.allclose(geometry["areas"], 4.0)
-
-
-def test_polyhedron_from_planes_origin_outside():
-    """The origin may lie outside the polyhedron."""
-    distances = np.array([3.0, -1.0, 1.0, 1.0, 1.0, 1.0])
-    geometry = polyhedron_from_planes(CUBE_NORMALS, distances)
-    assert np.isclose(geometry["volume"], 2.0 * 2.0 * 2.0)
-
-
-def test_polyhedron_from_planes_empty_raises():
-    """Contradictory half-spaces raise a ValueError."""
-    distances = np.array([-1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
-    with pytest.raises(ValueError):
-        polyhedron_from_planes(CUBE_NORMALS, distances)
-
-
 def test_make_polyhedron_voxel_count():
     """Voxelised cube volume matches the analytic volume."""
     array = make_polyhedron((40, 40, 40), CUBE_NORMALS, np.full(6, 10.0))
     assert array.sum() == pytest.approx(21**3)
 
 
-def test_winterbottom_limits():
-    """W = 0 gives the Wulff shape, W = gamma halves the height."""
-    normals = CUBE_NORMALS
-    energies = np.ones(6)
-    wulff = winterbottom_geometry(normals, energies, 0.0)
-    half = winterbottom_geometry(normals, energies, 1.0)
-    # cube: height 2, in-plane diameter = face diagonal 2 sqrt(2)
-    assert np.isclose(wulff["aspect_ratio"], 1 / np.sqrt(2))
-    assert np.isclose(half["height"], 0.5 * wulff["height"])
-    # the interface sits at height 0 after the shift
-    assert np.isclose(half["vertices"][:, 0].min(), 0.0)
-
-
-def test_winterbottom_scaling():
-    """The in-plane diameter is the requested one."""
-    normals = hexagonal_family_normals((0, 0, 1), RU_C / RU_A)
-    normals = np.vstack(
-        [normals, hexagonal_family_normals((1, 0, 0), RU_C / RU_A)]
+def test_make_polyhedron_rotation_keeps_volume():
+    """A rotated cube keeps (approximately) its volume."""
+    rotated = make_polyhedron(
+        (64, 64, 64), CUBE_NORMALS, np.full(6, 12.0), rotation=(30, 0, 0)
     )
-    energies = np.array([1.0] * 2 + [1.1] * 6)
-    geometry = winterbottom_geometry(normals, energies, 0.5, diameter=100.0)
-    assert np.isclose(geometry["diameter"], 100.0)
-    assert geometry["height"] > 0
+    # analytic volume of a cube of side 24 pixels
+    assert rotated.sum() == pytest.approx(24.0**3, rel=0.06)
 
 
-def test_make_winterbottom_is_flat_bottomed():
-    """The voxelised crystal touches its interface plane over a disc."""
-    normals = hexagonal_family_normals((0, 0, 1), RU_C / RU_A)
-    normals = np.vstack(
-        [normals, hexagonal_family_normals((1, 0, 0), RU_C / RU_A)]
+@pytest.fixture
+def ru_primitive():
+    """Primitive hcp Ru structure (ASE)."""
+    ase_build = pytest.importorskip("ase.build")
+    return ase_build.bulk("Ru", "hcp", a=RU_A, c=RU_C)
+
+
+def test_get_winterbottom_c_plane(ru_primitive):
+    """c-plane hcp interface works (wulffpack 1.5 gives NaN normals)."""
+    pytest.importorskip("wulffpack")
+    particle = get_winterbottom(
+        RU_ENERGIES, (0, 0, -1), 0.5 * 163, primitive_structure=ru_primitive
     )
-    energies = np.array([1.0] * 2 + [1.1] * 6)
-    array = make_winterbottom((64, 64, 64), normals, energies, 1.0, 40.0)
-    occupied_layers = np.where(array.sum(axis=(1, 2)) > 0)[0]
-    bottom_area = array[occupied_layers[0]].sum()
-    top_area = array[occupied_layers[-1]].sum()
-    assert bottom_area > 0.5 * array.sum(axis=(1, 2)).max()
-    assert top_area > 0
+    normals, distances = wulffpack_planes(particle)
+    assert np.all(np.isfinite(normals))
+    # interface (outward normal -z in (z, y, x) order) is the lowest
+    # plane: z_min = -d for the plane -z = d
+    interface = np.isclose(normals[:, 0], -1.0)
+    assert np.any(interface)
+    vertices = np.vstack(
+        [f.vertices for form in particle.forms for f in form.facets]
+    )
+    assert np.allclose(-distances[interface], vertices[:, 2].min())
+    assert 0 < particle.facet_fractions["interface"] < 1
+
+
+def test_winterbottom_flattens_with_adhesion(ru_primitive):
+    """Stronger adhesion (lower interface energy) gives flatter shapes."""
+    pytest.importorskip("wulffpack")
+    aspect = []
+    for interface_energy in (0.5 * 163, -0.5 * 163):
+        particle = get_winterbottom(
+            RU_ENERGIES,
+            (0, 0, -1),
+            interface_energy,
+            primitive_structure=ru_primitive,
+        )
+        vertices = np.vstack(
+            [f.vertices for form in particle.forms for f in form.facets]
+        )
+        aspect.append(np.ptp(vertices[:, 2]) / np.ptp(vertices[:, 0]))
+    assert aspect[1] < aspect[0]
+
+
+def test_make_from_wulffpack_diameter(ru_primitive):
+    """Voxelised particle has the requested in-plane diameter."""
+    pytest.importorskip("wulffpack")
+    particle = get_winterbottom(
+        RU_ENERGIES, (0, 0, -1), 0.5 * 163, primitive_structure=ru_primitive
+    )
+    array = make_from_wulffpack((64, 64, 64), particle, diameter=40.0)
+    occupied = np.argwhere(array > 0)
+    width = np.max(np.ptp(occupied[:, 1:], axis=0)) + 1
+    assert 32 <= width <= 41
+    # flat interface at the bottom: bottom layer is wider than the top
+    layers = np.unique(occupied[:, 0])
+    assert array[layers[0]].sum() > array[layers[-1]].sum()
 
 
 def test_hexagonal_bragg_angle():
