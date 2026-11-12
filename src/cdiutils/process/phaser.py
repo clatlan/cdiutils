@@ -376,8 +376,11 @@ class PyNXPhaser:
                 * cdi
             )
         if isinstance(self.params["psf"], np.ndarray):
-            # a PSF array given by the user (centred), e.g. bandwidth_psf()
-            cdi = InitPSF(psf=self.params["psf"].copy()) * cdi
+            # a PSF array given by the user (centred), e.g. bandwidth_psf();
+            # padded here with its centre at n//2: PyNX's own padding of a
+            # small odd kernel into an even axis shifts the origin by 1 px
+            psf = self.pad_centred(self.params["psf"], ifftshift(self.iobs).shape)
+            cdi = InitPSF(psf=psf.astype(np.float32)) * cdi
         elif self.params["psf"] is not None:
             model, fwhm, eta = self.params["psf"].split(",")
             cdi = InitPSF(model, float(fwhm), float(eta)) * cdi
@@ -587,6 +590,31 @@ class PyNXPhaser:
                     shift=True,
                 )
         return cdi
+
+    @staticmethod
+    def pad_centred(kernel: np.ndarray, shape: tuple) -> np.ndarray:
+        """
+        Zero-pad a kernel with its centre (index k//2) at n//2 of every
+        axis, the pixel that fftshift maps to the origin, which is the
+        PSF convention of PyNX's InitPSF.
+
+        Args:
+            kernel (np.ndarray): the kernel (odd sizes preferred).
+            shape (tuple): the target shape.
+
+        Returns:
+            np.ndarray: the padded kernel.
+        """
+        if kernel.shape == tuple(shape):
+            return kernel
+        out = np.zeros(shape, kernel.dtype)
+        out[
+            tuple(
+                slice(n // 2 - k // 2, n // 2 - k // 2 + k)
+                for n, k in zip(shape, kernel.shape)
+            )
+        ] = kernel
+        return out
 
     @staticmethod
     def crop_diffraction_data(data: np.ndarray, crop_factor: float) -> np.ndarray:

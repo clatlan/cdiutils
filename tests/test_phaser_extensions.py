@@ -68,6 +68,17 @@ def test_bandwidth_psf_along_q():
     assert 1.0 < rms[1] < 1.6
 
 
+def test_pad_centred_puts_the_kernel_at_the_fft_origin():
+    """A padded kernel has its centre at n//2, i.e. at the origin after
+    ifftshift, on even and odd axes."""
+    kernel = np.zeros((15, 15, 15))
+    kernel[7, 7, 7] = 1
+    padded = PyNXPhaser.pad_centred(kernel, (312, 200, 201))
+    assert np.unravel_index(padded.argmax(), padded.shape) == (156, 100, 100)
+    origin = np.unravel_index(np.fft.ifftshift(padded).argmax(), padded.shape)
+    assert origin == (0, 0, 0)
+
+
 def test_align_to_finds_twin_and_shift():
     """_align_to recovers an object from its shifted twin image."""
     obj, support, _ = make_crystal(phase_amp=0.5)
