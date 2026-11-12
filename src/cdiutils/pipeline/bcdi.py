@@ -174,6 +174,7 @@ class BcdiPipeline(Pipeline):
         self.result_analyser: PhasingResultAnalyser = None
         self.reconstruction: np.ndarray = None
         self.structural_props: dict = None
+        self.experiment_date = None
 
         # the list of phase retrieval results
         self.phasing_results = []
@@ -270,7 +271,28 @@ class BcdiPipeline(Pipeline):
                 Q-space.
         """
         converter_params = {
-            "geometry": Geometry.from_setup(cxi["entry_1/geometry_1/name"]),
+            "geometry": Geometry(
+                sample_circles=[
+                    axis.decode() if isinstance(axis, bytes) else axis
+                    for axis in cxi["entry_1/geometry_1/sample_circles"]
+                ],
+                detector_circles=[
+                    axis.decode() if isinstance(axis, bytes) else axis
+                    for axis in cxi["entry_1/geometry_1/detector_circles"]
+                ],
+                detector_axis0_orientation=cxi[
+                    "entry_1/geometry_1/detector_axis0_orientation"
+                ],
+                detector_axis1_orientation=cxi[
+                    "entry_1/geometry_1/detector_axis1_orientation"
+                ],
+                beam_direction=cxi["entry_1/geometry_1/beam_direction"],
+                sample_surface_normal=cxi[
+                    "entry_1/geometry_1/sample_surface_normal"
+                ],
+                name=cxi["entry_1/geometry_1/name"],
+                is_cxi=bool(cxi["entry_1/geometry_1/is_cxi"]),
+            ),
             "det_calib_params": cxi["entry_1/detector_1/calibration"],
             "roi": cxi["entry_1/result_1/roi"],
             "energy": cxi["entry_1/source_1/energy"],
@@ -407,6 +429,8 @@ class BcdiPipeline(Pipeline):
             sample_surface_normal=self.params.get(
                 "sample_surface_normal", None
             ),
+            detector=self.params.get("detector_name", None),
+            experiment_date=self.experiment_date,
         )
         self.converter = SpaceConverter(
             geometry=geometry,
@@ -603,12 +627,23 @@ class BcdiPipeline(Pipeline):
 
         if self.params.get("detector_name") is None:
             self.params["detector_name"] = loader.detector_name
-            if self.params.get("detector_name") is None:
+            if self.params["detector_name"] is None:
                 raise ValueError(
                     "The automatic detection of the detector name is not "
                     "yet implemented for this setup"
                     f"({self.params['beamline_setup']})."
                 )
+
+        self.experiment_date = None
+        if (
+            self.params["beamline_setup"].lower()
+            in ("id01", "id01spec", "id01bliss")
+            and (self.params["detector_name"] or "").lower() == "citius"
+        ):
+            self.experiment_date = loader.get_start_time().date()
+            self.logger.info(
+                f"CITIUS acquisition date: {self.experiment_date}"
+            )
 
         self.detector_data = loader.load_detector_data(
             roi=roi, rocking_angle_binning=self.params["rocking_angle_binning"]
