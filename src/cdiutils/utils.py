@@ -1353,6 +1353,95 @@ def hot_pixel_filter(
     return cleaned_data, np.logical_not(mask)
 
 
+def cluster_bragg_signal(
+    data: np.ndarray,
+    threshold: float = 0.3,
+    eps: float = np.sqrt(2),
+    min_samples: int = 8,
+    dilation: int = 3,
+    mask: np.ndarray = None,
+) -> tuple[np.ndarray, int, np.ndarray]:
+    """
+    Cluster the diffracted intensity into connected groups of voxels
+    (E. Bellec, alienclustering): rescale to a log scale bounded to
+    [0, 1] (zeros kept at 0), keep the voxels above ``threshold``, and
+    group them with DBSCAN. The Bragg cluster is the one holding the
+    maximum; every other cluster is an alien candidate.
+
+    Args:
+        data: Intensity (photons), detector frame.
+        threshold: Log-scale threshold (0-1) of the clustered voxels.
+        eps: DBSCAN neighbourhood radius (voxels).
+        min_samples: DBSCAN core-point count.
+        dilation: Dilation (voxels) of the Bragg cluster for the
+            returned region.
+        mask: Non-zero for masked voxels (ignored by the clustering).
+
+    Returns:
+        (labels, bragg_label, bragg_region): integer labels (0 = not
+        clustered, DBSCAN noise included), the label of the Bragg
+        cluster, and the dilated Bragg cluster (bool).
+    """
+    from scipy.ndimage import binary_dilation
+    from sklearn.cluster import DBSCAN
+
+    values = np.array(data, dtype=np.float64)
+    if mask is not None:
+        values[np.asarray(mask) > 0] = 0
+    positive = values > 0
+    log_values = np.zeros_like(values)
+    log_values[positive] = np.log(values[positive])
+    low, high = log_values[positive].min(), log_values[positive].max()
+    log_values[positive] = (log_values[positive] - low) / (high - low)
+    points = np.argwhere(log_values > threshold)
+    found = DBSCAN(eps=eps, min_samples=min_samples).fit(points).labels_
+    labels = np.zeros(values.shape, dtype=np.int32)
+    # DBSCAN noise (-1) stays 0, clusters are numbered from 1
+    labels[tuple(points.T)] = found + 1
+    maximum = np.unravel_index(np.argmax(values), values.shape)
+    bragg_label = int(labels[maximum])
+    bragg_region = binary_dilation(labels == bragg_label,
+                                   iterations=dilation)
+    return labels, bragg_label, bragg_region
+
+
+def background_map(
+    data: np.ndarray,
+    bragg_region: np.ndarray,
+    mask: np.ndarray = None,
+    sigma: float = 5.0,
+) -> np.ndarray:
+    """
+    Per-pixel background of a rocking scan, from the frames where that
+    detector pixel is outside the Bragg region (detector frame, axis 0
+    = rocking). The diffuse background (cell, air, substrate) varies
+    slowly across the detector and not with the rocking angle. The
+    per-pixel mean is smoothed in the detector plane by a normalised
+    Gaussian convolution, which also fills pixels that are inside the
+    Bragg region in every frame.
+
+    Args:
+        data: Intensity (photons), shape (frames, rows, columns).
+        bragg_region: True where the Bragg signal is (e.g. output of
+            :func:`cluster_bragg_signal`).
+        mask: Non-zero for masked voxels.
+        sigma: Gaussian width (pixels) in the detector plane.
+
+    Returns:
+        Background per pixel and frame, shape (rows, columns).
+    """
+    from scipy.ndimage import gaussian_filter
+
+    usable = ~np.asarray(bragg_region, dtype=bool)
+    if mask is not None:
+        usable &= np.asarray(mask) == 0
+    counts = usable.sum(axis=0).astype(np.float64)
+    sums = np.where(usable, data, 0).sum(axis=0).astype(np.float64)
+    smoothed_sums = gaussian_filter(sums, sigma)
+    smoothed_counts = gaussian_filter(counts, sigma)
+    return smoothed_sums / np.maximum(smoothed_counts, 1e-12)
+
+
 def valid_args_only(params: dict, function: callable) -> dict:
     return {
         k: v
