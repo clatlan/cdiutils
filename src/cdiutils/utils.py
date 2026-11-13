@@ -1360,6 +1360,7 @@ def cluster_bragg_signal(
     min_samples: int = 8,
     dilation: int = 3,
     mask: np.ndarray = None,
+    merge_size: int = 1,
 ) -> tuple[np.ndarray, int, np.ndarray]:
     """
     Cluster the diffracted intensity into connected groups of voxels
@@ -1376,6 +1377,11 @@ def cluster_bragg_signal(
         dilation: Dilation (voxels) of the Bragg cluster for the
             returned region.
         mask: Non-zero for masked voxels (ignored by the clustering).
+        merge_size: Size of a maximum filter applied to the thresholded
+            voxels before clustering (Bellec's mask smoothing): merges
+            fringes and facet streaks of the Bragg peak into its
+            cluster. 1 = no filter. Keep it below the distance to real
+            aliens.
 
     Returns:
         (labels, bragg_label, bragg_region): integer labels (0 = not
@@ -1393,7 +1399,12 @@ def cluster_bragg_signal(
     log_values[positive] = np.log(values[positive])
     low, high = log_values[positive].min(), log_values[positive].max()
     log_values[positive] = (log_values[positive] - low) / (high - low)
-    points = np.argwhere(log_values > threshold)
+    above = log_values > threshold
+    if merge_size > 1:
+        from scipy.ndimage import maximum_filter
+
+        above = maximum_filter(above, size=merge_size)
+    points = np.argwhere(above)
     found = DBSCAN(eps=eps, min_samples=min_samples).fit(points).labels_
     labels = np.zeros(values.shape, dtype=np.int32)
     # DBSCAN noise (-1) stays 0, clusters are numbered from 1
@@ -1410,6 +1421,7 @@ def background_map(
     bragg_region: np.ndarray,
     mask: np.ndarray = None,
     sigma: float = 5.0,
+    pure_pixels: bool = False,
 ) -> np.ndarray:
     """
     Per-pixel background of a rocking scan, from the frames where that
@@ -1426,6 +1438,10 @@ def background_map(
             :func:`cluster_bragg_signal`).
         mask: Non-zero for masked voxels.
         sigma: Gaussian width (pixels) in the detector plane.
+        pure_pixels: Use only the detector pixels that are outside the
+            Bragg region in every frame (weak fringes crossing a pixel in
+            some frames then cannot leak into the estimate); the others
+            are filled by the smoothing.
 
     Returns:
         Background per pixel and frame, shape (rows, columns).
@@ -1435,6 +1451,8 @@ def background_map(
     usable = ~np.asarray(bragg_region, dtype=bool)
     if mask is not None:
         usable &= np.asarray(mask) == 0
+    if pure_pixels:
+        usable &= ~np.asarray(bragg_region, dtype=bool).any(axis=0)[None]
     counts = usable.sum(axis=0).astype(np.float64)
     sums = np.where(usable, data, 0).sum(axis=0).astype(np.float64)
     smoothed_sums = gaussian_filter(sums, sigma)

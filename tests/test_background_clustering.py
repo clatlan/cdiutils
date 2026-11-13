@@ -52,3 +52,34 @@ def test_background_map_recovers_background():
     error = np.abs(estimate - background) / background
     assert np.median(error) < 0.05
     assert np.isfinite(estimate[32, 32])
+
+
+def test_merge_size_joins_fringes_to_the_bragg_cluster():
+    """A fringe shell detached from the peak joins the Bragg cluster
+    with merge_size, not without."""
+    shape = (40, 64, 64)
+    z, y, x = np.indices(shape)
+    radius = np.sqrt((z - 20) ** 2 + (y - 32) ** 2 + (x - 32) ** 2)
+    expected = 1e4 * np.exp(-radius ** 2 / 8) + 30 * (np.abs(radius - 12)
+                                                      < 1) + 0.2
+    data = np.random.default_rng(1).poisson(expected).astype(float)
+    labels, bragg, _ = cluster_bragg_signal(data, dilation=0)
+    shell = (np.abs(radius - 12) < 0.5)
+    assert np.mean(labels[shell] == bragg) < 0.5
+    labels, bragg, _ = cluster_bragg_signal(data, dilation=0,
+                                            merge_size=5)
+    assert np.mean(labels[shell] == bragg) > 0.9
+
+
+def test_pure_pixels_ignore_fringe_crossings():
+    """With fringes crossing some pixels in some frames, the pure-pixel
+    map stays at the true background there."""
+    data, background = synthetic_scan()
+    _, _, region = cluster_bragg_signal(data, threshold=0.3)
+    # weak fringe signal outside the region, in a few frames only
+    data[30:34, 20:44, 20:44] += 3 * (~region[30:34, 20:44, 20:44])
+    leaky = background_map(data, region, sigma=4)
+    pure = background_map(data, region, sigma=4, pure_pixels=True)
+    centre = (slice(26, 38), slice(26, 38))
+    assert np.abs(pure[centre] - background[centre]).mean() < np.abs(
+        leaky[centre] - background[centre]).mean()
