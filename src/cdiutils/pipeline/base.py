@@ -220,7 +220,12 @@ class Pipeline(ABC):
             logging.FileHandler: configured file handler attached to
                 logger.
         """
-        file_handler = logging.FileHandler(f"{process_name}.log", mode="w")
+        # Explicit encoding: the default is the locale's, which is ASCII
+        # on some cluster nodes, and the logs hold non-ASCII text (e.g.
+        # the tabulate "fancy_grid" summary table of the preprocessing)
+        file_handler = logging.FileHandler(
+            f"{process_name}.log", mode="w", encoding="utf-8"
+        )
         file_handler.setLevel(logging.DEBUG)
         file_format = logging.Formatter(
             fmt="%(asctime)s [%(levelname)s] %(message)s",
