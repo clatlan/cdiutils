@@ -969,9 +969,18 @@ class DomainModelFit:
                                             1e-3)))]
             if free_ramps:
                 initial += list(ramps.ravel())
+            # bounds keep exp(log-amplitude) and the softplus background
+            # finite on wild steps (overflow seen on real data)
+            bounds = [(np.log(scale) - 10, np.log(scale) + 10)]
+            bounds *= n_amplitudes
+            if free_phases:
+                bounds += [(None, None)] * (count - 1)
+            bounds += [(-30, 30)]
+            if free_ramps:
+                bounds += [(-np.pi, np.pi)] * (3 * count)
             method = "Powell" if free_ramps else "L-BFGS-B"
             result = minimize(objective, np.array(initial, dtype=float),
-                              method=method,
+                              method=method, bounds=bounds,
                               options={"maxiter": maxiter})
             start_deviances.append(float(result.fun))
             if best is None or result.fun < best.fun:
