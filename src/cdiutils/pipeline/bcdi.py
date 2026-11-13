@@ -9,6 +9,7 @@ Authors:
 import collections
 import copy
 import glob
+import logging
 import os
 import platform
 import subprocess
@@ -1228,8 +1229,10 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         # Make the pynx input file.
         with open(pynx_input_path, "w", encoding="utf8") as file:
-            for key, value in self.params["pynx"].items():
-                file.write(f"{key} = {value}\n")
+            for line in self._make_pynx_input_lines(
+                self.params["pynx"], self.logger
+            ):
+                file.write(line + "\n")
 
         if jump_to_cluster:
             self.logger.info("Jumping to cluster requested.")
@@ -1275,6 +1278,61 @@ retrieval is also computed and will be used in the post-processing stage."""
         merged_pynx.update(user_pynx_params)
 
         return merged_pynx
+
+    @staticmethod
+    def _make_pynx_input_lines(
+        pynx_params: dict, logger: logging.Logger = None
+    ) -> list[str]:
+        """
+        Write the PyNX parameters as lines of a pynx-cdi-inputs.txt file.
+
+        pynx-cdi-id01 reads "key = value" lines and splits the values of
+        range and tuple parameters on commas. The values are written so
+        that PyNX 2026.1 can read them:
+            - lists, tuples and arrays are written as comma-separated
+              values ("0.23, 0.3"), not with their brackets ("[0.23,
+              0.3]" stops pynx-cdi-id01 with "invalid float value").
+            - a single support_autocorrelation_threshold value is
+              written as a (v, v) range: PyNX reads it as a one-element
+              list, then fails taking it as a (min, max) range.
+            - a non-integer support_fraction_min / support_fraction_max
+              is not written, with a warning: PyNX 2026.1 declares these
+              options as int and rejects e.g. 0.0001; its defaults (1e-4,
+              0.7) then apply.
+
+        Args:
+            pynx_params (dict): the PyNX parameters.
+            logger (logging.Logger, optional): logger for the warnings.
+                Defaults to None (no warning).
+
+        Returns:
+            list[str]: the "key = value" lines, without line breaks.
+        """
+        lines = []
+        for key, value in pynx_params.items():
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+
+            if key == "support_autocorrelation_threshold":
+                if isinstance(value, (int, float)):
+                    value = [value, value]
+                elif isinstance(value, (list, tuple)) and len(value) == 1:
+                    value = [value[0], value[0]]
+
+            if key in ("support_fraction_min", "support_fraction_max"):
+                if isinstance(value, float) and not value.is_integer():
+                    if logger is not None:
+                        logger.warning(
+                            f"{key} = {value} is not written in the PyNX "
+                            "input file: pynx-cdi-id01 (2026.1) only "
+                            "accepts an int, its default is used."
+                        )
+                    continue
+
+            if isinstance(value, (list, tuple)):
+                value = ", ".join(str(v) for v in value)
+            lines.append(f"{key} = {value}")
+        return lines
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
         """
