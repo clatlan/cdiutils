@@ -29,6 +29,14 @@ Phase manipulation (from objects):
 Diffraction simulation (from objects):
     simulate_diffraction : Compute diffraction pattern via FFT.
 
+Domains (from objects):
+    segment_domains : Split a reconstruction into domains separated
+        by low-modulus planes, sharing its filled outline.
+    measure_domain_phases : Ramp, phase offset and coherence per
+        domain.
+    DomainModelFit : Fit measured intensity with domains carrying
+        phase steps and / or tilts (Poisson deviance).
+
 Noise models (from noise):
     add_noise : Add Gaussian and/or Poisson noise to data.
 
@@ -83,6 +91,9 @@ from .objects import (
     make_cylinder,
     make_ellipsoid,
     simulate_diffraction,
+    segment_domains,
+    measure_domain_phases,
+    DomainModelFit,
 )
 
 __all__ = [
@@ -97,6 +108,9 @@ __all__ = [
     "add_random_phase",
     # diffraction simulation
     "simulate_diffraction",
+    "segment_domains",
+    "measure_domain_phases",
+    "DomainModelFit",
     # noise models
     "add_noise",
     # BCDI measurement simulator
