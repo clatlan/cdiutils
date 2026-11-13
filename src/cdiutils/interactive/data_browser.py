@@ -33,7 +33,8 @@ class TabPlotData(widgets.VBox):
     It allows users to:
     - Browse and select data files from a directory.
     - Visualise 1D, 2D, and 3D data interactively.
-    - Create, extract, and smooth supports for BCDI reconstructions.
+    - Create, extract, smooth and resize supports for BCDI
+      reconstructions.
     - Display HDF5 file trees and delete selected files.
 
     The tab is designed as a vertical box of interactive
@@ -44,8 +45,12 @@ class TabPlotData(widgets.VBox):
         header: A brief description of the tab's purpose.
         box_style: Optional styling for the widget box.
         parent_folder: Dropdown to select the parent data directory.
+        button_refresh_files: Button to look again for the folders and
+            files.
         filename: Multi-select widget for compatible data files.
         cmap: Dropdown to select a colourmap for plots.
+        support_shape: Text field with the shape of the resized
+            support, e.g. "(160, 180, 180)".
         data_use: Toggle buttons for data operations (plot, support, etc.).
         children: Ordered collection of child widgets.
 
@@ -77,38 +82,38 @@ class TabPlotData(widgets.VBox):
         )
         if work_dir is None:
             work_dir = os.getcwd()
+        self.work_dir = work_dir
 
-        options = sorted([x[0] + "/" for x in os.walk(work_dir)])
-        for root in options:
-            if ".ipynb" in root:
-                options.remove(root)
-
+        folders = self._list_sub_folders(work_dir)
         self.parent_folder = widgets.Dropdown(
-            options=options,
-            value=work_dir + "/",
-            placeholder=work_dir + "/",
+            options=folders,
+            value=folders[0],
             description="Data folder:",
             continuous_update=False,
-            layout=widgets.Layout(width="90%"),
+            layout=widgets.Layout(width="75%"),
             style={"description_width": "initial"},
         )
+        self.button_refresh_files = widgets.Button(
+            description="Refresh file list",
+            icon="refresh",
+            tooltip="Look again for the folders and files",
+            layout=widgets.Layout(width="15%", height="35px"),
+        )
+        self.button_refresh_files.on_click(self.refresh_file_list)
         self.filename = widgets.SelectMultiple(
-            options=[""]
-            + [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(os.getcwd() + "/*.npy")
-                    + glob.glob(os.getcwd() + "/*.npz")
-                    + glob.glob(os.getcwd() + "/*.cxi")
-                    + glob.glob(os.getcwd() + "/*.h5")
-                    + glob.glob(os.getcwd() + "/*.nxs")
-                    + glob.glob(os.getcwd() + "/*.png"),
-                    key=os.path.getmtime,
-                )
-            ],
+            options=self._list_files(folders[0]),
             rows=20,
             description="Compatible file list",
             layout=widgets.Layout(width="90%"),
+            style={"description_width": "initial"},
+        )
+        # Shape used by the "Resize support" tool
+        self.support_shape = widgets.Text(
+            value="(160, 180, 180)",
+            placeholder="(160, 180, 180)",
+            description="Resized support shape:",
+            continuous_update=False,
+            layout=widgets.Layout(width="40%"),
             style={"description_width": "initial"},
         )
         self.cmap = widgets.Dropdown(
@@ -133,6 +138,7 @@ class TabPlotData(widgets.VBox):
                 ("Create support", "create_support"),
                 ("Extract support", "extract_support"),
                 ("Smooth support", "smooth_support"),
+                ("Resize support", "resize_support"),
                 ("Display .png image", "show_image"),
                 ("Display hdf5 tree", "hf_glance"),
                 ("Delete selected files", "delete"),
@@ -152,6 +158,8 @@ class TabPlotData(widgets.VBox):
                 "Load data and allow for the creation of a support interactively",
                 "Load data and allow for the creation of a support automatically",
                 "Load support and smooth its boundaries",
+                "Load support and crop/pad it around its centre to a new "
+                "shape",
                 "Display .png image",
                 "Display hdf5 tree",
                 "Delete selected files, careful !!",
@@ -164,36 +172,119 @@ class TabPlotData(widgets.VBox):
         # Define children
         self.children = (
             self.unused_label_plot,
-            self.parent_folder,
+            widgets.HBox([self.parent_folder, self.button_refresh_files]),
             self.filename,
             self.cmap,
+            self.support_shape,
             self.data_use,
         )
         # Assign handlers
+        self._is_refreshing = False
         self.parent_folder.observe(self.plot_folder_handler, names="value")
+
+    # File extensions listed in the file list
+    FILE_PATTERNS = ("*.npy", "*.npz", "*.cxi", "*.h5", "*.nxs", "*.png")
+
+    @staticmethod
+    def _list_sub_folders(work_dir: str) -> list[str]:
+        """
+        List work_dir and its sub-folders, without Jupyter checkpoints.
+
+        Args:
+            work_dir: the top folder.
+
+        Returns:
+            The folder paths, each ending with a "/", work_dir first.
+        """
+        top = os.path.join(work_dir, "")
+        sub_folders = sorted(
+            os.path.join(root, "")
+            for root, _, _ in os.walk(work_dir)
+            if ".ipynb" not in root
+        )
+        return [top] + [f for f in sub_folders if f != top]
+
+    @classmethod
+    def _list_files(cls, folder: str) -> list[str]:
+        """
+        List the compatible files of a folder, newest first.
+
+        Args:
+            folder: the folder to look into.
+
+        Returns:
+            The file names (without folder).
+        """
+        paths = set()
+        for pattern in cls.FILE_PATTERNS:
+            paths.update(glob.glob(os.path.join(folder, pattern)))
+        return [
+            os.path.basename(path)
+            for path in sorted(paths, key=os.path.getmtime, reverse=True)
+        ]
+
+    def _set_controls_disabled(self, disabled: bool) -> None:
+        """
+        Disable or enable the controls above the operation buttons.
+
+        Args:
+            disabled: True to disable them (while a tool is open).
+        """
+        for widget in self.children[:-1]:
+            # Widgets in a box are reached through the box
+            if isinstance(widget, widgets.Box):
+                inner_widgets = widget.children
+            else:
+                inner_widgets = (widget,)
+            for inner_widget in inner_widgets:
+                if not isinstance(inner_widget, widgets.HTML):
+                    inner_widget.disabled = disabled
 
     def plot_folder_handler(self, change):
         """
-        Update the filename dropdown when the parent folder changes.
+        Update the file list when the parent folder changes.
 
         Args:
-            change: Dictionary containing the new folder path.
+            change: The change event triggered by the observer.
         """
-        if hasattr(change, "new"):
-            change = change.new
-        options = [""] + [
-            os.path.basename(f)
-            for f in sorted(
-                glob.glob(change + "/*.npy")
-                + glob.glob(change + "/*.npz")
-                + glob.glob(change + "/*.cxi")
-                + glob.glob(change + "/*.h5")
-                + glob.glob(change + "/*.nxs")
-                + glob.glob(change + "/*.png"),
-                key=os.path.getmtime,
-            )
-        ]
-        self.filename.options = [os.path.basename(f) for f in options]
+        # The folder list itself is being refreshed
+        if self._is_refreshing:
+            return
+        self.refresh_file_list(keep_selection=False)
+
+    def refresh_file_list(self, button=None, keep_selection=True):
+        """
+        Look again for the sub-folders and the compatible files.
+
+        The lists are only changed if folders or files appeared or
+        disappeared, so that the selected plot is not drawn again.
+
+        Args:
+            button: the button that was clicked, if any (unused).
+            keep_selection: keep the selected files that still exist.
+        """
+        # Folders: look for new sub-folders, keep the current one
+        folders = self._list_sub_folders(self.work_dir)
+        if list(self.parent_folder.options) != folders:
+            self._is_refreshing = True
+            try:
+                current_folder = self.parent_folder.value
+                self.parent_folder.options = folders
+                self.parent_folder.value = (
+                    current_folder if current_folder in folders
+                    else folders[0]
+                )
+            finally:
+                self._is_refreshing = False
+
+        files = self._list_files(self.parent_folder.value)
+        if list(self.filename.options) == files:
+            return
+        selected = self.filename.value if keep_selection else ()
+        # Changing the options empties the selection, restore it after
+        # (hold_trait_notifications does not keep it reliably)
+        self.filename.options = files
+        self.filename.value = tuple(f for f in selected if f in files)
 
     def show(self):
         """
@@ -204,6 +295,7 @@ class TabPlotData(widgets.VBox):
             parent_folder=self.parent_folder,
             filename=self.filename,
             cmap=self.cmap,
+            support_shape=self.support_shape,
             data_use=self.data_use,
         )
         display(init_plot_tab_gui)
@@ -213,6 +305,7 @@ class TabPlotData(widgets.VBox):
         parent_folder,
         filename,
         cmap,
+        support_shape,
         data_use,
     ):
         """
@@ -222,7 +315,10 @@ class TabPlotData(widgets.VBox):
             parent_folder: Parent folder path.
             filename: Selected filename(s).
             cmap: Colourmap for plots.
-            data_use: Operation to perform (e.g., "2D", "3D", "create_support").
+            support_shape: Shape of the resized support, e.g.
+                "(160, 180, 180)" ("resize_support" only).
+            data_use: Operation to perform (e.g., "2D", "3D",
+                "create_support").
         """
         if data_use in ("2D", "1D"):
             # Plot 2D data
@@ -260,9 +356,7 @@ class TabPlotData(widgets.VBox):
                 )
         elif data_use == "create_support" and len(filename) == 1:
             # Create support interactively
-            for w in self.children[:-1]:
-                if not isinstance(w, widgets.HTML):
-                    w.disabled = True
+            self._set_controls_disabled(True)
             sup = SupportTools(path_to_data=parent_folder + "/" + filename[0])
             window_support = interactive(
                 sup.compute_support,
@@ -297,16 +391,12 @@ class TabPlotData(widgets.VBox):
             display(window_support)
         elif data_use == "extract_support" and len(filename) == 1:
             # Extract support from data
-            for w in self.children[:-1]:
-                if not isinstance(w, widgets.HTML):
-                    w.disabled = True
+            self._set_controls_disabled(True)
             sup = SupportTools(path_to_data=parent_folder + "/" + filename[0])
             sup.extract_support()
         elif data_use == "smooth_support" and len(filename) == 1:
             # Smooth support
-            for w in self.children[:-1]:
-                if not isinstance(w, widgets.HTML):
-                    w.disabled = True
+            self._set_controls_disabled(True)
             sup = SupportTools(
                 path_to_support=parent_folder + "/" + filename[0]
             )
@@ -352,6 +442,13 @@ class TabPlotData(widgets.VBox):
 
             window_support.children[1].observe(support_handler, names="value")
             display(window_support)
+        elif data_use == "resize_support" and len(filename) == 1:
+            # Crop/pad the support around its centre to support_shape
+            self._set_controls_disabled(True)
+            sup = SupportTools(
+                path_to_support=parent_folder + "/" + filename[0]
+            )
+            sup.resize_support(new_shape=support_shape)
         elif data_use == "show_image":
             # Display PNG image
             try:
@@ -365,7 +462,7 @@ class TabPlotData(widgets.VBox):
             for p in filename:
                 try:
                     print(f"Showing {p}")
-                    display(H5Glance(parent_folder + "/" + filename[0]))
+                    display(H5Glance(parent_folder + "/" + p))
                 except TypeError:
                     print("This tool supports .nxs, .cxi or .hdf5 files only.")
         elif (
@@ -375,15 +472,14 @@ class TabPlotData(widgets.VBox):
                 "create_support",
                 "extract_support",
                 "smooth_support",
+                "resize_support",
             ]
             and len(filename) != 1
         ):
             print("Please select only one file.")
         elif data_use == "delete":
             # Delete selected files
-            for w in self.children[:-2]:
-                if not isinstance(w, widgets.HTML):
-                    w.disabled = True
+            self._set_controls_disabled(True)
             button_delete_data = widgets.Button(
                 description="Delete files ?",
                 button_style="",
@@ -400,14 +496,14 @@ class TabPlotData(widgets.VBox):
                         print(f"Removed {p}")
                     except FileNotFoundError:
                         print(f"Could not remove {p}")
+                # The deleted files leave the list
+                self.refresh_file_list()
 
             display(button_delete_data)
         elif data_use is False:
             # Clear output
             plt.close()
-            for w in self.children[:-2]:
-                if not isinstance(w, widgets.HTML):
-                    w.disabled = False
-            self.plot_folder_handler(change=parent_folder)
+            self._set_controls_disabled(False)
+            self.refresh_file_list()
             print("Cleared window.")
             clear_output(True)
