@@ -5,6 +5,7 @@ This module provides the PhaseRetrievalGUI class for configuring and
 running phase retrieval algorithms in BCDI workflows.
 """
 
+import fnmatch
 import glob
 import os
 from ast import literal_eval
@@ -76,6 +77,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             box_style: The CSS style applied to the widget container.
             parent_folder: Dropdown to select the parent folder containing
                 input files.
+            button_refresh_files: Button to look again for the folders
+                and files.
             iobs: Dropdown to select the observed intensity dataset file.
             mask: Dropdown to select the mask file.
             support: Dropdown to select the support file.
@@ -172,6 +175,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 box_style: The CSS style applied to the widget container.
                 parent_folder: Dropdown to select the parent folder containing
                     input files.
+                button_refresh_files: Button to look again for the folders
+                    and files.
                 iobs: Dropdown to select the observed intensity dataset file.
                 mask: Dropdown to select the mask file.
                 support: Dropdown to select the support file.
@@ -283,58 +288,49 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
 
             if work_dir is None:
                 work_dir = os.getcwd()
+            self.work_dir = work_dir
 
-            options = sorted([x[0] + "/" for x in os.walk(work_dir)])
-            for root in options:
-                if ".ipynb" in root:
-                    options.remove(root)
-
+            # The file dropdowns are filled by refresh_file_lists, at the
+            # end of __init__, when the parent folder changes, and with
+            # the refresh button
+            self._is_refreshing = False
+            folders = self._list_sub_folders(work_dir)
             self.parent_folder = widgets.Dropdown(
-                options=options,
-                value=work_dir + "/",
-                placeholder=work_dir + "/",
+                options=folders,
+                value=folders[0],
                 description="Parent folder:",
                 continuous_update=False,
-                layout=widgets.Layout(width="90%"),
+                layout=widgets.Layout(width="75%"),
                 style={"description_width": "initial"},
             )
 
+            self.button_refresh_files = Button(
+                description="Refresh file lists",
+                icon="refresh",
+                tooltip=(
+                    "Look again for the folders and files, e.g. after a "
+                    "new preprocessing or phase retrieval"
+                ),
+                layout=Layout(width="15%", height="35px"),
+            )
+            self.button_refresh_files.on_click(self.refresh_file_lists)
+
             self.iobs = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz")
-                        + glob.glob(os.path.join(work_dir, "*.cxi")),
-                        key=os.path.getmtime,
-                    )
-                ],
+                options=[""],
                 description="Dataset",
                 layout=widgets.Layout(width="90%"),
                 style={"description_width": "initial"},
             )
 
             self.mask = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz"), key=os.path.getmtime
-                    )
-                ],
+                options=[""],
                 description="Mask",
                 layout=widgets.Layout(width="90%"),
                 style={"description_width": "initial"},
             )
 
             self.support = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz"), key=os.path.getmtime
-                    )
-                ],
+                options=[""],
                 value="",
                 description="Support",
                 layout=widgets.Layout(width="90%"),
@@ -342,16 +338,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.obj = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.cxi")
-                        + glob.glob(work_dir + "*.npz")
-                        + glob.glob(work_dir + "*.npy"),
-                        key=os.path.getmtime,
-                    )
-                ],
+                options=[""],
                 value="",
                 description="Object",
                 layout=widgets.Layout(width="90%"),
@@ -940,7 +927,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             # Define children
             self.children = (
                 self.unused_label_data,
-                self.parent_folder,
+                widgets.HBox([self.parent_folder, self.button_refresh_files]),
                 self.iobs,
                 self.mask,
                 self.support,
@@ -1068,91 +1055,188 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
             self.run_pynx_tools.observe(self.run_pynx_handler, names="value")
 
+            # Fill the file lists and select the cdiutils data and mask
+            self.refresh_file_lists(keep_selection=False)
+
         # Define handlers
         def pynx_folder_handler(self, change) -> None:
             """
-            Handle changes related to the pynx folder.
+            Fill the file lists of the newly selected parent folder.
 
             Args:
                 change: The change event triggered by the observer.
             """
-            if hasattr(change, "new"):
-                change = change.new
+            # The folder list itself is being refreshed
+            if self._is_refreshing:
+                return
+            self.refresh_file_lists(keep_selection=False)
 
-            list_all_npz = [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.npz"), key=os.path.getmtime
-                )
+        @staticmethod
+        def _list_sub_folders(work_dir: str) -> list[str]:
+            """
+            List work_dir and its sub-folders, without Jupyter checkpoints.
+
+            Args:
+                work_dir: the top folder.
+
+            Returns:
+                The folder paths, each ending with a "/", work_dir first.
+            """
+            top = os.path.join(work_dir, "")
+            sub_folders = sorted(
+                os.path.join(root, "")
+                for root, _, _ in os.walk(work_dir)
+                if ".ipynb" not in root
+            )
+            return [top] + [f for f in sub_folders if f != top]
+
+        @staticmethod
+        def _list_files(folder: str, patterns: tuple[str, ...]) -> list[str]:
+            """
+            List the files of a folder matching patterns, newest first.
+
+            Args:
+                folder: the folder to look into.
+                patterns: glob patterns, e.g. ("*.npz", "*.npy").
+
+            Returns:
+                The file names (without folder).
+            """
+            paths = set()
+            for pattern in patterns:
+                paths.update(glob.glob(os.path.join(folder, pattern)))
+            return [
+                os.path.basename(path)
+                for path in sorted(paths, key=os.path.getmtime, reverse=True)
             ]
 
-            list_probable_iobs_files = [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*_pynx_*.npz"), key=os.path.getmtime
+        @staticmethod
+        def _pick_file(
+            file_names: list[str],
+            preferred: list[str],
+            patterns: tuple[str, ...],
+            exclude: str = None,
+        ) -> str:
+            """
+            Choose a file among file_names.
+
+            Args:
+                file_names: the candidate file names, newest first.
+                preferred: exact names tried first, in this order.
+                patterns: fnmatch patterns tried next, in this order; the
+                    newest matching file is returned.
+                exclude: names containing this string are not chosen
+                    from the patterns.
+
+            Returns:
+                The chosen file name, or "" if none is found.
+            """
+            for name in preferred:
+                if name in file_names:
+                    return name
+            for pattern in patterns:
+                for name in fnmatch.filter(file_names, pattern):
+                    if exclude is None or exclude not in name:
+                        return name
+            return ""
+
+        @staticmethod
+        def _set_options(widget, options, default, keep_selection) -> None:
+            """
+            Update the options of a dropdown and select a value.
+
+            Args:
+                widget: the dropdown widget.
+                options: the new options.
+                default: value selected if the current one is not kept.
+                keep_selection: keep the current value if it is still in
+                    the options.
+            """
+            current = widget.value
+            widget.options = options
+            if keep_selection and current in options:
+                widget.value = current
+            else:
+                widget.value = default if default in options else options[0]
+
+        def refresh_file_lists(self, button=None, keep_selection=True):
+            """
+            Look again for the folders and files, and fill the dropdowns.
+
+            The dataset and mask default to the files written by the
+            cdiutils preprocessing: S<scan>_pynx_input_data.npz and
+            S<scan>_pynx_input_mask.npz for the scan of the pipeline, or
+            else the newest *_pynx_input_data / *_pynx_input_mask files.
+
+            Args:
+                button: the button that was clicked, if any (unused).
+                keep_selection: if True, the selected files are kept when
+                    they still exist; if False, the defaults are
+                    selected (on launch and when the folder changes).
+            """
+            # Folders: look for new sub-folders, keep the current one
+            self._is_refreshing = True
+            try:
+                folders = self._list_sub_folders(self.work_dir)
+                current_folder = self.parent_folder.value
+                self.parent_folder.options = folders
+                self.parent_folder.value = (
+                    current_folder if current_folder in folders
+                    else folders[0]
                 )
-            ]
+            finally:
+                self._is_refreshing = False
+            folder = self.parent_folder.value
 
-            list_probable_mask_files = [
+            # The cdiutils preprocessing names its outputs after the scan
+            scan = getattr(self.pipeline, "scan", None)
+            preferred_data = []
+            preferred_mask = []
+            if scan is not None:
+                preferred_data = [f"S{scan}_pynx_input_data.npz"]
+                preferred_mask = [f"S{scan}_pynx_input_mask.npz"]
+
+            # Arrays readable by initialise_cdi_operator
+            array_files = self._list_files(folder, ("*.npz", "*.npy"))
+            iobs_default = self._pick_file(
+                array_files,
+                preferred_data,
+                ("*_pynx_input_data.np[zy]", "*_pynx_*.np[zy]"),
+                exclude="mask",
+            )
+            mask_default = self._pick_file(
+                array_files,
+                preferred_mask,
+                ("*_pynx_input_mask.np[zy]", "*mask*.np[zy]"),
+            )
+            self._set_options(
+                self.iobs, [""] + array_files, iobs_default, keep_selection
+            )
+            self._set_options(
+                self.mask, [""] + array_files, mask_default, keep_selection
+            )
+            self._set_options(
+                self.support, [""] + array_files, "", keep_selection
+            )
+
+            # The object can also come from a previous reconstruction
+            object_files = self._list_files(
+                folder, ("*.cxi", "*.npz", "*.npy")
+            )
+            self._set_options(
+                self.obj, [""] + object_files, "", keep_selection
+            )
+
+            # Reconstructions, for the selection of the best runs
+            run_files = [
                 os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*mask*.npz"), key=os.path.getmtime
-                )
+                for f in list_files(folder, self.search_pattern)
             ]
-
-            # support list
-            self.support.options = [""] + [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.npz"), key=os.path.getmtime
-                )
-            ]
-
-            # obj list
-            self.obj.options = [""] + [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.cxi")
-                    + glob.glob(change + "/*.npz")
-                    + glob.glob(change + "/*.npy"),
-                    key=os.path.getmtime,
-                )
-            ]
-
-            # Find probable iobs file
-            temp_list = list_all_npz.copy()
-            for f in list_probable_iobs_files:
-                try:
-                    temp_list.remove(f)
-                except ValueError:
-                    # Not in list
-                    pass
-            sorted_iobs_list = list_probable_iobs_files + temp_list + [""]
-
-            # Find probable mask file
-            temp_list = list_all_npz.copy()
-            for f in list_probable_mask_files:
-                try:
-                    temp_list.remove(f)
-                except ValueError:
-                    # not in list
-                    pass
-            sorted_mask_list = list_probable_mask_files + temp_list + [""]
-
-            # iobs list
-            self.iobs.options = sorted_iobs_list
-
-            # mask list
-            self.mask.options = sorted_mask_list
-
-            # cxi file list
-            self.best_runs_widget.options = [
-                os.path.basename(f)
-                for f in list_files(
-                    self.parent_folder.value,
-                    self.search_pattern,
-                )
-            ]
+            selected_runs = self.best_runs_widget.value
+            self.best_runs_widget.options = run_files
+            self.best_runs_widget.value = tuple(
+                f for f in selected_runs if f in run_files
+            )
 
         def pynx_psf_handler(self, change) -> None:
             """
