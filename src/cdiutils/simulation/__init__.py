@@ -94,6 +94,7 @@ from .objects import (
     segment_domains,
     fill_domain_gaps,
     measure_domain_phases,
+    fit_quadratic_phase,
     DomainModelFit,
 )
 
@@ -112,6 +113,7 @@ __all__ = [
     "segment_domains",
     "fill_domain_gaps",
     "measure_domain_phases",
+    "fit_quadratic_phase",
     "DomainModelFit",
     # noise models
     "add_noise",

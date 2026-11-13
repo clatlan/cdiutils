@@ -6,6 +6,7 @@ import numpy as np
 from cdiutils.simulation import (
     DomainModelFit,
     fill_domain_gaps,
+    fit_quadratic_phase,
     measure_domain_phases,
     segment_domains,
 )
@@ -113,3 +114,43 @@ def test_fill_domain_gaps_keeps_outer_surface():
     outside = np.ones(SHAPE, dtype=bool)
     outside[16:32, 16:32, 12:36] = False
     assert not np.any(filled[outside])
+
+
+def bent_box(curvature=0.004):
+    """
+    A box whose phase is quadratic along axis 2 (a bent crystal).
+
+    Args:
+        curvature: h_22 in rad / voxel^2 (centred coordinates).
+
+    Returns:
+        (object, labels): complex object and a one-domain label array.
+    """
+    labels = np.zeros(SHAPE, dtype=np.int32)
+    labels[16:32, 16:32, 10:38] = 1
+    x = np.arange(SHAPE[2]) - SHAPE[2] // 2
+    obj = (labels > 0) * np.exp(1j * curvature * x[None, None, :] ** 2)
+    return obj.astype(complex), labels
+
+
+def test_fit_quadratic_phase_recovers_curvature():
+    """The least-squares quadratic phase recovers h_22 of a bent box."""
+    obj, labels = bent_box(0.004)
+    ramp, quadratic = fit_quadratic_phase(obj, labels > 0)
+    assert abs(quadratic[2] - 0.004) < 2e-4
+    assert np.all(np.abs(quadratic[[0, 1, 3, 4, 5]]) < 2e-4)
+    assert np.all(np.abs(ramp) < 1e-2)
+
+
+def test_bend_model_beats_flat_model_on_bent_data():
+    """On data from a bent box, the bend model beats C and recovers
+    the curvature."""
+    obj, labels = bent_box(0.004)
+    data = simulated_intensity(obj)
+    fitter = DomainModelFit(data, np.zeros(SHAPE), labels)
+    start = np.zeros((1, 6))
+    start[0, 2] = 0.003
+    result_bend = fitter.fit("bend", quadratics=start, maxiter=40)
+    result_c = fitter.fit("C")
+    assert result_bend["deviance"] < result_c["deviance"]
+    assert abs(result_bend["quadratics"][0][2] - 0.004) < 4e-4
