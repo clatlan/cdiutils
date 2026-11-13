@@ -93,9 +93,13 @@ def plot_volume_slices(
         tuple[plt.Figure, plt.Axes]: the generated figure and axes.
     """
     _plot_params = {"cmap": "turbo"}
-
     if plot_params:
         _plot_params.update(plot_params)
+
+    if "cmap" in _plot_params:
+        cmap = plt.get_cmap(_plot_params["cmap"]).copy()
+        cmap.set_bad((0, 0, 0, 0))  # transparent NaNs
+        _plot_params["cmap"] = cmap
 
     view_params = CXI_VIEW_PARAMETERS.copy()
     if convention is None:
@@ -127,20 +131,23 @@ def plot_volume_slices(
     for i, v in enumerate(views):
         plane = view_params[v]["plane"]
         to_plot = data.sum(axis=i) if integrate else data[slices[i]]
-        _plot_params["alpha"] = np.ones_like(to_plot)
+        alpha = None
         if opacity is not None:
-            _plot_params["alpha"] = opacity[slices[i]]
+            alpha = opacity[slices[i]]
         if plane[0] > plane[1]:
             to_plot = np.swapaxes(to_plot, 1, 0)
-            _plot_params["alpha"] = np.swapaxes(_plot_params["alpha"], 1, 0)
+            if alpha is not None:
+                alpha = np.swapaxes(alpha, 1, 0)
 
         if view_params[v]["xaxis_points_left"]:
-            to_plot = to_plot[np.s_[:, ::-1]]
-            _plot_params["alpha"] = _plot_params["alpha"][np.s_[:, ::-1]]
+            to_plot = to_plot[:, ::-1]
+            if alpha is not None:
+                alpha = alpha[:, ::-1]
 
         # Handle plot type
         if plot_type in ("contourf", "contour"):
             ny, nx = to_plot.shape
+
             if voxel_size is not None:
                 y_coords = np.linspace(
                     extents[plane[0]][0], extents[plane[0]][1], ny
@@ -148,32 +155,40 @@ def plot_volume_slices(
                 x_coords = np.linspace(
                     extents[plane[1]][0], extents[plane[1]][1], nx
                 )
+
                 if view_params[v]["xaxis_points_left"]:
                     x_coords = np.flip(x_coords)
+
                 X, Y = np.meshgrid(x_coords, y_coords)
             else:
                 X, Y = np.meshgrid(np.arange(nx), np.arange(ny))
 
-            alpha = _plot_params.pop("alpha", None)
             im = axes[i].contourf(
-                X, Y, to_plot, levels=contour_levels, **_plot_params
+                X,
+                Y,
+                np.ma.masked_invalid(to_plot),
+                levels=contour_levels,
+                **_plot_params,
             )
 
-            # 2D array of opacity is not supported in contourf, so we
-            # need a workaround: we add a contourf with the alpha values
-            if opacity is not None:
+            if opacity is not None and alpha is not None:
                 whites = [
-                    (1, 1, 1, 1 - i / (contour_levels - 1))
-                    for i in range(contour_levels)
+                    (1, 1, 1, 1 - j / (contour_levels - 1))
+                    for j in range(contour_levels)
                 ]
                 axes[i].contourf(
-                    X, Y, alpha, levels=contour_levels, colors=whites
+                    X,
+                    Y,
+                    alpha,
+                    levels=contour_levels,
+                    colors=whites,
                 )
+
             add_colorbar(axes[i], im, label_size=label_size)
             axes[i].set_aspect("equal")
 
         elif plot_type == "imshow":
-            im = axes[i].imshow(to_plot, **_plot_params)
+            im = axes[i].imshow(to_plot, alpha=alpha, **_plot_params)
             add_colorbar(axes[i], im, label_size=label_size)
 
             if voxel_size is not None:
