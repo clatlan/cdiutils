@@ -926,14 +926,19 @@ class DomainModelFit:
         def unpack(parameters):
             """Split the parameter vector into the model quantities."""
             position = 0
-            log_amplitudes = parameters[position:position + n_amplitudes]
+            # clipped: exp() stays finite on wild steps (Powell has no
+            # bounds here, they stall it)
+            log_amplitudes = np.clip(
+                parameters[position:position + n_amplitudes],
+                np.log(scale) - 10, np.log(scale) + 10)
             position += n_amplitudes
             amplitudes = np.exp(log_amplitudes) * np.ones(count)
             phases = np.zeros(count)
             if free_phases:
                 phases[1:] = parameters[position:position + count - 1]
                 position += count - 1
-            background = np.logaddexp(0, parameters[position])
+            background = np.logaddexp(0, np.clip(parameters[position],
+                                                 -30, 30))
             position += 1
             fitted_ramps = ramps
             if free_ramps:
@@ -980,7 +985,8 @@ class DomainModelFit:
                 bounds += [(-np.pi, np.pi)] * (3 * count)
             method = "Powell" if free_ramps else "L-BFGS-B"
             result = minimize(objective, np.array(initial, dtype=float),
-                              method=method, bounds=bounds,
+                              method=method,
+                              bounds=None if free_ramps else bounds,
                               options={"maxiter": maxiter})
             start_deviances.append(float(result.fun))
             if best is None or result.fun < best.fun:
