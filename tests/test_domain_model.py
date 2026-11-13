@@ -5,6 +5,7 @@ import numpy as np
 
 from cdiutils.simulation import (
     DomainModelFit,
+    fill_domain_gaps,
     measure_domain_phases,
     segment_domains,
 )
@@ -101,3 +102,14 @@ def test_fit_prefers_tilts_on_tilted_data():
     result_a = fitter.fit("A", n_starts=4)
     assert result_b["deviance"] < result_a["deviance"]
     assert abs(result_b["ramps"][1][0] - 0.25) < 0.03
+
+
+def test_fill_domain_gaps_keeps_outer_surface():
+    """Only the plane between the slabs is filled; nothing is added
+    outside the box."""
+    _, truth = two_slabs(gap=1)
+    filled = fill_domain_gaps(truth, width=1.5)
+    assert np.all(filled[16:32, 16:32, 24] > 0)
+    outside = np.ones(SHAPE, dtype=bool)
+    outside[16:32, 16:32, 12:36] = False
+    assert not np.any(filled[outside])

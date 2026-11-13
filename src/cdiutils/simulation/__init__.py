@@ -92,6 +92,7 @@ from .objects import (
     make_ellipsoid,
     simulate_diffraction,
     segment_domains,
+    fill_domain_gaps,
     measure_domain_phases,
     DomainModelFit,
 )
@@ -109,6 +110,7 @@ __all__ = [
     # diffraction simulation
     "simulate_diffraction",
     "segment_domains",
+    "fill_domain_gaps",
     "measure_domain_phases",
     "DomainModelFit",
     # noise models

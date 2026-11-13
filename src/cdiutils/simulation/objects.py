@@ -619,6 +619,42 @@ def simulate_diffraction(
     return intensity
 
 
+def fill_domain_gaps(seeds: np.ndarray, width: float = 3.0) -> np.ndarray:
+    """
+    Fill only the gaps between domains, leaving their outer surface
+    unchanged: a voxel outside every seed is added when two different
+    seeds are both within ``width`` voxels of it, and given to the
+    nearest one.
+
+    Args:
+        seeds: Integer domain labels (0 = outside), e.g. the ``seeds``
+            output of :func:`segment_domains`.
+        width: Largest distance (voxels) to each of the two seeds.
+
+    Returns:
+        Integer labels: the seeds plus their filled gaps.
+    """
+    from scipy import ndimage
+
+    count = int(seeds.max())
+    distances = np.stack([
+        ndimage.distance_transform_edt(seeds != label)
+        for label in range(1, count + 1)
+    ])
+    ordered = np.sort(distances, axis=0)
+    gap = (seeds == 0) & (ordered[0] <= width)
+    if count > 1:
+        gap &= ordered[1] <= width
+    # inside the closing of the union only: fills the planes between
+    # domains, not the rim just outside their surface
+    structure = ndimage.generate_binary_structure(seeds.ndim, seeds.ndim)
+    gap &= ndimage.binary_closing(
+        seeds > 0, structure=structure, iterations=int(np.ceil(width)))
+    filled = seeds.copy()
+    filled[gap] = np.argmin(distances, axis=0)[gap] + 1
+    return filled.astype(np.int32)
+
+
 def segment_domains(
     modulus: np.ndarray,
     seed_threshold: float = 0.25,
