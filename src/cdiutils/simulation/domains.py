@@ -92,7 +92,7 @@ def segment_domains(
 
     A phase step between two parts of a crystal makes a band-limited
     reconstruction drop in modulus at their boundary (the modulus goes
-    as |cos(step / 2)|), so the domains appear as blobs separated by
+    as ``|cos(step / 2)|``), so the domains appear as blobs separated by
     "empty planes". The blobs above ``seed_threshold`` are the domain
     seeds. The outline is the modulus above ``outline_threshold``,
     closed and with its holes filled, so that it bridges the low-modulus
@@ -157,7 +157,7 @@ def measure_domain_phases(
     to phase wrapping). Its offset is the phase left after removing the
     ramp, with coordinates centred on the array (:func:`add_linear_phase`
     convention), so offsets of domains that share a ramp are directly
-    their phase steps. The coherence |sum(z)| / sum(|z|) is 1 when the
+    their phase steps. The coherence ``|sum(z)| / sum(|z|)`` is 1 when the
     domain is exactly a ramp plus a constant.
 
     Args:
@@ -266,9 +266,9 @@ class DomainModelFit:
     Fit the measured Bragg intensity with a crystal made of domains of
     uniform density, each with its own complex amplitude and linear
     phase ramp, in the detector frame of the phasing (PyNX convention:
-    intensity = |fftshift(fftn(ifftshift(object)))|^2).
+    intensity = ``|fftshift(fftn(ifftshift(object)))|**2``).
 
-    Model intensity: |sum_k c_k FFT(rho_k exp(i g_k . r))|^2 + b, with
+    Model intensity: ``|sum_k c_k FFT(rho_k exp(i g_k . r))|**2 + b``, with
     rho_k the domain shapes, c_k = a_k exp(i phi_k) and b a constant
     background. Models:
 

@@ -15,7 +15,6 @@ Objects and Diffraction
 -----------------------
 
 .. autosummary::
-   :toctree: ../generated/
 
    make_box
    make_ellipsoid
@@ -30,7 +29,6 @@ Noise and Measurement
 ---------------------
 
 .. autosummary::
-   :toctree: ../generated/
 
    add_noise
    BCDISimulator
@@ -42,7 +40,6 @@ Test phase steps, tilts and bending of a reconstruction against the
 measured intensity (:mod:`cdiutils.simulation.domains`).
 
 .. autosummary::
-   :toctree: ../generated/
 
    segment_domains
    fill_domain_gaps
