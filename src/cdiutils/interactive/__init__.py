@@ -8,6 +8,8 @@ Components have different optional dependencies:
 - Plotter: requires ipywidgets
 - Plotting functions: require ipywidgets, bokeh, panel
 - ThreeDViewer: requires ipywidgets, plotly, scikit-image, scipy
+- MultiVolumeViewer: requires ipywidgets, plotly, scikit-image, scipy
+  (exports: built-in renderer; imageio-ffmpeg for MP4; kaleido/vtk optional)
 - TabPlotData: requires ipywidgets, h5glance
 - plot_3d_isosurface: requires ipywidgets, plotly
 - VolumeViewer (PyVista): requires pyvista, trame (separate install)
@@ -135,6 +137,18 @@ else:
         missing.extend(["plotly", "scikit-image", "scipy"])
     ThreeDViewer = _make_unavailable_class("ThreeDViewer", missing)
 
+# MultiVolumeViewer - requires ipywidgets, plotly, scikit-image, scipy
+# (MP4 export additionally needs imageio-ffmpeg, checked at export time)
+if _DEPS["ipywidgets"] and _DEPS["plotly"]:
+    from .multiviewer_3d import MultiVolumeViewer
+else:
+    missing = []
+    if not _DEPS["ipywidgets"]:
+        missing.append("ipywidgets")
+    if not _DEPS["plotly"]:
+        missing.extend(["plotly", "scikit-image", "scipy"])
+    MultiVolumeViewer = _make_unavailable_class("MultiVolumeViewer", missing)
+
 # TabPlotData - requires ipywidgets, h5glance
 if _DEPS["ipywidgets"] and _DEPS["browser"]:
     from .data_browser import TabPlotData
@@ -172,6 +186,7 @@ __all__ = [
     "TabPlotData",
     "Plotter",
     "ThreeDViewer",
+    "MultiVolumeViewer",
     "VolumeViewer",
     "plot_data",
     "plot_2d_image",

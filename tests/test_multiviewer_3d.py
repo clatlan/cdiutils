@@ -6,17 +6,11 @@ import pytest
 
 
 def _import_multiviewer():
-    """
-    multiviewer_3d.py raises RuntimeError at import-time if imageio_ffmpeg
-    isn't installed. Skip cleanly in that case.
-    """
+    """Import the viewer, skipping when its interactive dependencies are missing."""
     pytest.importorskip("ipywidgets")
     pytest.importorskip("plotly")
     pytest.importorskip("skimage")  # marching cubes dependency
-    pytest.importorskip("imageio_ffmpeg")  # required by module import
 
-    # Replace this import path with the real one in your package
-    # e.g. from cdiutils.interactive.multiviewer_3d import MultiVolumeViewer
     from cdiutils.interactive.multiviewer_3d import (
         MultiVolumeViewer,  # noqa: E402
     )
@@ -148,6 +142,9 @@ def test_create_slice_layer_adds_new_layer(dict_data_small):
     assert len(new) == 1
     new_name = new[0]
 
-    assert v._layers[new_name]["type"] == "slice"
-    assert "data2d" in v._layers[new_name]
-    assert v._layers[new_name]["data2d"].ndim == 2
+    spec = v._layers[new_name]
+    assert spec["type"] == "slice"
+    assert spec["pos"] == 8
+    # slice data are materialised on demand (cached), not stored in the spec
+    data2d = v._surface_data(spec)[0]
+    assert data2d.ndim == 2
