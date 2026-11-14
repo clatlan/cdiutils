@@ -9,8 +9,11 @@ Authors:
 import collections
 import copy
 import glob
+import logging
 import os
+import platform
 import subprocess
+import sys
 from string import Template
 
 # Dependencies.
@@ -1036,12 +1039,42 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
-    def _make_slurm_file(self, template: str = None) -> None:
+    def _make_slurm_file(
+        self,
+        template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
+    ) -> None:
         """
         Generate SLURM batch script for PyNX phase retrieval.
 
-        Uses template substitution to create job submission file.
+        Uses template substitution to create job submission file. The
+        job starts from a clean login environment on its node (the
+        partitions mix x86_64 and ppc64le nodes) and runs the
+        pynx-cdi-id01 of the environment given for the architecture of
+        that node, else the one of the ESRF pynx module.
+
+        Args:
+            template (str, optional): path to the SLURM script template.
+                Defaults to None (built-in template).
+            pynx_envs (dict[str, str], optional): environment prefix
+                holding bin/pynx-cdi-id01, per architecture ("x86_64",
+                "ppc64le"). If the running Python environment has
+                pynx-cdi-id01, it is used for its own architecture
+                unless given here. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s).
+                Defaults to "gpu,p9gpu".
         """
+        pynx_envs = dict(pynx_envs or {})
+
+        # Use the current environment for its architecture, if it has PyNX
+        if os.path.isfile(os.path.join(sys.prefix, "bin", "pynx-cdi-id01")):
+            pynx_envs.setdefault(platform.machine(), sys.prefix)
+        self.logger.info(
+            f"PyNX environments per architecture: {pynx_envs or 'none'} "
+            "(otherwise the pynx module of the node)."
+        )
+
         # Make the pynx slurm file
         if template is None:
             template = (
@@ -1061,6 +1094,9 @@ retrieval is also computed and will be used in the post-processing stage."""
                 {
                     "number_of_nodes": 2,
                     "data_path": self.pynx_phasing_dir,
+                    "partition": slurm_partition,
+                    "pynx_env_x86_64": pynx_envs.get("x86_64", ""),
+                    "pynx_env_ppc64le": pynx_envs.get("ppc64le", ""),
                     "SLURM_JOBID": "$SLURM_JOBID",
                     "SLURM_NTASKS": "$SLURM_NTASKS",
                 }
@@ -1119,6 +1155,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         self,
         jump_to_cluster: bool = False,
         pynx_slurm_file_template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
         clear_former_results: bool = False,
         cmd: str = None,
         search_pattern: str = "*Run*.cxi",
@@ -1137,6 +1175,14 @@ retrieval is also computed and will be used in the post-processing stage."""
             pynx_slurm_file_template (str, optional): path to SLURM
                 script template. Defaults to None (uses built-in
                 template).
+            pynx_envs (dict[str, str], optional): for cluster jobs,
+                environment prefix holding bin/pynx-cdi-id01, per node
+                architecture, e.g. {"ppc64le": "/path/to/p9_env"}. The
+                current environment is used for its own architecture if
+                it has PyNX. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s) for
+                cluster jobs. Defaults to "gpu,p9gpu" (x86_64 and
+                ppc64le GPU nodes).
             clear_former_results (bool, optional): delete previous
                 reconstruction CXI files. Defaults to False.
             cmd (str, optional): command for local PyNX execution.
@@ -1183,12 +1229,18 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         # Make the pynx input file.
         with open(pynx_input_path, "w", encoding="utf8") as file:
-            for key, value in self.params["pynx"].items():
-                file.write(f"{key} = {value}\n")
+            for line in self._make_pynx_input_lines(
+                self.params["pynx"], self.logger
+            ):
+                file.write(line + "\n")
 
         if jump_to_cluster:
             self.logger.info("Jumping to cluster requested.")
-            self._make_slurm_file(pynx_slurm_file_template)
+            self._make_slurm_file(
+                pynx_slurm_file_template,
+                pynx_envs=pynx_envs,
+                slurm_partition=slurm_partition,
+            )
             job_id, output_file = self.submit_job(
                 job_file="pynx-id01-cdi.slurm",
                 working_dir=self.pynx_phasing_dir,
@@ -1226,6 +1278,61 @@ retrieval is also computed and will be used in the post-processing stage."""
         merged_pynx.update(user_pynx_params)
 
         return merged_pynx
+
+    @staticmethod
+    def _make_pynx_input_lines(
+        pynx_params: dict, logger: logging.Logger = None
+    ) -> list[str]:
+        """
+        Write the PyNX parameters as lines of a pynx-cdi-inputs.txt file.
+
+        pynx-cdi-id01 reads "key = value" lines and splits the values of
+        range and tuple parameters on commas. The values are written so
+        that PyNX 2026.1 can read them:
+            - lists, tuples and arrays are written as comma-separated
+              values ("0.23, 0.3"), not with their brackets ("[0.23,
+              0.3]" stops pynx-cdi-id01 with "invalid float value").
+            - a single support_autocorrelation_threshold value is
+              written as a (v, v) range: PyNX reads it as a one-element
+              list, then fails taking it as a (min, max) range.
+            - a non-integer support_fraction_min / support_fraction_max
+              is not written, with a warning: PyNX 2026.1 declares these
+              options as int and rejects e.g. 0.0001; its defaults (1e-4,
+              0.7) then apply.
+
+        Args:
+            pynx_params (dict): the PyNX parameters.
+            logger (logging.Logger, optional): logger for the warnings.
+                Defaults to None (no warning).
+
+        Returns:
+            list[str]: the "key = value" lines, without line breaks.
+        """
+        lines = []
+        for key, value in pynx_params.items():
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+
+            if key == "support_autocorrelation_threshold":
+                if isinstance(value, (int, float)):
+                    value = [value, value]
+                elif isinstance(value, (list, tuple)) and len(value) == 1:
+                    value = [value[0], value[0]]
+
+            if key in ("support_fraction_min", "support_fraction_max"):
+                if isinstance(value, float) and not value.is_integer():
+                    if logger is not None:
+                        logger.warning(
+                            f"{key} = {value} is not written in the PyNX "
+                            "input file: pynx-cdi-id01 (2026.1) only "
+                            "accepts an int, its default is used."
+                        )
+                    continue
+
+            if isinstance(value, (list, tuple)):
+                value = ", ".join(str(v) for v in value)
+            lines.append(f"{key} = {value}")
+        return lines
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
         """

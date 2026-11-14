@@ -712,6 +712,59 @@ def crop_at_center(
     return cropped
 
 
+def resize_at_center(
+    data: np.ndarray,
+    output_shape: list | tuple | np.ndarray,
+    values: float = 0,
+) -> np.ndarray:
+    """
+    Crop and/or pad an array to output_shape, keeping its centre.
+
+    Each axis is cropped if output_shape is smaller, padded if it is
+    larger, so both can be mixed, e.g. (200, 200, 200) to
+    (160, 180, 220). The voxel size is not changed. The centre voxel,
+    at index n // 2 along each axis (the convention of crop_at_center
+    and of numpy.fft.fftshift), stays at the centre of the output.
+
+    Args:
+        data: the array to resize, of any dimension.
+        output_shape: the output shape, one positive int per axis.
+        values: the value of the padded voxels. Defaults to 0.
+
+    Raises:
+        ValueError: if output_shape does not have one positive int per
+            axis of data.
+
+    Returns:
+        The resized array, with the dtype of data.
+    """
+    output_shape = tuple(int(s) for s in output_shape)
+    if len(output_shape) != data.ndim:
+        raise ValueError(
+            f"output_shape {output_shape} should have one value per axis "
+            f"of the data (shape {data.shape})."
+        )
+    if any(s <= 0 for s in output_shape):
+        raise ValueError(
+            f"output_shape {output_shape} should only hold positive values."
+        )
+
+    output = np.full(output_shape, values, dtype=data.dtype)
+    source_slices = []
+    output_slices = []
+    for input_size, output_size in zip(data.shape, output_shape):
+        # Index of the input that lands at index 0 of the output: < 0
+        # when padding, > 0 when cropping
+        offset = input_size // 2 - output_size // 2
+        source_start = max(offset, 0)
+        output_start = max(-offset, 0)
+        length = min(input_size - source_start, output_size - output_start)
+        source_slices.append(slice(source_start, source_start + length))
+        output_slices.append(slice(output_start, output_start + length))
+    output[tuple(output_slices)] = data[tuple(source_slices)]
+    return output
+
+
 def compute_distance_from_com(
     data: np.ndarray, com: tuple | list | np.ndarray = None
 ) -> np.ndarray:

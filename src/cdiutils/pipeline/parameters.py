@@ -82,7 +82,9 @@ DEFAULT_PIPELINE_PARAMS = {
         # constraints and processing
         "zero_mask": False,  # force masked values to zero
         "crop_output": 0,  # crop output by N pixels
-        "roi": "full",  # region of interest
+        # region of interest. None: the "roi = None" line is skipped by
+        # PyNX, which then uses its own default (pynx-cdi-id01: "auto")
+        "roi": None,
         "positivity": False,  # enforce positivity constraint
         "beta": 0.9,  # feedback parameter for HIO/RAAR
         "detwin": True,  # enable detwinning
