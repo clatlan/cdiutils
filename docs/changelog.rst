@@ -3,6 +3,19 @@ Changelog
 
 This document tracks all notable changes to CDIutils.
 
+Unreleased
+----------
+
+**New Features:**
+
+* **Bragg signal clustering and background**
+  (:func:`~cdiutils.utils.cluster_bragg_signal`,
+  :func:`~cdiutils.utils.background_map`): E. Bellec's DBSCAN alien
+  clustering with fringe merging, and a per-pixel background map from the
+  frames outside the Bragg region. User guide:
+  :doc:`user_guide/bragg_signal_clustering`.
+* Example notebook ``bragg_signal_clustering.ipynb``.
+
 Version 0.2.0 (Current)
 ------------------------
 
