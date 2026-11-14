@@ -103,9 +103,7 @@ class TestSupportTools:
         """Test the resized support is saved under the "support" key."""
         path = tmp_path / "support.npz"
         np.savez(path, support=support)
-        support_tools(path_to_support=str(path)).resize_support(
-            "(16, 18, 24)"
-        )
+        support_tools(path_to_support=str(path)).resize_support("(16, 18, 24)")
         with np.load(tmp_path / "support_16_18_24.npz") as file:
             resized = file["support"]
         assert resized.shape == (16, 18, 24)

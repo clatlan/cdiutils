@@ -203,8 +203,7 @@ def initialise_cdi_operator(
             mask = np.zeros(iobs.shape, dtype=np.int8)
         mask = (mask.astype(bool) | saturated).astype(np.int8)
         print(
-            f"\tMasked {saturated.sum()} pixels with iobs > "
-            f"{iobs_saturation}"
+            f"\tMasked {saturated.sum()} pixels with iobs > {iobs_saturation}"
         )
 
     # Create cdi object with data and mask, load the main parameters
@@ -289,9 +288,7 @@ def build_operator_chain_steps(
     events = []
     if psf:
         events.append((nb_hio + nb_raar // 2, "init_psf"))
-    auto_zero_mask = (
-        isinstance(zero_mask, str) and zero_mask.lower() == "auto"
-    )
+    auto_zero_mask = isinstance(zero_mask, str) and zero_mask.lower() == "auto"
     if auto_zero_mask:
         events.append((int(0.6 * nb_hio_raar), "zero_mask_switch"))
         current_zero_mask = 1
@@ -404,8 +401,13 @@ def build_operator_chain_steps(
 
     # Merge identical consecutive blocks into a single repeated block
     merged_steps = []
-    merge_keys = ("algo", "cycles", "support_update", "zero_mask",
-                  "update_psf")
+    merge_keys = (
+        "algo",
+        "cycles",
+        "support_update",
+        "zero_mask",
+        "update_psf",
+    )
     for step in steps:
         previous = merged_steps[-1] if merged_steps else None
         if (

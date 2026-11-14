@@ -46,9 +46,7 @@ class TestSlurmTemplate:
 
     def test_values_are_filled(self):
         """Test the cdiutils values end up in the script."""
-        text = render(
-            partition="p9gpu", pynx_env_ppc64le="/envs/p9_pynx"
-        )
+        text = render(partition="p9gpu", pynx_env_ppc64le="/envs/p9_pynx")
         assert "#SBATCH --partition=p9gpu" in text
         assert 'ppc64le) pynx_env="/envs/p9_pynx"' in text
         assert 'cd "/data/pynx_phasing/"' in text

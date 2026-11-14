@@ -271,8 +271,7 @@ class TabPlotData(widgets.VBox):
                 current_folder = self.parent_folder.value
                 self.parent_folder.options = folders
                 self.parent_folder.value = (
-                    current_folder if current_folder in folders
-                    else folders[0]
+                    current_folder if current_folder in folders else folders[0]
                 )
             finally:
                 self._is_refreshing = False

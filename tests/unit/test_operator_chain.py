@@ -56,9 +56,7 @@ class TestBuildOperatorChainSteps:
         )
         block = ["RAAR"] * 20 + ["Sup"]
         assert expand(steps) == (
-            (["HIO"] * 20 + ["Sup"]) * 2
-            + block * 3
-            + ["ER"] * 20 + ["Sup"]
+            (["HIO"] * 20 + ["Sup"]) * 2 + block * 3 + ["ER"] * 20 + ["Sup"]
         )
         # identical consecutive blocks are merged
         assert [step["repeat"] for step in steps] == [2, 3, 1]
@@ -78,9 +76,9 @@ class TestBuildOperatorChainSteps:
         )
         sequence = expand(steps)
         assert sequence.index("InitPSF") == len(
-            expand(build_operator_chain_steps(
-                30, 30, 0, support_update_period=10
-            ))
+            expand(
+                build_operator_chain_steps(30, 30, 0, support_update_period=10)
+            )
         )
         # the PSF is only updated after its initialisation
         algo_steps = [step for step in steps if step["kind"] == "algo"]

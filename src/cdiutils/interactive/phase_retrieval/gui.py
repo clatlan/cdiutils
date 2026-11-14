@@ -1181,8 +1181,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 current_folder = self.parent_folder.value
                 self.parent_folder.options = folders
                 self.parent_folder.value = (
-                    current_folder if current_folder in folders
-                    else folders[0]
+                    current_folder if current_folder in folders else folders[0]
                 )
             finally:
                 self._is_refreshing = False
@@ -1634,18 +1633,14 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             for step in steps:
                 if step["kind"] == "algo" and step["algo"] == "ML":
                     # ML starts with a Fourier amplitude projection
-                    operator = (
-                        ML(
-                            calc_llk=params["calc_llk"],
-                            show_cdi=params["live_plot"],
-                            plot_axis=params["plot_axis"],
-                        )
-                        ** step["cycles"]
-                        * FourierApplyAmplitude(
-                            calc_llk=True,
-                            zero_mask=step["zero_mask"],
-                            **confidence_kwargs,
-                        )
+                    operator = ML(
+                        calc_llk=params["calc_llk"],
+                        show_cdi=params["live_plot"],
+                        plot_axis=params["plot_axis"],
+                    ) ** step["cycles"] * FourierApplyAmplitude(
+                        calc_llk=True,
+                        zero_mask=step["zero_mask"],
+                        **confidence_kwargs,
                     )
                 elif step["kind"] == "algo":
                     algo_kwargs = {
@@ -1679,7 +1674,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     operator = InitPSF(**psf_kwargs)
                 elif step["kind"] == "detwin":
                     detwin_class = (
-                        DetwinHIO if step["algo"] == "DetwinHIO"
+                        DetwinHIO
+                        if step["algo"] == "DetwinHIO"
                         else DetwinRAAR
                     )
                     # positivity is off during detwinning, as in PyNX
