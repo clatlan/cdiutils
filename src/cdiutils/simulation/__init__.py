@@ -12,6 +12,8 @@ objects : Object creation, phase manipulation, and diffraction
 noise : Noise models for realistic detector simulation.
 detector : End-to-end BCDI measurement simulator with detector
     geometry.
+domains : Domain models of a reconstruction (phase steps, tilts,
+    bending) fitted to measured intensity.
 
 Main Components
 ---------------
@@ -29,13 +31,16 @@ Phase manipulation (from objects):
 Diffraction simulation (from objects):
     simulate_diffraction : Compute diffraction pattern via FFT.
 
-Domains (from objects):
+Domain models (from domains):
     segment_domains : Split a reconstruction into domains separated
         by low-modulus planes, sharing its filled outline.
+    fill_domain_gaps : Fill only the planes between domains.
     measure_domain_phases : Ramp, phase offset and coherence per
         domain.
+    fit_quadratic_phase : Linear + quadratic phase of a region (bent
+        or graded crystal).
     DomainModelFit : Fit measured intensity with domains carrying
-        phase steps and / or tilts (Poisson deviance).
+        phase steps, tilts or a quadratic phase (Poisson deviance).
 
 Noise models (from noise):
     add_noise : Add Gaussian and/or Poisson noise to data.
@@ -82,6 +87,13 @@ from .detector import BCDISimulator
 
 # import from noise module
 from .noise import add_noise
+from .domains import (
+    DomainModelFit,
+    fill_domain_gaps,
+    fit_quadratic_phase,
+    measure_domain_phases,
+    segment_domains,
+)
 from .objects import (
     add_displacement_field,
     add_linear_phase,
@@ -91,11 +103,6 @@ from .objects import (
     make_cylinder,
     make_ellipsoid,
     simulate_diffraction,
-    segment_domains,
-    fill_domain_gaps,
-    measure_domain_phases,
-    fit_quadratic_phase,
-    DomainModelFit,
 )
 
 __all__ = [

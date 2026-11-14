@@ -154,3 +154,13 @@ def test_bend_model_beats_flat_model_on_bent_data():
     result_c = fitter.fit("C")
     assert result_bend["deviance"] < result_c["deviance"]
     assert abs(result_bend["quadratics"][0][2] - 0.004) < 4e-4
+
+
+def test_fit_rejects_unknown_model():
+    """An unknown model name raises instead of silently fitting C."""
+    import pytest
+
+    obj, truth = two_slabs()
+    fitter = DomainModelFit(simulated_intensity(obj), np.zeros(SHAPE), truth)
+    with pytest.raises(ValueError):
+        fitter.fit("D")
