@@ -1387,6 +1387,19 @@ def cluster_bragg_signal(
         (labels, bragg_label, bragg_region): integer labels (0 = not
         clustered, DBSCAN noise included), the label of the Bragg
         cluster, and the dilated Bragg cluster (bool).
+
+    Note:
+        Without ``merge_size`` the facet streaks and fringe shells of the
+        Bragg peak often come out as separate clusters. Treat a separate
+        cluster as an alien only when it is far from ``bragg_region``,
+        and mask aliens rather than setting them to zero. Masking
+        everything outside ``bragg_region`` also removes the weak
+        high-q fringes that carry the resolution.
+
+    Example:
+        >>> labels, bragg, region = cluster_bragg_signal(
+        ...     data, threshold=0.3, merge_size=5)
+        >>> aliens = [k for k in np.unique(labels) if k not in (0, bragg)]
     """
     from scipy.ndimage import binary_dilation
     from sklearn.cluster import DBSCAN
@@ -1445,6 +1458,12 @@ def background_map(
 
     Returns:
         Background per pixel and frame, shape (rows, columns).
+
+    Example:
+        >>> _, _, region = cluster_bragg_signal(data, merge_size=5)
+        >>> background = background_map(data, region, sigma=10,
+        ...                              pure_pixels=True)
+        >>> cleaned = np.clip(data - background[None], 0, None)
     """
     from scipy.ndimage import gaussian_filter
 
