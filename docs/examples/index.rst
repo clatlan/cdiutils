@@ -12,6 +12,7 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
    ../bcdi_reconstruction_analysis
    ../explore_cxi_file
    ../pole_figure
+   ../domain_model_fit
 
 Jupyter Notebook Examples
 --------------------------
@@ -82,6 +83,21 @@ This example covers:
 * Crystal orientation mapping
 * Pole figure generation and interpretation
 * Advanced crystallographic analysis
+
+Domain Models: Phase Steps, Tilts or Bending
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`domain_model_fit.ipynb <../../examples/domain_model_fit.ipynb>`
+
+Test the interpretation of a reconstruction against the measured intensity
+(synthetic known answers):
+
+* ``segment_domains`` and ``measure_domain_phases`` on a band-limited
+  reconstruction
+* ``DomainModelFit``: phase steps (``"A"``), tilts (``"B"``), no steps
+  (``"C"``) and a bent crystal (``"bend"``), compared by Poisson deviance
+* Recovering the phase steps and the curvature, and checking that each
+  dataset selects its own model
 
 Template Notebooks
 -------------------

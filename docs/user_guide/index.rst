@@ -21,6 +21,7 @@ Comprehensive guides for using CDIutils in your BCDI experiments.
    reciprocal_space_gridding
    strain_analysis
    facet_analysis
+   domain_model
 
 .. toctree::
    :maxdepth: 1
@@ -59,5 +60,6 @@ Quick Links by Task
 * Analyse the reconstructed probe? → :doc:`wavefront_analysis`
 * Calculate strain correctly? → :doc:`strain_analysis`
 * Find crystallographic facets? → :doc:`facet_analysis`
+* Tell phase steps, tilts and bending apart? → :doc:`domain_model`
 * Reduce memory usage? → :doc:`performance_tips`
 * Debug failed reconstructions? → :doc:`troubleshooting`

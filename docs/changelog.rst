@@ -3,6 +3,19 @@ Changelog
 
 This document tracks all notable changes to CDIutils.
 
+Unreleased
+----------
+
+**New Features:**
+
+* **Domain models** (:mod:`cdiutils.simulation.domains`): segment a
+  reconstruction into domains (``segment_domains``,
+  ``fill_domain_gaps``), measure their phases (``measure_domain_phases``,
+  ``fit_quadratic_phase``) and fit phase-step, tilt and bending models to
+  the measured intensity with a Poisson deviance (``DomainModelFit``).
+  User guide: :doc:`user_guide/domain_model`.
+* Example notebook ``domain_model_fit.ipynb``.
+
 Version 0.2.0 (Current)
 ------------------------
 
