@@ -463,7 +463,7 @@ class SupportedCrystal:
         self,
         hkls: list,
         energies: list,
-        incidence: str | float = "symmetric",
+        incidence: str | float | dict = "symmetric",
     ) -> pd.DataFrame:
         """
         Angular positions of several reflections at several energies.
@@ -471,18 +471,30 @@ class SupportedCrystal:
         Args:
             hkls: List of crystal Miller indices.
             energies: List of energies (eV).
-            incidence: See :meth:`reflection_angles`.
+            incidence: Geometry for all reflections (see
+                :meth:`reflection_angles`), or a dict hkl -> geometry
+                (reflections missing from the dict use 'symmetric').
 
         Returns:
             DataFrame with one row per (reflection, energy).
         """
-        rows = [
-            self.reflection_angles(hkl, energy, incidence)
-            for hkl in hkls
-            for energy in energies
-        ]
+        rows = []
+        for hkl in hkls:
+            if isinstance(incidence, dict):
+                geometry = incidence.get(tuple(hkl), "symmetric")
+            else:
+                geometry = incidence
+            for energy in energies:
+                row = self.reflection_angles(hkl, energy, geometry)
+                row["geometry"] = (
+                    geometry
+                    if isinstance(geometry, str)
+                    else f"incidence {geometry:g}°"
+                )
+                rows.append(row)
         columns = [
             "reflection",
+            "geometry",
             "energy (eV)",
             "2theta (deg)",
             "eta",
