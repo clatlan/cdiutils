@@ -35,10 +35,12 @@ def add_noise(
             Default is 0.0.
         poisson_background: Background for Poisson sampling. Can
             be:
+
             - None: no Poisson background added
             - float: uniform background value
             - np.ndarray: spatially-varying background (must match
               data shape)
+
             Default is None.
         poisson_statistics: If True, apply Poisson statistics to
             the data itself (photon counting). Default is False.

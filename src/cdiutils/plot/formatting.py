@@ -556,9 +556,9 @@ def get_figure_size(
     https://jwalton.info/Embed-Publication-Matplotlib-Latex/
 
     :param width: Document width in points, or string of predefined
-    document type (float or string)
+        document type (float or string)
     :param fraction: fraction of the width which you wish the figure to
-    occupy (float)
+        occupy (float)
     :param subplots: the number of rows and columns of subplots
 
     :return: dimensions of the figure in inches (tuple)

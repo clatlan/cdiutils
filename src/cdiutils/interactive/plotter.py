@@ -399,8 +399,8 @@ class Plotter:
         The file must have a .npy, .cxi, .h5, or .npz extension. If the
         file is a .npy file, the data array is directly loaded.
         If the file is a .cxi or .h5 file, the data array is loaded from
-        `f.root.entry_1.data_1.data[:]` or
-        `f.root.entry_1.image_1.data[:]`, following cxi conventions. For
+        ``f.root.entry_1.data_1.data[:]`` or
+        ``f.root.entry_1.image_1.data[:]``, following cxi conventions. For
         .h5 files, only the first frame of 4D data is kept and the first
         and last axes are swapped.
         If the file is a .npz file, the user is prompted to select the
@@ -413,8 +413,8 @@ class Plotter:
 
         Raises:
             KeyError: If the file is a .h5 file, and the data could not
-            be found in either `f.root.entry_1.data_1.data[:]` or
-            `f.root.entry_1.image_1.data[:]`. For .cxi files, a message
+            be found in either ``f.root.entry_1.data_1.data[:]`` or
+            ``f.root.entry_1.image_1.data[:]``. For .cxi files, a message
             is printed instead.
         """
         # No need to select data array interactively

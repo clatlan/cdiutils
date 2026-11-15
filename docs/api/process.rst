@@ -1,7 +1,11 @@
 Processing Module
-================
+=================
 
-Phase retrieval and post-processing tools.
+Phase retrieval and post-processing tools. :class:`~cdiutils.process.PyNXPhaser`,
+:class:`~cdiutils.process.PhasingResultAnalyser` and
+:class:`~cdiutils.process.PostProcessor` are documented on their own pages
+(:doc:`classes/PyNXPhaser`, :doc:`classes/PhasingResultAnalyser`,
+:doc:`classes/PostProcessor`).
 
 Phase Retrieval
 ---------------
@@ -10,6 +14,7 @@ Phase Retrieval
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: PyNXPhaser, PhasingResultAnalyser
 
 Post-Processing
 ---------------
@@ -18,11 +23,12 @@ Post-Processing
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: PostProcessor
 
-Result Analysis
----------------
+Support Tools
+-------------
 
-.. automodule:: cdiutils.process.phasing_result_analyser
+.. automodule:: cdiutils.process.support_tools
    :members:
    :undoc-members:
    :show-inheritance:

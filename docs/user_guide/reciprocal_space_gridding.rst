@@ -1,4 +1,5 @@
 .. placeholder file - content to be added
+
 Reciprocal Space Gridding
 ==========================
 

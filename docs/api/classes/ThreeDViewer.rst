@@ -1,38 +1,30 @@
-VolumeViewer (3D Interactive)
-==============================
+ThreeDViewer (3D Interactive)
+=============================
 
 .. note::
-   This page documents the interactive 3D viewer. For 2D slice plotting,
-   see :func:`cdiutils.plot.plot_volume_slices`.
+   This page documents the interactive 3D viewer (Plotly). For 2D slice
+   plotting, see :func:`cdiutils.plot.plot_volume_slices`.
 
 .. currentmodule:: cdiutils.interactive
 
-.. autoclass:: VolumeViewer
+.. autoclass:: ThreeDViewer
    :members:
    :undoc-members:
    :show-inheritance:
 
-   The VolumeViewer class provides interactive 3D visualisation of
-   reconstructed objects with isosurface rendering using Plotly.
-
 Examples
 --------
 
-Interactive 3D visualisation::
+Interactive 3D visualisation in a notebook::
 
-    from cdiutils.interactive import VolumeViewer
-    import numpy as np
+    from IPython.display import display
+    from cdiutils.interactive import ThreeDViewer
 
-    # Create viewer
-    viewer = VolumeViewer(
-        data=reconstructed_object,
-        voxel_size=(10e-9, 10e-9, 10e-9)  # metres
-    )
-
-    # Show interactive widget (in Jupyter)
-    viewer.show()
+    # reconstructed_object: complex 3D array
+    viewer = ThreeDViewer(reconstructed_object, voxel_size=(10, 10, 10))
+    display(viewer)
 
 See Also
 --------
-:func:`cdiutils.plot.plot_3d_surface_projections` : Static matplotlib plots
-:class:`VolumeViewer` : Same class, interactive 3D viewer
+:func:`plot_3d_isosurface` : quick isosurface plot
+:class:`Plotter` : static and layered plots of files and arrays

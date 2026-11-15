@@ -302,13 +302,14 @@ class BcdiPipeline(Pipeline):
 
         Args:
             **params: optional parameters to override instance params.
-                Common overrides include 'preprocess_shape', 'hot_
-                pixel_filter', 'flat_field', 'background_level'.
+                Common overrides include ``preprocess_shape``,
+                ``hot_pixel_filter``, ``flat_field``,
+                ``background_level``.
 
         Side effects:
-            Updates instance attributes: detector_data, cropped_
-            detector_data, mask, voi (voxels of interest), converter,
-            q_lab_pos, atomic_params.
+            Updates instance attributes: ``detector_data``,
+            ``cropped_detector_data``, mask, voi (voxels of interest),
+            converter, q_lab_pos, atomic_params.
 
                 initialisation.
 
@@ -1265,12 +1266,14 @@ retrieval is also computed and will be used in the post-processing stage."""
         Args:
             sorting_criterion (str, optional): quality metric for
                 sorting. Options:
+
                 - 'mean_to_max': amplitude homogeneity (Gaussian mean
                   vs. max)
                 - 'sharpness': sum of amplitude^4 within support
                 - 'std': amplitude standard deviation
                 - 'llk': log-likelihood
                 - 'llkf': free log-likelihood
+
                 Defaults to "mean_to_max".
             search_pattern (str, optional): glob pattern for CXI files.
                 Defaults to "*Run*.cxi".
@@ -1382,8 +1385,8 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         Args:
             nb_of_best_sorted_runs (int, optional): number of top-sorted
-                runs to select. Requires prior call to analyse_phasing_
-                results(). Defaults to None.
+                runs to select. Requires prior call to
+                ``analyse_phasing_results()``. Defaults to None.
             best_runs (list[int], optional): explicit list of run
                 numbers (e.g., [2, 5, 7]). Defaults to None.
             search_pattern (str, optional): glob pattern for CXI files.
@@ -1561,6 +1564,7 @@ reconstruction (best solution).""",
         Args:
             **params: optional parameters to override instance params.
                 Common overrides:
+
                 - 'voxel_size': target voxel size (nm)
                 - 'isosurface': support threshold (0-1)
                 - 'apodize': window function ('blackman', 'hann', etc.)
@@ -1569,8 +1573,9 @@ reconstruction (best solution).""",
                 - 'handle_defects': enable defect-aware processing
 
         Side effects:
-            Updates instance attributes: reconstruction, structural_
-            props, extra_info. Generates amplitude distribution plot.
+            Updates instance attributes: reconstruction,
+            ``structural_props``, extra_info. Generates amplitude
+            distribution plot.
 
         Raises:
             ValueError: if unrecognised parameter provided.

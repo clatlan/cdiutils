@@ -180,9 +180,8 @@ def get_reciprocal_voxel_size(
     """
     Calculate reciprocal-space voxel size from real-space parameters.
 
-    Uses the generic relation
-        dq = factor / (N * dx)
-    for each axis, where ``N`` is the number of pixels and ``dx`` the
+    Uses the generic relation ``dq = factor / (N * dx)`` for each
+    axis, where ``N`` is the number of pixels and ``dx`` the
     corresponding real-space voxel size.
 
     This implementation is dimension-agnostic and does not assume any

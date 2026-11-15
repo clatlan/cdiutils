@@ -10,11 +10,13 @@ Main Pipeline Classes
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: Pipeline
 
 .. automodule:: cdiutils.pipeline.bcdi
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: BcdiPipeline
 
 Visualisation Support
 ---------------------

@@ -9,32 +9,6 @@ BcdiPipeline
    :show-inheritance:
    :inherited-members:
 
-   .. rubric:: Main Methods
-
-   .. autosummary::
-      ~BcdiPipeline.preprocess
-      ~BcdiPipeline.phase_retrieval
-      ~BcdiPipeline.postprocess
-      ~BcdiPipeline.facet_analysis
-
-   .. rubric:: Configuration
-
-   .. autosummary::
-      ~BcdiPipeline.update_from_file
-
-   .. rubric:: Visualisation
-
-   .. autosummary::
-      ~BcdiPipeline.phase_retrieval_gui
-      ~BcdiPipeline.show_3d_final_result
-
-   .. rubric:: Inherited from Pipeline
-
-   .. autosummary::
-      ~BcdiPipeline.setup_logger
-      ~BcdiPipeline.setup_savedir
-      ~BcdiPipeline.submit_to_slurm
-
 Examples
 --------
 

@@ -1,57 +1,50 @@
 Analysis Functions
 ==================
 
-.. currentmodule:: cdiutils.analysis
+Index of the analysis functions and classes; each entry links to its full
+documentation on the :doc:`../analysis` page.
 
-This page documents functions for data analysis and quality metrics.
+Statistics and Surfaces
+-----------------------
 
-Strain Analysis
----------------
+.. autosummary::
 
-.. autofunction:: compute_strain
+   cdiutils.analysis.stats.get_histogram
+   cdiutils.analysis.stats.plot_histogram
+   cdiutils.analysis.stats.find_isosurface
 
-.. autofunction:: compute_displacement
+Depth and Domains
+-----------------
 
-.. autofunction:: get_strain_components
+.. autosummary::
 
-.. autofunction:: analyse_strain_field
+   cdiutils.analysis.stats.get_depth_map
+   cdiutils.analysis.stats.get_depth_profile
+   cdiutils.analysis.stats.normalise_domains
 
-Phase Analysis
---------------
+Stereography
+------------
 
-.. autofunction:: unwrap_phase
+.. autosummary::
 
-.. autofunction:: remove_phase_ramp
+   cdiutils.analysis.stereography.pole_figure
 
-.. autofunction:: detect_phase_jumps
+Dislocations
+------------
 
-Resolution & Quality
---------------------
+.. autosummary::
 
-.. autofunction:: compute_resolution
+   cdiutils.analysis.dislocation.find_phase_vortices
+   cdiutils.analysis.dislocation.map_min_gradient
+   cdiutils.analysis.dislocation.clusters_dislo_strain_map
+   cdiutils.analysis.dislocation.decompose_experimental_phase
+   cdiutils.analysis.dislocation.dislo_phase_model
+   cdiutils.analysis.dislocation.dislo_process_phase_ring
 
-.. autofunction:: compute_prtf
+Facets
+------
 
-.. autofunction:: compute_fsc
+.. autosummary::
 
-.. autofunction:: estimate_support_quality
-
-Statistics
-----------
-
-.. autofunction:: get_statistics
-
-.. autofunction:: compute_histogram
-
-.. autofunction:: get_percentiles
-
-Facet Analysis
---------------
-
-.. automodule:: cdiutils.facetanalysis
-   :members:
-   :undoc-members:
-
-.. autofunction:: cdiutils.facetanalysis.facet_3d.facet_recognition
-
-.. autofunction:: cdiutils.facetanalysis.facet_3d.get_facet_normals
+   cdiutils.facetanalysis.facet_analysis.FacetAnalysisProcessor
+   cdiutils.facetanalysis.facet_density.FacetDensityAnalyser

@@ -212,6 +212,7 @@ def get_histogram(
     the data.
     Optionally applies a support mask to the data before and calculates
     the surface and bulk histograms.
+
     Args:
         data (np.ndarray): the data to be analysed
         support (np.ndarray): the support mask to be applied to the data

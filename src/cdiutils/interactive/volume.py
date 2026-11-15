@@ -755,15 +755,15 @@ class VolumeViewer:
             data_path (str | None, optional): Path to a .vti file
                 containing the data. Defaults to None.
             initial_active_scalar (str, optional): Initial scalar field
-                to display. Only used with data_path; with **data, the
+                to display. Only used with data_path; with ``**data``, the
                 first array is displayed. Defaults to "het_strain".
-            **data (np.ndarray): Dictionary of numpy arrays to visualize.
+            ``**data`` (np.ndarray): Dictionary of numpy arrays to visualize.
 
         Raises:
             PyVistaImportError: if Trame or PyVista are not installed.
             ValueError: If the path is not a .vti file.
             ValueError: If initial_active_scalar is not available.
-            NotImplementedError: If neither data_path nor **data is
+            NotImplementedError: If neither data_path nor ``**data`` is
                 provided.
 
         Returns:
