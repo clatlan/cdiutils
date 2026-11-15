@@ -3,7 +3,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:1
-#SBATCH --time=00:10:00
+#SBATCH --time=$time_limit
+#SBATCH --mem=$memory
 #SBATCH --output=slurm-%j.out
 # Start from a clean login environment on the node: the environment of
 # the (x86_64) submission host would otherwise be exported, and its
@@ -12,7 +13,8 @@
 
 # Template filled by BcdiPipeline._make_slurm_file (string.Template):
 # a doubled dollar sign is a bash variable, a single one a value set by
-# cdiutils (partition, data_path, pynx_env_x86_64, pynx_env_ppc64le).
+# cdiutils (partition, time_limit, memory, data_path, pynx_env_x86_64,
+# pynx_env_ppc64le).
 
 scontrol --details show jobs $SLURM_JOBID | grep RES
 

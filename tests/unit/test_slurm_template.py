@@ -30,6 +30,8 @@ def render(**values) -> str:
         "number_of_nodes": 2,
         "data_path": "/data/pynx_phasing/",
         "partition": "gpu,p9gpu",
+        "time_limit": "01:00:00",
+        "memory": "16G",
         "pynx_env_x86_64": "",
         "pynx_env_ppc64le": "",
         "SLURM_JOBID": "$SLURM_JOBID",
@@ -50,6 +52,12 @@ class TestSlurmTemplate:
         assert "#SBATCH --partition=p9gpu" in text
         assert 'ppc64le) pynx_env="/envs/p9_pynx"' in text
         assert 'cd "/data/pynx_phasing/"' in text
+
+    def test_memory_and_time(self):
+        """Test the memory and time limit end up in the script."""
+        text = render(memory="15G", time_limit="00:45:00")
+        assert "#SBATCH --mem=15G" in text
+        assert "#SBATCH --time=00:45:00" in text
 
     def test_clean_environment(self):
         """Test the job does not inherit the submission environment."""

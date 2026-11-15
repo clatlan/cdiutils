@@ -14,6 +14,7 @@ import os
 import platform
 import subprocess
 import sys
+import zipfile
 from string import Template
 
 # Dependencies.
@@ -1044,6 +1045,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         template: str = None,
         pynx_envs: dict[str, str] = None,
         slurm_partition: str = "gpu,p9gpu",
+        slurm_memory: str = None,
+        slurm_time: str = "01:00:00",
     ) -> None:
         """
         Generate SLURM batch script for PyNX phase retrieval.
@@ -1064,8 +1067,35 @@ retrieval is also computed and will be used in the post-processing stage."""
                 unless given here. Defaults to None.
             slurm_partition (str, optional): SLURM partition(s).
                 Defaults to "gpu,p9gpu".
+            slurm_memory (str, optional): host memory of the job, e.g.
+                "32G". Defaults to None: estimated from the shape of the
+                data (see _estimate_pynx_job_resources).
+            slurm_time (str, optional): time limit of the job,
+                "HH:MM:SS". Defaults to "01:00:00", the maximum of the
+                gpu and p9gpu partitions (use e.g. gpu-long for more).
         """
         pynx_envs = dict(pynx_envs or {})
+
+        # Memory and time of the job, from the size of the data
+        estimated_memory, run_seconds = self._estimate_pynx_job_resources(
+            self.params["pynx"]["data"], self.params["pynx"]
+        )
+        if slurm_memory is None:
+            slurm_memory = estimated_memory
+        nb_run = int(self.params["pynx"].get("nb_run") or 1)
+        self.logger.info(
+            f"SLURM job: memory {slurm_memory}, time limit {slurm_time} "
+            f"(estimated {run_seconds / 60:.1f} min per run on an L40S, "
+            f"{nb_run} runs)."
+        )
+        # GPUs slower than the L40S can take about twice as long
+        if 2 * nb_run * run_seconds > self._time_to_seconds(slurm_time):
+            self.logger.warning(
+                f"The {nb_run} runs may not fit in the time limit "
+                f"{slurm_time}: lower nb_run, rebin the data, or give a "
+                "longer slurm_time with a longer partition (e.g. "
+                'slurm_partition="gpu-long").'
+            )
 
         # Use the current environment for its architecture, if it has PyNX
         if os.path.isfile(os.path.join(sys.prefix, "bin", "pynx-cdi-id01")):
@@ -1095,6 +1125,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                     "number_of_nodes": 2,
                     "data_path": self.pynx_phasing_dir,
                     "partition": slurm_partition,
+                    "time_limit": slurm_time,
+                    "memory": slurm_memory,
                     "pynx_env_x86_64": pynx_envs.get("x86_64", ""),
                     "pynx_env_ppc64le": pynx_envs.get("ppc64le", ""),
                     "SLURM_JOBID": "$SLURM_JOBID",
@@ -1107,6 +1139,105 @@ retrieval is also computed and will be used in the post-processing stage."""
             encoding="utf8",
         ) as file:
             file.write(pynx_slurm_text)
+
+    @staticmethod
+    def _estimate_pynx_job_resources(
+        data_path: str, pynx_params: dict
+    ) -> tuple[str, float]:
+        """
+        Estimate the host memory and the run time of a PyNX job.
+
+        Measured with pynx-cdi-id01 2026.1 on an L40S (ch8156,
+        CuAg_BCDI_0058, 600 x 500 x 500 voxels, 1300 cycles with PSF): a
+        host memory peak of 6.5 GB, the same for 1 and 3 runs, and about
+        2.5 min per run. The memory asked is twice that peak per voxel
+        plus 1 GB, at least 8 GB; the run time scales with the number of
+        voxels and of cycles.
+
+        Args:
+            data_path (str): path to the npz (key "data") or npy data
+                given to PyNX.
+            pynx_params (dict): the PyNX parameters (nb_hio, nb_raar,
+                nb_er, nb_ml, rebin).
+
+        Returns:
+            tuple[str, float]: the SLURM memory (e.g. "15G") and the
+                estimated time of one run (s). ("16G", 0) if the data
+                shape cannot be read.
+        """
+        try:
+            shape = BcdiPipeline._read_array_shape(data_path)
+        except (OSError, KeyError, ValueError):
+            return "16G", 0.0
+
+        # Rebinning reduces the arrays PyNX works on
+        rebin = pynx_params.get("rebin") or 1
+        if isinstance(rebin, str):
+            rebin = [int(r) for r in rebin.replace(" ", "").split(",")]
+        if isinstance(rebin, int):
+            rebin = [rebin] * len(shape)
+        nb_voxels = float(np.prod(shape)) / float(np.prod(rebin))
+
+        # 6.5 GB for 1.5e8 voxels, i.e. about 45 bytes per voxel
+        memory_gb = max(8, int(np.ceil(1 + 2 * 45e-9 * nb_voxels)))
+
+        # About 1e-6 s per voxel for 1300 cycles
+        nb_cycles = sum(
+            int(pynx_params.get(key) or 0)
+            for key in ("nb_hio", "nb_raar", "nb_er", "nb_ml")
+        )
+        run_seconds = 1e-6 * nb_voxels * max(nb_cycles, 1) / 1300
+        return f"{memory_gb}G", run_seconds
+
+    @staticmethod
+    def _read_array_shape(path: str) -> tuple[int, ...]:
+        """
+        Read the shape of the data array of a npz or npy file.
+
+        Only the array header is read, not the data.
+
+        Args:
+            path (str): path to a npy file, or a npz file holding a
+                "data" array.
+
+        Raises:
+            KeyError: if a npz file has no "data" array.
+
+        Returns:
+            tuple[int, ...]: the shape of the array.
+        """
+        if path.endswith(".npy"):
+            with open(path, "rb") as file:
+                version = np.lib.format.read_magic(file)
+                return np.lib.format._read_array_header(file, version)[0]
+        with zipfile.ZipFile(path) as archive:
+            with archive.open("data.npy") as file:
+                version = np.lib.format.read_magic(file)
+                return np.lib.format._read_array_header(file, version)[0]
+
+    @staticmethod
+    def _time_to_seconds(time_limit: str) -> float:
+        """
+        Convert a SLURM time limit to seconds.
+
+        Args:
+            time_limit (str): "MM", "HH:MM:SS" or "D-HH:MM:SS".
+
+        Returns:
+            float: the time limit in seconds.
+        """
+        days = 0
+        if "-" in time_limit:
+            day_text, time_limit = time_limit.split("-", 1)
+            days = int(day_text)
+        parts = [int(p) for p in time_limit.split(":")]
+        if len(parts) == 1:
+            # SLURM reads a single number as minutes
+            parts = [0, parts[0], 0]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        hours, minutes, seconds = parts
+        return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
     def phase_retrieval_gui(self) -> None:
         """Launch the interactive phase retrieval GUI.
@@ -1157,6 +1288,8 @@ retrieval is also computed and will be used in the post-processing stage."""
         pynx_slurm_file_template: str = None,
         pynx_envs: dict[str, str] = None,
         slurm_partition: str = "gpu,p9gpu",
+        slurm_memory: str = None,
+        slurm_time: str = "01:00:00",
         clear_former_results: bool = False,
         cmd: str = None,
         search_pattern: str = "*Run*.cxi",
@@ -1183,6 +1316,13 @@ retrieval is also computed and will be used in the post-processing stage."""
             slurm_partition (str, optional): SLURM partition(s) for
                 cluster jobs. Defaults to "gpu,p9gpu" (x86_64 and
                 ppc64le GPU nodes).
+            slurm_memory (str, optional): host memory of cluster jobs,
+                e.g. "32G". Defaults to None: estimated from the shape
+                of the data (a 600 x 500 x 500 array needs about 7 GB;
+                the SLURM default of 6 GB was too small).
+            slurm_time (str, optional): time limit of cluster jobs,
+                "HH:MM:SS". Defaults to "01:00:00", the maximum of the
+                gpu and p9gpu partitions.
             clear_former_results (bool, optional): delete previous
                 reconstruction CXI files. Defaults to False.
             cmd (str, optional): command for local PyNX execution.
@@ -1240,6 +1380,8 @@ retrieval is also computed and will be used in the post-processing stage."""
                 pynx_slurm_file_template,
                 pynx_envs=pynx_envs,
                 slurm_partition=slurm_partition,
+                slurm_memory=slurm_memory,
+                slurm_time=slurm_time,
             )
             job_id, output_file = self.submit_job(
                 job_file="pynx-id01-cdi.slurm",
