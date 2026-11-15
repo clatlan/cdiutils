@@ -28,7 +28,7 @@ def two_slabs(step=np.pi * 0.8, gap=1):
     """
     domains = np.zeros(SHAPE, dtype=np.int32)
     domains[16:32, 16:32, 12:24] = 1
-    domains[16:32, 16:32, 24 + gap:36] = 2
+    domains[16:32, 16:32, 24 + gap : 36] = 2
     obj = (domains == 1) + (domains == 2) * np.exp(1j * step)
     return obj.astype(complex), domains
 
@@ -55,9 +55,13 @@ def test_segment_domains_bridges_the_gap():
     """The filled outline covers the empty plane between the slabs."""
     obj, truth = two_slabs(gap=1)
     modulus = np.abs(obj)
-    domains, seeds = segment_domains(modulus, seed_threshold=0.5,
-                                     outline_threshold=0.5,
-                                     closing_iterations=2, min_size=10)
+    domains, seeds = segment_domains(
+        modulus,
+        seed_threshold=0.5,
+        outline_threshold=0.5,
+        closing_iterations=2,
+        min_size=10,
+    )
     assert seeds.max() == 2
     assert domains.max() == 2
     # the gap plane is now inside a domain (except its one-voxel rim on
@@ -98,8 +102,9 @@ def test_fit_prefers_tilts_on_tilted_data():
     obj = (truth > 0) * np.exp(1j * tilt)
     data = simulated_intensity(obj)
     fitter = DomainModelFit(data, np.zeros(SHAPE), truth)
-    result_b = fitter.fit("B", ramps=np.array([[0, 0, 0], [0.2, 0, 0]]),
-                          maxiter=60)
+    result_b = fitter.fit(
+        "B", ramps=np.array([[0, 0, 0], [0.2, 0, 0]]), maxiter=60
+    )
     result_a = fitter.fit("A", n_starts=4)
     assert result_b["deviance"] < result_a["deviance"]
     assert abs(result_b["ramps"][1][0] - 0.25) < 0.03

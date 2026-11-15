@@ -90,9 +90,6 @@ Example
 # import from objects module
 # import from detector module
 from .detector import BCDISimulator
-
-# import from noise module
-from .noise import add_noise
 from .domains import (
     DomainModelFit,
     fill_domain_gaps,
@@ -100,6 +97,9 @@ from .domains import (
     measure_domain_phases,
     segment_domains,
 )
+
+# import from noise module
+from .noise import add_noise
 from .objects import (
     add_displacement_field,
     add_linear_phase,

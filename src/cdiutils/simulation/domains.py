@@ -61,10 +61,12 @@ def fill_domain_gaps(seeds: np.ndarray, width: float = 3.0) -> np.ndarray:
     from scipy import ndimage
 
     count = int(seeds.max())
-    distances = np.stack([
-        ndimage.distance_transform_edt(seeds != label)
-        for label in range(1, count + 1)
-    ])
+    distances = np.stack(
+        [
+            ndimage.distance_transform_edt(seeds != label)
+            for label in range(1, count + 1)
+        ]
+    )
     ordered = np.sort(distances, axis=0)
     gap = (seeds == 0) & (ordered[0] <= width)
     if count > 1:
@@ -73,7 +75,8 @@ def fill_domain_gaps(seeds: np.ndarray, width: float = 3.0) -> np.ndarray:
     # domains, not the rim just outside their surface
     structure = ndimage.generate_binary_structure(seeds.ndim, seeds.ndim)
     gap &= ndimage.binary_closing(
-        seeds > 0, structure=structure, iterations=int(np.ceil(width)))
+        seeds > 0, structure=structure, iterations=int(np.ceil(width))
+    )
     filled = seeds.copy()
     filled[gap] = np.argmin(distances, axis=0)[gap] + 1
     return filled.astype(np.int32)
@@ -145,9 +148,7 @@ def segment_domains(
     return domains.astype(np.int32), seeds
 
 
-def measure_domain_phases(
-    obj: np.ndarray, domains: np.ndarray
-) -> list[dict]:
+def measure_domain_phases(obj: np.ndarray, domains: np.ndarray) -> list[dict]:
     """
     Linear phase ramp and constant phase of every domain of a complex
     object.
@@ -180,16 +181,18 @@ def measure_domain_phases(
             ramp.append(float(np.angle(product[pairs].sum())))
         phase = sum(ramp[i] * coordinates[i] for i in range(obj.ndim))
         flattened = (obj * np.exp(-1j * phase))[inside]
-        results.append({
-            "label": label,
-            "size": int(inside.sum()),
-            "ramp": ramp,
-            "offset": float(np.angle(flattened.sum())),
-            "coherence": float(
-                np.abs(flattened.sum()) / np.abs(flattened).sum()
-            ),
-            "mean_modulus": float(modulus[inside].mean()),
-        })
+        results.append(
+            {
+                "label": label,
+                "size": int(inside.sum()),
+                "ramp": ramp,
+                "offset": float(np.angle(flattened.sum())),
+                "coherence": float(
+                    np.abs(flattened.sum()) / np.abs(flattened).sum()
+                ),
+                "mean_modulus": float(modulus[inside].mean()),
+            }
+        )
     return results
 
 
@@ -241,8 +244,10 @@ def fit_quadratic_phase(obj: np.ndarray, region: np.ndarray) -> tuple:
         pairs = region & np.roll(region, 1, axis=axis)
         weights = np.abs(product)[pairs]
         # midpoint between the voxel and its neighbour along this axis
-        midpoint = [np.broadcast_to(c, obj.shape)[pairs].astype(float)
-                    for c in coordinates]
+        midpoint = [
+            np.broadcast_to(c, obj.shape)[pairs].astype(float)
+            for c in coordinates
+        ]
         midpoint[axis] = midpoint[axis] - 0.5
         design = np.zeros((weights.size, 9))
         design[:, axis] = 1.0
@@ -256,8 +261,9 @@ def fit_quadratic_phase(obj: np.ndarray, region: np.ndarray) -> tuple:
                 design[:, 3 + column] = midpoint[i]
         rows.append(design * np.sqrt(weights)[:, None])
         values.append(np.angle(product[pairs]) * np.sqrt(weights))
-    solution, *_ = np.linalg.lstsq(np.vstack(rows), np.concatenate(values),
-                                   rcond=None)
+    solution, *_ = np.linalg.lstsq(
+        np.vstack(rows), np.concatenate(values), rcond=None
+    )
     return solution[:3], solution[3:]
 
 
@@ -341,8 +347,10 @@ class DomainModelFit:
         fields = []
         for label in range(1, self.count + 1):
             phase = _phase_field(
-                self.coordinates, ramps[label - 1],
-                None if quadratics is None else quadratics[label - 1])
+                self.coordinates,
+                ramps[label - 1],
+                None if quadratics is None else quadratics[label - 1],
+            )
             density = (self.domains == label) * np.exp(1j * phase)
             field = fftshift(fftn(ifftshift(density), workers=-1))
             fields.append(field[self.region][self.valid])
@@ -439,7 +447,7 @@ class DomainModelFit:
                 f"model must be 'A', 'B', 'C', 'full' or 'bend', got {model!r}"
             )
         count = self.count
-        sizes = np.bincount(self.domains.ravel())[1:count + 1]
+        sizes = np.bincount(self.domains.ravel())[1 : count + 1]
         ramps = np.zeros((count, 3)) if ramps is None else np.array(ramps)
         if model in ("A", "C"):
             common = (sizes[:, None] * ramps).sum(0) / sizes.sum()
@@ -447,8 +455,11 @@ class DomainModelFit:
         free_phases = model in ("A", "full")
         free_ramps = model in ("B", "full", "bend")
         free_quadratics = model == "bend"
-        quadratics = (np.zeros((count, 6)) if quadratics is None
-                      else np.array(quadratics, dtype=float))
+        quadratics = (
+            np.zeros((count, 6))
+            if quadratics is None
+            else np.array(quadratics, dtype=float)
+        )
         # quadratic coefficients are optimised in units of 1e-3 rad/voxel^2
         # so that all parameters have comparable steps
         quadratic_unit = 1e-3
@@ -466,44 +477,61 @@ class DomainModelFit:
             # clipped: exp() stays finite on wild steps (Powell has no
             # bounds here, they stall it)
             log_amplitudes = np.clip(
-                parameters[position:position + n_amplitudes],
-                np.log(scale) - 10, np.log(scale) + 10)
+                parameters[position : position + n_amplitudes],
+                np.log(scale) - 10,
+                np.log(scale) + 10,
+            )
             position += n_amplitudes
             amplitudes = np.exp(log_amplitudes) * np.ones(count)
             phases = np.zeros(count)
             if free_phases:
-                phases[1:] = parameters[position:position + count - 1]
+                phases[1:] = parameters[position : position + count - 1]
                 position += count - 1
-            background = np.logaddexp(0, np.clip(parameters[position],
-                                                 -30, 30))
+            background = np.logaddexp(
+                0, np.clip(parameters[position], -30, 30)
+            )
             position += 1
             fitted_ramps = ramps
             if free_ramps:
-                fitted_ramps = parameters[position:position + 3 * count]
+                fitted_ramps = parameters[position : position + 3 * count]
                 fitted_ramps = fitted_ramps.reshape(count, 3)
                 position += 3 * count
             fitted_quadratics = None
             if free_quadratics:
                 fitted_quadratics = quadratic_unit * parameters[
-                    position:position + 6 * count].reshape(count, 6)
-            return (amplitudes, phases, background, fitted_ramps,
-                    fitted_quadratics)
+                    position : position + 6 * count
+                ].reshape(count, 6)
+            return (
+                amplitudes,
+                phases,
+                background,
+                fitted_ramps,
+                fitted_quadratics,
+            )
 
         cache = {}
 
         def objective(parameters):
             """Poisson deviance of one parameter vector."""
-            (amplitudes, phases, background, fitted_ramps,
-             fitted_quadratics) = unpack(parameters)
+            (
+                amplitudes,
+                phases,
+                background,
+                fitted_ramps,
+                fitted_quadratics,
+            ) = unpack(parameters)
             current = fields
             if free_ramps:
                 key = fitted_ramps.tobytes() + (
-                    b"" if fitted_quadratics is None
-                    else fitted_quadratics.tobytes())
+                    b""
+                    if fitted_quadratics is None
+                    else fitted_quadratics.tobytes()
+                )
                 if key not in cache:
                     cache.clear()
-                    cache[key] = self.domain_fields(fitted_ramps,
-                                                    fitted_quadratics)
+                    cache[key] = self.domain_fields(
+                        fitted_ramps, fitted_quadratics
+                    )
                 current = cache[key]
             return self.deviance(
                 self.intensity(current, amplitudes, phases, background)
@@ -516,8 +544,7 @@ class DomainModelFit:
             initial = [np.log(scale)] * n_amplitudes
             if free_phases:
                 initial += list(rng.uniform(-np.pi, np.pi, count - 1))
-            initial += [np.log(np.expm1(max(np.median(self.observed),
-                                            1e-3)))]
+            initial += [np.log(np.expm1(max(np.median(self.observed), 1e-3)))]
             if free_ramps:
                 initial += list(ramps.ravel())
             if free_quadratics:
@@ -534,15 +561,19 @@ class DomainModelFit:
             if free_quadratics:
                 bounds += [(None, None)] * (6 * count)
             method = "Powell" if free_ramps else "L-BFGS-B"
-            result = minimize(objective, np.array(initial, dtype=float),
-                              method=method,
-                              bounds=None if free_ramps else bounds,
-                              options={"maxiter": maxiter})
+            result = minimize(
+                objective,
+                np.array(initial, dtype=float),
+                method=method,
+                bounds=None if free_ramps else bounds,
+                options={"maxiter": maxiter},
+            )
             start_deviances.append(float(result.fun))
             if best is None or result.fun < best.fun:
                 best = result
-        (amplitudes, phases, background, fitted_ramps,
-         fitted_quadratics) = unpack(best.x)
+        (amplitudes, phases, background, fitted_ramps, fitted_quadratics) = (
+            unpack(best.x)
+        )
         return {
             "model": model,
             "equal_amplitudes": equal_amplitudes,
@@ -551,8 +582,11 @@ class DomainModelFit:
             "amplitudes": amplitudes.tolist(),
             "phases": list(np.angle(np.exp(1j * phases))),
             "ramps": np.asarray(fitted_ramps).tolist(),
-            "quadratics": (None if fitted_quadratics is None
-                           else fitted_quadratics.tolist()),
+            "quadratics": (
+                None
+                if fitted_quadratics is None
+                else fitted_quadratics.tolist()
+            ),
             "background": float(background),
             "start_deviances": start_deviances,
         }
@@ -571,8 +605,10 @@ class DomainModelFit:
         for label in range(1, self.count + 1):
             quadratics = result.get("quadratics")
             phase = _phase_field(
-                self.coordinates, result["ramps"][label - 1],
-                None if quadratics is None else quadratics[label - 1])
+                self.coordinates,
+                result["ramps"][label - 1],
+                None if quadratics is None else quadratics[label - 1],
+            )
             density = (self.domains == label) * np.exp(1j * phase)
             coefficient = result["amplitudes"][label - 1] * np.exp(
                 1j * result["phases"][label - 1]
