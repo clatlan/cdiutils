@@ -37,6 +37,11 @@ Diffraction simulation (from objects):
 Noise models (from noise):
     add_noise : Add Gaussian and/or Poisson noise to data.
 
+Supported crystals (from epitaxy):
+    SupportedCrystal : Crystal on a substrate for experiment
+        planning (Bragg angles vs energy, substrate nodes,
+        reciprocal-space maps, Winterbottom shapes, simulated peaks).
+
 BCDI measurement simulation (from detector):
     BCDISimulator : Complete BCDI measurement simulator.
 
@@ -76,6 +81,7 @@ Example
 # import from objects module
 # import from detector module
 from .detector import BCDISimulator
+from .epitaxy import SupportedCrystal
 
 # import from noise module
 from .noise import add_noise
@@ -114,4 +120,5 @@ __all__ = [
     "add_noise",
     # BCDI measurement simulator
     "BCDISimulator",
+    "SupportedCrystal",
 ]
