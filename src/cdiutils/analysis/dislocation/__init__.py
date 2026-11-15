@@ -17,7 +17,6 @@ from ._ring import (
     remove_large_jumps,
 )
 from ._strain_map import map_min_gradient
-from ._vortices import find_phase_vortices
 from ._theory import (
     angle_between_vectors,
     closest_to_zero_in_array,
@@ -29,6 +28,7 @@ from ._theory import (
     signed_angle_3d,
     transform_known_vector_to_crystallographic,
 )
+from ._vortices import find_phase_vortices
 
 __all__ = [
     "map_min_gradient",

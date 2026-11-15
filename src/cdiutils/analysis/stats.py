@@ -511,16 +511,21 @@ def normalise_domains(
             break
     else:
         plateau = np.percentile(amplitude[relative > 0.5], percentile)
-        return amplitude / plateau, np.zeros(amplitude.shape, int), {
-            0: float(plateau)}
+        return (
+            amplitude / plateau,
+            np.zeros(amplitude.shape, int),
+            {0: float(plateau)},
+        )
     largest = np.argsort(sizes)[-2:] + 1
     seeds = np.where(np.isin(labels, largest), labels, 0)
     nearest = distance_transform_edt(
-        seeds == 0, return_distances=False, return_indices=True)
+        seeds == 0, return_distances=False, return_indices=True
+    )
     domains = seeds[tuple(nearest)]
-    plateaus = {int(k): float(np.percentile(amplitude[seeds == k],
-                                            percentile))
-                for k in largest}
+    plateaus = {
+        int(k): float(np.percentile(amplitude[seeds == k], percentile))
+        for k in largest
+    }
     normalised = np.zeros_like(amplitude, dtype=float)
     for k, plateau in plateaus.items():
         normalised[domains == k] = amplitude[domains == k] / plateau

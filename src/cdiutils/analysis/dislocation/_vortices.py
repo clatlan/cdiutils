@@ -58,13 +58,20 @@ def find_phase_vortices(
         shifted_a = np.roll(phase, -1, axis_a)
         shifted_b = np.roll(phase, -1, axis_b)
         shifted_ab = np.roll(shifted_a, -1, axis_b)
-        loop = (_wrap(shifted_a - phase) + _wrap(shifted_ab - shifted_a)
-                + _wrap(shifted_b - shifted_ab) + _wrap(phase - shifted_b))
+        loop = (
+            _wrap(shifted_a - phase)
+            + _wrap(shifted_ab - shifted_a)
+            + _wrap(shifted_b - shifted_ab)
+            + _wrap(phase - shifted_b)
+        )
         turns = np.rint(loop / (2 * np.pi)).astype(np.int8)
         # all four corners of the plaquette inside the eroded support
-        inside = (core & np.roll(core, -1, axis_a)
-                  & np.roll(core, -1, axis_b)
-                  & np.roll(np.roll(core, -1, axis_a), -1, axis_b))
+        inside = (
+            core
+            & np.roll(core, -1, axis_a)
+            & np.roll(core, -1, axis_b)
+            & np.roll(np.roll(core, -1, axis_a), -1, axis_b)
+        )
         found = (turns != 0) & inside
         hits |= found
         winding[found] = turns[found]
@@ -88,14 +95,19 @@ def find_phase_vortices(
             "centre": centre.tolist(),
             "direction": direction.tolist(),
             "winding": int(np.sign(winding[line].sum()) or 1),
-            "surface_distance": float(surface_distance[line].mean()
-                                      * voxel_size),
+            "surface_distance": float(
+                surface_distance[line].mean() * voxel_size
+            ),
         }
         if normalised is not None:
-            ring = (ndimage.binary_dilation(line, iterations=3)
-                    & ~ndimage.binary_dilation(line) & support)
+            ring = (
+                ndimage.binary_dilation(line, iterations=3)
+                & ~ndimage.binary_dilation(line)
+                & support
+            )
             result["amp_core"] = float(np.nanmean(normalised[line]))
-            result["amp_ring"] = (float(np.nanmean(normalised[ring]))
-                                  if ring.any() else np.nan)
+            result["amp_ring"] = (
+                float(np.nanmean(normalised[ring])) if ring.any() else np.nan
+            )
         lines.append(result)
     return lines, hits

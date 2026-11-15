@@ -1,8 +1,12 @@
 """Tests of the depth, domain and phase-vortex analysis functions."""
+
 import numpy as np
 
-from cdiutils.analysis import (get_depth_map, get_depth_profile,
-                               normalise_domains)
+from cdiutils.analysis import (
+    get_depth_map,
+    get_depth_profile,
+    normalise_domains,
+)
 from cdiutils.analysis.dislocation import find_phase_vortices
 
 
@@ -24,8 +28,9 @@ def test_depth_map_counts_from_the_top():
 
 def test_depth_profile_follows_a_gradient():
     support = box()
-    strain = np.broadcast_to(np.arange(30, dtype=float)[None, :, None],
-                             support.shape).copy()
+    strain = np.broadcast_to(
+        np.arange(30, dtype=float)[None, :, None], support.shape
+    ).copy()
     profile = get_depth_profile(strain, support, voxel_size=10, min_count=1)
     assert profile["depth"][0] == 0 and profile["depth"][1] == 10
     # the top layer is y = 24, one layer down is y = 23
@@ -46,12 +51,13 @@ def test_normalise_domains_equalises_two_parts():
 def test_screw_line_is_found_and_straight_crystal_is_clean():
     n = 40
     z, y, x = np.indices((n, n, n)) - n // 2
-    support = x ** 2 + y ** 2 + z ** 2 < 15 ** 2
+    support = x**2 + y**2 + z**2 < 15**2
     lines, hits = find_phase_vortices(np.zeros(support.shape), support)
     assert lines == [] and not hits.any()
     # screw dislocation along y: the phase winds once around the line
     phase = np.arctan2(z + 0.5, x + 0.5)
-    lines, _ = find_phase_vortices(phase, support,
-                                   amplitude=support.astype(float))
+    lines, _ = find_phase_vortices(
+        phase, support, amplitude=support.astype(float)
+    )
     assert len(lines) == 1
     assert abs(abs(lines[0]["direction"][1]) - 1) < 0.05
