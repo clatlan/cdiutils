@@ -14,6 +14,7 @@ PhasingResultAnalyser
       ~PhasingResultAnalyser.find_phasing_results
       ~PhasingResultAnalyser.metrics
       ~PhasingResultAnalyser.sorted_phasing_results
+      ~PhasingResultAnalyser.phase_retrieval_transfer_function
 
 See Also
 --------

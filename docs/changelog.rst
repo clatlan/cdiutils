@@ -3,6 +3,20 @@ Changelog
 
 This document tracks all notable changes to CDIutils.
 
+Unreleased
+----------
+
+**New Features:**
+
+* **Phase retrieval transfer function**
+  (:meth:`~cdiutils.process.PhasingResultAnalyser.phase_retrieval_transfer_function`):
+  PRTF of independent reconstructions against the measured intensity
+  (Chapman et al., J. Opt. Soc. Am. A 23, 1179 (2006)), averaged over
+  shells of true ``|q|`` (from the ``q_lab`` transformation matrix of the
+  preprocessed data) and, optionally, per direction (Cherukara et al.,
+  Appl. Phys. Lett. 113, 203101 (2018)); returns the half-period
+  resolution at the 1/e crossing.
+
 Version 0.2.0 (Current)
 ------------------------
 
