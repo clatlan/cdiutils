@@ -698,6 +698,56 @@ class SupportedCrystal:
         return fig
 
     @staticmethod
+    def table_figure(
+        table: pd.DataFrame,
+        highlight: dict | None = None,
+        decimals: int = 2,
+        font_size: int = 11,
+    ) -> plt.Figure:
+        """
+        Render a DataFrame as a figure (for slides).
+
+        Args:
+            table: The table; the index is not shown.
+            highlight: Value of the first column -> row colour.
+            decimals: Rounding of float columns.
+            font_size: Font size of the cells.
+
+        Returns:
+            The figure.
+        """
+        shown = table.copy()
+        for column in shown.select_dtypes("number"):
+            shown[column] = shown[column].map(
+                lambda value: (
+                    "–" if pd.isna(value) else f"{value:.{decimals}f}"
+                )
+            )
+        fig, ax = plt.subplots(
+            figsize=(1.35 * len(shown.columns), 0.42 * len(shown) + 0.9)
+        )
+        ax.axis("off")
+        labels = [column.replace(" (", "\n(") for column in shown.columns]
+        cells = ax.table(
+            cellText=shown.astype(str).values,
+            colLabels=labels,
+            loc="center",
+            cellLoc="center",
+        )
+        cells.auto_set_font_size(False)
+        cells.set_fontsize(font_size)
+        cells.scale(1, 1.7)
+        highlight = highlight or {}
+        first_column = list(shown.iloc[:, 0])
+        for (row, _), cell in cells.get_celld().items():
+            if row == 0:
+                cell.set_facecolor("0.9")
+                cell.set_height(cell.get_height() * 1.6)
+            elif first_column[row - 1] in highlight:
+                cell.set_facecolor(highlight[first_column[row - 1]])
+        return fig
+
+    @staticmethod
     def interface_misfit(
         crystal_spacing: float, substrate_spacing: float
     ) -> float:
