@@ -1437,22 +1437,31 @@ class PhasingResultAnalyser:
         nb_directions: int = 0,
         threshold: float = 1 / np.e,
         align: bool = True,
+        shell_average: str = "amplitude",
+        normalisation_q: float = None,
     ) -> dict:
         """
         Phase retrieval transfer function (PRTF) of independent
         reconstructions against the measured intensity.
 
         The PRTF is ``|<F_i(q)>| / sqrt(I(q))``, where ``F_i`` is the
-        Fourier transform of reconstruction i, each normalised to the
-        measured photon count, and the average is taken after aligning
-        every reconstruction to the first one (twin image, sub-pixel
+        Fourier transform of reconstruction i, scaled to the measured
+        intensity, and the average is taken after aligning every
+        reconstruction to the first one (twin image, sub-pixel
         translation and constant phase), see Chapman et al., J. Opt.
-        Soc. Am. A 23, 1179 (2006), eq. 23. Amplitudes are averaged
-        over each shell of constant ``|q|`` before the ratio is taken.
-        With ``nb_directions`` > 0, the PRTF is also computed in cones
-        around quasi-uniform directions, since the resolution of Bragg
-        CDI depends on the direction (Cherukara et al., Appl. Phys.
-        Lett. 113, 203101 (2018)).
+        Soc. Am. A 23, 1179 (2006), eq. 23. With ``nb_directions`` > 0,
+        the PRTF is also computed in cones around quasi-uniform
+        directions, since the resolution of Bragg CDI depends on the
+        direction (Cherukara et al., Appl. Phys. Lett. 113, 203101
+        (2018)).
+
+        Two shell averages are available. "amplitude" averages
+        ``|<F_i>|`` and ``sqrt(I)`` over each shell before the ratio
+        (intensity clipped at zero). "intensity" takes
+        ``sqrt(sum |<F_i>|^2 / sum I)`` over each shell, which accepts a
+        background-subtracted, unclipped intensity: the noise then
+        averages out instead of adding a positive bias to the
+        denominator, so the curve is not set by the background level.
 
         The resolution is the half-period ``pi / q`` at which the PRTF
         first falls below the threshold (1/e as in Cherukara et al.;
@@ -1465,7 +1474,8 @@ class PhasingResultAnalyser:
                 frame, with the shape of intensity and the origin at the
                 array centre (as PyNX outputs them).
             intensity (np.ndarray): measured intensity in photons,
-                origin at the array centre.
+                origin at the array centre; may be background-subtracted
+                and negative with ``shell_average="intensity"``.
             mask (np.ndarray, optional): values > 0 flag masked voxels.
                 Defaults to None.
             q_lab_matrix (np.ndarray, optional): (3, 3) matrix whose
@@ -1483,6 +1493,13 @@ class PhasingResultAnalyser:
                 resolution. Defaults to 1/e.
             align (bool, optional): whether to align the
                 reconstructions to the first one. Defaults to True.
+            shell_average (str, optional): "amplitude" or "intensity",
+                see above. Defaults to "amplitude".
+            normalisation_q (float, optional): scale each spectrum to
+                the measured intensity summed over ``|q|`` below this
+                value (signal-dominated region) instead of over the
+                whole array, whose total includes the background.
+                Defaults to None (whole array).
 
         Returns:
             dict: ``q`` (shell centres), ``prtf`` (one value per
@@ -1495,45 +1512,18 @@ class PhasingResultAnalyser:
 
         Raises:
             ValueError: if an object does not have the shape of the
-                intensity.
+                intensity, or if shell_average is unknown.
         """
+        if shell_average not in ("amplitude", "intensity"):
+            raise ValueError(
+                f"shell_average must be 'amplitude' or 'intensity', not "
+                f"{shell_average!r}."
+            )
         intensity = np.asarray(intensity, dtype=float)
         valid = np.isfinite(intensity)
         if mask is not None:
             valid &= np.asarray(mask) == 0
-        measured = np.sqrt(np.clip(np.where(valid, intensity, 0), 0, None))
-        photons = np.sum(measured**2)
-
-        # aligned and normalised spectra, summed (Chapman et al., eq. 23)
-        reference = np.asarray(objects[0])
-        reference_spectrum = None
-        spectrum_sum = np.zeros(intensity.shape, dtype=np.complex128)
-        for obj in objects:
-            obj = np.asarray(obj, dtype=np.complex128)
-            if obj.shape != intensity.shape:
-                raise ValueError(
-                    f"Object shape {obj.shape} differs from the intensity "
-                    f"shape {intensity.shape}."
-                )
-            if align and reference_spectrum is not None:
-                spectrum = PhasingResultAnalyser._register_spectrum(
-                    obj, reference
-                )
-            else:
-                spectrum = fftn(ifftshift(obj))
-            spectrum = fftshift(spectrum)
-            spectrum *= np.sqrt(photons / np.sum(np.abs(spectrum[valid]) ** 2))
-            if align and reference_spectrum is not None:
-                offset = np.angle(
-                    np.sum(
-                        np.conj(reference_spectrum[valid]) * spectrum[valid]
-                    )
-                )
-                spectrum *= np.exp(-1j * offset)
-            if reference_spectrum is None:
-                reference_spectrum = spectrum
-            spectrum_sum += spectrum
-        calculated = np.abs(spectrum_sum) / len(objects)
+        intensity = np.where(valid, intensity, 0)
 
         # |q| of every voxel (origin at the array centre)
         shape = np.array(intensity.shape)
@@ -1551,14 +1541,62 @@ class PhasingResultAnalyser:
         inside = valid & (shell < nb_shells)
         centres = (edges[:-1] + edges[1:]) / 2
 
+        # region where each spectrum is scaled to the data
+        scaling = valid.copy()
+        if normalisation_q is not None:
+            scaling &= q_norm < normalisation_q
+        measured_total = np.sum(intensity[scaling])
+
+        # aligned and scaled spectra, summed (Chapman et al., eq. 23)
+        reference = np.asarray(objects[0])
+        reference_spectrum = None
+        spectrum_sum = np.zeros(intensity.shape, dtype=np.complex128)
+        for obj in objects:
+            obj = np.asarray(obj, dtype=np.complex128)
+            if obj.shape != intensity.shape:
+                raise ValueError(
+                    f"Object shape {obj.shape} differs from the intensity "
+                    f"shape {intensity.shape}."
+                )
+            if align and reference_spectrum is not None:
+                spectrum = PhasingResultAnalyser._register_spectrum(
+                    obj, reference
+                )
+            else:
+                spectrum = fftn(ifftshift(obj))
+            spectrum = fftshift(spectrum)
+            spectrum *= np.sqrt(
+                measured_total / np.sum(np.abs(spectrum[scaling]) ** 2)
+            )
+            if align and reference_spectrum is not None:
+                offset = np.angle(
+                    np.sum(
+                        np.conj(reference_spectrum[valid]) * spectrum[valid]
+                    )
+                )
+                spectrum *= np.exp(-1j * offset)
+            if reference_spectrum is None:
+                reference_spectrum = spectrum
+            spectrum_sum += spectrum
+        calculated = np.abs(spectrum_sum) / len(objects)
+        if shell_average == "amplitude":
+            calculated_term = calculated[inside]
+            measured_term = np.sqrt(np.clip(intensity[inside], 0, None))
+        else:
+            calculated_term = calculated[inside] ** 2
+            measured_term = intensity[inside]
+
         def shell_prtf(index, size):
-            """PRTF per index (shell-averaged amplitudes, then ratio)."""
-            numerator = np.bincount(index, calculated[inside], size)
-            denominator = np.bincount(index, measured[inside], size)
+            """PRTF per index (shell sums, then ratio)."""
+            numerator = np.bincount(index, calculated_term, size)
+            denominator = np.bincount(index, measured_term, size)
             with np.errstate(invalid="ignore", divide="ignore"):
-                return np.where(
+                ratio = np.where(
                     denominator > 0, numerator / denominator, np.nan
                 )
+            if shell_average == "intensity":
+                return np.sqrt(ratio)
+            return ratio
 
         def crossing(prtf):
             """Half-period resolution at the threshold crossing."""

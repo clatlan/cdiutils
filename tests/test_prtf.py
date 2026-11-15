@@ -156,3 +156,36 @@ def test_directional_prtf_and_q_lab_units():
     # pi / q_c in angstrom: q_c (pixel units) / (10 angstrom)
     assert resolution_x == pytest.approx(np.pi / (q_cut / 10), rel=0.15)
     assert resolution_z is None or resolution_z < 0.8 * resolution_x
+
+
+def test_intensity_average_is_not_biased_by_background_noise():
+    """Perfect reconstructions against Poisson data with a background,
+    subtracted and left unclipped: the intensity-domain PRTF stays close
+    to 1 where the signal is below the background, the amplitude one
+    (clipped data) does not."""
+    obj = crystal()
+    truth = np.abs(spectrum(obj)) ** 2
+    truth *= 1e7 / truth.sum()
+    background = 2.0
+    rng = np.random.default_rng(3)
+    measured = rng.poisson(truth + background) - background
+    normalisation_q = 0.8
+    kwargs = {"nb_shells": 12, "normalisation_q": normalisation_q}
+    by_intensity = PhasingResultAnalyser.phase_retrieval_transfer_function(
+        [obj, obj], measured, shell_average="intensity", **kwargs
+    )
+    by_amplitude = PhasingResultAnalyser.phase_retrieval_transfer_function(
+        [obj, obj], measured, shell_average="amplitude", **kwargs
+    )
+    outer = by_intensity["q"] > 2.0
+    assert np.all(np.abs(by_intensity["prtf"][outer] - 1) < 0.2)
+    assert np.all(by_amplitude["prtf"][outer] < 0.8)
+
+
+def test_unknown_shell_average_raises():
+    """Only "amplitude" and "intensity" are accepted."""
+    obj = crystal()
+    with pytest.raises(ValueError):
+        PhasingResultAnalyser.phase_retrieval_transfer_function(
+            [obj], np.abs(spectrum(obj)) ** 2, shell_average="median"
+        )
