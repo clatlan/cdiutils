@@ -19,6 +19,8 @@ direction of the crystal. Reciprocal vectors include the 2 pi factor
 and are in 1/Angstrom, as in xrayutilities.
 """
 
+import textwrap
+
 import numpy as np
 import pandas as pd
 import xrayutilities as xu
@@ -730,16 +732,22 @@ class SupportedCrystal:
         """
         shown = table.copy()
         for column in shown.select_dtypes("number"):
-            shown[column] = shown[column].map(
-                lambda value: (
-                    "–" if pd.isna(value) else f"{value:.{decimals}f}"
-                )
+            values = shown[column]
+            # integer-valued columns (e.g. energies) without decimals
+            places = 0 if np.allclose(values.dropna() % 1, 0) else decimals
+            shown[column] = values.map(
+                lambda value, places=places: (
+                    "–" if pd.isna(value) else f"{value + 0.0:.{places}f}"
+                ).replace("-0.00", "0.00")
             )
         fig, ax = plt.subplots(
             figsize=(1.35 * len(shown.columns), 0.42 * len(shown) + 0.9)
         )
         ax.axis("off")
-        labels = [column.replace(" (", "\n(") for column in shown.columns]
+        labels = [
+            textwrap.fill(str(column).replace(" (", "\n("), 12)
+            for column in shown.columns
+        ]
         cells = ax.table(
             cellText=shown.astype(str).values,
             colLabels=labels,
