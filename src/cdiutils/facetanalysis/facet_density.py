@@ -129,7 +129,7 @@ class FacetDensityAnalyser:
         """Families {hkl} of the cubic system up to a maximum index.
 
         Args:
-            max_index (int): largest |h|, |k|, |l|.
+            max_index (int): largest ``|h|``, ``|k|``, ``|l|``.
 
         Returns:
             dict: family name (e.g. "{113}") -> list of its directions as
