@@ -24,6 +24,7 @@ of its orbit; labels are consistent within one analysis (one rotation).
 Arrays follow the CXI convention used by cdiutils post-processing
 (Z beam, Y vertical up, X outboard); vectors are written in array order.
 """
+
 from functools import lru_cache
 from itertools import permutations, product
 from math import gcd
@@ -34,7 +35,6 @@ import pandas as pd
 from matplotlib.colors import LogNorm, PowerNorm
 from scipy import ndimage
 
-
 # (highest Miller index, accepted misfit in degrees). With 2-4 degree
 # precision on the normals, a random direction falls within 4 deg of a
 # {100}, {110} or {111} direction 3 % of the time but within 4 deg of some
@@ -42,12 +42,22 @@ from scipy import ndimage
 INDEX_LEVELS = ((1, 4.0), (2, 2.5), (3, 1.5))
 
 FAMILY_COLOURS = {
-    "{111}": "tab:blue", "{100}": "tab:orange", "{110}": "tab:purple",
-    "{210}": "tab:olive", "{211}": "tab:cyan", "{221}": "tab:pink",
+    "{111}": "tab:blue",
+    "{100}": "tab:orange",
+    "{110}": "tab:purple",
+    "{210}": "tab:olive",
+    "{211}": "tab:cyan",
+    "{221}": "tab:pink",
     "{311}": "tab:brown",
 }
-CONDITION_COLOURS = ("tab:blue", "tab:green", "tab:red", "tab:purple",
-                     "tab:orange", "tab:brown")
+CONDITION_COLOURS = (
+    "tab:blue",
+    "tab:green",
+    "tab:red",
+    "tab:purple",
+    "tab:orange",
+    "tab:brown",
+)
 
 
 @lru_cache(maxsize=None)
@@ -55,7 +65,8 @@ def _direction_table(max_index):
     """Cached table of the cubic directions up to max_index."""
     names, hkls = [], []
     for name, members in FacetDensityAnalyser.cubic_families(
-            max_index).items():
+        max_index
+    ).items():
         for hkl in members:
             names.append(name)
             hkls.append(hkl)
@@ -93,9 +104,18 @@ class FacetDensityAnalyser:
         kernel_width_deg (float): width of the density kernel.
     """
 
-    def __init__(self, support, top=(1, 1, 1), top_lab=(0, 1, 0),
-                 voxel_size=10.0, sigma=1.5, tol_deg=5.0, min_count=60,
-                 min_patch=30, kernel_width_deg=3.0):
+    def __init__(
+        self,
+        support,
+        top=(1, 1, 1),
+        top_lab=(0, 1, 0),
+        voxel_size=10.0,
+        sigma=1.5,
+        tol_deg=5.0,
+        min_count=60,
+        min_patch=30,
+        kernel_width_deg=3.0,
+    ):
         self.support = np.asarray(support) > 0
         self.top = tuple(top)
         self.top_lab = np.asarray(top_lab, float)
@@ -109,8 +129,7 @@ class FacetDensityAnalyser:
         self.facets = []
         self.orientation_cost_deg = None
 
-        self.surface, self.normals = self.surface_normals(self.support,
-                                                          sigma)
+        self.surface, self.normals = self.surface_normals(self.support, sigma)
         self.idx = np.argwhere(self.surface)
         self.gap = self.planar_gap(self.support)
         self.gap_face = ndimage.binary_dilation(self.gap)[self.surface]
@@ -146,8 +165,7 @@ class FacetDensityAnalyser:
             members = set()
             for perm in permutations(base):
                 for signs in product((1, -1), repeat=3):
-                    members.add(tuple(int(p * s)
-                                      for p, s in zip(perm, signs)))
+                    members.add(tuple(int(p * s) for p, s in zip(perm, signs)))
             families[name] = sorted(members)
         return families
 
@@ -184,26 +202,35 @@ class FacetDensityAnalyser:
         Returns:
             str: the sorted members, e.g. "(-111)(1-11)(11-1)".
         """
-        members = {tuple(int(v) for v in op @ np.array(hkl))
-                   for op in cls.symmetry_operations(top)}
-        return "".join("(" + "".join(str(v) for v in m) + ")"
-                       for m in sorted(members))
+        members = {
+            tuple(int(v) for v in op @ np.array(hkl))
+            for op in cls.symmetry_operations(top)
+        }
+        return "".join(
+            "(" + "".join(str(v) for v in m) + ")" for m in sorted(members)
+        )
 
     @staticmethod
     def fibonacci_sphere(n=20000):
         """Nearly uniform unit vectors on the sphere, shape (n, 3)."""
         i = np.arange(n) + 0.5
         polar = np.arccos(1 - 2 * i / n)
-        azimuth = np.pi * (1 + 5 ** 0.5) * i
-        return np.stack([np.cos(polar),
-                         np.sin(polar) * np.sin(azimuth),
-                         np.sin(polar) * np.cos(azimuth)], axis=1)
+        azimuth = np.pi * (1 + 5**0.5) * i
+        return np.stack(
+            [
+                np.cos(polar),
+                np.sin(polar) * np.sin(azimuth),
+                np.sin(polar) * np.cos(azimuth),
+            ],
+            axis=1,
+        )
 
     @staticmethod
     def angle_deg(u, v):
         """Angles in degrees between the rows of u and of v (n, m)."""
-        return np.degrees(np.arccos(np.clip(np.atleast_2d(u)
-                                            @ np.atleast_2d(v).T, -1, 1)))
+        return np.degrees(
+            np.arccos(np.clip(np.atleast_2d(u) @ np.atleast_2d(v).T, -1, 1))
+        )
 
     @classmethod
     def chance_level(cls, max_index, misfit_deg, n_grid=20000):
@@ -284,9 +311,10 @@ class FacetDensityAnalyser:
         kappa = 1 / np.radians(self.kernel_width_deg) ** 2
         density = np.zeros(len(grid))
         for start in range(0, len(grid), chunk):
-            block = grid[start:start + chunk]
-            density[start:start + chunk] = np.exp(
-                kappa * (block @ normals.T - 1)).sum(1)
+            block = grid[start : start + chunk]
+            density[start : start + chunk] = np.exp(
+                kappa * (block @ normals.T - 1)
+            ).sum(1)
         return density
 
     def find_peaks(self, min_sep_deg=8.0):
@@ -320,9 +348,13 @@ class FacetDensityAnalyser:
             if members.sum() < self.min_count:
                 continue
             mean = normals[members].mean(0)
-            peaks.append(dict(seed=seed,
-                              direction=mean / np.linalg.norm(mean),
-                              count=int(members.sum())))
+            peaks.append(
+                dict(
+                    seed=seed,
+                    direction=mean / np.linalg.norm(mean),
+                    count=int(members.sum()),
+                )
+            )
         return peaks
 
     @staticmethod
@@ -332,11 +364,13 @@ class FacetDensityAnalyser:
         x, y, z = axis
         c, s = np.cos(angle), np.sin(angle)
         t = 1 - c
-        return np.array([
-            [c + x * x * t, x * y * t - z * s, x * z * t + y * s],
-            [y * x * t + z * s, c + y * y * t, y * z * t - x * s],
-            [z * x * t - y * s, z * y * t + x * s, c + z * z * t],
-        ])
+        return np.array(
+            [
+                [c + x * x * t, x * y * t - z * s, x * z * t + y * s],
+                [y * x * t + z * s, c + y * y * t, y * z * t - x * s],
+                [z * x * t - y * s, z * y * t + x * s, c + z * z * t],
+            ]
+        )
 
     @classmethod
     def _align(cls, a, b):
@@ -350,10 +384,14 @@ class FacetDensityAnalyser:
                 return np.eye(3)
             other = [1, 0, 0] if abs(a[0]) < 0.9 else [0, 1, 0]
             return cls._rotation_about(np.cross(a, other), np.pi)
-        skew = np.array([[0, -cross[2], cross[1]],
-                         [cross[2], 0, -cross[0]],
-                         [-cross[1], cross[0], 0]])
-        return np.eye(3) + skew + skew @ skew * (1 - cos) / sin ** 2
+        skew = np.array(
+            [
+                [0, -cross[2], cross[1]],
+                [cross[2], 0, -cross[0]],
+                [-cross[1], cross[0], 0],
+            ]
+        )
+        return np.eye(3) + skew + skew @ skew * (1 - cos) / sin**2
 
     def fit_orientation(self, peaks, max_tilt_deg=2.0):
         """Crystal-to-lab rotation from the facet peaks.
@@ -382,7 +420,8 @@ class FacetDensityAnalyser:
         tilts = [(0.0, 0.0)] + [
             (np.radians(t), np.radians(p))
             for t in np.arange(1, max_tilt_deg + 0.1, 1)
-            for p in range(0, 360, 30)]
+            for p in range(0, 360, 30)
+        ]
         best = (np.inf, None)
         for tilt, tilt_azimuth in tilts:
             axis = np.cos(tilt_azimuth) * perp + np.sin(tilt_azimuth) * perp2
@@ -399,8 +438,9 @@ class FacetDensityAnalyser:
                     best = (cost, rotation)
         return best[1], best[0]
 
-    def refine_orientation(self, rotation, directions, hkls, weights,
-                           max_tilt_deg=2.0):
+    def refine_orientation(
+        self, rotation, directions, hkls, weights, max_tilt_deg=2.0
+    ):
         """Weighted best rotation (Kabsch) of indexed facets.
 
         Rejected (the input rotation is returned) if it tilts the top
@@ -423,10 +463,10 @@ class FacetDensityAnalyser:
         u, _, vt = np.linalg.svd(cov)
         sign = np.sign(np.linalg.det(u @ vt))
         refined = u @ np.diag([1, 1, sign]) @ vt
-        top = refined @ (np.array(self.top, float)
-                         / np.linalg.norm(self.top))
-        tilt = self.angle_deg(top, self.top_lab / np.linalg.norm(
-            self.top_lab))[0, 0]
+        top = refined @ (np.array(self.top, float) / np.linalg.norm(self.top))
+        tilt = self.angle_deg(
+            top, self.top_lab / np.linalg.norm(self.top_lab)
+        )[0, 0]
         return refined if tilt <= max_tilt_deg else rotation
 
     def index(self, direction, rotation=None, levels=INDEX_LEVELS):
@@ -455,12 +495,16 @@ class FacetDensityAnalyser:
                 break
         else:
             kind, chance = "vicinal", float("nan")
-        return dict(family=names[i], hkl=list(hkls[i]),
-                    misfit_deg=float(misfit[i]),
-                    angle_to_top=float(self.angle_deg(unit[i],
-                                                      top_unit)[0, 0]),
-                    orbit=self.orbit_label(hkls[i], self.top), kind=kind,
-                    level=max_index, chance=chance)
+        return dict(
+            family=names[i],
+            hkl=list(hkls[i]),
+            misfit_deg=float(misfit[i]),
+            angle_to_top=float(self.angle_deg(unit[i], top_unit)[0, 0]),
+            orbit=self.orbit_label(hkls[i], self.top),
+            kind=kind,
+            level=max_index,
+            chance=chance,
+        )
 
     def analyse(self, n_refine=3):
         """Peaks, orientation and indexing of this (reference) scan.
@@ -476,25 +520,30 @@ class FacetDensityAnalyser:
         peaks = self.find_peaks()
         rotation, _ = self.fit_orientation(peaks)
         for _ in range(n_refine):
-            indexed = [(p, self.index(p["direction"], rotation))
-                       for p in peaks]
+            indexed = [
+                (p, self.index(p["direction"], rotation)) for p in peaks
+            ]
             indexed = [(p, i) for p, i in indexed if i["kind"] == "facet"]
             rotation = self.refine_orientation(
-                rotation, [p["direction"] for p, _ in indexed],
+                rotation,
+                [p["direction"] for p, _ in indexed],
                 [i["hkl"] for _, i in indexed],
-                [p["count"] for p, _ in indexed])
+                [p["count"] for p, _ in indexed],
+            )
         self.rotation = rotation
         self.facets = []
         for peak in peaks:
             info = self.index(peak["direction"])
             info["count"] = peak["count"]
             info["lab_direction"] = peak["direction"].tolist()
-            info["crystal_direction"] = (rotation.T
-                                         @ peak["direction"]).tolist()
+            info["crystal_direction"] = (
+                rotation.T @ peak["direction"]
+            ).tolist()
             self.facets.append(info)
         weights = [f["count"] for f in self.facets]
-        self.orientation_cost_deg = float(np.average(
-            [f["misfit_deg"] for f in self.facets], weights=weights))
+        self.orientation_cost_deg = float(
+            np.average([f["misfit_deg"] for f in self.facets], weights=weights)
+        )
         return self.reference()
 
     def reference(self):
@@ -503,11 +552,15 @@ class FacetDensityAnalyser:
         if self.boundary_normal is not None:
             boundary = self.index(self.boundary_normal, levels=((1, 10.0),))
             boundary["lab_normal"] = self.boundary_normal.tolist()
-        return dict(top=list(self.top), tol_deg=self.tol_deg,
-                    min_count=self.min_count,
-                    orientation_cost_deg=self.orientation_cost_deg,
-                    rotation=self.rotation.tolist(), facets=self.facets,
-                    boundary=boundary)
+        return dict(
+            top=list(self.top),
+            tol_deg=self.tol_deg,
+            min_count=self.min_count,
+            orientation_cost_deg=self.orientation_cost_deg,
+            rotation=self.rotation.tolist(),
+            facets=self.facets,
+            boundary=boundary,
+        )
 
     @classmethod
     def from_reference(cls, support, reference, **kwargs):
@@ -521,9 +574,13 @@ class FacetDensityAnalyser:
         Returns:
             FacetDensityAnalyser: with the reference rotation and facets.
         """
-        analyser = cls(support, top=tuple(reference["top"]),
-                       tol_deg=reference["tol_deg"],
-                       min_count=reference["min_count"], **kwargs)
+        analyser = cls(
+            support,
+            top=tuple(reference["top"]),
+            tol_deg=reference["tol_deg"],
+            min_count=reference["min_count"],
+            **kwargs,
+        )
         analyser.rotation = np.array(reference["rotation"])
         analyser.facets = reference["facets"]
         analyser.orientation_cost_deg = reference["orientation_cost_deg"]
@@ -533,8 +590,12 @@ class FacetDensityAnalyser:
 
     def facet_directions(self):
         """Lab directions of the facets, from their crystal directions."""
-        return np.array([self.rotation @ np.array(f["crystal_direction"])
-                         for f in self.facets])
+        return np.array(
+            [
+                self.rotation @ np.array(f["crystal_direction"])
+                for f in self.facets
+            ]
+        )
 
     def assign(self):
         """Label every outer surface voxel.
@@ -551,16 +612,16 @@ class FacetDensityAnalyser:
         label = np.full(len(self.idx), -1)
         if self.facets:
             angles = self.angle_deg(self.normals, self.facet_directions())
-            label = np.where(angles.min(1) < self.tol_deg,
-                             angles.argmin(1), -1)
+            label = np.where(
+                angles.min(1) < self.tol_deg, angles.argmin(1), -1
+            )
         if self.boundary_normal is not None:
             side = np.where(self.normals @ self.boundary_normal > 0, -2, -3)
             label[self.gap_face] = side[self.gap_face]
         grid = np.full(self.support.shape, -9, int)
         grid[tuple(self.idx.T)] = label
         for k in np.unique(label[label >= 0]):
-            patches, _ = ndimage.label(grid == k,
-                                       structure=np.ones((3, 3, 3)))
+            patches, _ = ndimage.label(grid == k, structure=np.ones((3, 3, 3)))
             sizes = np.bincount(patches.ravel())
             small = (patches > 0) & (sizes[patches] < self.min_patch)
             grid[small] = -1
@@ -601,22 +662,28 @@ class FacetDensityAnalyser:
             values[f"{name}_below"] = self._below(array)
         gap_distance = np.full(len(self.idx), np.inf)
         if self.gap.any():
-            gap_distance = ndimage.distance_transform_edt(
-                ~self.gap)[tuple(self.idx.T)]
+            gap_distance = ndimage.distance_transform_edt(~self.gap)[
+                tuple(self.idx.T)
+            ]
 
         rows = []
         for k, facet in enumerate(self.facets):
             member = label == k
             if not member.any():
                 continue
-            row = dict(facet_id=k, kind=facet["kind"],
-                       family=facet["family"],
-                       hkl=str(tuple(facet["hkl"])), orbit=facet["orbit"],
-                       angle_to_top=round(facet["angle_to_top"], 1),
-                       voxels=int(member.sum()),
-                       height_nm=float(height[member].mean()),
-                       share_at_gap=float((gap_distance[member]
-                                           <= near_gap_voxels).mean()))
+            row = dict(
+                facet_id=k,
+                kind=facet["kind"],
+                family=facet["family"],
+                hkl=str(tuple(facet["hkl"])),
+                orbit=facet["orbit"],
+                angle_to_top=round(facet["angle_to_top"], 1),
+                voxels=int(member.sum()),
+                height_nm=float(height[member].mean()),
+                share_at_gap=float(
+                    (gap_distance[member] <= near_gap_voxels).mean()
+                ),
+            )
             for name, value in values.items():
                 row[name] = float(np.nanmean(value[member]))
             rows.append(row)
@@ -630,15 +697,19 @@ class FacetDensityAnalyser:
             sizes = sorted(np.bincount(parts.ravel())[1:].tolist())
             for side, name in ((-2, "+n side"), (-3, "-n side")):
                 member = label == side
-                row = dict(side=name, plane=str(tuple(info["hkl"])),
-                           misfit_deg=info["misfit_deg"],
-                           offset_nm=float(along.mean()
-                                           - centre @ self.boundary_normal)
-                           * self.voxel_size,
-                           roughness_nm=float(along.std()) * self.voxel_size,
-                           voxels=int(member.sum()),
-                           height_nm=float(height[member].mean()),
-                           part_volumes=str(sizes[-2:]))
+                row = dict(
+                    side=name,
+                    plane=str(tuple(info["hkl"])),
+                    misfit_deg=info["misfit_deg"],
+                    offset_nm=float(
+                        along.mean() - centre @ self.boundary_normal
+                    )
+                    * self.voxel_size,
+                    roughness_nm=float(along.std()) * self.voxel_size,
+                    voxels=int(member.sum()),
+                    height_nm=float(height[member].mean()),
+                    part_volumes=str(sizes[-2:]),
+                )
                 for value_name, value in values.items():
                     row[value_name] = float(np.nanmean(value[member]))
                 bounds.append(row)
@@ -657,12 +728,20 @@ class FacetDensityAnalyser:
         for peak in self.find_peaks():
             info = self.index(peak["direction"])
             match = self.angle_deg(peak["direction"], directions)[0]
-            rows.append(dict(
-                count=peak["count"], family=info["family"],
-                hkl=str(tuple(info["hkl"])), kind=info["kind"],
-                misfit_deg=info["misfit_deg"],
-                reference_id=(int(match.argmin())
-                              if match.min() < self.tol_deg else -1)))
+            rows.append(
+                dict(
+                    count=peak["count"],
+                    family=info["family"],
+                    hkl=str(tuple(info["hkl"])),
+                    kind=info["kind"],
+                    misfit_deg=info["misfit_deg"],
+                    reference_id=(
+                        int(match.argmin())
+                        if match.min() < self.tol_deg
+                        else -1
+                    ),
+                )
+            )
         return pd.DataFrame(rows)
 
     # ------------------------------------------------------ series tables
@@ -682,16 +761,25 @@ class FacetDensityAnalyser:
             pd.DataFrame: one row per kept facet.
         """
         n_scans = facets.scan_key.nunique()
-        summary = facets.groupby(
-            ["facet_id", "kind", "family", "hkl", "orbit", "angle_to_top"]
-        ).agg(scans=("scan_key", "nunique"), voxels=("voxels", "median"),
-              height_nm=("height_nm", "mean"),
-              strain=("strain_surface", "mean"),
-              strain_sd=("strain_surface", "std")).reset_index()
-        keep = ((summary.scans >= min_share * n_scans)
-                & (summary.voxels >= min_voxels))
-        return summary[keep].sort_values(["angle_to_top", "voxels"],
-                                         ascending=[True, False])
+        summary = (
+            facets.groupby(
+                ["facet_id", "kind", "family", "hkl", "orbit", "angle_to_top"]
+            )
+            .agg(
+                scans=("scan_key", "nunique"),
+                voxels=("voxels", "median"),
+                height_nm=("height_nm", "mean"),
+                strain=("strain_surface", "mean"),
+                strain_sd=("strain_surface", "std"),
+            )
+            .reset_index()
+        )
+        keep = (summary.scans >= min_share * n_scans) & (
+            summary.voxels >= min_voxels
+        )
+        return summary[keep].sort_values(
+            ["angle_to_top", "voxels"], ascending=[True, False]
+        )
 
     @staticmethod
     def persistent_new_facets(peaks, state="state"):
@@ -708,10 +796,15 @@ class FacetDensityAnalyser:
         """
         n_scans = peaks.groupby(state).scan_key.nunique()
         new = peaks[peaks.reference_id < 0]
-        grouped = new.groupby([state, "family", "hkl", "kind"]).agg(
-            scans=("scan_key", "nunique"),
-            misfit_deg=("misfit_deg", "mean"),
-            count=("count", "mean")).reset_index()
+        grouped = (
+            new.groupby([state, "family", "hkl", "kind"])
+            .agg(
+                scans=("scan_key", "nunique"),
+                misfit_deg=("misfit_deg", "mean"),
+                count=("count", "mean"),
+            )
+            .reset_index()
+        )
         complete = grouped.scans == grouped[state].map(n_scans)
         repeated = grouped[state].map(n_scans) >= 2
         return grouped[complete & repeated]
@@ -726,8 +819,7 @@ class FacetDensityAnalyser:
     @staticmethod
     def compact(hkl):
         """'(1, 0, -2)' -> '(10-2)'."""
-        return ("(" + "".join(hkl.strip("()").replace(" ", "").split(","))
-                + ")")
+        return "(" + "".join(hkl.strip("()").replace(" ", "").split(",")) + ")"
 
     def plot_map(self, axes, facet_ids=None):
         """Outer surface coloured by facet family, three views.
@@ -737,21 +829,25 @@ class FacetDensityAnalyser:
             facet_ids (list): facets to colour (default: all).
         """
         label = self.assign()
-        facet_ids = (range(len(self.facets)) if facet_ids is None
-                     else facet_ids)
+        facet_ids = range(len(self.facets)) if facet_ids is None else facet_ids
         colours = np.full(len(self.idx), "lightgray", dtype=object)
         for k in facet_ids:
-            colours[label == k] = self.family_colour(
-                self.facets[k]["family"])
+            colours[label == k] = self.family_colour(self.facets[k]["family"])
         colours[label == -2] = "black"
         colours[label == -3] = "dimgray"
-        views = ((2, 1, 0, "side view (x, y)"),
-                 (0, 1, 2, "side view (z, y)"),
-                 (2, 0, 1, "top view (x, z)"))
+        views = (
+            (2, 1, 0, "side view (x, y)"),
+            (0, 1, 2, "side view (z, y)"),
+            (2, 0, 1, "top view (x, z)"),
+        )
         for ax, (horizontal, vertical, depth, title) in zip(axes, views):
             order = np.argsort(self.idx[:, depth])
-            ax.scatter(self.idx[order, horizontal],
-                       self.idx[order, vertical], c=colours[order], s=3)
+            ax.scatter(
+                self.idx[order, horizontal],
+                self.idx[order, vertical],
+                c=colours[order],
+                s=3,
+            )
             ax.set_aspect("equal")
             ax.set_title(title, fontsize=9)
             ax.set_xticks([])
@@ -790,8 +886,7 @@ class FacetDensityAnalyser:
 
     def mark_facets(self, ax, facet_ids=None, annotate=False):
         """Circles at the facet normals on a stereographic plot."""
-        facet_ids = (range(len(self.facets)) if facet_ids is None
-                     else facet_ids)
+        facet_ids = range(len(self.facets)) if facet_ids is None else facet_ids
         directions = self.facet_directions()
         for k in facet_ids:
             x, y = self.stereographic(directions[k])
@@ -799,22 +894,35 @@ class FacetDensityAnalyser:
             ax.plot(x, y, "o", mfc="none", mec=colour, ms=9, mew=1.6)
             if annotate:
                 name = "".join(str(i) for i in self.facets[k]["hkl"])
-                ax.annotate(name, (x[0], y[0]), fontsize=6, xytext=(4, 3),
-                            textcoords="offset points")
+                ax.annotate(
+                    name,
+                    (x[0], y[0]),
+                    fontsize=6,
+                    xytext=(4, 3),
+                    textcoords="offset points",
+                )
 
     def plot_normal_density(self, ax, facet_ids=None):
         """Density of the surface normals with the facets marked."""
         x, y = self.stereographic(self.normals)
         hist, edges_x, edges_y = np.histogram2d(
-            x, y, bins=120, range=[[-90, 90], [-90, 90]])
+            x, y, bins=120, range=[[-90, 90], [-90, 90]]
+        )
         hist = ndimage.gaussian_filter(hist, 1.5)
-        ax.pcolormesh(edges_x, edges_y, hist.T, cmap="Greys",
-                      norm=PowerNorm(0.35, 0, hist.max()), shading="auto")
+        ax.pcolormesh(
+            edges_x,
+            edges_y,
+            hist.T,
+            cmap="Greys",
+            norm=PowerNorm(0.35, 0, hist.max()),
+            shading="auto",
+        )
         self._stereo_frame(ax)
         self.mark_facets(ax, facet_ids, annotate=True)
 
-    def plot_pole_figures(self, axes, intensity, q_grid, facet_ids=None,
-                          fractions=(0.35, 0.6)):
+    def plot_pole_figures(
+        self, axes, intensity, q_grid, facet_ids=None, fractions=(0.35, 0.6)
+    ):
         """Pole figures of the Bragg peak with the facet normals.
 
         Args:
@@ -830,16 +938,22 @@ class FacetDensityAnalyser:
         half_range = min(np.ptp(g) for g in q_grid) / 2
         for ax, fraction in zip(axes, fractions):
             (gx, gy, projected), (fig, _) = pole_figure(
-                intensity, q_grid, axis="2", radius=fraction * half_range,
-                dr=0.06 * half_range, resolution=200)
+                intensity,
+                q_grid,
+                axis="2",
+                radius=fraction * half_range,
+                dr=0.06 * half_range,
+                resolution=200,
+            )
             plt.close(fig)
             positive = projected[projected > 0]
-            norm = LogNorm(max(np.nanpercentile(positive, 5), 1e-3),
-                           np.nanmax(projected))
-            ax.pcolormesh(gx, gy, projected, norm=norm, cmap="turbo",
-                          shading="auto")
-            ax.set_title(f"|Δq| = {fraction * half_range:.3f} 1/Å",
-                         fontsize=9)
+            norm = LogNorm(
+                max(np.nanpercentile(positive, 5), 1e-3), np.nanmax(projected)
+            )
+            ax.pcolormesh(
+                gx, gy, projected, norm=norm, cmap="turbo", shading="auto"
+            )
+            ax.set_title(f"|Δq| = {fraction * half_range:.3f} 1/Å", fontsize=9)
             self._stereo_frame(ax)
             self.mark_facets(ax, facet_ids)
 
@@ -864,14 +978,26 @@ class FacetDensityAnalyser:
                 values = used[used.facet_id == member.facet_id]
                 x = position + 0.12 * offset
                 for name, group in values.groupby(condition, sort=False):
-                    ax.errorbar(x, group.strain_surface.mean(),
-                                yerr=group.strain_surface.std(), fmt="o",
-                                ms=5, color=colours[name], capsize=2)
-                ax.annotate(FacetDensityAnalyser.compact(member.hkl),
-                            (x, member.strain), fontsize=6, xytext=(3, 3),
-                            textcoords="offset points")
-        labels = [f"{summary[summary.orbit == o].family.iloc[0]} "
-                  f"{orbits[o]:.0f}°" for o in orbits.index]
+                    ax.errorbar(
+                        x,
+                        group.strain_surface.mean(),
+                        yerr=group.strain_surface.std(),
+                        fmt="o",
+                        ms=5,
+                        color=colours[name],
+                        capsize=2,
+                    )
+                ax.annotate(
+                    FacetDensityAnalyser.compact(member.hkl),
+                    (x, member.strain),
+                    fontsize=6,
+                    xytext=(3, 3),
+                    textcoords="offset points",
+                )
+        labels = [
+            f"{summary[summary.orbit == o].family.iloc[0]} {orbits[o]:.0f}°"
+            for o in orbits.index
+        ]
         ax.set_xticks(range(len(orbits)))
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
         for name in conditions:
@@ -882,8 +1008,16 @@ class FacetDensityAnalyser:
         ax.grid(alpha=0.3)
 
     @staticmethod
-    def plot_series(ax, table, items, positions, labels, key="facet_id",
-                    value="strain_surface", legend="hkl"):
+    def plot_series(
+        ax,
+        table,
+        items,
+        positions,
+        labels,
+        key="facet_id",
+        value="strain_surface",
+        legend="hkl",
+    ):
         """A quantity of facets (or gap faces) through a series.
 
         Args:
@@ -901,8 +1035,14 @@ class FacetDensityAnalyser:
             rows = table[table[key] == item].sort_values("position")
             if rows.empty:
                 continue
-            ax.plot(rows.position, rows[value], "o-", ms=3, lw=1,
-                    label=str(rows[legend].iloc[0]).replace(" ", ""))
+            ax.plot(
+                rows.position,
+                rows[value],
+                "o-",
+                ms=3,
+                lw=1,
+                label=str(rows[legend].iloc[0]).replace(" ", ""),
+            )
         ax.set_xticks(positions)
         ax.set_xticklabels(labels, rotation=90, fontsize=6)
         ax.grid(alpha=0.3)

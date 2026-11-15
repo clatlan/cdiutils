@@ -1,4 +1,5 @@
 """Tests of FacetDensityAnalyser on synthetic faceted crystals."""
+
 import numpy as np
 import pytest
 
@@ -21,7 +22,8 @@ def truncated_octahedron(size=60, cube=17, octa=24, rotation=None):
     grid = np.indices((size, size, size)).reshape(3, -1).T - size / 2
     crystal = grid @ rotation  # lab -> crystal (rotation is orthogonal)
     inside = (np.abs(crystal).max(1) <= cube) & (
-        np.abs(crystal).sum(1) <= octa)
+        np.abs(crystal).sum(1) <= octa
+    )
     return inside.reshape(size, size, size)
 
 
@@ -62,8 +64,9 @@ def test_finds_and_indexes_the_facets(tilted):
     support, _ = tilted
     analyser = FacetDensityAnalyser(support, top=(1, 1, 1), min_count=20)
     reference = analyser.analyse()
-    families = {f["family"] for f in reference["facets"]
-                if f["kind"] == "facet"}
+    families = {
+        f["family"] for f in reference["facets"] if f["kind"] == "facet"
+    }
     assert {"{100}", "{111}"} <= families
     assert reference["orientation_cost_deg"] < 4
 
@@ -80,18 +83,20 @@ def test_gap_faces_are_internal(tilted):
     assert set(boundary.side) == {"+n side", "-n side"}
     # with one reflection the in-plane axes are only defined up to the
     # symmetry around the top: any member of the {111} side orbit is right
-    plane = tuple(int(v)
-                  for v in boundary.plane.iloc[0].strip("()").split(","))
+    plane = tuple(
+        int(v) for v in boundary.plane.iloc[0].strip("()").split(",")
+    )
     label = FacetDensityAnalyser.orbit_label(plane)
-    side_orbits = (FacetDensityAnalyser.orbit_label((1, 1, -1)),
-                   FacetDensityAnalyser.orbit_label((-1, -1, 1)))
+    side_orbits = (
+        FacetDensityAnalyser.orbit_label((1, 1, -1)),
+        FacetDensityAnalyser.orbit_label((-1, -1, 1)),
+    )
     assert label in side_orbits
 
 
 def test_stereographic_projection():
     # the vertical (CXI y) projects to the centre, a horizontal vector to
     # the rim (90 deg)
-    x, y = FacetDensityAnalyser.stereographic(np.array([[0, 1, 0],
-                                                        [1, 0, 0]]))
+    x, y = FacetDensityAnalyser.stereographic(np.array([[0, 1, 0], [1, 0, 0]]))
     np.testing.assert_allclose([x[0], y[0]], [0, 0], atol=1e-9)
     assert np.isclose(np.hypot(x[1], y[1]), 90)
