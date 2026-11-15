@@ -674,7 +674,7 @@ class PyNXPhaser:
         Detector-frame PSF of the monochromator bandwidth (longitudinal
         coherence). At fixed angles a wavelength lambda' measures
         q lambda / lambda', so near the Bragg peak Q the pattern is
-        blurred along Q by |Q| dlambda/lambda (Gaussian spectrum of that
+        blurred along Q by ``|Q| dlambda / lambda`` (Gaussian spectrum of that
         FWHM). Partial-coherence formalism: Clark et al., Nat. Commun.
         3, 993 (2012), eq. 3-4.
 
@@ -803,8 +803,8 @@ class PyNXPhaser:
             init_cdi (bool, optional): whether to initialise the cdi
                 object or not. Defaults to True.
             mode (str, optional): "amplitude": each run keeps its phase
-                and takes sqrt(|obj| |best|) as modulus (default);
-                "complex": each run becomes sqrt(obj x best) as in
+                and takes ``sqrt(|obj| |best|)`` as modulus (default);
+                "complex": each run becomes ``sqrt(obj * best)`` as in
                 E. Bellec's genetic scheme (cdi_dislo.genetic).
             twin_align (bool, optional): bring every run to the twin
                 image and centre of the best one before combining.
@@ -1183,7 +1183,8 @@ class PhasingResultAnalyser:
     ) -> None:
         """
         Analyse the phase retrieval results by sorting them according to
-        the sorting_criteion, which must be selected in among:
+        the sorting_criterion, which must be selected among:
+
         * mean_to_max the difference between the mean of the
             Gaussian fitting of the amplitude histogram and the maximum
             value of the amplitude. We consider the closest to the max
@@ -1191,7 +1192,7 @@ class PhasingResultAnalyser:
             reconstruction, hence the best.
         * the sharpness the sum of the amplitude within support to
             the power of 4. For reconstruction with similar support,
-            lowest values means graeter amplitude homogeneity.
+            lowest values means greater amplitude homogeneity.
         * std the standard deviation of the amplitude.
         * llk the log-likelihood of the reconstruction.
         * llkf the free log-likelihood of the reconstruction.
