@@ -9,6 +9,7 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
 
    ../bcdi_pipeline_example
    ../interactive_features
+   ../multivolume_viewer
    ../bcdi_reconstruction_analysis
    ../explore_cxi_file
    ../pole_figure
@@ -31,6 +32,20 @@ Interactive 3D Visualisation
 * Colormap selection and colorbar control (auto-scale, symmetric, manual limits)
 * NaN handling for clean visualisations
 * Theme toggle and rotation animations
+
+Several Fields, Conditions and Facets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`multivolume_viewer.ipynb <../../examples/multivolume_viewer.ipynb>`
+
+Runs on synthetic data (no beamline files). Learn to use ``MultiVolumeViewer``:
+
+* several conditions (e.g. pressure steps) with units on the colorbars
+* views built by script: surface strain, slices, colour-range presets
+* facet patches with area and strain per facet, surface shell / core statistics
+* PNG, GIF / MP4 and interactive HTML exports with the built-in renderer
+* saving a view as a reusable script
+* opening cdiutils results with ``from_cdiutils`` and the ``launcher`` form
 
 BCDI Pipeline Example
 ~~~~~~~~~~~~~~~~~~~~~

@@ -10,6 +10,7 @@ The :mod:`cdiutils.interactive` module provides interactive 3D visualisation too
    :template: class.rst
 
    ThreeDViewer
+   MultiVolumeViewer
    Plotter
 
 Functions
@@ -23,5 +24,6 @@ Functions
 See Also
 --------
 :doc:`classes/ThreeDViewer` : 3D isosurface viewer documentation
+:doc:`classes/MultiVolumeViewer` : multi-layer 3D viewer documentation
 :doc:`classes/Plotter` : 2D slice viewer documentation
 :doc:`plot` : Static plotting functions
