@@ -390,9 +390,9 @@ class BcdiPipeline(Pipeline):
                 self.params["preprocess_shape"], verbose=True
             )
             self.logger.info(
-                "The preprocessing output shape is: and "
-                f"{self.params['preprocess_shape']} will be used for the "
-                "determination of the ROI dimensions."
+                "The preprocessing output shape is: "
+                f"{self.params['preprocess_shape']} and will be used "
+                "for the determination of the ROI dimensions."
             )
             # Filter, crop and centre the detector data.
             self.cropped_detector_data, roi = self._crop_centre(
