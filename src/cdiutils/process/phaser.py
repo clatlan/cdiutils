@@ -1367,6 +1367,227 @@ class PhasingResultAnalyser:
                 title = f"Phasing results, run {extract_run_info(result)[0]}"
                 self.plot_phasing_result(data, support, title, plot_phase)
 
+    @staticmethod
+    def _register_spectrum(
+        obj: np.ndarray, reference: np.ndarray
+    ) -> np.ndarray:
+        """
+        Spectrum of obj registered to reference: of obj and its twin
+        image ``conj(obj(-r))``, the one with the larger complex overlap
+        with reference after a sub-pixel translation (complex
+        cross-correlation, Fourier shift theorem). The modulus alone
+        cannot choose the twin of a nearly centrosymmetric crystal.
+
+        Args:
+            obj (np.ndarray): complex object, origin at the array
+                centre.
+            reference (np.ndarray): complex reference object.
+
+        Returns:
+            np.ndarray: registered spectrum, ``fftn(ifftshift(.))``
+            convention (origin at index 0).
+        """
+        best_overlap, best_spectrum = -1.0, None
+        for candidate in (obj, np.conj(obj[::-1, ::-1, ::-1])):
+            shift = phase_cross_correlation(
+                reference, candidate, upsample_factor=20
+            )[0]
+            spectrum = fourier_shift(fftn(ifftshift(candidate)), shift)
+            registered = fftshift(np.fft.ifftn(spectrum))
+            overlap = np.abs(np.vdot(reference, registered)) / (
+                np.linalg.norm(reference) * np.linalg.norm(registered)
+            )
+            if overlap > best_overlap:
+                best_overlap, best_spectrum = overlap, spectrum
+        return best_spectrum
+
+    @staticmethod
+    def phase_retrieval_transfer_function(
+        objects: list,
+        intensity: np.ndarray,
+        mask: np.ndarray = None,
+        q_lab_matrix: np.ndarray = None,
+        nb_shells: int = 40,
+        nb_directions: int = 0,
+        threshold: float = 1 / np.e,
+        align: bool = True,
+    ) -> dict:
+        """
+        Phase retrieval transfer function (PRTF) of independent
+        reconstructions against the measured intensity.
+
+        The PRTF is ``|<F_i(q)>| / sqrt(I(q))``, where ``F_i`` is the
+        Fourier transform of reconstruction i, each normalised to the
+        measured photon count, and the average is taken after aligning
+        every reconstruction to the first one (twin image, sub-pixel
+        translation and constant phase), see Chapman et al., J. Opt.
+        Soc. Am. A 23, 1179 (2006), eq. 23. Amplitudes are averaged
+        over each shell of constant ``|q|`` before the ratio is taken.
+        With ``nb_directions`` > 0, the PRTF is also computed in cones
+        around quasi-uniform directions, since the resolution of Bragg
+        CDI depends on the direction (Cherukara et al., Appl. Phys.
+        Lett. 113, 203101 (2018)).
+
+        The resolution is the half-period ``pi / q`` at which the PRTF
+        first falls below the threshold (1/e as in Cherukara et al.;
+        Chapman et al. give 0.5 as a more conservative value).
+        Reconstructions stuck in the same wrong solution give an
+        optimistic PRTF: it measures reproducibility, not correctness.
+
+        Args:
+            objects (list): complex reconstructions in the detector
+                frame, with the shape of intensity and the origin at the
+                array centre (as PyNX outputs them).
+            intensity (np.ndarray): measured intensity in photons,
+                origin at the array centre.
+            mask (np.ndarray, optional): values > 0 flag masked voxels.
+                Defaults to None.
+            q_lab_matrix (np.ndarray, optional): (3, 3) matrix whose
+                columns are the q vectors of one step along each array
+                axis (``transformation_matrices/q_lab`` of the
+                preprocessed cxi file, in 1/angstrom). Without it, q is
+                in 2 pi / N per pixel along an axis of length N.
+                Defaults to None.
+            nb_shells (int, optional): number of shells up to the
+                largest ``|q|`` reached along every axis. Defaults to
+                40.
+            nb_directions (int, optional): number of directions of the
+                directional PRTF, 0 for none. Defaults to 0.
+            threshold (float, optional): PRTF value that defines the
+                resolution. Defaults to 1/e.
+            align (bool, optional): whether to align the
+                reconstructions to the first one. Defaults to True.
+
+        Returns:
+            dict: ``q`` (shell centres), ``prtf`` (one value per
+            shell), ``nb_voxels`` (unmasked voxels per shell),
+            ``resolution`` (half-period at the threshold, in the length
+            unit of 2 pi / q, None if the PRTF stays above it) and,
+            with directions, ``directions`` (unit vectors),
+            ``prtf_directional`` (directions x shells) and
+            ``resolution_directional``.
+
+        Raises:
+            ValueError: if an object does not have the shape of the
+                intensity.
+        """
+        intensity = np.asarray(intensity, dtype=float)
+        valid = np.isfinite(intensity)
+        if mask is not None:
+            valid &= np.asarray(mask) == 0
+        measured = np.sqrt(np.clip(np.where(valid, intensity, 0), 0, None))
+        photons = np.sum(measured**2)
+
+        # aligned and normalised spectra, summed (Chapman et al., eq. 23)
+        reference = np.asarray(objects[0])
+        reference_spectrum = None
+        spectrum_sum = np.zeros(intensity.shape, dtype=np.complex128)
+        for obj in objects:
+            obj = np.asarray(obj, dtype=np.complex128)
+            if obj.shape != intensity.shape:
+                raise ValueError(
+                    f"Object shape {obj.shape} differs from the intensity "
+                    f"shape {intensity.shape}."
+                )
+            if align and reference_spectrum is not None:
+                spectrum = PhasingResultAnalyser._register_spectrum(
+                    obj, reference
+                )
+            else:
+                spectrum = fftn(ifftshift(obj))
+            spectrum = fftshift(spectrum)
+            spectrum *= np.sqrt(
+                photons / np.sum(np.abs(spectrum[valid]) ** 2)
+            )
+            if align and reference_spectrum is not None:
+                offset = np.angle(
+                    np.sum(
+                        np.conj(reference_spectrum[valid]) * spectrum[valid]
+                    )
+                )
+                spectrum *= np.exp(-1j * offset)
+            if reference_spectrum is None:
+                reference_spectrum = spectrum
+            spectrum_sum += spectrum
+        calculated = np.abs(spectrum_sum) / len(objects)
+
+        # |q| of every voxel (origin at the array centre)
+        shape = np.array(intensity.shape)
+        if q_lab_matrix is None:
+            q_lab_matrix = np.diag(2 * np.pi / shape)
+        q_lab_matrix = np.asarray(q_lab_matrix, dtype=float)
+        offsets = np.indices(intensity.shape, dtype=np.float32)
+        offsets -= (shape // 2).reshape(3, 1, 1, 1)
+        q_vectors = np.tensordot(q_lab_matrix, offsets, axes=(1, 0))
+        del offsets
+        q_norm = np.linalg.norm(q_vectors, axis=0)
+        q_max = np.min(np.linalg.norm(q_lab_matrix, axis=0) * (shape // 2))
+        edges = np.linspace(0, q_max, nb_shells + 1)
+        shell = np.digitize(q_norm, edges) - 1
+        inside = valid & (shell < nb_shells)
+        centres = (edges[:-1] + edges[1:]) / 2
+
+        def shell_prtf(index, size):
+            """PRTF per index (shell-averaged amplitudes, then ratio)."""
+            numerator = np.bincount(index, calculated[inside], size)
+            denominator = np.bincount(index, measured[inside], size)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                return np.where(denominator > 0, numerator / denominator,
+                                np.nan)
+
+        def crossing(prtf):
+            """Half-period resolution at the threshold crossing."""
+            below = np.nonzero(prtf[1:] < threshold)[0]
+            if below.size == 0:
+                return None
+            k = below[0] + 1
+            q_cross = centres[k]
+            if np.isfinite(prtf[k - 1]) and prtf[k - 1] != prtf[k]:
+                # linear interpolation between the two shell centres
+                q_cross = centres[k - 1] + (
+                    (prtf[k - 1] - threshold) / (prtf[k - 1] - prtf[k])
+                    * (centres[k] - centres[k - 1])
+                )
+            return float(np.pi / q_cross)
+
+        prtf = shell_prtf(shell[inside], nb_shells)
+        result = {
+            "q": centres,
+            "prtf": prtf,
+            "nb_voxels": np.bincount(shell[inside], minlength=nb_shells),
+            "resolution": crossing(prtf),
+        }
+        if nb_directions > 0:
+            # quasi-uniform (Fibonacci) directions, each voxel in the cone
+            # of the closest one
+            i = np.arange(nb_directions) + 0.5
+            polar = np.arccos(1 - 2 * i / nb_directions)
+            azimuth = np.pi * (1 + 5**0.5) * i
+            directions = np.stack(
+                [
+                    np.cos(polar),
+                    np.sin(polar) * np.sin(azimuth),
+                    np.sin(polar) * np.cos(azimuth),
+                ],
+                axis=1,
+            )
+            units = q_vectors[:, inside] / np.maximum(q_norm[inside], 1e-12)
+            cone = np.empty(units.shape[1], dtype=int)
+            chunk = 1_000_000  # bounds the (directions x voxels) product
+            for start in range(0, units.shape[1], chunk):
+                cone[start:start + chunk] = np.argmax(
+                    directions @ units[:, start:start + chunk], axis=0
+                )
+            directional = shell_prtf(
+                cone * nb_shells + shell[inside], nb_directions * nb_shells
+            ).reshape(nb_directions, nb_shells)
+            result["directions"] = directions
+            result["prtf_directional"] = directional
+            result["resolution_directional"] = [
+                crossing(p) for p in directional
+            ]
+        return result
+
     def select_best_candidates(
         self,
         nb_of_best_sorted_runs: int = None,
