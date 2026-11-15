@@ -1424,8 +1424,7 @@ def cluster_bragg_signal(
     labels[tuple(points.T)] = found + 1
     maximum = np.unravel_index(np.argmax(values), values.shape)
     bragg_label = int(labels[maximum])
-    bragg_region = binary_dilation(labels == bragg_label,
-                                   iterations=dilation)
+    bragg_region = binary_dilation(labels == bragg_label, iterations=dilation)
     return labels, bragg_label, bragg_region
 
 

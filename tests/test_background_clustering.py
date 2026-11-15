@@ -20,12 +20,13 @@ def synthetic_scan(seed=0):
     """
     shape = (40, 64, 64)
     z, y, x = np.indices(shape)
-    peak = 1e4 * np.exp(-((z - 20) ** 2 + (y - 32) ** 2
-                          + (x - 32) ** 2) / (2 * 3.0 ** 2))
-    alien = 50 * np.exp(-((z - 5) ** 2 + (y - 8) ** 2
-                          + (x - 55) ** 2) / (2 * 1.5 ** 2))
-    background = 0.2 + 0.3 * (np.arange(64) / 63)[None, :] * np.ones(
-        (64, 64))
+    peak = 1e4 * np.exp(
+        -((z - 20) ** 2 + (y - 32) ** 2 + (x - 32) ** 2) / (2 * 3.0**2)
+    )
+    alien = 50 * np.exp(
+        -((z - 5) ** 2 + (y - 8) ** 2 + (x - 55) ** 2) / (2 * 1.5**2)
+    )
+    background = 0.2 + 0.3 * (np.arange(64) / 63)[None, :] * np.ones((64, 64))
     expected = peak + alien + background[None]
     rng = np.random.default_rng(seed)
     return rng.poisson(expected).astype(float), background
@@ -60,14 +61,14 @@ def test_merge_size_joins_fringes_to_the_bragg_cluster():
     shape = (40, 64, 64)
     z, y, x = np.indices(shape)
     radius = np.sqrt((z - 20) ** 2 + (y - 32) ** 2 + (x - 32) ** 2)
-    expected = 1e4 * np.exp(-radius ** 2 / 8) + 30 * (np.abs(radius - 12)
-                                                      < 1) + 0.2
+    expected = (
+        1e4 * np.exp(-(radius**2) / 8) + 30 * (np.abs(radius - 12) < 1) + 0.2
+    )
     data = np.random.default_rng(1).poisson(expected).astype(float)
     labels, bragg, _ = cluster_bragg_signal(data, dilation=0)
-    shell = (np.abs(radius - 12) < 0.5)
+    shell = np.abs(radius - 12) < 0.5
     assert np.mean(labels[shell] == bragg) < 0.5
-    labels, bragg, _ = cluster_bragg_signal(data, dilation=0,
-                                            merge_size=5)
+    labels, bragg, _ = cluster_bragg_signal(data, dilation=0, merge_size=5)
     assert np.mean(labels[shell] == bragg) > 0.9
 
 
@@ -81,5 +82,7 @@ def test_pure_pixels_ignore_fringe_crossings():
     leaky = background_map(data, region, sigma=4)
     pure = background_map(data, region, sigma=4, pure_pixels=True)
     centre = (slice(26, 38), slice(26, 38))
-    assert np.abs(pure[centre] - background[centre]).mean() < np.abs(
-        leaky[centre] - background[centre]).mean()
+    assert (
+        np.abs(pure[centre] - background[centre]).mean()
+        < np.abs(leaky[centre] - background[centre]).mean()
+    )
