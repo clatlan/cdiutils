@@ -368,7 +368,9 @@ class PyNXPhaser:
             # phase perturbation (obj_noise, rad rms), so that seeded runs
             # differ and can be compared
             obj = cdi.get_obj()
-            noise = np.random.standard_normal(obj.shape) * self.params["obj_noise"]
+            noise = (
+                np.random.standard_normal(obj.shape) * self.params["obj_noise"]
+            )
             cdi.set_obj((obj * np.exp(1j * noise)).astype(np.complex64))
         if self.params["scale_obj"]:
             cdi = (
@@ -379,7 +381,9 @@ class PyNXPhaser:
             # a PSF array given by the user (centred), e.g. bandwidth_psf();
             # padded here with its centre at n//2: PyNX's own padding of a
             # small odd kernel into an even axis shifts the origin by 1 px
-            psf = self.pad_centred(self.params["psf"], ifftshift(self.iobs).shape)
+            psf = self.pad_centred(
+                self.params["psf"], ifftshift(self.iobs).shape
+            )
             cdi = InitPSF(psf=psf.astype(np.float32)) * cdi
         elif self.params["psf"] is not None:
             model, fwhm, eta = self.params["psf"].split(",")
@@ -459,9 +463,7 @@ class PyNXPhaser:
                                 ** (iteration // support_update_period)
                             ) * cdi
                         else:
-                            for _ in range(
-                                iteration // support_update_period
-                            ):
+                            for _ in range(iteration // support_update_period):
                                 cdi = (
                                     self.support_update
                                     * algo**support_update_period
@@ -576,7 +578,9 @@ class PyNXPhaser:
         ceiling = self.params["support_ceiling"]
         if ceiling is not None:
             support = cdi.get_support(shift=True) > 0
-            cdi.set_support((support & (ceiling > 0)).astype(np.int8), shift=True)
+            cdi.set_support(
+                (support & (ceiling > 0)).astype(np.int8), shift=True
+            )
         fraction = self.params["homogenise"]
         if fraction and algo_name in ("hio", "raar"):
             obj = cdi.get_obj(shift=True)
@@ -584,9 +588,13 @@ class PyNXPhaser:
             amp = np.abs(obj)
             if support.any():
                 target = amp[support].mean()
-                new_amp = np.where(support, amp + fraction * (target - amp), amp)
+                new_amp = np.where(
+                    support, amp + fraction * (target - amp), amp
+                )
                 cdi.set_obj(
-                    (obj * new_amp / np.maximum(amp, 1e-20)).astype(np.complex64),
+                    (obj * new_amp / np.maximum(amp, 1e-20)).astype(
+                        np.complex64
+                    ),
                     shift=True,
                 )
         return cdi
@@ -617,7 +625,9 @@ class PyNXPhaser:
         return out
 
     @staticmethod
-    def crop_diffraction_data(data: np.ndarray, crop_factor: float) -> np.ndarray:
+    def crop_diffraction_data(
+        data: np.ndarray, crop_factor: float
+    ) -> np.ndarray:
         """
         Central 1/crop_factor of a (reciprocal-space) array along every
         axis. Same operation as crop_diffraction_data in E. Bellec's crop
@@ -630,7 +640,9 @@ class PyNXPhaser:
         Returns:
             np.ndarray: the cropped array.
         """
-        crop = ((np.array(data.shape) * (1.0 - 1.0 / crop_factor)) / 2).astype(int)
+        crop = ((np.array(data.shape) * (1.0 - 1.0 / crop_factor)) / 2).astype(
+            int
+        )
         return data[tuple(slice(c, n - c) for c, n in zip(crop, data.shape))]
 
     @staticmethod
@@ -652,7 +664,9 @@ class PyNXPhaser:
         grids = tuple(np.linspace(-1, 1, n) for n in obj.shape)
         points = np.moveaxis(
             np.array(
-                np.meshgrid(*[np.linspace(-1, 1, n) for n in shape], indexing="ij")
+                np.meshgrid(
+                    *[np.linspace(-1, 1, n) for n in shape], indexing="ij"
+                )
             ),
             0,
             -1,
@@ -693,8 +707,12 @@ class PyNXPhaser:
         """
         from scipy.ndimage import gaussian_filter
 
-        line = np.linalg.solve(np.asarray(q_lab_matrix, float),
-                               np.asarray(q_bragg, float)) * bandwidth
+        line = (
+            np.linalg.solve(
+                np.asarray(q_lab_matrix, float), np.asarray(q_bragg, float)
+            )
+            * bandwidth
+        )
         psf = np.zeros((size,) * 3)
         centre = np.full(3, size // 2, dtype=float)
         sigma = 1 / 2.3548
@@ -740,7 +758,8 @@ class PyNXPhaser:
         iobs = ifftshift(self.iobs)
         mask = None if self.mask is None else ifftshift(self.mask)
         params = {
-            k: v for k, v in self.params.items()
+            k: v
+            for k, v in self.params.items()
             if k not in ("support", "obj", "support_ceiling")
         }
         self.cdi_list = []
@@ -751,17 +770,21 @@ class PyNXPhaser:
                 data_f = self.crop_diffraction_data(iobs, f)
                 sub = PyNXPhaser(
                     data_f,
-                    None if mask is None else self.crop_diffraction_data(mask, f),
+                    None
+                    if mask is None
+                    else self.crop_diffraction_data(mask, f),
                     **params,
                 )
                 sub.init_cdi(
                     verbose=False,
-                    support=None if support is None else (
+                    support=None
+                    if support is None
+                    else (
                         self.interpolate_object(support, data_f.shape) > 0.5
                     ).astype(np.int8),
-                    obj=None if current is None else self.interpolate_object(
-                        current, data_f.shape
-                    ),
+                    obj=None
+                    if current is None
+                    else self.interpolate_object(current, data_f.shape),
                 )
                 sub.run(recipe, sub.cdi, init_cdi=False)
                 current = sub.cdi.get_obj(shift=True)
@@ -864,10 +887,12 @@ class PyNXPhaser:
                     if mode == "complex":
                         new_obj = np.sqrt(new_obj * best)
                     else:
-                        new_obj = np.sqrt(np.abs(new_obj) * np.abs(best)) * np.exp(
-                            1j * np.angle(new_obj)
-                        )
-                    self.cdi_list[i].set_obj(new_obj.astype(np.complex64), shift=True)
+                        new_obj = np.sqrt(
+                            np.abs(new_obj) * np.abs(best)
+                        ) * np.exp(1j * np.angle(new_obj))
+                    self.cdi_list[i].set_obj(
+                        new_obj.astype(np.complex64), shift=True
+                    )
             self.run_multiple_instances(run_nb, recipe, init_cdi=False)
 
     @staticmethod
@@ -887,9 +912,10 @@ class PyNXPhaser:
 
         twin = np.conj(obj[::-1, ::-1, ::-1])
         ref = np.abs(reference).ravel()
-        if np.corrcoef(np.abs(twin).ravel(), ref)[0, 1] > np.corrcoef(
-            np.abs(obj).ravel(), ref
-        )[0, 1]:
+        if (
+            np.corrcoef(np.abs(twin).ravel(), ref)[0, 1]
+            > np.corrcoef(np.abs(obj).ravel(), ref)[0, 1]
+        ):
             obj = twin
         shift = np.round(
             np.array(center_of_mass(np.abs(reference) ** 2))
@@ -1496,9 +1522,7 @@ class PhasingResultAnalyser:
             else:
                 spectrum = fftn(ifftshift(obj))
             spectrum = fftshift(spectrum)
-            spectrum *= np.sqrt(
-                photons / np.sum(np.abs(spectrum[valid]) ** 2)
-            )
+            spectrum *= np.sqrt(photons / np.sum(np.abs(spectrum[valid]) ** 2))
             if align and reference_spectrum is not None:
                 offset = np.angle(
                     np.sum(
@@ -1532,8 +1556,9 @@ class PhasingResultAnalyser:
             numerator = np.bincount(index, calculated[inside], size)
             denominator = np.bincount(index, measured[inside], size)
             with np.errstate(invalid="ignore", divide="ignore"):
-                return np.where(denominator > 0, numerator / denominator,
-                                np.nan)
+                return np.where(
+                    denominator > 0, numerator / denominator, np.nan
+                )
 
         def crossing(prtf):
             """Half-period resolution at the threshold crossing."""
@@ -1545,7 +1570,8 @@ class PhasingResultAnalyser:
             if np.isfinite(prtf[k - 1]) and prtf[k - 1] != prtf[k]:
                 # linear interpolation between the two shell centres
                 q_cross = centres[k - 1] + (
-                    (prtf[k - 1] - threshold) / (prtf[k - 1] - prtf[k])
+                    (prtf[k - 1] - threshold)
+                    / (prtf[k - 1] - prtf[k])
                     * (centres[k] - centres[k - 1])
                 )
             return float(np.pi / q_cross)
@@ -1575,8 +1601,8 @@ class PhasingResultAnalyser:
             cone = np.empty(units.shape[1], dtype=int)
             chunk = 1_000_000  # bounds the (directions x voxels) product
             for start in range(0, units.shape[1], chunk):
-                cone[start:start + chunk] = np.argmax(
-                    directions @ units[:, start:start + chunk], axis=0
+                cone[start : start + chunk] = np.argmax(
+                    directions @ units[:, start : start + chunk], axis=0
                 )
             directional = shell_prtf(
                 cone * nb_shells + shell[inside], nb_directions * nb_shells

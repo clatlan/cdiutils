@@ -96,9 +96,18 @@ def test_alignment_removes_twin_shift_and_phase_offset():
     obj = crystal()
     intensity = np.abs(spectrum(obj)) ** 2
     shifted = fftshift(
-        ifftn(ifftshift(spectrum(obj) * np.exp(
-            -2j * np.pi * 0.4
-            * (np.indices(SHAPE)[2] - SHAPE[2] // 2) / SHAPE[2])))
+        ifftn(
+            ifftshift(
+                spectrum(obj)
+                * np.exp(
+                    -2j
+                    * np.pi
+                    * 0.4
+                    * (np.indices(SHAPE)[2] - SHAPE[2] // 2)
+                    / SHAPE[2]
+                )
+            )
+        )
     )
     copy = np.conj(np.roll(shifted[::-1, ::-1, ::-1], 1, axis=(0, 1, 2)))
     copy *= np.exp(1.3j)
@@ -132,8 +141,12 @@ def test_directional_prtf_and_q_lab_units():
     # 1 pixel = 2 pi / (N * 10 angstrom): lengths in angstrom
     q_lab_matrix = np.diag([2 * np.pi / (n * 10.0) for n in SHAPE])
     result = PhasingResultAnalyser.phase_retrieval_transfer_function(
-        runs, intensity, q_lab_matrix=q_lab_matrix, nb_shells=20,
-        nb_directions=20, align=False
+        runs,
+        intensity,
+        q_lab_matrix=q_lab_matrix,
+        nb_shells=20,
+        nb_directions=20,
+        align=False,
     )
     directions = result["directions"]
     along_x = np.argmax(np.abs(directions[:, 2]))
