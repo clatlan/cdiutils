@@ -15,7 +15,11 @@ Unreleased
   shells of true ``|q|`` (from the ``q_lab`` transformation matrix of the
   preprocessed data) and, optionally, per direction (Cherukara et al.,
   Appl. Phys. Lett. 113, 203101 (2018)); returns the half-period
-  resolution at the 1/e crossing.
+  resolution at the 1/e crossing. ``shell_average="intensity"`` accepts
+  background-subtracted, unclipped data and ``normalisation_q`` scales the
+  runs on the low-q signal; with ``background`` (raw counts and expected
+  background) the PRTF is restricted to shells with significant net
+  signal and the data-limited half-period (``signal_limit``) is returned.
 
 Version 0.2.0 (Current)
 ------------------------
