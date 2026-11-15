@@ -1399,7 +1399,103 @@ retrieval is also computed and will be used in the post-processing stage."""
                 self.logger.info(
                     f"No command provided. Will use the default: {cmd}"
                 )
+            self._warn_old_local_pynx(cmd, self.params["pynx"])
             self._run_cmd(cmd, self.pynx_phasing_dir)
+
+    @staticmethod
+    def _get_pynx_version(executable: str) -> str | None:
+        """
+        Return the PyNX version of the installation of a PyNX script.
+
+        The script is looked up as the command would be run (in a bash
+        login shell), and the version is read with importlib.metadata by
+        the interpreter of its shebang, which is the PyNX installation the
+        command uses (not necessarily the one of this Python).
+
+        Args:
+            executable (str): the script, e.g. "pynx-cdi-id01".
+
+        Returns:
+            str | None: the version, e.g. "2023.1.1", or None if it cannot
+                be found.
+        """
+        try:
+            path = subprocess.run(
+                ["bash", "-l", "-c", f"command -v {executable}"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            ).stdout.strip()
+            if not path or not os.path.isfile(path):
+                return None
+            with open(path, encoding="utf8", errors="replace") as file:
+                shebang = file.readline().strip()
+            if not shebang.startswith("#!"):
+                return None
+            interpreter = shebang[2:].split()
+            version = subprocess.run(
+                interpreter
+                + [
+                    "-c",
+                    "from importlib.metadata import version; "
+                    "print(version('pynx'))",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return version.stdout.strip() or None
+
+    def _warn_old_local_pynx(self, cmd: str, pynx_params: dict) -> None:
+        """
+        Warn if the PyNX run on this machine reads the parameters
+        differently.
+
+        The parameter file and the advice of the documentation are written
+        for the PyNX of the cluster jobs (pynx module, 2026.1). Older
+        versions (2023.x, e.g. in the jupyter-slurm environment of the
+        ESRF p9 Jupyter nodes) read the file differently: "roi" goes
+        through eval (only None or 6 integers work; False or "full" stop
+        the run), and some parameters (tv_hio, tv_raar, tv_er,
+        confidence_interval_factor_mask_min/max) are ignored.
+
+        Args:
+            cmd (str): the command that will be run, its first word being
+                the PyNX script.
+            pynx_params (dict): the PyNX parameters.
+        """
+        executable = cmd.split()[0] if cmd.split() else ""
+        if not executable.startswith("pynx-"):
+            return
+        version = self._get_pynx_version(executable)
+        if version is None:
+            return
+        try:
+            year = int(version.split(".")[0])
+        except ValueError:
+            return
+        if year >= 2024:
+            return
+
+        self.logger.warning(
+            f"{executable} on this machine uses PyNX {version}, which reads "
+            "the parameters differently from the PyNX of the cluster jobs "
+            "(pynx module): tv_hio, tv_raar, tv_er and "
+            "confidence_interval_factor_mask_min/max are ignored, and roi "
+            "only accepts None or 6 integers. Use jump_to_cluster=True to "
+            "run with the pynx module."
+        )
+        roi = pynx_params.get("roi")
+        if roi is not None and not (
+            isinstance(roi, (list, tuple))
+            and all(isinstance(v, int) for v in roi)
+        ):
+            self.logger.warning(
+                f"roi={roi!r} stops PyNX {version} ('cannot unpack' or "
+                "NameError): give roi=None or 6 integers."
+            )
 
     @staticmethod
     def _merge_pynx_params(user_pynx_params: dict) -> dict:
