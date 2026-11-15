@@ -1439,6 +1439,8 @@ class PhasingResultAnalyser:
         align: bool = True,
         shell_average: str = "amplitude",
         normalisation_q: float = None,
+        background: np.ndarray = None,
+        min_snr: float = 3.0,
     ) -> dict:
         """
         Phase retrieval transfer function (PRTF) of independent
@@ -1462,6 +1464,15 @@ class PhasingResultAnalyser:
         background-subtracted, unclipped intensity: the noise then
         averages out instead of adding a positive bias to the
         denominator, so the curve is not set by the background level.
+
+        With ``background`` (expected background counts per voxel, same
+        shape), ``intensity`` holds the raw counts: the PRTF uses
+        ``intensity - background`` and each shell (or cone x shell) gets
+        the signal-to-noise ratio ``sum(I - B) / sqrt(sum I)`` (Poisson).
+        The PRTF is left undefined (NaN) where it is below ``min_snr``:
+        there the data, not the phasing, limit the resolution, and the
+        half-period where the SNR first drops below ``min_snr`` is
+        returned as ``signal_limit``.
 
         The resolution is the half-period ``pi / q`` at which the PRTF
         first falls below the threshold (1/e as in Cherukara et al.;
@@ -1500,6 +1511,12 @@ class PhasingResultAnalyser:
                 value (signal-dominated region) instead of over the
                 whole array, whose total includes the background.
                 Defaults to None (whole array).
+            background (np.ndarray, optional): expected background
+                counts per voxel; intensity is then the raw counts.
+                Defaults to None.
+            min_snr (float, optional): shells (cones) whose net signal
+                is below this SNR get no PRTF value; only used with
+                background. Defaults to 3.
 
         Returns:
             dict: ``q`` (shell centres), ``prtf`` (one value per
@@ -1508,7 +1525,10 @@ class PhasingResultAnalyser:
             unit of 2 pi / q, None if the PRTF stays above it) and,
             with directions, ``directions`` (unit vectors),
             ``prtf_directional`` (directions x shells) and
-            ``resolution_directional``.
+            ``resolution_directional``. With background, also ``snr``,
+            ``signal_limit`` (half-period where the SNR first drops
+            below min_snr, None if never) and their directional
+            versions ``snr_directional`` and ``signal_limit_directional``.
 
         Raises:
             ValueError: if an object does not have the shape of the
@@ -1524,6 +1544,10 @@ class PhasingResultAnalyser:
         if mask is not None:
             valid &= np.asarray(mask) == 0
         intensity = np.where(valid, intensity, 0)
+        raw_counts = None
+        if background is not None:
+            raw_counts = np.clip(intensity, 0, None)
+            intensity = intensity - np.where(valid, background, 0)
 
         # |q| of every voxel (origin at the array centre)
         shape = np.array(intensity.shape)
@@ -1586,8 +1610,19 @@ class PhasingResultAnalyser:
             calculated_term = calculated[inside] ** 2
             measured_term = intensity[inside]
 
+        def shell_snr(index, size):
+            """Net-signal SNR per index (Poisson), None without
+            background."""
+            if raw_counts is None:
+                return None
+            net = np.bincount(index, intensity[inside], size)
+            counts = np.bincount(index, raw_counts[inside], size)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                return np.where(counts > 0, net / np.sqrt(counts), 0.0)
+
         def shell_prtf(index, size):
-            """PRTF per index (shell sums, then ratio)."""
+            """PRTF per index (shell sums, then ratio), NaN where the
+            net signal is not significant."""
             numerator = np.bincount(index, calculated_term, size)
             denominator = np.bincount(index, measured_term, size)
             with np.errstate(invalid="ignore", divide="ignore"):
@@ -1595,12 +1630,25 @@ class PhasingResultAnalyser:
                     denominator > 0, numerator / denominator, np.nan
                 )
             if shell_average == "intensity":
-                return np.sqrt(ratio)
+                ratio = np.sqrt(ratio)
+            snr = shell_snr(index, size)
+            if snr is not None:
+                ratio = np.where(snr >= min_snr, ratio, np.nan)
             return ratio
 
+        def signal_limit(snr):
+            """Half-period where the SNR first drops below min_snr."""
+            below = np.nonzero(snr[1:] < min_snr)[0]
+            if below.size == 0:
+                return None
+            return float(np.pi / centres[below[0] + 1])
+
         def crossing(prtf):
-            """Half-period resolution at the threshold crossing."""
-            below = np.nonzero(prtf[1:] < threshold)[0]
+            """Half-period resolution at the threshold crossing (NaN
+            shells, without significant signal, end the search)."""
+            undefined = np.nonzero(~np.isfinite(prtf[1:]))[0]
+            last = undefined[0] + 1 if undefined.size else prtf.size
+            below = np.nonzero(prtf[1:last] < threshold)[0]
             if below.size == 0:
                 return None
             k = below[0] + 1
@@ -1621,6 +1669,10 @@ class PhasingResultAnalyser:
             "nb_voxels": np.bincount(shell[inside], minlength=nb_shells),
             "resolution": crossing(prtf),
         }
+        if raw_counts is not None:
+            snr = shell_snr(shell[inside], nb_shells)
+            result["snr"] = snr
+            result["signal_limit"] = signal_limit(snr)
         if nb_directions > 0:
             # quasi-uniform (Fibonacci) directions, each voxel in the cone
             # of the closest one
@@ -1650,6 +1702,15 @@ class PhasingResultAnalyser:
             result["resolution_directional"] = [
                 crossing(p) for p in directional
             ]
+            if raw_counts is not None:
+                snr = shell_snr(
+                    cone * nb_shells + shell[inside],
+                    nb_directions * nb_shells,
+                ).reshape(nb_directions, nb_shells)
+                result["snr_directional"] = snr
+                result["signal_limit_directional"] = [
+                    signal_limit(s) for s in snr
+                ]
         return result
 
     def select_best_candidates(

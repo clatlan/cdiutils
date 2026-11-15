@@ -189,3 +189,31 @@ def test_unknown_shell_average_raises():
         PhasingResultAnalyser.phase_retrieval_transfer_function(
             [obj], np.abs(spectrum(obj)) ** 2, shell_average="median"
         )
+
+
+def test_background_gives_snr_and_signal_limit():
+    """With raw counts and the background, shells without significant
+    net signal get no PRTF and the signal limit is reported; perfect
+    runs never cross 1/e before it."""
+    obj = crystal()
+    truth = np.abs(spectrum(obj)) ** 2
+    truth *= 1e6 / truth.sum()
+    background = np.full(SHAPE, 5.0)
+    rng = np.random.default_rng(4)
+    counts = rng.poisson(truth + background).astype(float)
+    result = PhasingResultAnalyser.phase_retrieval_transfer_function(
+        [obj, obj],
+        counts,
+        background=background,
+        shell_average="intensity",
+        normalisation_q=0.8,
+        nb_shells=16,
+        nb_directions=6,
+    )
+    snr = result["snr"]
+    assert snr[0] > 3
+    assert result["signal_limit"] is not None
+    weak = snr < 3
+    assert np.all(np.isnan(result["prtf"][weak]))
+    assert result["resolution"] is None
+    assert len(result["signal_limit_directional"]) == 6
