@@ -23,7 +23,8 @@ def find_planar_defects(
     min_voxels: int = 30,
     reference: tuple = (0.0, 1.0, 0.0),
     radius: float = 10.0,
-    prominence: float = 0.08,
+    prominence: float = 0.04,
+    max_amplitude: float = 0.5,
 ) -> list:
     """
     Find planar low-amplitude sheets inside a crystal and the boundaries
@@ -59,7 +60,13 @@ def find_planar_defects(
         radius (float, optional): radius of the cylinder used for the
             profile, in voxels. Defaults to 10.
         prominence (float, optional): smallest depth of a boundary
-            minimum in the profile. Defaults to 0.08.
+            minimum in the profile. Defaults to 0.04.
+        max_amplitude (float, optional): a minimum counts as a boundary
+            only if the mean amplitude there is below this value. The
+            defaults (0.04, 0.5) resolved both boundaries of a 50-60 nm
+            lamella in a Ni particle while keeping single boundaries
+            single (P10 data, 2026-11-16); check them on other data.
+            Defaults to 0.5.
 
     Returns:
         list: one dict per sheet, largest first: voxels, centre, normal,
@@ -104,6 +111,7 @@ def find_planar_defects(
         positions = edges[:-1] + 0.5
         good = ~np.isnan(profile)
         minima, _ = signal.find_peaks(-profile[good], prominence=prominence)
+        minima = minima[profile[good][minima] < max_amplitude]
         boundaries = positions[good][minima]
         sheets.append({
             "voxels": int(len(points)),
