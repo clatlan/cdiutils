@@ -118,3 +118,40 @@ def test_winterbottom_aspect_ratio():
     metrics = sample.shape_metrics(sample.winterbottom(1.0), diameter=100.0)
     assert metrics["diameter"] == pytest.approx(100.0)
     assert metrics["aspect_ratio"] == pytest.approx(0.39, abs=0.02)
+
+
+@pytest.mark.parametrize(
+    "angles", [(18.0, 0.0, 0.0, 37.0), (25.0, 40.0, 30.0, 50.0)]
+)
+def test_viewer_matches_qconversion(ru_on_sapphire, angles):
+    """The viewer's lab-frame geometry agrees with xu QConversion."""
+    viewer = ru_on_sapphire.diffractometer_viewer(ENERGY)
+    state = viewer.state(*angles)
+    expected = np.ravel(ru_on_sapphire.qconversion(*angles, en=ENERGY))
+    assert np.allclose(state["q_sample"], expected, atol=1e-6)
+
+
+def test_viewer_on_peak(ru_on_sapphire):
+    """At the computed angles the detector sits on the reflection."""
+    viewer = ru_on_sapphire.diffractometer_viewer(ENERGY)
+    angles = ru_on_sapphire.reflection_angles((1, 0, 4), ENERGY, "coplanar")
+    state = viewer.state(
+        angles["eta"], angles["phi"], angles["nu"], angles["delta"]
+    )
+    assert state["nearest_hkl"] == (1, 0, 4)
+    assert state["nearest_distance"] < 1e-6
+    assert np.allclose(state["hkl"], [1, 0, 4], atol=1e-6)
+    assert state["exit"] == pytest.approx(angles["exit (deg)"], abs=1e-6)
+    index = viewer.crystal_hkls.index((1, 0, 4))
+    assert state["crystal_diffracting"][index]
+
+
+def test_viewer_phi_offset(ru_on_sapphire):
+    """A phi offset shifts the motor phi of a reflection."""
+    viewer = ru_on_sapphire.diffractometer_viewer(ENERGY, phi_offset=12.0)
+    angles = ru_on_sapphire.reflection_angles((1, 1, 2), ENERGY)
+    state = viewer.state(
+        angles["eta"], angles["phi"] + 12.0, angles["nu"], angles["delta"]
+    )
+    assert state["nearest_hkl"] == (1, 1, 2)
+    assert state["nearest_distance"] < 1e-6

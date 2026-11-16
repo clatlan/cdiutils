@@ -579,6 +579,29 @@ class SupportedCrystal:
             }
         return pd.DataFrame(table).round(4)
 
+    def diffractometer_viewer(self, energy: float = 9000.0, **kwargs):
+        """
+        Interactive view of the reciprocal lattice on the diffractometer.
+
+        Shows the crystal and substrate nodes in the laboratory
+        frame, rotating with eta and phi, the Ewald sphere and the
+        detector position set by nu and delta.
+
+        Args:
+            energy: Initial X-ray energy (eV).
+            **kwargs: Passed to
+                :class:`~cdiutils.simulation.DiffractometerViewer`
+                (reflections, phi_offset, energy_range, ...).
+
+        Returns:
+            The :class:`~cdiutils.simulation.DiffractometerViewer`;
+            call ``.widget()`` in a notebook, or ``.figure(...)`` for
+            a static view.
+        """
+        from .viewer import DiffractometerViewer
+
+        return DiffractometerViewer(self, energy=energy, **kwargs)
+
     # ------------------------------------------------------------------
     # plots of the stack
     # ------------------------------------------------------------------

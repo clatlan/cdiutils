@@ -42,6 +42,10 @@ Supported crystals (from epitaxy):
         planning (Bragg angles vs energy, substrate nodes,
         reciprocal-space maps, Winterbottom shapes, simulated peaks).
 
+Diffractometer view (from viewer):
+    DiffractometerViewer : Interactive lab-frame view of the
+        reciprocal lattice, the Ewald sphere and the detector.
+
 BCDI measurement simulation (from detector):
     BCDISimulator : Complete BCDI measurement simulator.
 
@@ -99,6 +103,7 @@ from .objects import (
     simulate_diffraction,
     wulffpack_planes,
 )
+from .viewer import DiffractometerViewer
 
 __all__ = [
     # object creation
@@ -121,4 +126,5 @@ __all__ = [
     # BCDI measurement simulator
     "BCDISimulator",
     "SupportedCrystal",
+    "DiffractometerViewer",
 ]
