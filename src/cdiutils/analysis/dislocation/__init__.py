@@ -28,11 +28,13 @@ from ._theory import (
     signed_angle_3d,
     transform_known_vector_to_crystallographic,
 )
+from ._planar import find_planar_defects
 from ._vortices import find_phase_vortices
 
 __all__ = [
     "map_min_gradient",
     "find_phase_vortices",
+    "find_planar_defects",
     "clusters_dislo_strain_map",
     "extract_structure",
     "fit_line_3d",
