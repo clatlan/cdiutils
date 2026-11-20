@@ -1,0 +1,3 @@
+[submodule "examples/facets/ext/facets"]
+	path = examples/facets/ext/facets
+	url = git@gitlab.esrf.fr:polack/facets
