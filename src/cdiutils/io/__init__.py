@@ -14,6 +14,7 @@ from .nanomax import NanoMAXLoader
 from .p10 import P10Loader
 from .sixs import SIXSLoader
 from .vtk import save_as_vti
+from .xfel import XFELLoader, load_xfel
 
 __all__ = [
     "Loader",
@@ -25,6 +26,8 @@ __all__ = [
     "SIXSLoader",
     "CristalLoader",
     "NanoMAXLoader",
+    "XFELLoader",
+    "load_xfel",
     "CXIFile",
     "CXIExplorer",
     "save_as_cxi",
