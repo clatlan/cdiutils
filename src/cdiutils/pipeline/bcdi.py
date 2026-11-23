@@ -1208,12 +1208,28 @@ retrieval is also computed and will be used in the post-processing stage."""
         """
         if path.endswith(".npy"):
             with open(path, "rb") as file:
-                version = np.lib.format.read_magic(file)
-                return np.lib.format._read_array_header(file, version)[0]
+                return BcdiPipeline._read_npy_header_shape(file)
         with zipfile.ZipFile(path) as archive:
             with archive.open("data.npy") as file:
-                version = np.lib.format.read_magic(file)
-                return np.lib.format._read_array_header(file, version)[0]
+                return BcdiPipeline._read_npy_header_shape(file)
+
+    @staticmethod
+    def _read_npy_header_shape(file) -> tuple:
+        """
+        Read the array shape from an open npy stream (public numpy API).
+
+        Args:
+            file: binary file object positioned at the start of the npy
+                data.
+
+        Returns:
+            tuple[int, ...]: the shape of the array.
+        """
+        version = np.lib.format.read_magic(file)
+        # format 1.0 has a 2-byte header length, 2.0 and 3.0 a 4-byte one
+        if version == (1, 0):
+            return np.lib.format.read_array_header_1_0(file)[0]
+        return np.lib.format.read_array_header_2_0(file)[0]
 
     @staticmethod
     def _time_to_seconds(time_limit: str) -> float:
