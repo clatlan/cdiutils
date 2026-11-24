@@ -314,18 +314,18 @@ def plot_3d_object(
 
     :param data: the 3D array (np.array) to plot.
     :param support: 3D array (np.array) with the same shape as data.
-    Support is the shape of the 3D data to plot, coordinates whose
-    values <= 0 won't be plotted. Coordinates whose values > 0 are
-    considred to be part of the object to plot.
+        Support is the shape of the 3D data to plot, coordinates whose
+        values <= 0 won't be plotted. Coordinates whose values > 0 are
+        considred to be part of the object to plot.
     :param cmap: the matplotlib colormap (str) used for the colorbar
-    (default: "jet").
+        (default: "jet").
     :param title: title (str) of the figure. Default is empty string.
     :param vmin: the minimum value (float) for the color scale
-    (default: None).
+        (default: None).
     :param vmax: the maximum value (float) for the color scale
-    (default: None).
+        (default: None).
     :param show: whether or not to show the figure (bool). If False, the
-    figure is not displayed but returned.
+        figure is not displayed but returned.
     :return: None if show is True, otherwise the figure.
     """
 
@@ -384,25 +384,25 @@ def plot_3d_vector_field(
     Plot a 3D vector field represented by arrows.
 
     :param data: the (4-)3D data (np.array). If the object to plot has
-    a shape m * n * l, then the data must be 3 * m * n * l. Each voxel
-    must contain 3 chanels that describe the vector to plot.
+        a shape m * n * l, then the data must be 3 * m * n * l. Each voxel
+        must contain 3 chanels that describe the vector to plot.
     :param support: 3D array (np.array) with the same shape as data but
-    without the chanels (therefore m * n * l). Support is the shape of
-    the 3D data to plot, coordinates whose values <= 0 won't be plotted.
-    Coordinates whose values > 0 are considred to be part of the object
-    to plot.
+        without the chanels (therefore m * n * l). Support is the shape of
+        the 3D data to plot, coordinates whose values <= 0 won't be plotted.
+        Coordinates whose values > 0 are considred to be part of the object
+        to plot.
     :param arrow: whether or not to used arrows for field representation
-    (bool). If False, marker "o" is plotted instead and color represents
-    norm of the arrow.
-    :param cmap:ScalarMappable the matplotlib colormap (str) used for
-    the colorbar (default: "turbo").
+        (bool). If False, marker "o" is plotted instead and color represents
+        norm of the arrow.
+    :param cmap: the matplotlib colormap (str or ScalarMappable) used
+        the colorbar (default: "turbo").
     :param title: title (str) of the figure. Default is empty string.
     :param vmin: the minimum value (float) for the color scale
-    (default: None).
+        (default: None).
     :param vmax: the maximum value (float) for the color scale
-    (default: None).
+        (default: None).
     :param verbose: whether or not to print out the min and max values
-    of the absolute vector field (bool).
+        of the absolute vector field (bool).
     """
 
     nonzero_coordinates = np.where(support > 0)

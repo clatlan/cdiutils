@@ -126,7 +126,7 @@ and scattered wavevector $\\mathbf{k}_f$:
 
    \\mathbf{Q} = \\mathbf{k}_f - \\mathbf{k}_i
 
-For elastic scattering: $|\\mathbf{k}_i| = |\\mathbf{k}_f| = 2\\pi/\\lambda$
+For elastic scattering: :math:`|\mathbf{k}_i| = |\mathbf{k}_f| = 2\pi/\lambda`
 
 Bragg Condition
 ~~~~~~~~~~~~~~~

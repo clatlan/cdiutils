@@ -423,8 +423,8 @@ class Plotter:
         The file must have a .npy, .cxi, .h5, or .npz extension. If the
         file is a .npy or .h5 file, the data array is directly loaded.
         If the file is a .cxi file, the data array is loaded from
-        `f.root.entry_1.data_1.data[:]` or
-        `f.root.entry_1.image_1.data[:]`, following cxi conventions.
+        ``f.root.entry_1.data_1.data[:]`` or
+        ``f.root.entry_1.image_1.data[:]``, following cxi conventions.
         If the file is a .npz file, the user is prompted to select the
         data array from a dropdown list of arrays stored in the .npz
         file.
@@ -438,8 +438,8 @@ class Plotter:
 
         Raises:
             KeyError: If the file is a .cxi or .h5 file, and the data
-            could not be found in either `f.root.entry_1.data_1.data[:]`
-            or `f.root.entry_1.image_1.data[:]`.
+            could not be found in either ``f.root.entry_1.data_1.data[:]``
+            or ``f.root.entry_1.image_1.data[:]``.
         """
         # No need to select data array interactively
         if self.filename.endswith((".npy", ".h5", ".cxi")):

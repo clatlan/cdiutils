@@ -10,6 +10,7 @@ def decompose_experimental_phase(theta, phi_exp):
     and second-harmonic (2θ) oscillatory components.
 
     The procedure consists of:
+
     1) Removing a global linear trend from the experimental phase.
     2) Fitting and subtracting low-frequency angular components
        (cos θ, sin θ, and constant offset).

@@ -21,11 +21,13 @@ def make_box(
         centre: Centre position (z, y, x). If None, uses array
             centre.
         rotation: Rotation to apply. Can be:
+
             - None: no rotation
             - (3,3) array: rotation matrix
             - tuple of 3 floats: Euler angles (deg) as
               (alpha, beta, gamma) combined as
               Rz(alpha) @ Ry(beta) @ Rx(gamma)
+
         value: Value to fill inside the parallelepiped.
 
     Returns:
@@ -113,11 +115,13 @@ def make_ellipsoid(
         centre: Centre position (z, y, x). If None, uses array
             centre.
         rotation: Rotation to apply. Can be:
+
             - None: no rotation
             - (3,3) array: rotation matrix
             - tuple of 3 floats: Euler angles (deg) as
               (alpha, beta, gamma) combined as
               Rz(alpha) @ Ry(beta) @ Rx(gamma)
+
         value: Value to fill inside the ellipsoid.
 
     Returns:

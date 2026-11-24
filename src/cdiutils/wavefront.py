@@ -586,10 +586,10 @@ def probe_focus_sweep(
             propagation position. Defaults to 10e-6 m.
 
     Returns:
-        np.ndarray: the propagated probe at each propagation position,
-            in the shape (step_nb, height, width) or (modes, step_nb,
-            height, width).
-        np.ndarray: the propagation positions in meters.
+        tuple: the propagated probe at each propagation position
+        (np.ndarray, shape (step_nb, height, width) or (modes,
+        step_nb, height, width)) and the propagation positions in
+        meters (np.ndarray).
     """
     propagation_positions = step_size * np.arange(-step_nb // 2, step_nb // 2)
     progpated_probe = np.empty(

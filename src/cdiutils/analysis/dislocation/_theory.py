@@ -118,6 +118,7 @@ def dislo_rotation_matrix_real_to_theo(t, b):
     to the dislocation (theoretical) frame.
 
     The dislocation frame is defined as:
+
     - ẑ aligned with the dislocation line direction `t`,
     - x̂ aligned with the edge component of the Burgers vector, i.e. the
       component of `b` perpendicular to `t`,
@@ -136,8 +137,7 @@ def dislo_rotation_matrix_real_to_theo(t, b):
         Rotation matrix `R` whose rows correspond to the unit vectors
         (x̂, ŷ, ẑ) of the dislocation frame expressed in the real-space
         coordinate system. A vector `v_real` can be transformed to the
-        dislocation frame via:
-            v_theo = R @ v_real
+        dislocation frame via ``v_theo = R @ v_real``.
 
     Notes
     -----
@@ -295,9 +295,8 @@ def angle_between_vectors(u, v):
     """
     Compute the angle between two vectors in Euclidean space.
 
-    The angle is calculated using the dot product formula:
-        cos(θ) = (u · v) / (||u|| ||v||)
-    and returned in degrees.
+    The angle is calculated using the dot product formula
+    ``cos(θ) = (u · v) / (||u|| ||v||)`` and returned in degrees.
 
     Parameters
     ----------

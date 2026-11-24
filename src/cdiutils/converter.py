@@ -445,7 +445,7 @@ class SpaceConverter:
         """
         Compute d-spacing from q-space coordinates.
 
-        d-spacing is the lattice plane separation: d = 2π / |q|.
+        d-spacing is the lattice plane separation: ``d = 2π / |q|``.
 
         Args:
             q_lab_coordinates: (qx, qy, qz) in Å⁻¹.
@@ -850,8 +850,8 @@ class SpaceConverter:
         """
         Compute radial profile data for q-space histogram.
 
-        Calculates |q| magnitude for each voxel and returns sorted
-        (|q|, intensity) pairs for 1D radial averaging.
+        Calculates ``|q|`` magnitude for each voxel and returns sorted
+        (``|q|``, intensity) pairs for 1D radial averaging.
 
         Args:
             q_lab_data: 3D intensity array in orthogonalised q lab
