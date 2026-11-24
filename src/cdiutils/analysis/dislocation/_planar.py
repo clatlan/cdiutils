@@ -7,9 +7,12 @@ from scipy import ndimage, signal
 def _closed_interior(support: np.ndarray, closing: int, depth: int):
     """Support closed over low-amplitude sheets, filled, then eroded."""
     pad = closing + 1
-    closed = ndimage.binary_closing(
-        np.pad(support, pad), iterations=closing
-    )[pad:-pad, pad:-pad, pad:-pad] | support
+    closed = (
+        ndimage.binary_closing(np.pad(support, pad), iterations=closing)[
+            pad:-pad, pad:-pad, pad:-pad
+        ]
+        | support
+    )
     filled = ndimage.binary_fill_holes(closed)
     return filled, ndimage.binary_erosion(filled, iterations=depth)
 
@@ -101,28 +104,33 @@ def find_planar_defects(
         along = rel @ normal
         across = np.linalg.norm(rel - along[:, None] * normal, axis=1)
         near = across < radius
-        edges = np.arange(np.floor(along[near].min()),
-                          np.ceil(along[near].max()) + 1)
+        edges = np.arange(
+            np.floor(along[near].min()), np.ceil(along[near].max()) + 1
+        )
         index = np.digitize(along[near], edges)
         counts = np.bincount(index, minlength=len(edges) + 1)[1:-1]
-        sums = np.bincount(index, weights=values[near],
-                           minlength=len(edges) + 1)[1:-1]
+        sums = np.bincount(
+            index, weights=values[near], minlength=len(edges) + 1
+        )[1:-1]
         profile = np.where(counts > 5, sums / np.maximum(counts, 1), np.nan)
         positions = edges[:-1] + 0.5
         good = ~np.isnan(profile)
         minima, _ = signal.find_peaks(-profile[good], prominence=prominence)
         minima = minima[profile[good][minima] < max_amplitude]
         boundaries = positions[good][minima]
-        sheets.append({
-            "voxels": int(len(points)),
-            "centre": centre.tolist(),
-            "normal": normal.tolist(),
-            "angle_to_reference": float(np.degrees(
-                np.arccos(min(abs(normal @ ref), 1.0)))),
-            "planarity": float(variances[0] / variances[1]),
-            "thickness": float(2 * np.sqrt(max(variances[0], 0.0))),
-            "boundaries": boundaries.tolist(),
-            "boundary_amplitude": profile[good][minima].tolist(),
-            "spacing": np.diff(boundaries).tolist(),
-        })
+        sheets.append(
+            {
+                "voxels": int(len(points)),
+                "centre": centre.tolist(),
+                "normal": normal.tolist(),
+                "angle_to_reference": float(
+                    np.degrees(np.arccos(min(abs(normal @ ref), 1.0)))
+                ),
+                "planarity": float(variances[0] / variances[1]),
+                "thickness": float(2 * np.sqrt(max(variances[0], 0.0))),
+                "boundaries": boundaries.tolist(),
+                "boundary_amplitude": profile[good][minima].tolist(),
+                "spacing": np.diff(boundaries).tolist(),
+            }
+        )
     return sorted(sheets, key=lambda s: -s["voxels"])

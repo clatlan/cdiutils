@@ -9,13 +9,13 @@ def _particle(offsets, angle_deg=70.53, n=80, width=1.0):
     """Sphere with low-amplitude planes at `offsets` along a normal
     making `angle_deg` with axis 1."""
     z, y, x = np.mgrid[:n, :n, :n] - n / 2 + 0.5
-    sphere = (z ** 2 + y ** 2 + x ** 2) < 30 ** 2
+    sphere = (z**2 + y**2 + x**2) < 30**2
     angle = np.radians(angle_deg)
     normal = np.array([0.0, np.cos(angle), np.sin(angle)])
     along = z * normal[0] + y * normal[1] + x * normal[2]
     amp = np.ones_like(along)
     for offset in offsets:
-        amp *= 1 - 0.95 * np.exp(-(along - offset) ** 2 / (2 * width ** 2))
+        amp *= 1 - 0.95 * np.exp(-((along - offset) ** 2) / (2 * width**2))
     return amp * sphere, sphere
 
 
