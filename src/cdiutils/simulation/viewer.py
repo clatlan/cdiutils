@@ -81,10 +81,10 @@ class DiffractometerViewer:
         sample: A :class:`~cdiutils.simulation.SupportedCrystal`.
         energy: Initial X-ray energy (eV).
         energy_range: (min, max) of the energy slider (eV). Nodes are
-            computed once, up to |Q| = 2k at the highest energy.
+            computed once, up to ``|Q|`` = 2k at the highest energy.
         reflections: Crystal reflections offered by the "go to" menu
             and always labelled. Default: the 25 allowed nodes of
-            lowest |Q| with non-negative (h, k, l).
+            lowest ``|Q|`` with non-negative (h, k, l).
         phi_offset: Motor phi at which the sample x axis (the
             in-plane reference direction of the crystal) lies along
             the beam; motor phi = computed phi + phi_offset.

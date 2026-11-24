@@ -19,6 +19,8 @@ direction of the crystal. Reciprocal vectors include the 2 pi factor
 and are in 1/Angstrom, as in xrayutilities.
 """
 
+from __future__ import annotations
+
 import textwrap
 
 import numpy as np
@@ -209,15 +211,15 @@ class SupportedCrystal:
         min_structure_factor: float = 1.0,
     ) -> tuple[np.ndarray, list]:
         """
-        Allowed substrate reciprocal nodes with Q_z >= 0, |Q| <= q_max.
+        Allowed substrate reciprocal nodes with Q_z >= 0, ``|Q|`` <= q_max.
 
         Structure factors are computed in the substrate's own frame
         (before the epitaxial rotation), so extinctions are exact.
 
         Args:
-            q_max: Largest |Q| (1/Angstrom).
+            q_max: Largest ``|Q|`` (1/Angstrom).
             energy: X-ray energy (eV) for the structure factors.
-            min_structure_factor: Nodes with a smaller |F| are
+            min_structure_factor: Nodes with a smaller ``|F|`` are
                 treated as forbidden.
 
         Returns:
@@ -268,7 +270,7 @@ class SupportedCrystal:
             energy: X-ray energy (eV).
 
         Returns:
-            Tuple (substrate hkl, |Delta Q| in 1/Angstrom).
+            Tuple (substrate hkl, ``|Delta Q|`` in 1/Angstrom).
         """
         q = self.q_vector(hkl)
         nodes, labels = self.substrate_nodes(np.linalg.norm(q) + 1.0, energy)
@@ -396,7 +398,7 @@ class SupportedCrystal:
                 incidence angle in degrees.
 
         Returns:
-            Dictionary with d (A), |Q| (1/A), 2theta, psi (angle
+            Dictionary with d (A), ``|Q|`` (1/A), 2theta, psi (angle
             between Q and the normal), azimuth (in-plane angle of Q
             from sample x), incidence and exit angles, footprint
             factor (1/sin incidence) and the diffractometer angles
@@ -519,7 +521,7 @@ class SupportedCrystal:
         """
         Planning table: angles and distance to the substrate nodes.
 
-        The 'margin' columns compare |Delta Q| to the nearest
+        The 'margin' columns compare ``|Delta Q|`` to the nearest
         substrate node with a +-`fringes` window of a particle of each
         size (window = fringes x 2 pi / size): below 1 the bulk
         substrate Bragg node is inside the measured volume.
@@ -641,7 +643,7 @@ class SupportedCrystal:
         Q_par-Q_z maps of crystal and substrate nodes in vertical planes.
 
         Args:
-            energy: X-ray energy (eV); nodes beyond |Q| = 2k are left
+            energy: X-ray energy (eV); nodes beyond ``|Q|`` = 2k are left
                 out.
             azimuths_deg: Azimuths (deg from sample x) of the planes.
                 Default (0, 30) for hexagonal and (0, 45) otherwise.

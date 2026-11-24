@@ -8,8 +8,9 @@ The :mod:`cdiutils.interactive` module provides interactive 3D visualisation too
 Classes
 -------
 
-:class:`ThreeDViewer` (:doc:`classes/ThreeDViewer`) and :class:`Plotter`
-(:doc:`classes/Plotter`) have their own pages.
+:class:`ThreeDViewer` (:doc:`classes/ThreeDViewer`),
+:class:`MultiVolumeViewer` (:doc:`classes/MultiVolumeViewer`) and
+:class:`Plotter` (:doc:`classes/Plotter`) have their own pages.
 
 .. autosummary::
 
