@@ -7,33 +7,52 @@ realistic detector data with noise and experimental geometry.
 
 Modules
 -------
-objects : Object creation, phase manipulation, and diffraction
-    simulation.
-noise : Noise models for realistic detector simulation.
-detector : End-to-end BCDI measurement simulator with detector
-    geometry.
+* ``objects``: object creation, phase manipulation and diffraction
+  simulation.
+* ``noise``: noise models for realistic detector simulation.
+* ``detector``: end-to-end BCDI measurement simulator with detector
+  geometry.
+* ``domains``: domain models of a reconstruction (phase steps, tilts,
+  bending) fitted to measured intensity.
 
 Main Components
 ---------------
-Object creation (from objects):
-    make_box : Create a 3D box (parallelepiped/cube).
-    make_ellipsoid : Create a 3D ellipsoid or sphere.
-    make_cylinder : Create a 3D cylinder.
+Object creation (from ``objects``):
 
-Phase manipulation (from objects):
-    add_linear_phase : Add linear phase gradient.
-    add_quadratic_phase : Add quadratic phase (defocus, strain).
-    add_displacement_field : Add phase from displacement field.
-    add_random_phase : Add random phase noise.
+* ``make_box``: create a 3D box (parallelepiped/cube).
+* ``make_ellipsoid``: create a 3D ellipsoid or sphere.
+* ``make_cylinder``: create a 3D cylinder.
 
-Diffraction simulation (from objects):
-    simulate_diffraction : Compute diffraction pattern via FFT.
+Phase manipulation (from ``objects``):
 
-Noise models (from noise):
-    add_noise : Add Gaussian and/or Poisson noise to data.
+* ``add_linear_phase``: add a linear phase gradient.
+* ``add_quadratic_phase``: add a quadratic phase (defocus, strain).
+* ``add_displacement_field``: add the phase of a displacement field.
+* ``add_random_phase``: add random phase noise.
 
-BCDI measurement simulation (from detector):
-    BCDISimulator : Complete BCDI measurement simulator.
+Diffraction simulation (from ``objects``):
+
+* ``simulate_diffraction``: compute the diffraction pattern via FFT.
+
+Domain models (from ``domains``):
+
+* ``segment_domains``: split a reconstruction into domains separated by
+  low-modulus planes, sharing its filled outline.
+* ``fill_domain_gaps``: fill only the planes between domains.
+* ``measure_domain_phases``: ramp, phase offset and coherence per
+  domain.
+* ``fit_quadratic_phase``: linear + quadratic phase of a region (bent or
+  graded crystal).
+* ``DomainModelFit``: fit measured intensity with domains carrying phase
+  steps, tilts or a quadratic phase (Poisson deviance).
+
+Noise models (from ``noise``):
+
+* ``add_noise``: add Gaussian and/or Poisson noise to data.
+
+BCDI measurement simulation (from ``detector``):
+
+* ``BCDISimulator``: complete BCDI measurement simulator.
 
 Notes
 -----
@@ -71,6 +90,13 @@ Example
 # import from objects module
 # import from detector module
 from .detector import BCDISimulator
+from .domains import (
+    DomainModelFit,
+    fill_domain_gaps,
+    fit_quadratic_phase,
+    measure_domain_phases,
+    segment_domains,
+)
 
 # import from noise module
 from .noise import add_noise
@@ -97,6 +123,11 @@ __all__ = [
     "add_random_phase",
     # diffraction simulation
     "simulate_diffraction",
+    "segment_domains",
+    "fill_domain_gaps",
+    "measure_domain_phases",
+    "fit_quadratic_phase",
+    "DomainModelFit",
     # noise models
     "add_noise",
     # BCDI measurement simulator

@@ -14,6 +14,7 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
    ../explore_cxi_file
    ../pole_figure
    ../bragg_signal_clustering
+   ../domain_model_fit
 
 Jupyter Notebook Examples
 --------------------------
@@ -110,6 +111,21 @@ Separate the Bragg signal from aliens and background (synthetic data):
 * Masking a separate alien peak, far from the Bragg region
 * ``background_map``: pure pixels against all usable frames, compared with
   the true background
+
+Domain Models: Phase Steps, Tilts or Bending
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`domain_model_fit.ipynb <../../examples/domain_model_fit.ipynb>`
+
+Test the interpretation of a reconstruction against the measured intensity
+(synthetic known answers):
+
+* ``segment_domains`` and ``measure_domain_phases`` on a band-limited
+  reconstruction
+* ``DomainModelFit``: phase steps (``"A"``), tilts (``"B"``), no steps
+  (``"C"``) and a bent crystal (``"bend"``), compared by Poisson deviance
+* Recovering the phase steps and the curvature, and checking that each
+  dataset selects its own model
 
 Template Notebooks
 -------------------
