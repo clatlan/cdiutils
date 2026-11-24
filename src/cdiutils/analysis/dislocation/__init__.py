@@ -11,6 +11,7 @@ from ._geometry import (
     plot_phase_around_dislo,
 )
 from ._phase_decomp import decompose_experimental_phase
+from ._planar import find_planar_defects
 from ._ring import (
     center_angles,
     dislo_process_phase_ring,
@@ -28,7 +29,6 @@ from ._theory import (
     signed_angle_3d,
     transform_known_vector_to_crystallographic,
 )
-from ._planar import find_planar_defects
 from ._vortices import find_phase_vortices
 
 __all__ = [
