@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.fft import fftn, fftshift, ifftn
+from scipy.spatial.distance import pdist
 
 
 def make_box(
@@ -386,6 +387,202 @@ def add_random_phase(
         phase = phase * (obj > 0)
 
     return obj * np.exp(1j * phase)
+
+
+def make_polyhedron(
+    shape: tuple[int, int, int],
+    normals: np.ndarray,
+    distances: np.ndarray,
+    centre: tuple[float, float, float] | None = None,
+    rotation: np.ndarray | tuple[float, float, float] | None = None,
+    value: float = 1.0,
+) -> np.ndarray:
+    """
+    Create a 3D convex polyhedron from bounding planes.
+
+    A voxel at position r (relative to `centre`) is inside when
+    n_i . r <= d_i for every plane i.
+
+    Args:
+        shape: 3D array shape (nz, ny, nx).
+        normals: (n, 3) outward plane normals in (z, y, x) order.
+        distances: (n,) plane distances in pixels (for unit
+            normals).
+        centre: Origin of the plane equations (z, y, x). If None,
+            uses array centre.
+        rotation: Rotation to apply to the polyhedron (same forms as
+            :func:`make_box`).
+        value: Value to fill inside the polyhedron.
+
+    Returns:
+        3D array with `value` inside the polyhedron and 0 outside.
+    """
+    normals = np.asarray(normals, dtype=float)
+    lengths = np.linalg.norm(normals, axis=1)
+    unit_normals = normals / lengths[:, None]
+    unit_distances = np.asarray(distances, dtype=float) / lengths
+
+    coords_z, coords_y, coords_x = _get_centred_coordinates(shape, centre)
+    rotation_matrix = _parse_rotation_matrix(rotation)
+    if rotation_matrix is not None:
+        coords_z, coords_y, coords_x = _apply_rotation_to_coordinates(
+            coords_z, coords_y, coords_x, rotation_matrix.T
+        )
+
+    inside = np.ones(shape, dtype=bool)
+    for normal, distance in zip(unit_normals, unit_distances):
+        inside &= (
+            normal[0] * coords_z + normal[1] * coords_y + normal[2] * coords_x
+            <= distance
+        )
+
+    array = np.zeros(shape, dtype=float)
+    array[inside] = value
+    return array
+
+
+def _safe_rotation_matrix(theta: float, axis: np.ndarray) -> np.ndarray:
+    """
+    Axis-angle rotation matrix that accepts a zero axis.
+
+    wulffpack 1.5 builds the axis aligning the interface with -z as
+    a cross product, which is zero when the interface normal is
+    already along z (e.g. a c-plane hcp interface); its own rotation
+    function then returns NaNs. A zero axis means theta = 0 or pi.
+
+    Args:
+        theta: Rotation angle in radians.
+        axis: Rotation axis (any length, may be zero).
+
+    Returns:
+        3x3 rotation matrix.
+    """
+    from wulffpack.core.geometry import get_rotation_matrix
+
+    axis = np.asarray(axis, dtype=float)
+    if np.linalg.norm(axis) < 1e-12:
+        if np.cos(theta) > 0:
+            return np.eye(3)
+        return np.diag([1.0, -1.0, -1.0])
+    return get_rotation_matrix(theta, axis)
+
+
+def get_winterbottom(
+    surface_energies: dict,
+    interface_direction: tuple[int, int, int],
+    interface_energy: float,
+    primitive_structure=None,
+    **kwargs,
+):
+    """
+    Build a wulffpack Winterbottom particle, working around a bug.
+
+    Thin wrapper of :class:`wulffpack.Winterbottom`. The only change
+    is the rotation that wulffpack applies at the end of the
+    construction, which fails for an interface normal along z (see
+    :func:`_safe_rotation_matrix`). The interface energy is, as in
+    wulffpack, gamma_interface - gamma_substrate, i.e.
+    gamma_parallel - W_adh with the Dupre relation.
+
+    Args:
+        surface_energies: Miller indices -> surface energy, as for
+            wulffpack (4-index keys are accepted for hcp).
+        interface_direction: 3-index Miller indices of the interface
+            facet, e.g. (0, 0, -1) for a c-plane hcp crystal.
+        interface_energy: gamma_interface - gamma_substrate. Must not
+            be exactly 0 (wulffpack needs the Wulff point inside).
+        primitive_structure: ASE Atoms defining the point group.
+        **kwargs: Passed to :class:`wulffpack.Winterbottom`.
+
+    Returns:
+        The wulffpack Winterbottom object, rotated so that the
+        interface normal points along -z (the particle sits above
+        the interface; the origin stays at the Wulff point).
+
+    Raises:
+        ImportError: If wulffpack is not installed.
+    """
+    try:
+        import wulffpack.winterbottom as winterbottom_module
+    except ImportError as error:
+        raise ImportError(
+            "get_winterbottom needs wulffpack: pip install wulffpack"
+        ) from error
+
+    original = winterbottom_module.get_rotation_matrix
+    winterbottom_module.get_rotation_matrix = _safe_rotation_matrix
+    try:
+        particle = winterbottom_module.Winterbottom(
+            surface_energies,
+            interface_direction=interface_direction,
+            interface_energy=interface_energy,
+            primitive_structure=primitive_structure,
+            **kwargs,
+        )
+    finally:
+        winterbottom_module.get_rotation_matrix = original
+    return particle
+
+
+def wulffpack_planes(particle) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Facet planes of a wulffpack particle in (z, y, x) order.
+
+    Args:
+        particle: A wulffpack particle (SingleCrystal, Winterbottom,
+            ...), e.g. from :func:`get_winterbottom`.
+
+    Returns:
+        Tuple (normals, distances): (n, 3) unit outward normals in
+        (z, y, x) order and (n,) plane distances from the origin, in
+        the length unit of the particle vertices (Angstrom).
+    """
+    normals = []
+    distances = []
+    for form in particle.forms:
+        for facet in form.facets:
+            normal = np.asarray(facet.normal, dtype=float)
+            vertices = np.asarray(facet.vertices, dtype=float)
+            normals.append(normal[::-1])
+            distances.append(np.mean(vertices @ normal))
+    return np.array(normals), np.array(distances)
+
+
+def make_from_wulffpack(
+    shape: tuple[int, int, int],
+    particle,
+    diameter: float,
+    centre: tuple[float, float, float] | None = None,
+    value: float = 1.0,
+) -> np.ndarray:
+    """
+    Voxelise a wulffpack particle (e.g. a Winterbottom shape).
+
+    The particle is scaled so that its largest extent in the (x, y)
+    plane equals `diameter` (in pixels) and placed with the centre of
+    its bounding box at `centre`. For a Winterbottom particle from
+    :func:`get_winterbottom` the interface lies at the bottom
+    (towards low indices along axis 0).
+
+    Args:
+        shape: 3D array shape (nz, ny, nx).
+        particle: A wulffpack particle.
+        diameter: Largest in-plane extent, in pixels.
+        centre: Array position (z, y, x) of the bounding-box centre.
+            If None, uses array centre.
+        value: Value to fill inside the particle.
+
+    Returns:
+        3D array with `value` inside the particle and 0 outside.
+    """
+    normals, distances = wulffpack_planes(particle)
+    vertices = np.vstack(
+        [facet.vertices for form in particle.forms for facet in form.facets]
+    )[:, ::-1]  # to (z, y, x)
+    scale = diameter / np.max(pdist(vertices[:, 1:]))
+    box_centre = 0.5 * (vertices.min(axis=0) + vertices.max(axis=0))
+    shifted = (distances - normals @ box_centre) * scale
+    return make_polyhedron(shape, normals, shifted, centre=centre, value=value)
 
 
 def _parse_rotation_matrix(

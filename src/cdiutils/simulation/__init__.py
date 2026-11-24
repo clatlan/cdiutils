@@ -22,6 +22,11 @@ Object creation (from ``objects``):
 * ``make_box``: create a 3D box (parallelepiped/cube).
 * ``make_ellipsoid``: create a 3D ellipsoid or sphere.
 * ``make_cylinder``: create a 3D cylinder.
+* ``make_polyhedron``: create a 3D convex polyhedron from planes.
+* ``get_winterbottom``: wulffpack Winterbottom particle (with a fix for
+  interfaces along z, e.g. c-plane hcp).
+* ``wulffpack_planes``: facet planes of a wulffpack particle.
+* ``make_from_wulffpack``: voxelise a wulffpack particle.
 
 Phase manipulation (from ``objects``):
 
@@ -49,6 +54,17 @@ Domain models (from ``domains``):
 Noise models (from ``noise``):
 
 * ``add_noise``: add Gaussian and/or Poisson noise to data.
+
+Supported crystals (from ``epitaxy``):
+
+* ``SupportedCrystal``: crystal on a substrate for experiment planning
+  (Bragg angles vs energy, substrate nodes, reciprocal-space maps,
+  Winterbottom shapes, simulated peaks).
+
+Diffractometer view (from ``viewer``):
+
+* ``DiffractometerViewer``: interactive lab-frame view of the reciprocal
+  lattice, the Ewald sphere and the detector.
 
 BCDI measurement simulation (from ``detector``):
 
@@ -97,6 +113,7 @@ from .domains import (
     measure_domain_phases,
     segment_domains,
 )
+from .epitaxy import SupportedCrystal
 
 # import from noise module
 from .noise import add_noise
@@ -105,17 +122,26 @@ from .objects import (
     add_linear_phase,
     add_quadratic_phase,
     add_random_phase,
+    get_winterbottom,
     make_box,
     make_cylinder,
     make_ellipsoid,
+    make_from_wulffpack,
+    make_polyhedron,
     simulate_diffraction,
+    wulffpack_planes,
 )
+from .viewer import DiffractometerViewer
 
 __all__ = [
     # object creation
     "make_box",
     "make_ellipsoid",
     "make_cylinder",
+    "make_polyhedron",
+    "get_winterbottom",
+    "wulffpack_planes",
+    "make_from_wulffpack",
     # phase manipulation
     "add_linear_phase",
     "add_quadratic_phase",
@@ -132,4 +158,6 @@ __all__ = [
     "add_noise",
     # BCDI measurement simulator
     "BCDISimulator",
+    "SupportedCrystal",
+    "DiffractometerViewer",
 ]

@@ -47,6 +47,7 @@ dependencies = [
 
 [project.optional-dependencies]
 vtk = ["vtk>=9.0.1"]
+wulff = ["wulffpack>=1.5"]
 interactive = [
     "ipywidgets",
     "ipyvolume", 
