@@ -129,6 +129,13 @@ Unreleased
   runs on the low-q signal; with ``background`` (raw counts and expected
   background) the PRTF is restricted to shells with significant net
   signal and the data-limited half-period (``signal_limit``) is returned.
+* **Bragg signal clustering and background**
+  (:func:`~cdiutils.utils.cluster_bragg_signal`,
+  :func:`~cdiutils.utils.background_map`): E. Bellec's DBSCAN alien
+  clustering with fringe merging, and a per-pixel background map from the
+  frames outside the Bragg region. User guide:
+  :doc:`user_guide/bragg_signal_clustering`.
+* Example notebook ``bragg_signal_clustering.ipynb``.
 
 Version 0.2.0 (Current)
 ------------------------

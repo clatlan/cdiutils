@@ -13,6 +13,7 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
    ../bcdi_reconstruction_analysis
    ../explore_cxi_file
    ../pole_figure
+   ../bragg_signal_clustering
 
 Jupyter Notebook Examples
 --------------------------
@@ -97,6 +98,18 @@ This example covers:
 * Crystal orientation mapping
 * Pole figure generation and interpretation
 * Advanced crystallographic analysis
+
+Bragg Signal Clustering, Aliens and Background
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`bragg_signal_clustering.ipynb <../../examples/bragg_signal_clustering.ipynb>`
+
+Separate the Bragg signal from aliens and background (synthetic data):
+
+* ``cluster_bragg_signal`` with and without fringe merging (``merge_size``)
+* Masking a separate alien peak, far from the Bragg region
+* ``background_map``: pure pixels against all usable frames, compared with
+  the true background
 
 Template Notebooks
 -------------------
