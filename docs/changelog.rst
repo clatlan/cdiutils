@@ -115,6 +115,21 @@ Unreleased
   strain, phase): interpolation ignores undefined corners, so surface
   colours are no longer lost on the support edge.
 
+**New Features:**
+
+* **Phase retrieval transfer function**
+  (:meth:`~cdiutils.process.PhasingResultAnalyser.phase_retrieval_transfer_function`):
+  PRTF of independent reconstructions against the measured intensity
+  (Chapman et al., J. Opt. Soc. Am. A 23, 1179 (2006)), averaged over
+  shells of true ``|q|`` (from the ``q_lab`` transformation matrix of the
+  preprocessed data) and, optionally, per direction (Cherukara et al.,
+  Appl. Phys. Lett. 113, 203101 (2018)); returns the half-period
+  resolution at the 1/e crossing. ``shell_average="intensity"`` accepts
+  background-subtracted, unclipped data and ``normalisation_q`` scales the
+  runs on the low-q signal; with ``background`` (raw counts and expected
+  background) the PRTF is restricted to shells with significant net
+  signal and the data-limited half-period (``signal_limit``) is returned.
+
 Version 0.2.0 (Current)
 ------------------------
 
