@@ -5,16 +5,8 @@ on:
     branches:
       - dev
       - master
-    workflow_dispatch:  # manuel trigger
-      inputs:
-        force_push:
-          description: 'Force push to GitLab'
-          required: false
-          default: 'true'
-          type: choice
-          options:
-            - 'true'
-            - 'false'
+  workflow_dispatch:
+
 jobs:
   mirror:
     runs-on: ubuntu-latest
@@ -22,15 +14,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # full history for proper mirroring
+          fetch-depth: 0
       
       - name: Mirror to ESRF GitLab
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_MIRROR_TOKEN }}
         run: |
           git remote add gitlab https://oauth2:${GITLAB_TOKEN}@gitlab.esrf.fr/ada/cdiutils.git
-          if [ "${{ inputs.force_push }}" == "true" ]; then
-            git push gitlab ${GITHUB_REF#refs/heads/} --force
-          else
-            git push gitlab ${GITHUB_REF#refs/heads/}
-          fi
+          git push gitlab ${GITHUB_REF#refs/heads/} --force

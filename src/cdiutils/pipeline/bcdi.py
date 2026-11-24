@@ -9,8 +9,12 @@ Authors:
 import collections
 import copy
 import glob
+import logging
 import os
+import platform
 import subprocess
+import sys
+import zipfile
 from string import Template
 
 # Dependencies.
@@ -386,9 +390,9 @@ class BcdiPipeline(Pipeline):
                 self.params["preprocess_shape"], verbose=True
             )
             self.logger.info(
-                "The preprocessing output shape is: and "
-                f"{self.params['preprocess_shape']} will be used for the "
-                "determination of the ROI dimensions."
+                "The preprocessing output shape is: "
+                f"{self.params['preprocess_shape']} and will be used "
+                "for the determination of the ROI dimensions."
             )
             # Filter, crop and centre the detector data.
             self.cropped_detector_data, roi = self._crop_centre(
@@ -1036,12 +1040,71 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         self.logger.info(f"Pre-processed data file saved at:\n{dump_path}")
 
-    def _make_slurm_file(self, template: str = None) -> None:
+    def _make_slurm_file(
+        self,
+        template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
+        slurm_memory: str = None,
+        slurm_time: str = "01:00:00",
+    ) -> None:
         """
         Generate SLURM batch script for PyNX phase retrieval.
 
-        Uses template substitution to create job submission file.
+        Uses template substitution to create job submission file. The
+        job starts from a clean login environment on its node (the
+        partitions mix x86_64 and ppc64le nodes) and runs the
+        pynx-cdi-id01 of the environment given for the architecture of
+        that node, else the one of the ESRF pynx module.
+
+        Args:
+            template (str, optional): path to the SLURM script template.
+                Defaults to None (built-in template).
+            pynx_envs (dict[str, str], optional): environment prefix
+                holding bin/pynx-cdi-id01, per architecture ("x86_64",
+                "ppc64le"). If the running Python environment has
+                pynx-cdi-id01, it is used for its own architecture
+                unless given here. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s).
+                Defaults to "gpu,p9gpu".
+            slurm_memory (str, optional): host memory of the job, e.g.
+                "32G". Defaults to None: estimated from the shape of the
+                data (see _estimate_pynx_job_resources).
+            slurm_time (str, optional): time limit of the job,
+                "HH:MM:SS". Defaults to "01:00:00", the maximum of the
+                gpu and p9gpu partitions (use e.g. gpu-long for more).
         """
+        pynx_envs = dict(pynx_envs or {})
+
+        # Memory and time of the job, from the size of the data
+        estimated_memory, run_seconds = self._estimate_pynx_job_resources(
+            self.params["pynx"]["data"], self.params["pynx"]
+        )
+        if slurm_memory is None:
+            slurm_memory = estimated_memory
+        nb_run = int(self.params["pynx"].get("nb_run") or 1)
+        self.logger.info(
+            f"SLURM job: memory {slurm_memory}, time limit {slurm_time} "
+            f"(estimated {run_seconds / 60:.1f} min per run on an L40S, "
+            f"{nb_run} runs)."
+        )
+        # GPUs slower than the L40S can take about twice as long
+        if 2 * nb_run * run_seconds > self._time_to_seconds(slurm_time):
+            self.logger.warning(
+                f"The {nb_run} runs may not fit in the time limit "
+                f"{slurm_time}: lower nb_run, rebin the data, or give a "
+                "longer slurm_time with a longer partition (e.g. "
+                'slurm_partition="gpu-long").'
+            )
+
+        # Use the current environment for its architecture, if it has PyNX
+        if os.path.isfile(os.path.join(sys.prefix, "bin", "pynx-cdi-id01")):
+            pynx_envs.setdefault(platform.machine(), sys.prefix)
+        self.logger.info(
+            f"PyNX environments per architecture: {pynx_envs or 'none'} "
+            "(otherwise the pynx module of the node)."
+        )
+
         # Make the pynx slurm file
         if template is None:
             template = (
@@ -1061,6 +1124,11 @@ retrieval is also computed and will be used in the post-processing stage."""
                 {
                     "number_of_nodes": 2,
                     "data_path": self.pynx_phasing_dir,
+                    "partition": slurm_partition,
+                    "time_limit": slurm_time,
+                    "memory": slurm_memory,
+                    "pynx_env_x86_64": pynx_envs.get("x86_64", ""),
+                    "pynx_env_ppc64le": pynx_envs.get("ppc64le", ""),
                     "SLURM_JOBID": "$SLURM_JOBID",
                     "SLURM_NTASKS": "$SLURM_NTASKS",
                 }
@@ -1071,6 +1139,121 @@ retrieval is also computed and will be used in the post-processing stage."""
             encoding="utf8",
         ) as file:
             file.write(pynx_slurm_text)
+
+    @staticmethod
+    def _estimate_pynx_job_resources(
+        data_path: str, pynx_params: dict
+    ) -> tuple[str, float]:
+        """
+        Estimate the host memory and the run time of a PyNX job.
+
+        Measured with pynx-cdi-id01 2026.1 on an L40S (ch8156,
+        CuAg_BCDI_0058, 600 x 500 x 500 voxels, 1300 cycles with PSF): a
+        host memory peak of 6.5 GB, the same for 1 and 3 runs, and about
+        2.5 min per run. The memory asked is twice that peak per voxel
+        plus 1 GB, at least 8 GB; the run time scales with the number of
+        voxels and of cycles.
+
+        Args:
+            data_path (str): path to the npz (key "data") or npy data
+                given to PyNX.
+            pynx_params (dict): the PyNX parameters (nb_hio, nb_raar,
+                nb_er, nb_ml, rebin).
+
+        Returns:
+            tuple[str, float]: the SLURM memory (e.g. "15G") and the
+                estimated time of one run (s). ("16G", 0) if the data
+                shape cannot be read.
+        """
+        try:
+            shape = BcdiPipeline._read_array_shape(data_path)
+        except (OSError, KeyError, ValueError):
+            return "16G", 0.0
+
+        # Rebinning reduces the arrays PyNX works on
+        rebin = pynx_params.get("rebin") or 1
+        if isinstance(rebin, str):
+            rebin = [int(r) for r in rebin.replace(" ", "").split(",")]
+        if isinstance(rebin, int):
+            rebin = [rebin] * len(shape)
+        nb_voxels = float(np.prod(shape)) / float(np.prod(rebin))
+
+        # 6.5 GB for 1.5e8 voxels, i.e. about 45 bytes per voxel
+        memory_gb = max(8, int(np.ceil(1 + 2 * 45e-9 * nb_voxels)))
+
+        # About 1e-6 s per voxel for 1300 cycles
+        nb_cycles = sum(
+            int(pynx_params.get(key) or 0)
+            for key in ("nb_hio", "nb_raar", "nb_er", "nb_ml")
+        )
+        run_seconds = 1e-6 * nb_voxels * max(nb_cycles, 1) / 1300
+        return f"{memory_gb}G", run_seconds
+
+    @staticmethod
+    def _read_array_shape(path: str) -> tuple[int, ...]:
+        """
+        Read the shape of the data array of a npz or npy file.
+
+        Only the array header is read, not the data.
+
+        Args:
+            path (str): path to a npy file, or a npz file holding a
+                "data" array.
+
+        Raises:
+            KeyError: if a npz file has no "data" array.
+
+        Returns:
+            tuple[int, ...]: the shape of the array.
+        """
+        if path.endswith(".npy"):
+            with open(path, "rb") as file:
+                return BcdiPipeline._read_npy_header_shape(file)
+        with zipfile.ZipFile(path) as archive:
+            with archive.open("data.npy") as file:
+                return BcdiPipeline._read_npy_header_shape(file)
+
+    @staticmethod
+    def _read_npy_header_shape(file) -> tuple:
+        """
+        Read the array shape from an open npy stream (public numpy API).
+
+        Args:
+            file: binary file object positioned at the start of the npy
+                data.
+
+        Returns:
+            tuple[int, ...]: the shape of the array.
+        """
+        version = np.lib.format.read_magic(file)
+        # format 1.0 has a 2-byte header length, 2.0 and 3.0 a 4-byte one
+        if version == (1, 0):
+            return np.lib.format.read_array_header_1_0(file)[0]
+        return np.lib.format.read_array_header_2_0(file)[0]
+
+    @staticmethod
+    def _time_to_seconds(time_limit: str) -> float:
+        """
+        Convert a SLURM time limit to seconds.
+
+        Args:
+            time_limit (str): "MM", "HH:MM:SS" or "D-HH:MM:SS".
+
+        Returns:
+            float: the time limit in seconds.
+        """
+        days = 0
+        if "-" in time_limit:
+            day_text, time_limit = time_limit.split("-", 1)
+            days = int(day_text)
+        parts = [int(p) for p in time_limit.split(":")]
+        if len(parts) == 1:
+            # SLURM reads a single number as minutes
+            parts = [0, parts[0], 0]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        hours, minutes, seconds = parts
+        return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
     def phase_retrieval_gui(self) -> None:
         """Launch the interactive phase retrieval GUI.
@@ -1119,6 +1302,10 @@ retrieval is also computed and will be used in the post-processing stage."""
         self,
         jump_to_cluster: bool = False,
         pynx_slurm_file_template: str = None,
+        pynx_envs: dict[str, str] = None,
+        slurm_partition: str = "gpu,p9gpu",
+        slurm_memory: str = None,
+        slurm_time: str = "01:00:00",
         clear_former_results: bool = False,
         cmd: str = None,
         search_pattern: str = "*Run*.cxi",
@@ -1137,6 +1324,21 @@ retrieval is also computed and will be used in the post-processing stage."""
             pynx_slurm_file_template (str, optional): path to SLURM
                 script template. Defaults to None (uses built-in
                 template).
+            pynx_envs (dict[str, str], optional): for cluster jobs,
+                environment prefix holding bin/pynx-cdi-id01, per node
+                architecture, e.g. {"ppc64le": "/path/to/p9_env"}. The
+                current environment is used for its own architecture if
+                it has PyNX. Defaults to None.
+            slurm_partition (str, optional): SLURM partition(s) for
+                cluster jobs. Defaults to "gpu,p9gpu" (x86_64 and
+                ppc64le GPU nodes).
+            slurm_memory (str, optional): host memory of cluster jobs,
+                e.g. "32G". Defaults to None: estimated from the shape
+                of the data (a 600 x 500 x 500 array needs about 7 GB;
+                the SLURM default of 6 GB was too small).
+            slurm_time (str, optional): time limit of cluster jobs,
+                "HH:MM:SS". Defaults to "01:00:00", the maximum of the
+                gpu and p9gpu partitions.
             clear_former_results (bool, optional): delete previous
                 reconstruction CXI files. Defaults to False.
             cmd (str, optional): command for local PyNX execution.
@@ -1183,12 +1385,20 @@ retrieval is also computed and will be used in the post-processing stage."""
 
         # Make the pynx input file.
         with open(pynx_input_path, "w", encoding="utf8") as file:
-            for key, value in self.params["pynx"].items():
-                file.write(f"{key} = {value}\n")
+            for line in self._make_pynx_input_lines(
+                self.params["pynx"], self.logger
+            ):
+                file.write(line + "\n")
 
         if jump_to_cluster:
             self.logger.info("Jumping to cluster requested.")
-            self._make_slurm_file(pynx_slurm_file_template)
+            self._make_slurm_file(
+                pynx_slurm_file_template,
+                pynx_envs=pynx_envs,
+                slurm_partition=slurm_partition,
+                slurm_memory=slurm_memory,
+                slurm_time=slurm_time,
+            )
             job_id, output_file = self.submit_job(
                 job_file="pynx-id01-cdi.slurm",
                 working_dir=self.pynx_phasing_dir,
@@ -1205,7 +1415,103 @@ retrieval is also computed and will be used in the post-processing stage."""
                 self.logger.info(
                     f"No command provided. Will use the default: {cmd}"
                 )
+            self._warn_old_local_pynx(cmd, self.params["pynx"])
             self._run_cmd(cmd, self.pynx_phasing_dir)
+
+    @staticmethod
+    def _get_pynx_version(executable: str) -> str | None:
+        """
+        Return the PyNX version of the installation of a PyNX script.
+
+        The script is looked up as the command would be run (in a bash
+        login shell), and the version is read with importlib.metadata by
+        the interpreter of its shebang, which is the PyNX installation the
+        command uses (not necessarily the one of this Python).
+
+        Args:
+            executable (str): the script, e.g. "pynx-cdi-id01".
+
+        Returns:
+            str | None: the version, e.g. "2023.1.1", or None if it cannot
+                be found.
+        """
+        try:
+            path = subprocess.run(
+                ["bash", "-l", "-c", f"command -v {executable}"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            ).stdout.strip()
+            if not path or not os.path.isfile(path):
+                return None
+            with open(path, encoding="utf8", errors="replace") as file:
+                shebang = file.readline().strip()
+            if not shebang.startswith("#!"):
+                return None
+            interpreter = shebang[2:].split()
+            version = subprocess.run(
+                interpreter
+                + [
+                    "-c",
+                    "from importlib.metadata import version; "
+                    "print(version('pynx'))",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return version.stdout.strip() or None
+
+    def _warn_old_local_pynx(self, cmd: str, pynx_params: dict) -> None:
+        """
+        Warn if the PyNX run on this machine reads the parameters
+        differently.
+
+        The parameter file and the advice of the documentation are written
+        for the PyNX of the cluster jobs (pynx module, 2026.1). Older
+        versions (2023.x, e.g. in the jupyter-slurm environment of the
+        ESRF p9 Jupyter nodes) read the file differently: "roi" goes
+        through eval (only None or 6 integers work; False or "full" stop
+        the run), and some parameters (tv_hio, tv_raar, tv_er,
+        confidence_interval_factor_mask_min/max) are ignored.
+
+        Args:
+            cmd (str): the command that will be run, its first word being
+                the PyNX script.
+            pynx_params (dict): the PyNX parameters.
+        """
+        executable = cmd.split()[0] if cmd.split() else ""
+        if not executable.startswith("pynx-"):
+            return
+        version = self._get_pynx_version(executable)
+        if version is None:
+            return
+        try:
+            year = int(version.split(".")[0])
+        except ValueError:
+            return
+        if year >= 2024:
+            return
+
+        self.logger.warning(
+            f"{executable} on this machine uses PyNX {version}, which reads "
+            "the parameters differently from the PyNX of the cluster jobs "
+            "(pynx module): tv_hio, tv_raar, tv_er and "
+            "confidence_interval_factor_mask_min/max are ignored, and roi "
+            "only accepts None or 6 integers. Use jump_to_cluster=True to "
+            "run with the pynx module."
+        )
+        roi = pynx_params.get("roi")
+        if roi is not None and not (
+            isinstance(roi, (list, tuple))
+            and all(isinstance(v, int) for v in roi)
+        ):
+            self.logger.warning(
+                f"roi={roi!r} stops PyNX {version} ('cannot unpack' or "
+                "NameError): give roi=None or 6 integers."
+            )
 
     @staticmethod
     def _merge_pynx_params(user_pynx_params: dict) -> dict:
@@ -1226,6 +1532,61 @@ retrieval is also computed and will be used in the post-processing stage."""
         merged_pynx.update(user_pynx_params)
 
         return merged_pynx
+
+    @staticmethod
+    def _make_pynx_input_lines(
+        pynx_params: dict, logger: logging.Logger = None
+    ) -> list[str]:
+        """
+        Write the PyNX parameters as lines of a pynx-cdi-inputs.txt file.
+
+        pynx-cdi-id01 reads "key = value" lines and splits the values of
+        range and tuple parameters on commas. The values are written so
+        that PyNX 2026.1 can read them:
+            - lists, tuples and arrays are written as comma-separated
+              values ("0.23, 0.3"), not with their brackets ("[0.23,
+              0.3]" stops pynx-cdi-id01 with "invalid float value").
+            - a single support_autocorrelation_threshold value is
+              written as a (v, v) range: PyNX reads it as a one-element
+              list, then fails taking it as a (min, max) range.
+            - a non-integer support_fraction_min / support_fraction_max
+              is not written, with a warning: PyNX 2026.1 declares these
+              options as int and rejects e.g. 0.0001; its defaults (1e-4,
+              0.7) then apply.
+
+        Args:
+            pynx_params (dict): the PyNX parameters.
+            logger (logging.Logger, optional): logger for the warnings.
+                Defaults to None (no warning).
+
+        Returns:
+            list[str]: the "key = value" lines, without line breaks.
+        """
+        lines = []
+        for key, value in pynx_params.items():
+            if isinstance(value, np.ndarray):
+                value = value.tolist()
+
+            if key == "support_autocorrelation_threshold":
+                if isinstance(value, (int, float)):
+                    value = [value, value]
+                elif isinstance(value, (list, tuple)) and len(value) == 1:
+                    value = [value[0], value[0]]
+
+            if key in ("support_fraction_min", "support_fraction_max"):
+                if isinstance(value, float) and not value.is_integer():
+                    if logger is not None:
+                        logger.warning(
+                            f"{key} = {value} is not written in the PyNX "
+                            "input file: pynx-cdi-id01 (2026.1) only "
+                            "accepts an int, its default is used."
+                        )
+                    continue
+
+            if isinstance(value, (list, tuple)):
+                value = ", ".join(str(v) for v in value)
+            lines.append(f"{key} = {value}")
+        return lines
 
     def _run_cmd(self, cmd: str, cwd: str) -> None:
         """

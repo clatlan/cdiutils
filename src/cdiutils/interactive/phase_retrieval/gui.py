@@ -5,6 +5,7 @@ This module provides the PhaseRetrievalGUI class for configuring and
 running phase retrieval algorithms in BCDI workflows.
 """
 
+import fnmatch
 import glob
 import os
 from ast import literal_eval
@@ -23,6 +24,8 @@ except ImportError:
 from cdiutils.process.phaser import PyNXImportError
 
 from .engine import (
+    build_operator_chain_steps,
+    format_operator_chain,
     initialise_cdi_operator,
     list_files,
     save_cdi_operator_as_cxi,
@@ -30,19 +33,20 @@ from .engine import (
 
 try:
     from pynx.cdi import (
-        # DetwinRAAR,
         ER,
         HIO,
-        # DetwinHIO,
+        ML,
         RAAR,
         AutoCorrelationSupport,
+        DetwinHIO,
+        DetwinRAAR,
+        FourierApplyAmplitude,
         InitFreePixels,
         InitObjRandom,
         InitPSF,
         InterpIobsMask,
         ScaleObj,
         ShowCDI,
-        # FourierApplyAmplitude,
         SupportTooLarge,
         SupportTooSmall,
         SupportUpdate,
@@ -73,6 +77,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             box_style: The CSS style applied to the widget container.
             parent_folder: Dropdown to select the parent folder containing
                 input files.
+            button_refresh_files: Button to look again for the folders
+                and files.
             iobs: Dropdown to select the observed intensity dataset file.
             mask: Dropdown to select the mask file.
             support: Dropdown to select the support file.
@@ -121,6 +127,20 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             tv_hio: Smoothing/TV regularisation parameter during HIO cycles.
             tv_raar: Smoothing/TV regularisation parameter during RAAR cycles.
             zero_mask: Dropdown to specify whether to force mask pixels to zero.
+            support_update_border_n: support changes are limited to +/-N
+                pixels around the border of the previous support.
+            support_fraction_min, support_fraction_max: bounds of the
+                support fraction, outside which the run is restarted with
+                a tuned threshold.
+            support_threshold_auto_tune_factor: factor used to tune the
+                support threshold when the support fraction is out of
+                bounds.
+            nb_ml: number of maximum-likelihood cycles, after ER.
+            detwin: Checkbox to run 10 detwinning cycles.
+            confidence_interval_factor_mask_min,
+            confidence_interval_factor_mask_max: confidence interval
+                factors for the interpolated masked pixels.
+            iobs_saturation: pixels above this intensity are masked.
         """
 
         def __init__(
@@ -155,6 +175,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 box_style: The CSS style applied to the widget container.
                 parent_folder: Dropdown to select the parent folder containing
                     input files.
+                button_refresh_files: Button to look again for the folders
+                    and files.
                 iobs: Dropdown to select the observed intensity dataset file.
                 mask: Dropdown to select the mask file.
                 support: Dropdown to select the support file.
@@ -205,7 +227,21 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 tv_hio: Smoothing/TV regularisation parameter during HIO cycles.
                 tv_raar: Smoothing/TV regularisation parameter during RAAR cycles.
                 zero_mask: Dropdown to specify whether to force mask pixels to
-                    zero.
+                    zero ("True", "False" or "auto").
+                support_update_border_n: support changes are limited to
+                    +/-N pixels around the border of the previous support.
+                support_fraction_min, support_fraction_max: bounds of the
+                    support fraction, outside which the run is restarted
+                    with a tuned threshold.
+                support_threshold_auto_tune_factor: factor used to tune the
+                    support threshold when the support fraction is out of
+                    bounds.
+                nb_ml: number of maximum-likelihood cycles, after ER.
+                detwin: Checkbox to run 10 detwinning cycles.
+                confidence_interval_factor_mask_min,
+                confidence_interval_factor_mask_max: confidence interval
+                    factors for the interpolated masked pixels.
+                iobs_saturation: pixels above this intensity are masked.
                 mask_interp: Input field to specify interpolation parameters for
                     the mask.
                 run_phase_retrieval: Toggle buttons to start or stop the phase
@@ -252,58 +288,49 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
 
             if work_dir is None:
                 work_dir = os.getcwd()
+            self.work_dir = work_dir
 
-            options = sorted([x[0] + "/" for x in os.walk(work_dir)])
-            for root in options:
-                if ".ipynb" in root:
-                    options.remove(root)
-
+            # The file dropdowns are filled by refresh_file_lists, at the
+            # end of __init__, when the parent folder changes, and with
+            # the refresh button
+            self._is_refreshing = False
+            folders = self._list_sub_folders(work_dir)
             self.parent_folder = widgets.Dropdown(
-                options=options,
-                value=work_dir + "/",
-                placeholder=work_dir + "/",
+                options=folders,
+                value=folders[0],
                 description="Parent folder:",
                 continuous_update=False,
-                layout=widgets.Layout(width="90%"),
+                layout=widgets.Layout(width="75%"),
                 style={"description_width": "initial"},
             )
 
+            self.button_refresh_files = Button(
+                description="Refresh file lists",
+                icon="refresh",
+                tooltip=(
+                    "Look again for the folders and files, e.g. after a "
+                    "new preprocessing or phase retrieval"
+                ),
+                layout=Layout(width="15%", height="35px"),
+            )
+            self.button_refresh_files.on_click(self.refresh_file_lists)
+
             self.iobs = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz")
-                        + glob.glob(os.path.join(work_dir, "*.cxi")),
-                        key=os.path.getmtime,
-                    )
-                ],
+                options=[""],
                 description="Dataset",
                 layout=widgets.Layout(width="90%"),
                 style={"description_width": "initial"},
             )
 
             self.mask = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz"), key=os.path.getmtime
-                    )
-                ],
+                options=[""],
                 description="Mask",
                 layout=widgets.Layout(width="90%"),
                 style={"description_width": "initial"},
             )
 
             self.support = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.npz"), key=os.path.getmtime
-                    )
-                ],
+                options=[""],
                 value="",
                 description="Support",
                 layout=widgets.Layout(width="90%"),
@@ -311,16 +338,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.obj = widgets.Dropdown(
-                options=[""]
-                + [
-                    os.path.basename(f)
-                    for f in sorted(
-                        glob.glob(work_dir + "*.cxi")
-                        + glob.glob(work_dir + "*.npz")
-                        + glob.glob(work_dir + "*.npy"),
-                        key=os.path.getmtime,
-                    )
-                ],
+                options=[""],
                 value="",
                 description="Object",
                 layout=widgets.Layout(width="90%"),
@@ -399,6 +417,50 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 style={"description_width": "initial"},
             )
 
+            # Same defaults as the PyNX runner (pynx-cdi-id01)
+            self.support_update_border_n = widgets.BoundedIntText(
+                value=0,
+                min=0,
+                max=100,
+                continuous_update=False,
+                description="Support update border n:",
+                layout=widgets.Layout(height="50px", width="30%"),
+                style={"description_width": "initial"},
+            )
+
+            self.support_fraction_min = widgets.BoundedFloatText(
+                value=1e-4,
+                min=0,
+                max=1,
+                step=1e-4,
+                continuous_update=False,
+                description="Support fraction min:",
+                layout=widgets.Layout(height="50px", width="30%"),
+                style={"description_width": "initial"},
+            )
+
+            self.support_fraction_max = widgets.BoundedFloatText(
+                value=0.7,
+                min=0,
+                max=1,
+                step=0.05,
+                continuous_update=False,
+                description="Support fraction max:",
+                layout=widgets.Layout(height="50px", width="30%"),
+                style={"description_width": "initial"},
+            )
+
+            self.support_threshold_auto_tune_factor = widgets.BoundedFloatText(
+                value=1.1,
+                min=1,
+                max=2,
+                step=0.05,
+                continuous_update=False,
+                description="Support threshold auto-tune factor:",
+                layout=widgets.Layout(height="50px", width="40%"),
+                style={"description_width": "initial"},
+            )
+
             self.unused_label_psf = widgets.HTML(
                 value="<p style='font-weight: bold;font-size:1.2em'>\
                 Point spread function parameters",
@@ -473,7 +535,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.nb_raar = widgets.BoundedIntText(
-                value=500,
+                value=600,
                 min=0,
                 max=9999,
                 step=10,
@@ -497,7 +559,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
 
             self.nb_er = widgets.BoundedIntText(
-                value=200,
+                value=400,
                 min=0,
                 max=9999,
                 step=10,
@@ -506,6 +568,27 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 layout=widgets.Layout(height="35px", width="20%"),
                 readout=True,
                 style={"description_width": "initial"},
+            )
+
+            self.nb_ml = widgets.BoundedIntText(
+                value=0,
+                min=0,
+                max=9999,
+                step=10,
+                continuous_update=False,
+                description="Nb of ML:",
+                layout=widgets.Layout(height="35px", width="20%"),
+                readout=True,
+                style={"description_width": "initial"},
+            )
+
+            self.detwin = widgets.Checkbox(
+                value=False,
+                description="Detwin",
+                continuous_update=False,
+                indent=False,
+                style={"description_width": "initial"},
+                layout=widgets.Layout(height="35px", width="15%"),
             )
 
             self.nb_run = widgets.BoundedIntText(
@@ -599,11 +682,11 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 style={"description_width": "initial"},
             )
 
-            self.tv_er = widgets.FloatText(
-                value=0.05,
+            self.tv_er = widgets.BoundedFloatText(
+                value=0.10,
                 step=0.01,
-                max=0,
-                min=0.2,
+                min=0,
+                max=1,
                 continuous_update=False,
                 description="TV parameter for ER:",
                 layout=widgets.Layout(width="35%", height="50px"),
@@ -611,25 +694,25 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 style={"description_width": "initial"},
             )
 
-            self.tv_hio = widgets.FloatText(
-                value=0.05,
+            self.tv_hio = widgets.BoundedFloatText(
+                value=0.10,
                 step=0.01,
-                max=0,
-                min=0.2,
+                min=0,
+                max=1,
                 continuous_update=False,
-                description="TV parameter for ER:",
+                description="TV parameter for HIO:",
                 layout=widgets.Layout(width="35%", height="50px"),
                 readout=True,
                 style={"description_width": "initial"},
             )
 
-            self.tv_raar = widgets.FloatText(
-                value=0.05,
+            self.tv_raar = widgets.BoundedFloatText(
+                value=0.10,
                 step=0.01,
-                max=0,
-                min=0.2,
+                min=0,
+                max=1,
                 continuous_update=False,
-                description="TV parameter for ER:",
+                description="TV parameter for RAAR:",
                 layout=widgets.Layout(width="35%", height="50px"),
                 readout=True,
                 style={"description_width": "initial"},
@@ -658,6 +741,43 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 description="Mask interp.",
                 layout=widgets.Layout(height="50px", width="40%"),
                 continuous_update=False,
+                style={"description_width": "initial"},
+            )
+
+            self.confidence_interval_factor_mask_min = (
+                widgets.BoundedFloatText(
+                    value=0.5,
+                    min=0,
+                    max=10,
+                    step=0.1,
+                    continuous_update=False,
+                    description="Confidence interval factor mask min:",
+                    layout=widgets.Layout(height="50px", width="40%"),
+                    style={"description_width": "initial"},
+                )
+            )
+
+            self.confidence_interval_factor_mask_max = (
+                widgets.BoundedFloatText(
+                    value=1.2,
+                    min=0,
+                    max=10,
+                    step=0.1,
+                    continuous_update=False,
+                    description="Confidence interval factor mask max:",
+                    layout=widgets.Layout(height="50px", width="40%"),
+                    style={"description_width": "initial"},
+                )
+            )
+
+            # 0 disables the masking of saturated pixels
+            self.iobs_saturation = widgets.BoundedFloatText(
+                value=0,
+                min=0,
+                max=1e12,
+                continuous_update=False,
+                description="Iobs saturation (0: off):",
+                layout=widgets.Layout(height="50px", width="40%"),
                 style={"description_width": "initial"},
             )
 
@@ -807,7 +927,7 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             # Define children
             self.children = (
                 self.unused_label_data,
-                self.parent_folder,
+                widgets.HBox([self.parent_folder, self.button_refresh_files]),
                 self.iobs,
                 self.mask,
                 self.support,
@@ -829,6 +949,14 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.support_autocorrelation_threshold,
                     ]
                 ),
+                widgets.HBox(
+                    [
+                        self.support_update_border_n,
+                        self.support_fraction_min,
+                        self.support_fraction_max,
+                    ]
+                ),
+                widgets.HBox([self.support_threshold_auto_tune_factor]),
                 self.unused_label_psf,
                 widgets.HBox(
                     [
@@ -850,9 +978,11 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.nb_hio,
                         self.nb_raar,
                         self.nb_er,
+                        self.nb_ml,
+                        self.detwin,
                     ]
                 ),
-                self.nb_run,
+                widgets.HBox([self.nb_run]),
                 self.unused_label_options,
                 widgets.HBox(
                     [
@@ -887,6 +1017,13 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         self.mask_interp,
                     ]
                 ),
+                widgets.HBox(
+                    [
+                        self.confidence_interval_factor_mask_min,
+                        self.confidence_interval_factor_mask_max,
+                    ]
+                ),
+                widgets.HBox([self.iobs_saturation]),
                 self.unused_label_reconstruction_analysis,
                 widgets.HBox(
                     [
@@ -918,91 +1055,187 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
             self.run_pynx_tools.observe(self.run_pynx_handler, names="value")
 
+            # Fill the file lists and select the cdiutils data and mask
+            self.refresh_file_lists(keep_selection=False)
+
         # Define handlers
         def pynx_folder_handler(self, change) -> None:
             """
-            Handle changes related to the pynx folder.
+            Fill the file lists of the newly selected parent folder.
 
             Args:
                 change: The change event triggered by the observer.
             """
-            if hasattr(change, "new"):
-                change = change.new
+            # The folder list itself is being refreshed
+            if self._is_refreshing:
+                return
+            self.refresh_file_lists(keep_selection=False)
 
-            list_all_npz = [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.npz"), key=os.path.getmtime
-                )
+        @staticmethod
+        def _list_sub_folders(work_dir: str) -> list[str]:
+            """
+            List work_dir and its sub-folders, without Jupyter checkpoints.
+
+            Args:
+                work_dir: the top folder.
+
+            Returns:
+                The folder paths, each ending with a "/", work_dir first.
+            """
+            top = os.path.join(work_dir, "")
+            sub_folders = sorted(
+                os.path.join(root, "")
+                for root, _, _ in os.walk(work_dir)
+                if ".ipynb" not in root
+            )
+            return [top] + [f for f in sub_folders if f != top]
+
+        @staticmethod
+        def _list_files(folder: str, patterns: tuple[str, ...]) -> list[str]:
+            """
+            List the files of a folder matching patterns, newest first.
+
+            Args:
+                folder: the folder to look into.
+                patterns: glob patterns, e.g. ("*.npz", "*.npy").
+
+            Returns:
+                The file names (without folder).
+            """
+            paths = set()
+            for pattern in patterns:
+                paths.update(glob.glob(os.path.join(folder, pattern)))
+            return [
+                os.path.basename(path)
+                for path in sorted(paths, key=os.path.getmtime, reverse=True)
             ]
 
-            list_probable_iobs_files = [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*_pynx_*.npz"), key=os.path.getmtime
+        @staticmethod
+        def _pick_file(
+            file_names: list[str],
+            preferred: list[str],
+            patterns: tuple[str, ...],
+            exclude: str = None,
+        ) -> str:
+            """
+            Choose a file among file_names.
+
+            Args:
+                file_names: the candidate file names, newest first.
+                preferred: exact names tried first, in this order.
+                patterns: fnmatch patterns tried next, in this order; the
+                    newest matching file is returned.
+                exclude: names containing this string are not chosen
+                    from the patterns.
+
+            Returns:
+                The chosen file name, or "" if none is found.
+            """
+            for name in preferred:
+                if name in file_names:
+                    return name
+            for pattern in patterns:
+                for name in fnmatch.filter(file_names, pattern):
+                    if exclude is None or exclude not in name:
+                        return name
+            return ""
+
+        @staticmethod
+        def _set_options(widget, options, default, keep_selection) -> None:
+            """
+            Update the options of a dropdown and select a value.
+
+            Args:
+                widget: the dropdown widget.
+                options: the new options.
+                default: value selected if the current one is not kept.
+                keep_selection: keep the current value if it is still in
+                    the options.
+            """
+            current = widget.value
+            widget.options = options
+            if keep_selection and current in options:
+                widget.value = current
+            else:
+                widget.value = default if default in options else options[0]
+
+        def refresh_file_lists(self, button=None, keep_selection=True):
+            """
+            Look again for the folders and files, and fill the dropdowns.
+
+            The dataset and mask default to the files written by the
+            cdiutils preprocessing: S<scan>_pynx_input_data.npz and
+            S<scan>_pynx_input_mask.npz for the scan of the pipeline, or
+            else the newest *_pynx_input_data / *_pynx_input_mask files.
+
+            Args:
+                button: the button that was clicked, if any (unused).
+                keep_selection: if True, the selected files are kept when
+                    they still exist; if False, the defaults are
+                    selected (on launch and when the folder changes).
+            """
+            # Folders: look for new sub-folders, keep the current one
+            self._is_refreshing = True
+            try:
+                folders = self._list_sub_folders(self.work_dir)
+                current_folder = self.parent_folder.value
+                self.parent_folder.options = folders
+                self.parent_folder.value = (
+                    current_folder if current_folder in folders else folders[0]
                 )
-            ]
+            finally:
+                self._is_refreshing = False
+            folder = self.parent_folder.value
 
-            list_probable_mask_files = [
+            # The cdiutils preprocessing names its outputs after the scan
+            scan = getattr(self.pipeline, "scan", None)
+            preferred_data = []
+            preferred_mask = []
+            if scan is not None:
+                preferred_data = [f"S{scan}_pynx_input_data.npz"]
+                preferred_mask = [f"S{scan}_pynx_input_mask.npz"]
+
+            # Arrays readable by initialise_cdi_operator
+            array_files = self._list_files(folder, ("*.npz", "*.npy"))
+            iobs_default = self._pick_file(
+                array_files,
+                preferred_data,
+                ("*_pynx_input_data.np[zy]", "*_pynx_*.np[zy]"),
+                exclude="mask",
+            )
+            mask_default = self._pick_file(
+                array_files,
+                preferred_mask,
+                ("*_pynx_input_mask.np[zy]", "*mask*.np[zy]"),
+            )
+            self._set_options(
+                self.iobs, [""] + array_files, iobs_default, keep_selection
+            )
+            self._set_options(
+                self.mask, [""] + array_files, mask_default, keep_selection
+            )
+            self._set_options(
+                self.support, [""] + array_files, "", keep_selection
+            )
+
+            # The object can also come from a previous reconstruction
+            object_files = self._list_files(
+                folder, ("*.cxi", "*.npz", "*.npy")
+            )
+            self._set_options(
+                self.obj, [""] + object_files, "", keep_selection
+            )
+
+            # Reconstructions, for the selection of the best runs
+            run_files = [
                 os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*mask*.npz"), key=os.path.getmtime
-                )
+                for f in list_files(folder, self.search_pattern)
             ]
-
-            # support list
-            self.support.options = [""] + [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.npz"), key=os.path.getmtime
-                )
-            ]
-
-            # obj list
-            self.obj.options = [""] + [
-                os.path.basename(f)
-                for f in sorted(
-                    glob.glob(change + "/*.cxi")
-                    + glob.glob(change + "/*.npz")
-                    + glob.glob(change + "/*.npy"),
-                    key=os.path.getmtime,
-                )
-            ]
-
-            # Find probable iobs file
-            temp_list = list_all_npz.copy()
-            for f in list_probable_iobs_files:
-                try:
-                    temp_list.remove(f)
-                except ValueError:
-                    # Not in list
-                    pass
-            sorted_iobs_list = list_probable_iobs_files + temp_list + [""]
-
-            # Find probable mask file
-            temp_list = list_all_npz.copy()
-            for f in list_probable_mask_files:
-                try:
-                    temp_list.remove(f)
-                except ValueError:
-                    # not in list
-                    pass
-            sorted_mask_list = list_probable_mask_files + temp_list + [""]
-
-            # iobs list
-            self.iobs.options = sorted_iobs_list
-
-            # mask list
-            self.mask.options = sorted_mask_list
-
-            # cxi file list
-            self.best_runs_widget.options = [
-                os.path.basename(f)
-                for f in list_files(
-                    self.parent_folder.value,
-                    self.search_pattern,
-                )
-            ]
+            selected_runs = self.best_runs_widget.value
+            self.best_runs_widget.options = run_files
+            self.best_runs_widget.value = tuple(
+                f for f in selected_runs if f in run_files
+            )
 
         def pynx_psf_handler(self, change) -> None:
             """
@@ -1116,6 +1349,12 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 support_autocorrelation_threshold=(
                     self.support_autocorrelation_threshold
                 ),
+                support_update_border_n=self.support_update_border_n,
+                support_fraction_min=self.support_fraction_min,
+                support_fraction_max=self.support_fraction_max,
+                support_threshold_auto_tune_factor=(
+                    self.support_threshold_auto_tune_factor
+                ),
                 psf=self.psf,
                 psf_model=self.psf_model,
                 fwhm=self.fwhm,
@@ -1125,6 +1364,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 nb_hio=self.nb_hio,
                 nb_raar=self.nb_raar,
                 nb_er=self.nb_er,
+                nb_ml=self.nb_ml,
+                detwin=self.detwin,
                 nb_run=self.nb_run,
                 live_plot=self.live_plot,
                 plot_axis=self.plot_axis,
@@ -1138,6 +1379,13 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 tv_raar=self.tv_raar,
                 zero_mask=self.zero_mask,
                 mask_interp=self.mask_interp,
+                confidence_interval_factor_mask_min=(
+                    self.confidence_interval_factor_mask_min
+                ),
+                confidence_interval_factor_mask_max=(
+                    self.confidence_interval_factor_mask_max
+                ),
+                iobs_saturation=self.iobs_saturation,
                 run_phase_retrieval=self.run_phase_retrieval,
                 run_pynx_tools=self.run_pynx_tools,
                 filter_criteria=self.filter_criteria,
@@ -1157,6 +1405,296 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             )
             display(window)
 
+        @staticmethod
+        def _draw_support_threshold(support_threshold) -> float:
+            """
+            Draw the relative support threshold of one run.
+
+            Args:
+                support_threshold: a number, or a (min, max) tuple in which
+                    the threshold is drawn uniformly.
+
+            Returns:
+                The relative support threshold.
+            """
+            if isinstance(support_threshold, (tuple, list)):
+                return float(
+                    np.random.uniform(
+                        support_threshold[0], support_threshold[1]
+                    )
+                )
+            return float(support_threshold)
+
+        @staticmethod
+        def _save_input_cxi(cdi, params, parent_folder, iobs) -> None:
+            """
+            Save the input data and the phasing parameters in a cxi file.
+
+            Args:
+                cdi: the CDI object, before any operator is applied.
+                params: the phase retrieval parameters.
+                parent_folder: folder in which the file is saved.
+                iobs: file name of the observed intensity, used to name
+                    the cxi file.
+            """
+            cxi_filename = (
+                f"{parent_folder}/pynx_input_operator_"
+                f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+            )
+
+            # PyNX tools widgets are not phasing parameters (and tuples
+            # of str cannot be saved by h5py, nor can None)
+            pynx_tools_keys = (
+                "plot_metrics_checkbox",
+                "plot_reconstruction_checkbox",
+                "plot_reconstruction_phase_checkbox",
+                "best_runs_widget",
+                "number_of_best_ordered_runs_widget",
+            )
+            params_to_save = {
+                key: ("None" if value is None else value)
+                for key, value in params.items()
+                if key not in pynx_tools_keys
+            }
+            try:
+                save_cdi_operator_as_cxi(
+                    cdi_operator=cdi,
+                    path_to_cxi=cxi_filename,
+                    params=params_to_save,
+                )
+            except Exception as e:
+                print(
+                    f"Could not save {cxi_filename}: {e}\n"
+                    "Continuing with the phase retrieval."
+                )
+
+        def _run_with_threshold_tuning(
+            self, raw_cdi, params, steps, threshold_relative
+        ):
+            """
+            Run one reconstruction, tuning the support threshold if needed.
+
+            As in the PyNX runner, if the support fraction goes below
+            support_fraction_min (SupportTooSmall), the threshold is
+            divided by support_threshold_auto_tune_factor, and if it goes
+            above support_fraction_max (SupportTooLarge), it is multiplied
+            by this factor. The run then restarts from raw_cdi, at most 5
+            times.
+
+            Args:
+                raw_cdi: the initial CDI object, copied for each try.
+                params: the phase retrieval parameters.
+                steps: the algorithm steps, from build_operator_chain_steps.
+                threshold_relative: the relative support threshold of the
+                    first try.
+
+            Returns:
+                (cdi, threshold_relative) for the successful try, or None
+                if all tries failed.
+            """
+            factor = params["support_threshold_auto_tune_factor"]
+            nb_retries = 5 if factor > 1 else 0
+            for attempt in range(nb_retries + 1):
+                print(f"Threshold: {threshold_relative:.4f}")
+                try:
+                    cdi = self._run_single_reconstruction(
+                        raw_cdi, params, steps, threshold_relative
+                    )
+                    return cdi, threshold_relative
+                except SupportTooSmall:
+                    print(
+                        "The support is too small (fraction < "
+                        f"{params['support_fraction_min']})."
+                    )
+                    threshold_relative /= factor
+                except SupportTooLarge:
+                    print(
+                        "The support is too large (fraction > "
+                        f"{params['support_fraction_max']})."
+                    )
+                    threshold_relative *= factor
+                if attempt < nb_retries:
+                    print(
+                        f"Retrying ({attempt + 1}/{nb_retries}) with "
+                        f"threshold {threshold_relative:.4f}."
+                    )
+            print("Giving up this run, try another support threshold.")
+            return None
+
+        def _run_single_reconstruction(
+            self, raw_cdi, params, steps, threshold_relative
+        ):
+            """
+            Initialise the object and support, then run the algorithms.
+
+            Args:
+                raw_cdi: the initial CDI object, copied here.
+                params: the phase retrieval parameters. params["sup_init"]
+                    is set to the origin of the initial support.
+                steps: the algorithm steps, from build_operator_chain_steps.
+                threshold_relative: the relative support threshold.
+
+            Returns:
+                The CDI object after the last operator.
+            """
+            # Make a copy to gain time
+            cdi = raw_cdi.copy()
+
+            # Support update operator, used between the algorithm blocks
+            sup = SupportUpdate(
+                threshold_relative=threshold_relative,
+                smooth_width=params["support_smooth_width"],
+                force_shrink=params["support_only_shrink"],
+                method=params["support_method"],
+                post_expand=params["support_post_expand"],
+                update_border_n=params["support_update_border_n"],
+                min_fraction=params["support_fraction_min"],
+                max_fraction=params["support_fraction_max"],
+            )
+
+            # Initialise the free pixels for FLLK
+            cdi = InitFreePixels() * cdi
+
+            # Interpolate the detector gaps
+            cdi = (
+                InterpIobsMask(
+                    params["mask_interp"][0],
+                    params["mask_interp"][1],
+                )
+                * cdi
+            )
+            if params["live_plot"]:
+                cdi = ShowCDI(plot_axis=params["plot_axis"]) * cdi
+
+            # Initialise the support with autocorrelation, if no support
+            # given
+            if not params["support"]:
+                params["sup_init"] = "autocorrelation"
+                cdi = (
+                    AutoCorrelationSupport(
+                        threshold=params["support_autocorrelation_threshold"],
+                        verbose=True,
+                    )
+                    * cdi
+                )
+            else:
+                params["sup_init"] = "support"
+
+            # Start each run from a random object, if no object given
+            if not params["obj"]:
+                cdi = (
+                    InitObjRandom(
+                        src="support",
+                        amin=0,
+                        amax=1,
+                        phirange=0 if params["positivity"] else 2 * np.pi,
+                    )
+                    * cdi
+                )
+
+            # Always scale the object to the observed intensity, whatever
+            # the origin of the support and object
+            cdi = ScaleObj() * cdi
+            if params["live_plot"]:
+                cdi = ShowCDI(plot_axis=params["plot_axis"]) * cdi
+
+            return self._apply_operator_chain(cdi, params, steps, sup)
+
+        @staticmethod
+        def _apply_operator_chain(cdi, params, steps, sup):
+            """
+            Apply the algorithm steps to the CDI object.
+
+            Args:
+                cdi: the initialised CDI object.
+                params: the phase retrieval parameters.
+                steps: the algorithm steps, from build_operator_chain_steps.
+                sup: the SupportUpdate operator applied after each block
+                    flagged with "support_update".
+
+            Returns:
+                The CDI object after the last step.
+            """
+            psf_filter = params["psf_filter"]
+            confidence_kwargs = {
+                "confidence_interval_factor_mask_min": params[
+                    "confidence_interval_factor_mask_min"
+                ],
+                "confidence_interval_factor_mask_max": params[
+                    "confidence_interval_factor_mask_max"
+                ],
+            }
+            tv_values = {
+                "HIO": params["tv_hio"],
+                "RAAR": params["tv_raar"],
+                "ER": params["tv_er"],
+            }
+
+            for step in steps:
+                if step["kind"] == "algo" and step["algo"] == "ML":
+                    # ML starts with a Fourier amplitude projection
+                    operator = ML(
+                        calc_llk=params["calc_llk"],
+                        show_cdi=params["live_plot"],
+                        plot_axis=params["plot_axis"],
+                    ) ** step["cycles"] * FourierApplyAmplitude(
+                        calc_llk=True,
+                        zero_mask=step["zero_mask"],
+                        **confidence_kwargs,
+                    )
+                elif step["kind"] == "algo":
+                    algo_kwargs = {
+                        "calc_llk": params["calc_llk"],
+                        "show_cdi": params["live_plot"],
+                        "plot_axis": params["plot_axis"],
+                        "positivity": params["positivity"],
+                        "zero_mask": step["zero_mask"],
+                        "update_psf": step["update_psf"],
+                        "psf_filter": psf_filter,
+                        "tv": tv_values[step["algo"]],
+                        **confidence_kwargs,
+                    }
+                    if step["algo"] == "HIO":
+                        algo = HIO(beta=params["beta"], **algo_kwargs)
+                    elif step["algo"] == "RAAR":
+                        algo = RAAR(beta=params["beta"], **algo_kwargs)
+                    else:
+                        algo = ER(**algo_kwargs)
+                    operator = algo ** step["cycles"]
+                    if step["support_update"]:
+                        operator = sup * operator
+                elif step["kind"] == "init_psf":
+                    psf_kwargs = {
+                        "model": params["psf_model"],
+                        "fwhm": params["fwhm"],
+                        "filter": psf_filter,
+                    }
+                    if params["psf_model"] == "pseudo-voigt":
+                        psf_kwargs["eta"] = params["eta"]
+                    operator = InitPSF(**psf_kwargs)
+                elif step["kind"] == "detwin":
+                    detwin_class = (
+                        DetwinHIO
+                        if step["algo"] == "DetwinHIO"
+                        else DetwinRAAR
+                    )
+                    # positivity is off during detwinning, as in PyNX
+                    operator = detwin_class(
+                        detwin_axis=0,
+                        nb_cycle=step["cycles"],
+                        beta=params["beta"],
+                        positivity=False,
+                        zero_mask=step["zero_mask"],
+                    )
+                else:
+                    # zero_mask switch and skipped steps: nothing to apply
+                    continue
+
+                if step.get("repeat", 1) > 1:
+                    operator = operator ** step["repeat"]
+                cdi = operator * cdi
+            return cdi
+
         def init_phase_retrieval_tab(
             self,
             parent_folder,
@@ -1171,6 +1709,10 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             support_post_expand,
             support_method,
             support_autocorrelation_threshold,
+            support_update_border_n,
+            support_fraction_min,
+            support_fraction_max,
+            support_threshold_auto_tune_factor,
             psf,
             psf_model,
             fwhm,
@@ -1180,6 +1722,8 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             nb_hio,
             nb_raar,
             nb_er,
+            nb_ml,
+            detwin,
             nb_run,
             live_plot,
             plot_axis,
@@ -1193,6 +1737,9 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
             tv_raar,
             zero_mask,
             mask_interp,
+            confidence_interval_factor_mask_min,
+            confidence_interval_factor_mask_max,
+            iobs_saturation,
             run_phase_retrieval,
             run_pynx_tools,
             filter_criteria,
@@ -1207,11 +1754,15 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
 
             Phase retrieval is run in python with the PyNX operators. Each
             run applies, in this order: HIO (nb_hio), RAAR (nb_raar, the PSF
-            being introduced after half of the RAAR cycles if psf is True)
-            and ER (nb_er). If support_update_period > 0, the support is
-            updated every support_update_period cycles during all three
-            steps. Alternatively, the PyNX tools (analysis, selection, modes
-            decomposition) can be run on existing reconstructions.
+            being introduced after half of the RAAR cycles if psf is True),
+            ER (nb_er) and ML (nb_ml, not with the PSF). If
+            support_update_period > 0, the support is updated every
+            support_update_period cycles during HIO, RAAR and ER. Optional
+            detwinning and zero_mask="auto" are inserted in this chain as in
+            the PyNX runner, see build_operator_chain_steps. The chain is
+            printed when the phase retrieval starts, and while no job is
+            selected. Alternatively, the PyNX tools (analysis, selection,
+            modes decomposition) can be run on existing reconstructions.
 
             Args:
                 parent_folder: folder in which the raw data files are, and
@@ -1307,10 +1858,32 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                     be selected
                 beta: the beta value for the HIO operator
                 positivity: True or False
-                zero_mask: if True, masked pixels (iobs<-1e19) are forced to
-                    zero, otherwise the calculated complex amplitude is kept with
-                    an optional scale factor. 'auto' is only valid if using the
-                    command line
+                zero_mask: "True", "False" or "auto". If True, masked pixels
+                    (iobs<-1e19) are forced to zero, otherwise the calculated
+                    complex amplitude is kept with an optional scale factor.
+                    With "auto", masked pixels are forced to zero during the
+                    first 60 % of the HIO + RAAR cycles, then left free (as
+                    the PyNX runner).
+                confidence_interval_factor_mask_min,
+                confidence_interval_factor_mask_max: confidence interval
+                    factors applied to the interpolated masked pixels (see
+                    mask_interp). PyNX defaults are 0.5 and 1.2.
+                iobs_saturation: pixels with an observed intensity above this
+                    value are masked, 0 to deactivate
+                support_update_border_n: if > 0, the support can only change
+                    within +/-N pixels of the border of the previous support
+                support_fraction_min, support_fraction_max: if the support
+                    fraction goes out of these bounds during a support update,
+                    the run is restarted with a tuned threshold
+                support_threshold_auto_tune_factor: the support threshold is
+                    divided (support too small) or multiplied (support too
+                    large) by this factor before restarting the run, at most
+                    5 times. 1 to deactivate.
+                nb_ml: number of maximum-likelihood conjugate gradient cycles,
+                    after ER. Skipped if the PSF is used.
+                detwin: if True, 10 cycles of DetwinHIO or DetwinRAAR (support
+                    cut in half, to favour one of the twin images) are run
+                    after 25 % of the HIO + RAAR cycles
                 mask_interp: e.g. 16,2: interpolate masked pixels from
                     surrounding pixels, using an inverse distance weighting.
                     The first number N indicates that the pixels used for
@@ -1360,11 +1933,14 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 "psf_model": psf_model,
                 "fwhm": fwhm,
                 "eta": eta,
-                "psf_filter": psf_filter,
+                # The "None" string would select the hann filter in PyNX
+                "psf_filter": None if psf_filter == "None" else psf_filter,
                 "update_psf": update_psf,
                 "nb_raar": nb_raar,
                 "nb_hio": nb_hio,
                 "nb_er": nb_er,
+                "nb_ml": nb_ml,
+                "detwin": detwin,
                 "nb_run": nb_run,
                 "verbose": verbose,
                 "positivity": positivity,
@@ -1381,9 +1957,24 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 "support_post_expand": literal_eval(support_post_expand),
                 "binning": literal_eval(binning),
                 "mask_interp": literal_eval(mask_interp),
-                "zero_mask": {"True": True, "False": False, "auto": False}[
+                "zero_mask": {"True": True, "False": False, "auto": "auto"}[
                     zero_mask
                 ],
+                "confidence_interval_factor_mask_min": (
+                    confidence_interval_factor_mask_min
+                ),
+                "confidence_interval_factor_mask_max": (
+                    confidence_interval_factor_mask_max
+                ),
+                "iobs_saturation": (
+                    iobs_saturation if iobs_saturation > 0 else None
+                ),
+                "support_update_border_n": support_update_border_n,
+                "support_fraction_min": support_fraction_min,
+                "support_fraction_max": support_fraction_max,
+                "support_threshold_auto_tune_factor": (
+                    support_threshold_auto_tune_factor
+                ),
                 "live_plot": live_plot if live_plot != 0 else False,
                 "plot_axis": plot_axis,
                 "filter_criteria": filter_criteria,
@@ -1398,8 +1989,24 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 ),
             }
 
+            # Steps of the operator chain, used both to print and to run it
+            steps = build_operator_chain_steps(
+                nb_hio=params["nb_hio"],
+                nb_raar=params["nb_raar"],
+                nb_er=params["nb_er"],
+                nb_ml=params["nb_ml"],
+                support_update_period=params["support_update_period"],
+                psf=params["psf"],
+                update_psf=params["update_psf"],
+                zero_mask=params["zero_mask"],
+                detwin=params["detwin"],
+            )
+            chain_description = format_operator_chain(steps, params)
+
             # Run PR with operators
             if run_phase_retrieval and not run_pynx_tools:
+                print(chain_description)
+
                 # Keep a list of the resulting scans
                 reconstruction_file_list = []
 
@@ -1411,431 +2018,53 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                         support=params["support"],
                         obj=params["obj"],
                         binning=params["binning"],
+                        iobs_saturation=params["iobs_saturation"],
                     )
+                    if raw_cdi is None:
+                        print("Could not initialise the CDI operator.")
+                        return
 
                     # Run phase retrieval for nb_run
                     for i in range(1, nb_run + 1):
                         print("\n" + 80 * "#" + f"\nRun{i:04d}")
 
-                        # Make a copy to gain time
-                        cdi = raw_cdi.copy()
-
                         # Save input data as cxi, once
                         if i == 1:
-                            cxi_filename = (
-                                f"{parent_folder}/pynx_input_operator_"
-                                f"{iobs.split('/')[-1].split('.')[0]}.cxi"
+                            self._save_input_cxi(
+                                raw_cdi.copy(), params, parent_folder, iobs
                             )
-
-                            # PyNX tools widgets are not phasing parameters
-                            # (and tuples of str cannot be saved by h5py)
-                            pynx_tools_keys = (
-                                "plot_metrics_checkbox",
-                                "plot_reconstruction_checkbox",
-                                "plot_reconstruction_phase_checkbox",
-                                "best_runs_widget",
-                                "number_of_best_ordered_runs_widget",
-                            )
-                            try:
-                                save_cdi_operator_as_cxi(
-                                    cdi_operator=cdi,
-                                    path_to_cxi=cxi_filename,
-                                    params={
-                                        k: v
-                                        for k, v in params.items()
-                                        if k not in pynx_tools_keys
-                                    },
-                                )
-                            except Exception as e:
-                                print(
-                                    f"Could not save {cxi_filename}: {e}\n"
-                                    "Continuing with the phase retrieval."
-                                )
 
                         if i > 4:
                             print("Stopping liveplot to go faster\n")
                             params["live_plot"] = False
 
-                        # Change support threshold for supports update
-                        if isinstance(params["support_threshold"], float):
-                            threshold_relative = params["support_threshold"]
-                        elif isinstance(params["support_threshold"], tuple):
-                            threshold_relative = np.random.uniform(
-                                params["support_threshold"][0],
-                                params["support_threshold"][1],
-                            )
-                        print(f"Threshold: {threshold_relative:.4f}")
-
-                        # Create support object
-                        sup = SupportUpdate(
-                            threshold_relative=threshold_relative,
-                            smooth_width=params["support_smooth_width"],
-                            force_shrink=params["support_only_shrink"],
-                            method=params["support_method"],
-                            post_expand=params["support_post_expand"],
+                        # Draw the support threshold of this run
+                        threshold_relative = self._draw_support_threshold(
+                            params["support_threshold"]
                         )
 
-                        # Initialise the free pixels for FLLK
-                        cdi = InitFreePixels() * cdi
+                        # Run, tuning the threshold if the support fraction
+                        # goes out of bounds (at most 5 times, as PyNX)
+                        result = self._run_with_threshold_tuning(
+                            raw_cdi, params, steps, threshold_relative
+                        )
+                        if result is None:
+                            continue
+                        cdi, threshold_relative = result
 
-                        # Interpolate the detector gaps
-                        if params["live_plot"]:
-                            cdi = (
-                                ShowCDI(plot_axis=params["plot_axis"])
-                                * InterpIobsMask(
-                                    params["mask_interp"][0],
-                                    params["mask_interp"][1],
-                                )
-                                * cdi
-                            )
-                        else:
-                            cdi = (
-                                InterpIobsMask(
-                                    params["mask_interp"][0],
-                                    params["mask_interp"][1],
-                                )
-                                * cdi
-                            )
+                        fn = (
+                            f"{params['parent_folder']}/"
+                            f"Run{i:04d}_"
+                            f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
+                            f"support_threshold_{threshold_relative:.4f}_"
+                            f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
+                            f"_{cdi.iobs.shape[2]}_"
+                            f"{params['sup_init']}.cxi"
+                        )
 
-                        # Initialise the support with autocorrelation, if no
-                        # support given
-                        if not support:
-                            params["sup_init"] = "autocorrelation"
-                            cdi = (
-                                AutoCorrelationSupport(
-                                    threshold=params[
-                                        "support_autocorrelation_threshold"
-                                    ],
-                                    verbose=True,
-                                )
-                                * cdi
-                            )
-                        else:
-                            params["sup_init"] = "support"
-
-                        # Start each run from a random object, if no
-                        # object given
-                        if not obj:
-                            cdi = (
-                                InitObjRandom(
-                                    src="support",
-                                    amin=0,
-                                    amax=1,
-                                    phirange=(
-                                        0
-                                        if params["positivity"]
-                                        else 2 * np.pi
-                                    ),
-                                )
-                                * cdi
-                            )
-
-                        # Always scale the object to the observed intensity,
-                        # whatever the origin of the support and object
-                        cdi = ScaleObj() * cdi
-                        if params["live_plot"]:
-                            cdi = ShowCDI(plot_axis=params["plot_axis"]) * cdi
-
-                        # Begin phase retrieval
-                        try:
-                            if psf:
-                                if support_update_period == 0:
-                                    cdi = (
-                                        HIO(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_hio"],
-                                        )
-                                        ** params["nb_hio"]
-                                        * cdi
-                                    )
-                                    cdi = (
-                                        RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** (params["nb_raar"] // 2)
-                                        * cdi
-                                    )
-
-                                    # PSF is introduced at 66% of HIO and RAAR
-                                    if psf_model != "pseudo-voigt":
-                                        cdi = (
-                                            InitPSF(
-                                                model=params["psf_model"],
-                                                fwhm=params["fwhm"],
-                                                filter=None,
-                                            )
-                                            * cdi
-                                        )
-
-                                    elif psf_model == "pseudo-voigt":
-                                        cdi = (
-                                            InitPSF(
-                                                model=params["psf_model"],
-                                                fwhm=params["fwhm"],
-                                                eta=params["eta"],
-                                                filter=None,
-                                            )
-                                            * cdi
-                                        )
-
-                                    cdi = (
-                                        RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            update_psf=params["update_psf"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** (nb_raar // 2)
-                                        * cdi
-                                    )
-                                    cdi = (
-                                        ER(
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            update_psf=params["update_psf"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_er"],
-                                        )
-                                        ** nb_er
-                                        * cdi
-                                    )
-
-                                else:
-                                    hio_power = (
-                                        params["nb_hio"]
-                                        // params["support_update_period"]
-                                    )
-                                    raar_power = (
-                                        params["nb_raar"] // 2
-                                    ) // params["support_update_period"]
-                                    er_power = (
-                                        params["nb_er"]
-                                        // params["support_update_period"]
-                                    )
-
-                                    cdi = (
-                                        sup
-                                        * HIO(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_hio"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** hio_power * cdi
-                                    cdi = (
-                                        sup
-                                        * RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** raar_power * cdi
-
-                                    # PSF is introduced after half the HIO cycles
-                                    if psf_model != "pseudo-voigt":
-                                        cdi = (
-                                            InitPSF(
-                                                model=params["psf_model"],
-                                                fwhm=params["fwhm"],
-                                                filter=params["psf_filter"],
-                                            )
-                                            * cdi
-                                        )
-
-                                    elif psf_model == "pseudo-voigt":
-                                        cdi = (
-                                            InitPSF(
-                                                model=params["psf_model"],
-                                                fwhm=params["fwhm"],
-                                                eta=params["eta"],
-                                                filter=params["psf_filter"],
-                                            )
-                                            * cdi
-                                        )
-
-                                    cdi = (
-                                        sup
-                                        * RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            update_psf=params["update_psf"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** raar_power * cdi
-                                    cdi = (
-                                        sup
-                                        * ER(
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            update_psf=params["update_psf"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            psf_filter=params["psf_filter"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_er"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** er_power * cdi
-
-                            if not psf:
-                                if support_update_period == 0:
-                                    cdi = (
-                                        HIO(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_hio"],
-                                        )
-                                        ** params["nb_hio"]
-                                        * cdi
-                                    )
-                                    cdi = (
-                                        RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** params["nb_raar"]
-                                        * cdi
-                                    )
-                                    cdi = (
-                                        ER(
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_er"],
-                                        )
-                                        ** params["nb_er"]
-                                        * cdi
-                                    )
-
-                                else:
-                                    hio_power = (
-                                        params["nb_hio"]
-                                        // params["support_update_period"]
-                                    )
-                                    raar_power = (
-                                        params["nb_raar"]
-                                        // params["support_update_period"]
-                                    )
-                                    er_power = (
-                                        params["nb_er"]
-                                        // params["support_update_period"]
-                                    )
-
-                                    cdi = (
-                                        sup
-                                        * HIO(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_hio"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** hio_power * cdi
-                                    cdi = (
-                                        sup
-                                        * RAAR(
-                                            beta=params["beta"],
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_raar"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** raar_power * cdi
-                                    cdi = (
-                                        sup
-                                        * ER(
-                                            calc_llk=params["calc_llk"],
-                                            show_cdi=params["live_plot"],
-                                            plot_axis=params["plot_axis"],
-                                            positivity=params["positivity"],
-                                            zero_mask=params["zero_mask"],
-                                            tv=params["tv_er"],
-                                        )
-                                        ** params["support_update_period"]
-                                    ) ** er_power * cdi
-
-                            fn = (
-                                f"{params['parent_folder']}/"
-                                f"Run{i:04d}_"
-                                f"FLLK_{cdi.get_llk(normalized=True)[3]:.4f}_"
-                                f"support_threshold_{threshold_relative:.4f}_"
-                                f"shape_{cdi.iobs.shape[0]}_{cdi.iobs.shape[1]}"
-                                f"_{cdi.iobs.shape[2]}_"
-                                f"{params['sup_init']}.cxi"
-                            )
-
-                            reconstruction_file_list.append(fn)
-                            cdi.save_obj_cxi(fn)
-                            print(
-                                f"\nSaved as {fn}."
-                                "\n###########################################"
-                                "#############################################"
-                            )
-
-                        except SupportTooLarge:
-                            print(
-                                "The support is too large to continue,"
-                                "try increasing the threshold value."
-                            )
-
-                        except SupportTooSmall:
-                            print(
-                                "The support is too small to continue,"
-                                "try lowering the threshold value."
-                            )
+                        reconstruction_file_list.append(fn)
+                        cdi.save_obj_cxi(fn)
+                        print(f"\nSaved as {fn}.\n" + 80 * "#")
 
                 except KeyboardInterrupt:
                     clear_output(True)
@@ -1878,10 +2107,10 @@ if IS_INTERACTIVE_AVAILABLE and IS_PYNX_AVAILABLE:
                 elif run_pynx_tools == "mode_decomposition":
                     self.pipeline.mode_decomposition()
 
-            # Clean output
+            # Clean output, and preview the operator chain
             if not run_phase_retrieval and not run_pynx_tools:
-                print("Cleared output.")
                 clear_output(True)
+                print(chain_description)
 
 else:
 

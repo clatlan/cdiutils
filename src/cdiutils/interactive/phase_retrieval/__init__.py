@@ -19,10 +19,15 @@ try:
 except ImportError:
     IS_PYNX_AVAILABLE = False
 
-# Always export list_files (doesn't require PyNX)
-from .engine import list_files
+# Always export the helpers that do not require PyNX
+from .engine import (
+    build_operator_chain_steps,
+    format_operator_chain,
+    list_files,
+)
 
-# Conditionally import phase retrieval components
+# Conditionally import phase retrieval components. __all__ is written
+# out in full in each case, so that linters see the exports.
 if IS_PYNX_AVAILABLE:
     from .engine import (
         initialise_cdi_operator,
@@ -34,15 +39,23 @@ if IS_PYNX_AVAILABLE:
 
         __all__ = [
             "PhaseRetrievalGUI",
+            "build_operator_chain_steps",
+            "format_operator_chain",
             "initialise_cdi_operator",
-            "save_cdi_operator_as_cxi",
             "list_files",
+            "save_cdi_operator_as_cxi",
         ]
     else:
         __all__ = [
+            "build_operator_chain_steps",
+            "format_operator_chain",
             "initialise_cdi_operator",
-            "save_cdi_operator_as_cxi",
             "list_files",
+            "save_cdi_operator_as_cxi",
         ]
 else:
-    __all__ = ["list_files"]
+    __all__ = [
+        "build_operator_chain_steps",
+        "format_operator_chain",
+        "list_files",
+    ]

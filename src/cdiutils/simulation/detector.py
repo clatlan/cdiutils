@@ -952,7 +952,7 @@ class BCDISimulator:
             plot_volume_slices(
                 np.angle(self.obj),
                 title="Simulated object phase",
-                alpha=alphas,
+                opacity=alphas,
                 cmap="cet_CET_C9s_r",
                 voxel_size=self.voxel_size,
                 data_centre=(0, 0, 0),
