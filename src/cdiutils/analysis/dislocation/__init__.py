@@ -28,9 +28,11 @@ from ._theory import (
     signed_angle_3d,
     transform_known_vector_to_crystallographic,
 )
+from ._vortices import find_phase_vortices
 
 __all__ = [
     "map_min_gradient",
+    "find_phase_vortices",
     "clusters_dislo_strain_map",
     "extract_structure",
     "fit_line_3d",
