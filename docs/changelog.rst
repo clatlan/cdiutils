@@ -143,6 +143,40 @@ Unreleased
   the measured intensity with a Poisson deviance (``DomainModelFit``).
   User guide: :doc:`user_guide/domain_model`.
 * Example notebook ``domain_model_fit.ipynb``.
+* **Facets from the surface-normal density**
+  (:class:`~cdiutils.facetanalysis.facet_density.FacetDensityAnalyser`): peaks of the
+  density of surface normals on the sphere, orientation fit and refinement,
+  indexing against crystal families with a chance level, internal surfaces
+  (``planar_gap``) kept apart from the outer surface, per-facet statistics,
+  stereographic projections and pole figures; ``from_reference`` reuses one
+  indexing across conditions.
+* **Phasing options** (:class:`~cdiutils.process.PyNXPhaser`):
+  ``coarse_to_fine_phasing`` (phase on binned data, then refine at full
+  size), ``genetic_phasing`` (with ``twin_align``), ``bandwidth_psf``
+  (partial-coherence kernel from the energy bandwidth; user PSF arrays are
+  padded with their centre at ``n//2``), and the parameters ``obj_noise``
+  (phase perturbation of a given starting object per run),
+  ``support_ceiling`` (upper bound of the support) and ``homogenise``
+  (amplitude homogenisation during HIO/RAAR).
+* **Depth and domains** (:mod:`cdiutils.analysis.stats`):
+  ``get_depth_map``, ``get_depth_profile`` and ``normalise_domains``.
+* **Phase vortices**
+  (:func:`~cdiutils.analysis.dislocation.find_phase_vortices`): lines of
+  non-zero phase winding (dislocation cores) grouped and fitted in 3D.
+* **Planar defects**
+  (:func:`~cdiutils.analysis.dislocation.find_planar_defects`): twin
+  boundaries and lamellae as low-amplitude sheets, with their normals and
+  the boundary positions along them.
+* **Particle shapes** (:mod:`cdiutils.simulation.objects`):
+  ``make_polyhedron``, Winterbottom shapes (``get_winterbottom``,
+  ``make_from_wulffpack``; optional extra ``cdiutils[wulff]``) and
+  hexagonal d-spacings in the detector simulation.
+* **Planning BCDI on supported particles**
+  (:class:`~cdiutils.simulation.epitaxy.SupportedCrystal`): reflections
+  and diffractometer angles against energy, reflection tables and table
+  figures, interface misfit and strain budget, Winterbottom shapes against
+  adhesion, simulated Bragg peaks; interactive reciprocal-space view
+  (:class:`~cdiutils.simulation.viewer.DiffractometerViewer`).
 
 Version 0.2.0 (Current)
 ------------------------

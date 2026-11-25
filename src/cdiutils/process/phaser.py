@@ -86,7 +86,7 @@ DEFAULT_PYNX_PARAMS = {
     "tv_er": 0.15,
     "tv_hio": 0.15,
     "tv_raar": 0.15,
-    # extensions (devel-claude): per-run phase perturbation of a given
+    # extensions: per-run phase perturbation of a given
     # starting object, upper bound of the support, amplitude
     # homogenisation during HIO/RAAR (fraction pulled to the mean)
     "obj_noise": 0,
