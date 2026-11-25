@@ -82,7 +82,9 @@ DEFAULT_PIPELINE_PARAMS = {
         # constraints and processing
         "zero_mask": False,  # force masked values to zero
         "crop_output": 0,  # crop output by N pixels
-        "roi": "full",  # region of interest
+        # region of interest. None: the "roi = None" line is skipped by
+        # PyNX, which then uses its own default (pynx-cdi-id01: "auto")
+        "roi": None,
         "positivity": False,  # enforce positivity constraint
         "beta": 0.9,  # feedback parameter for HIO/RAAR
         "detwin": True,  # enable detwinning
@@ -93,6 +95,10 @@ DEFAULT_PIPELINE_PARAMS = {
         "live_plot": False,  # enable live plotting
         "save_plot": True,  # save final plots
         "mpi": "run",  # MPI mode for parallel processing
+        # TV regularisation
+        "tv_er": 0.15,
+        "tv_hio": 0.15,
+        "tv_raar": 0.15,
     },
     # === support generation parameters ===
     "support": {

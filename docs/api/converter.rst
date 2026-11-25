@@ -3,12 +3,7 @@ Converter Module
 
 The :mod:`cdiutils` module provides the :class:`SpaceConverter` class for coordinate transformations.
 
-.. currentmodule:: cdiutils
-
-.. autoclass:: SpaceConverter
-   :members:
-   :undoc-members:
-   :show-inheritance:
+The class is documented in full on :doc:`classes/SpaceConverter`.
 
 See Also
 --------

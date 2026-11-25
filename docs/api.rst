@@ -101,6 +101,8 @@ Interactive Visualisation
      - Description
    * - :doc:`api/classes/ThreeDViewer`
      - Advanced 3D isosurface viewer with full controls
+   * - :doc:`api/classes/MultiVolumeViewer`
+     - Multi-layer 3D viewer
    * - :doc:`api/classes/Plotter`
      - Interactive 2D slice viewer widget
    * - :doc:`api/functions/plotting`
@@ -140,6 +142,7 @@ Detailed documentation by class:
    :caption: Interactive Classes
 
    api/classes/ThreeDViewer
+   api/classes/MultiVolumeViewer
    api/classes/Plotter
 
 Function Reference

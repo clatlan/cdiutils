@@ -180,9 +180,8 @@ def get_reciprocal_voxel_size(
     """
     Calculate reciprocal-space voxel size from real-space parameters.
 
-    Uses the generic relation
-        dq = factor / (N * dx)
-    for each axis, where ``N`` is the number of pixels and ``dx`` the
+    Uses the generic relation ``dq = factor / (N * dx)`` for each
+    axis, where ``N`` is the number of pixels and ``dx`` the
     corresponding real-space voxel size.
 
     This implementation is dimension-agnostic and does not assume any
@@ -710,6 +709,59 @@ def crop_at_center(
     ]
 
     return cropped
+
+
+def resize_at_center(
+    data: np.ndarray,
+    output_shape: list | tuple | np.ndarray,
+    values: float = 0,
+) -> np.ndarray:
+    """
+    Crop and/or pad an array to output_shape, keeping its centre.
+
+    Each axis is cropped if output_shape is smaller, padded if it is
+    larger, so both can be mixed, e.g. (200, 200, 200) to
+    (160, 180, 220). The voxel size is not changed. The centre voxel,
+    at index n // 2 along each axis (the convention of crop_at_center
+    and of numpy.fft.fftshift), stays at the centre of the output.
+
+    Args:
+        data: the array to resize, of any dimension.
+        output_shape: the output shape, one positive int per axis.
+        values: the value of the padded voxels. Defaults to 0.
+
+    Raises:
+        ValueError: if output_shape does not have one positive int per
+            axis of data.
+
+    Returns:
+        The resized array, with the dtype of data.
+    """
+    output_shape = tuple(int(s) for s in output_shape)
+    if len(output_shape) != data.ndim:
+        raise ValueError(
+            f"output_shape {output_shape} should have one value per axis "
+            f"of the data (shape {data.shape})."
+        )
+    if any(s <= 0 for s in output_shape):
+        raise ValueError(
+            f"output_shape {output_shape} should only hold positive values."
+        )
+
+    output = np.full(output_shape, values, dtype=data.dtype)
+    source_slices = []
+    output_slices = []
+    for input_size, output_size in zip(data.shape, output_shape):
+        # Index of the input that lands at index 0 of the output: < 0
+        # when padding, > 0 when cropping
+        offset = input_size // 2 - output_size // 2
+        source_start = max(offset, 0)
+        output_start = max(-offset, 0)
+        length = min(input_size - source_start, output_size - output_start)
+        source_slices.append(slice(source_start, source_start + length))
+        output_slices.append(slice(output_start, output_start + length))
+    output[tuple(output_slices)] = data[tuple(source_slices)]
+    return output
 
 
 def compute_distance_from_com(
@@ -1351,6 +1403,131 @@ def hot_pixel_filter(
     mask = data < threshold * (data_median + 1)
     cleaned_data = data * mask
     return cleaned_data, np.logical_not(mask)
+
+
+def cluster_bragg_signal(
+    data: np.ndarray,
+    threshold: float = 0.3,
+    eps: float = np.sqrt(2),
+    min_samples: int = 8,
+    dilation: int = 3,
+    mask: np.ndarray = None,
+    merge_size: int = 1,
+) -> tuple[np.ndarray, int, np.ndarray]:
+    """
+    Cluster the diffracted intensity into connected groups of voxels
+    (E. Bellec, alienclustering): rescale to a log scale bounded to
+    [0, 1] (zeros kept at 0), keep the voxels above ``threshold``, and
+    group them with DBSCAN. The Bragg cluster is the one holding the
+    maximum; every other cluster is an alien candidate.
+
+    Args:
+        data: Intensity (photons), detector frame.
+        threshold: Log-scale threshold (0-1) of the clustered voxels.
+        eps: DBSCAN neighbourhood radius (voxels).
+        min_samples: DBSCAN core-point count.
+        dilation: Dilation (voxels) of the Bragg cluster for the
+            returned region.
+        mask: Non-zero for masked voxels (ignored by the clustering).
+        merge_size: Size of a maximum filter applied to the thresholded
+            voxels before clustering (Bellec's mask smoothing): merges
+            fringes and facet streaks of the Bragg peak into its
+            cluster. 1 = no filter. Keep it below the distance to real
+            aliens.
+
+    Returns:
+        (labels, bragg_label, bragg_region): integer labels (0 = not
+        clustered, DBSCAN noise included), the label of the Bragg
+        cluster, and the dilated Bragg cluster (bool).
+
+    Note:
+        Without ``merge_size`` the facet streaks and fringe shells of the
+        Bragg peak often come out as separate clusters. Treat a separate
+        cluster as an alien only when it is far from ``bragg_region``,
+        and mask aliens rather than setting them to zero. Masking
+        everything outside ``bragg_region`` also removes the weak
+        high-q fringes that carry the resolution.
+
+    Example:
+        >>> labels, bragg, region = cluster_bragg_signal(
+        ...     data, threshold=0.3, merge_size=5)
+        >>> aliens = [k for k in np.unique(labels) if k not in (0, bragg)]
+    """
+    from scipy.ndimage import binary_dilation
+    from sklearn.cluster import DBSCAN
+
+    values = np.array(data, dtype=np.float64)
+    if mask is not None:
+        values[np.asarray(mask) > 0] = 0
+    positive = values > 0
+    log_values = np.zeros_like(values)
+    log_values[positive] = np.log(values[positive])
+    low, high = log_values[positive].min(), log_values[positive].max()
+    log_values[positive] = (log_values[positive] - low) / (high - low)
+    above = log_values > threshold
+    if merge_size > 1:
+        from scipy.ndimage import maximum_filter
+
+        above = maximum_filter(above, size=merge_size)
+    points = np.argwhere(above)
+    found = DBSCAN(eps=eps, min_samples=min_samples).fit(points).labels_
+    labels = np.zeros(values.shape, dtype=np.int32)
+    # DBSCAN noise (-1) stays 0, clusters are numbered from 1
+    labels[tuple(points.T)] = found + 1
+    maximum = np.unravel_index(np.argmax(values), values.shape)
+    bragg_label = int(labels[maximum])
+    bragg_region = binary_dilation(labels == bragg_label, iterations=dilation)
+    return labels, bragg_label, bragg_region
+
+
+def background_map(
+    data: np.ndarray,
+    bragg_region: np.ndarray,
+    mask: np.ndarray = None,
+    sigma: float = 5.0,
+    pure_pixels: bool = False,
+) -> np.ndarray:
+    """
+    Per-pixel background of a rocking scan, from the frames where that
+    detector pixel is outside the Bragg region (detector frame, axis 0
+    = rocking). The diffuse background (cell, air, substrate) varies
+    slowly across the detector and not with the rocking angle. The
+    per-pixel mean is smoothed in the detector plane by a normalised
+    Gaussian convolution, which also fills pixels that are inside the
+    Bragg region in every frame.
+
+    Args:
+        data: Intensity (photons), shape (frames, rows, columns).
+        bragg_region: True where the Bragg signal is (e.g. output of
+            :func:`cluster_bragg_signal`).
+        mask: Non-zero for masked voxels.
+        sigma: Gaussian width (pixels) in the detector plane.
+        pure_pixels: Use only the detector pixels that are outside the
+            Bragg region in every frame (weak fringes crossing a pixel in
+            some frames then cannot leak into the estimate); the others
+            are filled by the smoothing.
+
+    Returns:
+        Background per pixel and frame, shape (rows, columns).
+
+    Example:
+        >>> _, _, region = cluster_bragg_signal(data, merge_size=5)
+        >>> background = background_map(data, region, sigma=10,
+        ...                              pure_pixels=True)
+        >>> cleaned = np.clip(data - background[None], 0, None)
+    """
+    from scipy.ndimage import gaussian_filter
+
+    usable = ~np.asarray(bragg_region, dtype=bool)
+    if mask is not None:
+        usable &= np.asarray(mask) == 0
+    if pure_pixels:
+        usable &= ~np.asarray(bragg_region, dtype=bool).any(axis=0)[None]
+    counts = usable.sum(axis=0).astype(np.float64)
+    sums = np.where(usable, data, 0).sum(axis=0).astype(np.float64)
+    smoothed_sums = gaussian_filter(sums, sigma)
+    smoothed_counts = gaussian_filter(counts, sigma)
+    return smoothed_sums / np.maximum(smoothed_counts, 1e-12)
 
 
 def valid_args_only(params: dict, function: callable) -> dict:

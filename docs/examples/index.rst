@@ -9,9 +9,12 @@ This section contains practical examples and Jupyter notebooks demonstrating CDI
 
    ../bcdi_pipeline_example
    ../interactive_features
+   ../multivolume_viewer
    ../bcdi_reconstruction_analysis
    ../explore_cxi_file
    ../pole_figure
+   ../bragg_signal_clustering
+   ../domain_model_fit
 
 Jupyter Notebook Examples
 --------------------------
@@ -31,6 +34,20 @@ Interactive 3D Visualisation
 * Colormap selection and colorbar control (auto-scale, symmetric, manual limits)
 * NaN handling for clean visualisations
 * Theme toggle and rotation animations
+
+Several Fields, Conditions and Facets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`multivolume_viewer.ipynb <../../examples/multivolume_viewer.ipynb>`
+
+Runs on synthetic data (no beamline files). Learn to use ``MultiVolumeViewer``:
+
+* several conditions (e.g. pressure steps) with units on the colorbars
+* views built by script: surface strain, slices, colour-range presets
+* facet patches with area and strain per facet, surface shell / core statistics
+* PNG, GIF / MP4 and interactive HTML exports with the built-in renderer
+* saving a view as a reusable script
+* opening cdiutils results with ``from_cdiutils`` and the ``launcher`` form
 
 BCDI Pipeline Example
 ~~~~~~~~~~~~~~~~~~~~~
@@ -82,6 +99,33 @@ This example covers:
 * Crystal orientation mapping
 * Pole figure generation and interpretation
 * Advanced crystallographic analysis
+
+Bragg Signal Clustering, Aliens and Background
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`bragg_signal_clustering.ipynb <../../examples/bragg_signal_clustering.ipynb>`
+
+Separate the Bragg signal from aliens and background (synthetic data):
+
+* ``cluster_bragg_signal`` with and without fringe merging (``merge_size``)
+* Masking a separate alien peak, far from the Bragg region
+* ``background_map``: pure pixels against all usable frames, compared with
+  the true background
+
+Domain Models: Phase Steps, Tilts or Bending
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Download:** :download:`domain_model_fit.ipynb <../../examples/domain_model_fit.ipynb>`
+
+Test the interpretation of a reconstruction against the measured intensity
+(synthetic known answers):
+
+* ``segment_domains`` and ``measure_domain_phases`` on a band-limited
+  reconstruction
+* ``DomainModelFit``: phase steps (``"A"``), tilts (``"B"``), no steps
+  (``"C"``) and a bent crystal (``"bend"``), compared by Poisson deviance
+* Recovering the phase steps and the curvature, and checking that each
+  dataset selects its own model
 
 Template Notebooks
 -------------------

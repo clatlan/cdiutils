@@ -69,7 +69,7 @@ class ID01Loader(H5TypeLoader):
         "detector_outofplane_angle": "delta",
         "detector_inplane_angle": "nu",
     }
-    authorised_detector_names = ("mpxgaas", "mpx1x4", "eiger2M")
+    authorised_detector_names = ("mpxgaas", "mpx1x4", "eiger2M", "citius")
 
     def __init__(
         self,

@@ -8,15 +8,6 @@ Loader
    :undoc-members:
    :show-inheritance:
 
-   .. rubric:: Methods
-
-   .. autosummary::
-      ~Loader.load_energy
-      ~Loader.load_det_calib_params
-      ~Loader.load_detector_shape
-      ~Loader.get_detector_name
-      ~Loader.load_angles
-
 Examples
 --------
 

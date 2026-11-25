@@ -56,9 +56,10 @@ def pole_figure(
             (lowest coordinates), projecting from the opposite pole.
 
             The absolute value indicates which axis (xu convention):
-                |axis|=0: project onto yz-plane (normal to x-axis)
-                |axis|=1: project onto xz-plane (normal to y-axis)
-                |axis|=2: project onto xy-plane (normal to z-axis)
+
+            - ``|axis|=0``: project onto yz-plane (normal to x-axis)
+            - ``|axis|=1``: project onto xz-plane (normal to y-axis)
+            - ``|axis|=2``: project onto xy-plane (normal to z-axis)
 
             Defaults to "2", giving the standard upper hemisphere
             projection onto the xy-plane.

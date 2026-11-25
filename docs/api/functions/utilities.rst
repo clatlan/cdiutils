@@ -1,68 +1,75 @@
 Utility Functions
 =================
 
-.. currentmodule:: cdiutils.utils
+Index of the functions of :mod:`cdiutils.utils`; each entry links to its
+full documentation on the :doc:`../utils` page.
 
-This page documents utility functions used across the package.
+Arrays and Shapes
+-----------------
 
-Array Manipulation
-------------------
+.. autosummary::
 
-.. autofunction:: crop_array
+   cdiutils.utils.crop_at_center
+   cdiutils.utils.symmetric_pad
+   cdiutils.utils.center
+   cdiutils.utils.find_max_pos
+   cdiutils.utils.nan_center_of_mass
+   cdiutils.utils.compute_distance_from_com
+   cdiutils.utils.bin_along_axis
+   cdiutils.utils.shape_for_safe_centred_cropping
+   cdiutils.utils.find_suitable_array_shape
+   cdiutils.utils.extract_reduced_shape
+   cdiutils.utils.ensure_pynx_shape
+   cdiutils.utils.is_valid_shape
+   cdiutils.utils.adjust_to_valid_shape
+   cdiutils.utils.get_prime_factors
+   cdiutils.utils.get_centred_slices
+   cdiutils.utils.transform_volume
 
-.. autofunction:: pad_array
-
-.. autofunction:: centre_array
-
-.. autofunction:: find_centre_of_mass
-
-Masking
--------
-
-.. autofunction:: make_support
-
-.. autofunction:: make_mask
-
-.. autofunction:: apply_mask
-
-Binning & Resampling
---------------------
-
-.. autofunction:: bin_data
-
-.. autofunction:: rebin
-
-.. autofunction:: interpolate_to_grid
-
-File I/O Helpers
+Values and Masks
 ----------------
 
-.. autofunction:: load_npy
+.. autosummary::
 
-.. autofunction:: save_npy
+   cdiutils.utils.normalise
+   cdiutils.utils.normalise_complex_array
+   cdiutils.utils.num_to_nan
+   cdiutils.utils.zero_to_nan
+   cdiutils.utils.nan_to_zero
+   cdiutils.utils.to_bool
+   cdiutils.utils.hybrid_gradient
 
-.. autofunction:: load_h5
+Supports
+--------
 
-.. autofunction:: save_h5
+.. autosummary::
 
-.. autofunction:: load_vtk
+   cdiutils.utils.make_support
+   cdiutils.utils.fill_up_support
+   cdiutils.utils.size_up_support
+   cdiutils.utils.find_hull
 
-.. autofunction:: save_to_vtk
+Detector Data
+-------------
 
-String & Path Utilities
------------------------
+.. autosummary::
 
-.. autofunction:: parse_filename
+   cdiutils.utils.hot_pixel_filter
+   cdiutils.utils.cluster_bragg_signal
+   cdiutils.utils.background_map
+   cdiutils.utils.get_oversampling_ratios
+   cdiutils.utils.oversampling_from_diffraction
+   cdiutils.utils.get_reciprocal_voxel_size
+   cdiutils.utils.compute_corrected_angles
 
-.. autofunction:: get_scan_prefix
+Vectors, Energy and Helpers
+---------------------------
 
-.. autofunction:: find_files
+.. autosummary::
 
-Mathematics
------------
-
-.. autofunction:: ortho_modes
-
-.. autofunction:: compute_fwhm
-
-.. autofunction:: gaussian_window
+   cdiutils.utils.unit_vector
+   cdiutils.utils.angle
+   cdiutils.utils.v1_to_v2_rotation_matrix
+   cdiutils.utils.energy_to_wavelength
+   cdiutils.utils.wavelength_to_energy
+   cdiutils.utils.valid_args_only

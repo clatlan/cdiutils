@@ -212,6 +212,7 @@ def get_histogram(
     the data.
     Optionally applies a support mask to the data before and calculates
     the surface and bulk histograms.
+
     Args:
         data (np.ndarray): the data to be analysed
         support (np.ndarray): the support mask to be applied to the data
@@ -393,3 +394,140 @@ def plot_histogram(
 
             return fwhm_value
     return None
+
+
+def get_depth_map(support: np.ndarray, axis: int = 1) -> tuple:
+    """
+    Depth below the top and height above the bottom of the support,
+    column by column along one axis.
+
+    For each column along ``axis`` (the vertical in the CXI convention
+    of the post-processed arrays), the depth of a voxel is its distance
+    to the top support voxel of the same column, so layers of equal
+    depth follow the top surface. Useful when a sample was irradiated
+    or exposed from the top.
+
+    Args:
+        support (np.ndarray): the 3D support.
+        axis (int, optional): the vertical axis, pointing up.
+            Defaults to 1 (y in the CXI convention).
+
+    Returns:
+        tuple: (depth, height) arrays in voxels, NaN outside the
+            support.
+    """
+    support = np.moveaxis(np.asarray(support) > 0, axis, -1)
+    length = support.shape[-1]
+    index = np.arange(length)
+    filled = support.any(-1)
+    top = np.where(filled, (support * index).max(-1), -1)
+    bottom = np.where(filled, np.where(support, index, length).min(-1), -1)
+    depth = np.where(support, top[..., None] - index, np.nan)
+    height = np.where(support, index - bottom[..., None], np.nan)
+    return np.moveaxis(depth, -1, axis), np.moveaxis(height, -1, axis)
+
+
+def get_depth_profile(
+    data: np.ndarray,
+    support: np.ndarray,
+    voxel_size: float = 1.0,
+    axis: int = 1,
+    min_count: int = 100,
+    shell: int = 0,
+) -> dict:
+    """
+    Mean and standard deviation of a quantity per layer of equal depth
+    below the top surface (see get_depth_map).
+
+    Args:
+        data (np.ndarray): the 3D quantity (e.g. the strain).
+        support (np.ndarray): the 3D support.
+        voxel_size (float, optional): voxel size along the vertical
+            axis, to express the depth in length units. Defaults to 1.
+        axis (int, optional): the vertical axis. Defaults to 1.
+        min_count (int, optional): layers with fewer voxels are
+            skipped. Defaults to 100.
+        shell (int, optional): number of outer voxel layers of the
+            support removed before averaging, so that side facets do not
+            enter the deeper layers. Defaults to 0.
+
+    Returns:
+        dict: "depth", "mean", "std" and "count" arrays, one value per
+            kept layer.
+    """
+    support = np.asarray(support) > 0
+    depth, _ = get_depth_map(support, axis)
+    used = binary_erosion(support, iterations=shell) if shell else support
+    used = used & np.isfinite(data)
+    profile = {"depth": [], "mean": [], "std": [], "count": []}
+    for layer in range(int(np.nanmax(depth)) + 1):
+        values = data[used & (depth == layer)]
+        if values.size < min_count:
+            continue
+        profile["depth"].append(layer * voxel_size)
+        profile["mean"].append(values.mean())
+        profile["std"].append(values.std())
+        profile["count"].append(values.size)
+    return {key: np.array(value) for key, value in profile.items()}
+
+
+def normalise_domains(
+    amplitude: np.ndarray,
+    min_share: float = 0.2,
+    percentile: float = 99,
+) -> tuple:
+    """
+    Normalise each domain of a reconstruction to its own plateau.
+
+    For particles split by a planar defect (e.g. a twin lamella), one
+    isosurface for the whole object places the surface at a different
+    relative level in each domain. Here the two largest regions found
+    at the highest amplitude level where both exist are taken as seeds,
+    every voxel is given to the nearest seed, and each domain is
+    divided by the given percentile of its seed amplitude. The surface
+    can then be cut at one relative level for all domains (e.g. with
+    find_isosurface or a fixed value).
+
+    Args:
+        amplitude (np.ndarray): the 3D amplitude.
+        min_share (float, optional): the second region must hold at
+            least this share of the first. Defaults to 0.2.
+        percentile (float, optional): percentile of the seed amplitude
+            used as the plateau. Defaults to 99.
+
+    Returns:
+        tuple: (normalised amplitude, domain labels (0 if a single
+            domain), dict of the plateau of each domain).
+    """
+    from scipy.ndimage import distance_transform_edt, label
+
+    amplitude = np.abs(amplitude)
+    relative = amplitude / amplitude.max()
+    for level in np.arange(0.9, 0.1, -0.02):
+        labels, n_regions = label(relative > level)
+        if n_regions < 2:
+            continue
+        sizes = np.bincount(labels.ravel())[1:]
+        if np.sort(sizes)[-2] > min_share * sizes.max():
+            break
+    else:
+        plateau = np.percentile(amplitude[relative > 0.5], percentile)
+        return (
+            amplitude / plateau,
+            np.zeros(amplitude.shape, int),
+            {0: float(plateau)},
+        )
+    largest = np.argsort(sizes)[-2:] + 1
+    seeds = np.where(np.isin(labels, largest), labels, 0)
+    nearest = distance_transform_edt(
+        seeds == 0, return_distances=False, return_indices=True
+    )
+    domains = seeds[tuple(nearest)]
+    plateaus = {
+        int(k): float(np.percentile(amplitude[seeds == k], percentile))
+        for k in largest
+    }
+    normalised = np.zeros_like(amplitude, dtype=float)
+    for k, plateau in plateaus.items():
+        normalised[domains == k] = amplitude[domains == k] / plateau
+    return normalised, domains, plateaus

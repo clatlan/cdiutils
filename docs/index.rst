@@ -10,7 +10,7 @@ Main Capabilities
   Handle pre-processing, phasing (PyNX backend), and post-processing to extract quantitative strain information. Jupyter notebooks provide step-by-step workflows:
   
   * :download:`bcdi_pipeline_example.ipynb <bcdi_pipeline_example.ipynb>`
-  * :download:`step_by_step_bcdi_analysis.ipynb <../step_by_step_bcdi_analysis.ipynb>`
+  * :download:`step_by_step_bcdi_analysis.ipynb <../src/cdiutils/templates/step_by_step_bcdi_analysis.ipynb>`
 
 **Multiple beamline geometries**
   Support for ID01, P10, SIXS, NanoMAX, and ID27 beamlines. Coordinate transformations use :doc:`CXI convention <user_guide/coordinate_systems>` and xrayutilities backends.

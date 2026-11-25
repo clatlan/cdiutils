@@ -73,6 +73,11 @@ nbsphinx_prolog = """
 # Additional configuration for requirejs (needed for Plotly and widgets)
 nbsphinx_requirejs_path = ""
 
+# -- Options for napoleon ---------------------------------------------------
+# "Attributes:" sections as :ivar: fields: as attribute directives they
+# duplicated the attributes autodoc already documents (undoc-members)
+napoleon_use_ivar = True
+
 # -- Options for autodoc -----------------------------------------------------
 autodoc_default_options = {
     "members": True,
