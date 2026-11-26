@@ -187,7 +187,8 @@ class Geometry:
             detector: Detector name. For ID01, CITIUS uses a date-dependent
                 detector axis orientation.
             experiment_date: Acquisition date used to select the historical
-                CITIUS geometry. Can be a date or datetime object.
+                ID01 CITIUS and NanoMAX geometries. Can be a date or datetime
+                object.
         Returns:
             Configured Geometry instance for the beamline.
 
@@ -218,8 +219,6 @@ class Geometry:
             )
 
         geometry = None
-
-        # Note that we use CXI convention here
         if beamline.lower() in ("id01", "id01spec", "id01bliss"):
             detector_name = (detector or "").strip().lower()
             cutoff_date = date(2026, 11, 10)
@@ -239,7 +238,7 @@ class Geometry:
                 detector_axis0_orientation="y+" if is_old_citius else "y-",
                 detector_axis1_orientation="x+",
                 beam_direction=[1, 0, 0],
-                sample_surface_normal=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],
                 name="ID01",
             )
             # default orientation for ID01 when sample is vertical
@@ -274,15 +273,25 @@ class Geometry:
                 name="SIXS",
             )
         if beamline.lower() == "nanomax":
+            cutoff_date = date(2026, 11, 25)
+
+            if isinstance(experiment_date, datetime):
+                experiment_date = experiment_date.date()
+
+            is_new_geometry = (
+                experiment_date is not None and experiment_date >= cutoff_date
+            )
+
             geometry = cls(
                 sample_circles=["x-", "y-"],  # gontheta, gonphi
                 detector_circles=["y-", "x-"],  # gamma, delta
-                detector_axis0_orientation="y-",
-                detector_axis1_orientation="x-",
+                detector_axis0_orientation="x-" if is_new_geometry else "y-",
+                detector_axis1_orientation="y-" if is_new_geometry else "x-",
                 beam_direction=[1, 0, 0],
-                sample_surface_normal=[0, 1, 0],  # default sample facing up
+                sample_surface_normal=[0, 1, 0],
                 name="NanoMAX",
             )
+
         if beamline.lower() == "cristal":
             # OK FOR omega/delta but not for the two others
             geometry = cls(

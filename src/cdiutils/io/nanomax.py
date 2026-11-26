@@ -4,6 +4,9 @@ See:
 https://www.maxiv.lu.se/beamlines-accelerators/beamlines/nanomax/
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import numpy as np
 
 from cdiutils.io.loader import H5TypeLoader, h5_safe_load
@@ -193,6 +196,28 @@ class NanoMAXLoader(H5TypeLoader):
         return angles
 
     @h5_safe_load
+    def get_start_time(self) -> datetime | None:
+        """Return the first acquisition timestamp in the NanoMAX local time zone."""
+        key_path = "entry/measurement/alba2/acquisition_timestamp"
+
+        if key_path not in self.h5file:
+            return None
+
+        timestamps = np.asarray(self.h5file[key_path][()]).ravel()
+
+        if timestamps.size == 0:
+            return None
+
+        timestamp = float(timestamps[0])
+
+        if not np.isfinite(timestamp) or timestamp <= 0:
+            return None
+
+        return datetime.fromtimestamp(
+            timestamp, tz=ZoneInfo("Europe/Stockholm")
+        )
+
+    @h5_safe_load
     def load_energy(self) -> float:
         """
         Load and return the energy used during the experiment.
@@ -202,7 +227,7 @@ class NanoMAXLoader(H5TypeLoader):
                 from.
 
         Returns:
-            float: the energy value in keV.
+            float: the energy value in eV.
         """
         return self.h5file["entry/snapshots/post_scan/energy"][0]
 

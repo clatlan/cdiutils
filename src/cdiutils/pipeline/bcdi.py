@@ -425,8 +425,7 @@ class BcdiPipeline(Pipeline):
             self.voi["cropped"][pos] = CroppingHandler.get_position(
                 self.cropped_detector_data, pos
             )
-
-        # Initialise SpaceConverter, later used for orthogonalisation
+        # Initialise SpaceConverter with detector-specific geometry
         geometry = Geometry.from_setup(
             self.params["beamline_setup"],
             sample_orientation=self.params.get("sample_orientation", None),
@@ -639,16 +638,24 @@ class BcdiPipeline(Pipeline):
                 )
 
         self.experiment_date = None
-        if (
-            self.params["beamline_setup"].lower()
-            in ("id01", "id01spec", "id01bliss")
-            and (self.params["detector_name"] or "").lower() == "citius"
-        ):
-            self.experiment_date = loader.get_start_time().date()
-            self.logger.info(
-                f"CITIUS acquisition date: {self.experiment_date}"
-            )
+        beamline = self.params["beamline_setup"].lower()
+        detector = (self.params["detector_name"] or "").lower()
 
+        if (
+            beamline in ("id01", "id01spec", "id01bliss")
+            and detector == "citius"
+        ) or beamline == "nanomax":
+            start_time = loader.get_start_time()
+
+            if start_time is not None:
+                self.experiment_date = start_time.date()
+                self.logger.info(
+                    f"{beamline.upper()} acquisition date: {self.experiment_date}"
+                )
+            else:
+                self.logger.warning(
+                    f"{beamline.upper()} acquisition date unavailable. Using default geometry."
+                )
         self.detector_data = loader.load_detector_data(
             roi=roi, rocking_angle_binning=self.params["rocking_angle_binning"]
         )
